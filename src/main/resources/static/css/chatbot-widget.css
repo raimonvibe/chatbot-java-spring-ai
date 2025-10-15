@@ -1,0 +1,370 @@
+/* Noupe AI Chatbot Widget Styles */
+
+#noupe-chatbot-widget {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    z-index: 9999;
+}
+
+#noupe-chat-container {
+    display: none;
+    width: 350px;
+    height: 500px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+#noupe-chat-container.show {
+    display: flex;
+}
+
+/* Header Styles */
+.noupe-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.noupe-header h6 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.noupe-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.noupe-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Messages Container */
+#noupe-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    scroll-behavior: smooth;
+}
+
+.noupe-message {
+    margin-bottom: 16px;
+    display: flex;
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.noupe-message.user {
+    justify-content: flex-end;
+}
+
+.noupe-message.bot {
+    justify-content: flex-start;
+}
+
+.noupe-message-bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    line-height: 1.4;
+    position: relative;
+}
+
+.noupe-message.user .noupe-message-bubble {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.noupe-message.bot .noupe-message-bubble {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Typing Indicator */
+.noupe-typing {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: flex-start;
+    color: #666;
+    font-style: italic;
+}
+
+.noupe-typing-bubble {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.noupe-typing-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.noupe-typing-dots .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #999;
+    animation: pulse 1.4s infinite;
+}
+
+.noupe-typing-dots .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.noupe-typing-dots .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* Input Area */
+.noupe-input-area {
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0 0 12px 12px;
+}
+
+.noupe-input-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#noupe-message-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 24px;
+    outline: none;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+#noupe-message-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#noupe-send-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+#noupe-send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+#noupe-send-btn:active {
+    transform: scale(0.95);
+}
+
+/* Toggle Button */
+#noupe-toggle-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+#noupe-toggle-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+
+#noupe-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+#noupe-toggle-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+#noupe-toggle-btn:hover::before {
+    transform: translateX(100%);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    #noupe-chat-container {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+    
+    #noupe-toggle-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+}
+
+/* Scrollbar Styling */
+#noupe-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+#noupe-messages::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#noupe-messages::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#noupe-messages::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+    #noupe-chat-container {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+    
+    #noupe-messages {
+        background: #2a2a2a;
+    }
+    
+    .noupe-message.bot .noupe-message-bubble {
+        background: #333;
+        color: #fff;
+        border-color: #444;
+    }
+    
+    .noupe-input-area {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+    
+    #noupe-message-input {
+        background: #333;
+        color: #fff;
+        border-color: #444;
+    }
+    
+    #noupe-message-input:focus {
+        border-color: #667eea;
+    }
+}
+
+/* Custom Branding Variables */
+:root {
+    --noupe-primary-color: #667eea;
+    --noupe-secondary-color: #764ba2;
+    --noupe-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --noupe-border-radius: 12px;
+    --noupe-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Utility Classes */
+.noupe-hidden {
+    display: none !important;
+}
+
+.noupe-visible {
+    display: block !important;
+}
+
+.noupe-fade-in {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.noupe-bounce {
+    animation: bounce 1s ease-in-out;
+}

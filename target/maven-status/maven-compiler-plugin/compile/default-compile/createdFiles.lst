@@ -1,0 +1,15 @@
+com\noupe\chatbot\model\Conversation.class
+com\noupe\chatbot\service\AiChatbotService.class
+com\noupe\chatbot\repository\ConversationRepository.class
+com\noupe\chatbot\repository\WebsiteContentRepository.class
+com\noupe\chatbot\controller\WebController.class
+com\noupe\chatbot\AiChatbotApplication.class
+com\noupe\chatbot\model\Message$MessageType.class
+com\noupe\chatbot\service\WebsiteAnalysisService.class
+com\noupe\chatbot\model\WebsiteContent.class
+com\noupe\chatbot\repository\ChatbotRepository.class
+com\noupe\chatbot\repository\MessageRepository.class
+com\noupe\chatbot\controller\ChatbotController.class
+com\noupe\chatbot\controller\ChatController.class
+com\noupe\chatbot\model\Message.class
+com\noupe\chatbot\model\Chatbot.class

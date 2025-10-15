@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${chatbot.id != null} ? 'Edit Chatbot' : 'Create New Chatbot'">Create New Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .form-section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .btn-gradient {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(45deg, #5a6fd8, #6a4190);
+            color: white;
+        }
+        .language-tag {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            margin: 0.2rem;
+            font-size: 0.9rem;
+        }
+        .language-tag .remove {
+            cursor: pointer;
+            margin-left: 0.5rem;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>Noupe AI Chatbot
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/chatbots">
+                    <i class="fas fa-list me-1"></i>Back to Chatbots
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="text-center mb-4">
+                    <h1 class="fw-bold">
+                        <i class="fas fa-robot me-2"></i>
+                        <span th:text="${chatbot.id != null} ? 'Edit Chatbot' : 'Create New Chatbot'">Create New Chatbot</span>
+                    </h1>
+                    <p class="text-muted">Configure your AI chatbot settings</p>
+                </div>
+
+                <form th:action="${chatbot.id != null} ? @{/api/chatbots/{id}(id=${chatbot.id})} : @{/api/chatbots}" 
+                      th:object="${chatbot}" method="post" id="chatbotForm">
+                    
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-info-circle me-2"></i>Basic Information
+                        </h4>
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Chatbot Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   th:field="*{name}" placeholder="My AI Assistant" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="websiteUrl" class="form-label">Website URL *</label>
+                            <input type="url" class="form-control" id="websiteUrl" name="websiteUrl" 
+                                   th:field="*{websiteUrl}" placeholder="https://example.com" required>
+                            <div class="form-text">The website to analyze for chatbot training</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      th:field="*{description}" rows="3" 
+                                      placeholder="Brief description of your chatbot's purpose"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Language Settings -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-language me-2"></i>Language Settings
+                        </h4>
+                        
+                        <div class="mb-3">
+                            <label for="primaryLanguage" class="form-label">Primary Language</label>
+                            <select class="form-select" id="primaryLanguage" name="primaryLanguage" th:field="*{primaryLanguage}">
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ru">Russian</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                                <option value="ko">Korean</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Supported Languages</label>
+                            <div class="input-group">
+                                <select class="form-select" id="languageSelect">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="ru">Russian</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="ko">Korean</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" onclick="addLanguage()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="selectedLanguages" class="mt-2">
+                                <!-- Selected languages will appear here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Configuration -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-brain me-2"></i>AI Configuration
+                        </h4>
+                        
+                        <div class="mb-3">
+                            <label for="customPrompt" class="form-label">Custom Prompt</label>
+                            <textarea class="form-control" id="customPrompt" name="customPrompt" 
+                                      th:field="*{customPrompt}" rows="4" 
+                                      placeholder="Additional instructions for the AI assistant..."></textarea>
+                            <div class="form-text">Optional: Add specific instructions for how the chatbot should behave</div>
+                        </div>
+                    </div>
+
+                    <!-- Branding -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-palette me-2"></i>Branding
+                        </h4>
+                        
+                        <div class="mb-3">
+                            <label for="brandingConfig" class="form-label">Branding Configuration (JSON)</label>
+                            <textarea class="form-control" id="brandingConfig" name="brandingConfig" 
+                                      th:field="*{brandingConfig}" rows="6" 
+                                      placeholder='{"primaryColor": "#007bff", "secondaryColor": "#6c757d", "fontFamily": "Arial, sans-serif"}'>{
+  "primaryColor": "#007bff",
+  "secondaryColor": "#6c757d", 
+  "fontFamily": "Arial, sans-serif",
+  "borderRadius": "8px",
+  "buttonStyle": "rounded"
+}</textarea>
+                            <div class="form-text">JSON configuration for chatbot appearance</div>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-toggle-on me-2"></i>Status
+                        </h4>
+                        
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="isActive" name="isActive" 
+                                   th:field="*{isActive}">
+                            <label class="form-check-label" for="isActive">
+                                Active (Chatbot is enabled and ready to respond)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex gap-3 justify-content-end">
+                        <a href="/chatbots" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save me-1"></i>
+                            <span th:text="${chatbot.id != null} ? 'Update Chatbot' : 'Create Chatbot'">Create Chatbot</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const selectedLanguages = new Set();
+        
+        // Initialize with existing languages if editing
+        document.addEventListener('DOMContentLoaded', function() {
+            const existingLanguages = /*[[${chatbot.supportedLanguages}]]*/ [];
+            if (existingLanguages) {
+                existingLanguages.forEach(lang => {
+                    selectedLanguages.add(lang);
+                    addLanguageTag(lang);
+                });
+            }
+        });
+        
+        function addLanguage() {
+            const select = document.getElementById('languageSelect');
+            const language = select.value;
+            
+            if (!selectedLanguages.has(language)) {
+                selectedLanguages.add(language);
+                addLanguageTag(language);
+            }
+        }
+        
+        function addLanguageTag(language) {
+            const container = document.getElementById('selectedLanguages');
+            const tag = document.createElement('span');
+            tag.className = 'language-tag';
+            tag.innerHTML = language.toUpperCase() + ' <span class="remove" onclick="removeLanguage(\'' + language + '\')">&times;</span>';
+            container.appendChild(tag);
+        }
+        
+        function removeLanguage(language) {
+            selectedLanguages.delete(language);
+            // Re-render tags
+            const container = document.getElementById('selectedLanguages');
+            container.innerHTML = '';
+            selectedLanguages.forEach(lang => addLanguageTag(lang));
+        }
+        
+        // Handle form submission
+        document.getElementById('chatbotForm').addEventListener('submit', function(e) {
+            // Add selected languages to form data
+            const formData = new FormData(this);
+            formData.delete('supportedLanguages'); // Remove existing
+            
+            selectedLanguages.forEach(lang => {
+                formData.append('supportedLanguages', lang);
+            });
+            
+            // Convert to JSON and submit
+            fetch(this.action, {
+                method: this.method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(Object.fromEntries(formData))
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = '/chatbots';
+                } else {
+                    alert('Error saving chatbot');
+                }
+            });
+            
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>

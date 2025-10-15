@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: ai-chatbot-system
+  
+  datasource:
+    url: jdbc:h2:mem:chatbotdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  security:
+    user:
+      name: admin
+      password: admin123
+      roles: ADMIN
+
+# Spring AI Configuration
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:your-openai-api-key-here}
+      base-url: https://api.openai.com
+      chat:
+        options:
+          model: gpt-3.5-turbo
+          temperature: 0.7
+          max-tokens: 1000
+    
+    vectorstore:
+      pinecone:
+        api-key: ${PINECONE_API_KEY:your-pinecone-api-key-here}
+        environment: ${PINECONE_ENVIRONMENT:your-pinecone-environment}
+        index-name: chatbot-vectors
+        namespace: default
+
+# Application Configuration
+app:
+  chatbot:
+    max-conversation-history: 10
+    default-language: en
+    supported-languages: en,es,fr,de,it,pt,ru,zh,ja,ko
+  
+  website-analysis:
+    max-pages: 50
+    max-depth: 3
+    timeout-seconds: 30
+    user-agent: "AI-Chatbot-Crawler/1.0"
+  
+  embedding:
+    model: text-embedding-ada-002
+    dimensions: 1536
+    batch-size: 100
+
+# Logging
+logging:
+  level:
+    com.noupe: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/chatbot.log
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chatbot - <span th:text="${chatbot.name}">Chatbot Name</span></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: 500px;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 1rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .message.user {
+            text-align: right;
+        }
+        .message.bot {
+            text-align: left;
+        }
+        .message-bubble {
+            display: inline-block;
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        .message.user .message-bubble {
+            background: #007bff;
+            color: white;
+        }
+        .message.bot .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #dee2e6;
+        }
+        .chat-input {
+            border-top: 1px solid #dee2e6;
+            padding: 1rem;
+            background: white;
+        }
+        .typing-indicator {
+            display: none;
+            padding: 0.75rem 1rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .typing-indicator.show {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .test-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>Noupe AI Chatbot
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" th:href="@{/chatbots/{id}(id=${chatbot.id})}">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Chatbot
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold">
+                        <i class="fas fa-comments me-2"></i>Test Chatbot
+                    </h2>
+                    <div>
+                        <span class="badge bg-success" th:if="${chatbot.isActive}">Active</span>
+                        <span class="badge bg-secondary" th:unless="${chatbot.isActive}">Inactive</span>
+                    </div>
+                </div>
+
+                <div class="test-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>Testing Information</h6>
+                    <p class="mb-0">
+                        <strong>Chatbot:</strong> <span th:text="${chatbot.name}">Chatbot Name</span><br>
+                        <strong>Website:</strong> <span th:text="${chatbot.websiteUrl}">Website URL</span><br>
+                        <strong>Language:</strong> <span th:text="${chatbot.primaryLanguage}">en</span>
+                    </p>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot">
+                            <div class="message-bubble">
+                                <i class="fas fa-robot me-2"></i>
+                                Hello! I'm your AI assistant. How can I help you today?
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="typing-indicator" id="typingIndicator">
+                        <i class="fas fa-circle fa-xs me-1"></i>
+                        <i class="fas fa-circle fa-xs me-1"></i>
+                        <i class="fas fa-circle fa-xs me-1"></i>
+                        AI is typing...
+                    </div>
+                    
+                    <div class="chat-input">
+                        <form id="chatForm">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="messageInput" 
+                                       placeholder="Type your message here..." autocomplete="off">
+                                <button type="submit" class="btn btn-primary" id="sendButton">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h6>Quick Test Messages</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('What services do you offer?')">
+                            What services do you offer?
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('How can I contact you?')">
+                            How can I contact you?
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('What are your business hours?')">
+                            What are your business hours?
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('Tell me about your company')">
+                            Tell me about your company
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cog me-2"></i>Chatbot Settings
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Language</label>
+                            <select class="form-select" id="languageSelect">
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ru">Russian</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                                <option value="ko">Korean</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Session ID</label>
+                            <input type="text" class="form-control" id="sessionId" readonly>
+                        </div>
+                        
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="clearChat()">
+                            <i class="fas fa-trash me-1"></i>Clear Chat
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Test Statistics
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="h5 mb-0" id="messageCount">0</div>
+                                <small class="text-muted">Messages</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="h5 mb-0" id="responseTime">0ms</div>
+                                <small class="text-muted">Avg Response</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let messageCount = 0;
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        
+        // Initialize session ID
+        document.getElementById('sessionId').value = 'test-session-' + Date.now();
+        
+        // Set default language
+        document.getElementById('languageSelect').value = /*[[${chatbot.primaryLanguage}]]*/ 'en';
+        
+        // Handle form submission
+        document.getElementById('chatForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message) {
+                sendMessage(message);
+                messageInput.value = '';
+            }
+        });
+        
+        function sendMessage(message) {
+            // Add user message to chat
+            addMessage(message, 'user');
+            messageCount++;
+            updateStats();
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Send to API
+            const sessionId = document.getElementById('sessionId').value;
+            const language = document.getElementById('languageSelect').value;
+            
+            fetch(`/api/chat/${/*[[${chatbot.id}]]*/ 1}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    sessionId: sessionId,
+                    language: language
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideTypingIndicator();
+                
+                if (data.error) {
+                    addMessage('Error: ' + data.error, 'bot');
+                } else {
+                    addMessage(data.message, 'bot');
+                    
+                    // Update response time stats
+                    if (data.timestamp) {
+                        const responseTime = Date.now() - data.timestamp;
+                        totalResponseTime += responseTime;
+                        responseCount++;
+                        updateStats();
+                    }
+                }
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                addMessage('Error: Failed to get response', 'bot');
+                console.error('Error:', error);
+            });
+        }
+        
+        function sendQuickMessage(message) {
+            document.getElementById('messageInput').value = message;
+            sendMessage(message);
+        }
+        
+        function addMessage(content, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            
+            if (type === 'bot') {
+                bubble.innerHTML = `<i class="fas fa-robot me-2"></i>${content}`;
+            } else {
+                bubble.textContent = content;
+            }
+            
+            messageDiv.appendChild(bubble);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').classList.add('show');
+        }
+        
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').classList.remove('show');
+        }
+        
+        function clearChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message bot">
+                    <div class="message-bubble">
+                        <i class="fas fa-robot me-2"></i>
+                        Hello! I'm your AI assistant. How can I help you today?
+                    </div>
+                </div>
+            `;
+            messageCount = 0;
+            totalResponseTime = 0;
+            responseCount = 0;
+            updateStats();
+        }
+        
+        function updateStats() {
+            document.getElementById('messageCount').textContent = messageCount;
+            const avgResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
+            document.getElementById('responseTime').textContent = avgResponseTime + 'ms';
+        }
+    </script>
+</body>
+</html>
