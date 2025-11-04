@@ -71,6 +71,39 @@ Start production server:
 npm start
 ```
 
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+The easiest way to deploy this Next.js app is using Vercel:
+
+1. **Push to GitHub** (already done)
+
+2. **Import to Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your GitHub repository
+
+3. **Configure Settings**:
+   - **Root Directory**: Set to `frontend` ⚠️ **IMPORTANT**
+   - Framework Preset: Next.js (auto-detected)
+
+4. **Set Environment Variables**:
+   ```
+   NEXT_PUBLIC_API_URL=https://your-backend-url.com
+   ```
+
+5. **Deploy**: Click Deploy button
+
+For detailed deployment instructions, see [VERCEL_DEPLOYMENT.md](../VERCEL_DEPLOYMENT.md) in the root directory.
+
+### Other Deployment Options
+
+- **Netlify**: Similar to Vercel, set build directory to `frontend`
+- **AWS Amplify**: Connect GitHub repo, set build settings
+- **Docker**: Build and deploy as container
+- **Self-hosted**: Build locally and serve with nginx
+
 ## Project Structure
 
 ```
