@@ -1,11 +1,11 @@
-/* Noupe AI Chatbot Widget Styles */
+/* ChatWeave AI Chatbot Widget Styles */
 
-#noupe-chatbot-widget {
+#chatweave-chatbot-widget {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     z-index: 9999;
 }
 
-#noupe-chat-container {
+#chatweave-chat-container {
     display: none;
     width: 350px;
     height: 500px;
@@ -18,12 +18,12 @@
     overflow: hidden;
 }
 
-#noupe-chat-container.show {
+#chatweave-chat-container.show {
     display: flex;
 }
 
 /* Header Styles */
-.noupe-header {
+.chatweave-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 16px;
@@ -34,13 +34,13 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.noupe-header h6 {
+.chatweave-header h6 {
     margin: 0;
     font-weight: 600;
     font-size: 16px;
 }
 
-.noupe-close-btn {
+.chatweave-close-btn {
     background: none;
     border: none;
     color: white;
@@ -51,12 +51,12 @@
     transition: background-color 0.2s ease;
 }
 
-.noupe-close-btn:hover {
+.chatweave-close-btn:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Messages Container */
-#noupe-messages {
+#chatweave-messages {
     flex: 1;
     padding: 16px;
     overflow-y: auto;
@@ -64,21 +64,21 @@
     scroll-behavior: smooth;
 }
 
-.noupe-message {
+.chatweave-message {
     margin-bottom: 16px;
     display: flex;
     animation: fadeInUp 0.3s ease-out;
 }
 
-.noupe-message.user {
+.chatweave-message.user {
     justify-content: flex-end;
 }
 
-.noupe-message.bot {
+.chatweave-message.bot {
     justify-content: flex-start;
 }
 
-.noupe-message-bubble {
+.chatweave-message-bubble {
     max-width: 80%;
     padding: 12px 16px;
     border-radius: 18px;
@@ -87,13 +87,13 @@
     position: relative;
 }
 
-.noupe-message.user .noupe-message-bubble {
+.chatweave-message.user .chatweave-message-bubble {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-bottom-right-radius: 4px;
 }
 
-.noupe-message.bot .noupe-message-bubble {
+.chatweave-message.bot .chatweave-message-bubble {
     background: white;
     color: #333;
     border: 1px solid #e0e0e0;
@@ -102,7 +102,7 @@
 }
 
 /* Typing Indicator */
-.noupe-typing {
+.chatweave-typing {
     margin-bottom: 16px;
     display: flex;
     justify-content: flex-start;
@@ -110,7 +110,7 @@
     font-style: italic;
 }
 
-.noupe-typing-bubble {
+.chatweave-typing-bubble {
     background: white;
     padding: 12px 16px;
     border-radius: 18px;
@@ -118,12 +118,12 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.noupe-typing-dots {
+.chatweave-typing-dots {
     display: inline-flex;
     gap: 4px;
 }
 
-.noupe-typing-dots .dot {
+.chatweave-typing-dots .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -131,29 +131,29 @@
     animation: pulse 1.4s infinite;
 }
 
-.noupe-typing-dots .dot:nth-child(2) {
+.chatweave-typing-dots .dot:nth-child(2) {
     animation-delay: 0.2s;
 }
 
-.noupe-typing-dots .dot:nth-child(3) {
+.chatweave-typing-dots .dot:nth-child(3) {
     animation-delay: 0.4s;
 }
 
 /* Input Area */
-.noupe-input-area {
+.chatweave-input-area {
     padding: 16px;
     background: white;
     border-top: 1px solid #e0e0e0;
     border-radius: 0 0 12px 12px;
 }
 
-.noupe-input-container {
+.chatweave-input-container {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-#noupe-message-input {
+#chatweave-message-input {
     flex: 1;
     padding: 12px 16px;
     border: 1px solid #ddd;
@@ -163,12 +163,12 @@
     transition: border-color 0.2s ease;
 }
 
-#noupe-message-input:focus {
+#chatweave-message-input:focus {
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-#noupe-send-btn {
+#chatweave-send-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
@@ -183,17 +183,17 @@
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
-#noupe-send-btn:hover {
+#chatweave-send-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-#noupe-send-btn:active {
+#chatweave-send-btn:active {
     transform: scale(0.95);
 }
 
 /* Toggle Button */
-#noupe-toggle-btn {
+#chatweave-toggle-btn {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -211,16 +211,16 @@
     overflow: hidden;
 }
 
-#noupe-toggle-btn:hover {
+#chatweave-toggle-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
 }
 
-#noupe-toggle-btn:active {
+#chatweave-toggle-btn:active {
     transform: scale(0.95);
 }
 
-#noupe-toggle-btn::before {
+#chatweave-toggle-btn::before {
     content: '';
     position: absolute;
     top: 0;
@@ -232,7 +232,7 @@
     transition: transform 0.6s ease;
 }
 
-#noupe-toggle-btn:hover::before {
+#chatweave-toggle-btn:hover::before {
     transform: translateX(100%);
 }
 
@@ -273,7 +273,7 @@
 
 /* Responsive Design */
 @media (max-width: 480px) {
-    #noupe-chat-container {
+    #chatweave-chat-container {
         width: 100vw;
         height: 100vh;
         border-radius: 0;
@@ -284,7 +284,7 @@
         bottom: 0;
     }
     
-    #noupe-toggle-btn {
+    #chatweave-toggle-btn {
         width: 50px;
         height: 50px;
         font-size: 20px;
@@ -292,79 +292,79 @@
 }
 
 /* Scrollbar Styling */
-#noupe-messages::-webkit-scrollbar {
+#chatweave-messages::-webkit-scrollbar {
     width: 6px;
 }
 
-#noupe-messages::-webkit-scrollbar-track {
+#chatweave-messages::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
 }
 
-#noupe-messages::-webkit-scrollbar-thumb {
+#chatweave-messages::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
 }
 
-#noupe-messages::-webkit-scrollbar-thumb:hover {
+#chatweave-messages::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
 
 /* Dark Theme Support */
 @media (prefers-color-scheme: dark) {
-    #noupe-chat-container {
+    #chatweave-chat-container {
         background: #1a1a1a;
         border-color: #333;
     }
     
-    #noupe-messages {
+    #chatweave-messages {
         background: #2a2a2a;
     }
     
-    .noupe-message.bot .noupe-message-bubble {
+    .chatweave-message.bot .chatweave-message-bubble {
         background: #333;
         color: #fff;
         border-color: #444;
     }
     
-    .noupe-input-area {
+    .chatweave-input-area {
         background: #1a1a1a;
         border-color: #333;
     }
     
-    #noupe-message-input {
+    #chatweave-message-input {
         background: #333;
         color: #fff;
         border-color: #444;
     }
     
-    #noupe-message-input:focus {
+    #chatweave-message-input:focus {
         border-color: #667eea;
     }
 }
 
 /* Custom Branding Variables */
 :root {
-    --noupe-primary-color: #667eea;
-    --noupe-secondary-color: #764ba2;
-    --noupe-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --noupe-border-radius: 12px;
-    --noupe-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --chatweave-primary-color: #667eea;
+    --chatweave-secondary-color: #764ba2;
+    --chatweave-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --chatweave-border-radius: 12px;
+    --chatweave-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* Utility Classes */
-.noupe-hidden {
+.chatweave-hidden {
     display: none !important;
 }
 
-.noupe-visible {
+.chatweave-visible {
     display: block !important;
 }
 
-.noupe-fade-in {
+.chatweave-fade-in {
     animation: fadeInUp 0.3s ease-out;
 }
 
-.noupe-bounce {
+.chatweave-bounce {
     animation: bounce 1s ease-in-out;
 }
