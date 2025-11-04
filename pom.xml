@@ -12,11 +12,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.noupe</groupId>
-    <artifactId>ai-chatbot</artifactId>
+    <groupId>com.chatweave</groupId>
+    <artifactId>chatweave-ai-chatbot</artifactId>
     <version>1.0.0</version>
-    <name>AI Chatbot System</name>
-    <description>AI-powered chatbot system that analyzes websites and creates intelligent chatbots</description>
+    <name>ChatWeave AI Chatbot System</name>
+    <description>Open-source AI-powered chatbot platform that analyzes websites and creates intelligent conversational agents using RAG architecture</description>
 
     <properties>
         <java.version>17</java.version>
