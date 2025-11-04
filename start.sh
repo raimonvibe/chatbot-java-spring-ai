@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Noupe AI Chatbot System Startup Script
+# ChatWeave AI Chatbot System Startup Script
 
-echo "🤖 Starting Noupe AI Chatbot System..."
+echo "🤖 Starting ChatWeave AI Chatbot System..."
 
 # Check if Java is installed
 if ! command -v java &> /dev/null; then
@@ -46,4 +46,4 @@ echo "📝 Logs: ./logs/chatbot.log"
 echo ""
 echo "Press Ctrl+C to stop the application"
 
-java -jar target/ai-chatbot-*.jar
+java -jar target/chatweave-ai-chatbot-*.jar
