@@ -44,17 +44,19 @@ public class AiChatbotService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final WebsiteContentRepository websiteContentRepository;
-    
+    private final WebhookService webhookService; // NEW FEATURE
+
     @Value("${app.chatbot.max-conversation-history:10}")
     private int maxConversationHistory;
-    
+
     @Value("${app.chatbot.default-language:en}")
     private String defaultLanguage;
-    
+
     @Autowired
     public AiChatbotService(ChatClient chatClient, VectorStore vectorStore, EmbeddingModel embeddingModel,
                            ChatbotRepository chatbotRepository, ConversationRepository conversationRepository,
-                           MessageRepository messageRepository, WebsiteContentRepository websiteContentRepository) {
+                           MessageRepository messageRepository, WebsiteContentRepository websiteContentRepository,
+                           WebhookService webhookService) {
         this.chatClient = chatClient;
         this.vectorStore = vectorStore;
         this.embeddingModel = embeddingModel;
@@ -62,6 +64,7 @@ public class AiChatbotService {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.websiteContentRepository = websiteContentRepository;
+        this.webhookService = webhookService; // NEW FEATURE
     }
     
     /**
@@ -87,17 +90,23 @@ public class AiChatbotService {
             // Save user message
             com.chatweave.chatbot.model.Message userMsg = new com.chatweave.chatbot.model.Message(conversation, com.chatweave.chatbot.model.Message.MessageType.TEXT, userMessage, true);
             messageRepository.save(userMsg);
-            
+
+            // NEW FEATURE: Send webhook event for new message
+            webhookService.sendNewMessageEvent(chatbot, conversation, userMsg);
+
             // Generate AI response
             String aiResponse = generateResponse(chatbot, conversation, userMessage, userLanguage);
-            
+
             // Calculate response time
             long responseTime = System.currentTimeMillis() - startTime;
-            
+
             // Save AI response
             com.chatweave.chatbot.model.Message aiMsg = new com.chatweave.chatbot.model.Message(conversation, com.chatweave.chatbot.model.Message.MessageType.TEXT, aiResponse, false);
             aiMsg.setResponseTimeMs((int) responseTime);
             messageRepository.save(aiMsg);
+
+            // NEW FEATURE: Send webhook event for bot response
+            webhookService.sendNewMessageEvent(chatbot, conversation, aiMsg);
             
             // Create chat response
             ChatResponse response = new ChatResponse(List.of(new org.springframework.ai.chat.model.Generation(new AssistantMessage(aiResponse))));
@@ -120,14 +129,19 @@ public class AiChatbotService {
         Conversation conversation = conversationRepository.findByChatbotAndSessionId(chatbot, sessionId)
             .orElse(null);
         
-        if (conversation == null) {
+        boolean isNewConversation = (conversation == null);
+
+        if (isNewConversation) {
             conversation = new Conversation(chatbot, sessionId);
             conversation.setUserLanguage(userLanguage != null ? userLanguage : defaultLanguage);
             conversation.setUserIp(userIp);
             conversation.setUserAgent(userAgent);
-            conversationRepository.save(conversation);
+            conversation = conversationRepository.save(conversation);
+
+            // NEW FEATURE: Send webhook event for new conversation
+            webhookService.sendNewConversationEvent(chatbot, conversation);
         }
-        
+
         return conversation;
     }
     

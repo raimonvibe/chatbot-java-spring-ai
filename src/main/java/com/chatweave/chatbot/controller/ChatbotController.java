@@ -3,6 +3,7 @@ package com.chatweave.chatbot.controller;
 import com.chatweave.chatbot.model.Chatbot;
 import com.chatweave.chatbot.service.AiChatbotService;
 import com.chatweave.chatbot.service.WebsiteAnalysisService;
+import com.chatweave.chatbot.service.ConversationExportService;
 import com.chatweave.chatbot.repository.ChatbotRepository;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -30,14 +31,17 @@ public class ChatbotController {
     private final ChatbotRepository chatbotRepository;
     private final AiChatbotService aiChatbotService;
     private final WebsiteAnalysisService websiteAnalysisService;
-    
+    private final ConversationExportService conversationExportService;
+
     @Autowired
-    public ChatbotController(ChatbotRepository chatbotRepository, 
+    public ChatbotController(ChatbotRepository chatbotRepository,
                            AiChatbotService aiChatbotService,
-                           WebsiteAnalysisService websiteAnalysisService) {
+                           WebsiteAnalysisService websiteAnalysisService,
+                           ConversationExportService conversationExportService) {
         this.chatbotRepository = chatbotRepository;
         this.aiChatbotService = aiChatbotService;
         this.websiteAnalysisService = websiteAnalysisService;
+        this.conversationExportService = conversationExportService;
     }
     
     /**
@@ -103,6 +107,10 @@ public class ChatbotController {
             chatbot.setCustomPrompt(chatbotDetails.getCustomPrompt());
             chatbot.setBrandingConfig(chatbotDetails.getBrandingConfig());
             chatbot.setIsActive(chatbotDetails.getIsActive());
+            // NEW FEATURES
+            chatbot.setWebhookUrl(chatbotDetails.getWebhookUrl());
+            chatbot.setWebhookEvents(chatbotDetails.getWebhookEvents());
+            chatbot.setQuickReplies(chatbotDetails.getQuickReplies());
             
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
             logger.info("Updated chatbot: {}", updatedChatbot.getName());
@@ -268,14 +276,14 @@ public class ChatbotController {
      */
     private String generateEmbedCode(Chatbot chatbot) {
         return String.format("""
-            <div id="noupe-chatbot-%d" data-chatbot-id="%d"></div>
+            <div id="chatweave-chatbot-%d" data-chatbot-id="%d"></div>
             <script>
                 (function() {
                     var script = document.createElement('script');
                     script.src = 'http://localhost:8080/js/chatbot-widget.js';
                     script.async = true;
                     script.onload = function() {
-                        NoupeChatbot.init({
+                        ChatWeave.init({
                             chatbotId: %d,
                             apiUrl: 'http://localhost:8080/api',
                             theme: 'default'
@@ -285,5 +293,98 @@ public class ChatbotController {
                 })();
             </script>
             """, chatbot.getId(), chatbot.getId(), chatbot.getId());
+    }
+
+    // ============================================================================
+    // NEW FEATURE ENDPOINTS
+    // ============================================================================
+
+    /**
+     * NEW FEATURE: Export conversation to JSON
+     */
+    @GetMapping("/conversations/{conversationId}/export/json")
+    public ResponseEntity<String> exportConversationJson(@PathVariable Long conversationId) {
+        try {
+            String jsonExport = conversationExportService.exportConversationToJson(conversationId);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/json")
+                    .header("Content-Disposition", "attachment; filename=conversation-" + conversationId + ".json")
+                    .body(jsonExport);
+        } catch (Exception e) {
+            logger.error("Error exporting conversation {} to JSON", conversationId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * NEW FEATURE: Export conversation to CSV
+     */
+    @GetMapping("/conversations/{conversationId}/export/csv")
+    public ResponseEntity<String> exportConversationCsv(@PathVariable Long conversationId) {
+        try {
+            String csvExport = conversationExportService.exportConversationToCsv(conversationId);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv")
+                    .header("Content-Disposition", "attachment; filename=conversation-" + conversationId + ".csv")
+                    .body(csvExport);
+        } catch (Exception e) {
+            logger.error("Error exporting conversation {} to CSV", conversationId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * NEW FEATURE: Export all conversations for a chatbot to JSON
+     */
+    @GetMapping("/{id}/export/json")
+    public ResponseEntity<String> exportChatbotConversationsJson(@PathVariable Long id) {
+        try {
+            String jsonExport = conversationExportService.exportConversationsToJson(id);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/json")
+                    .header("Content-Disposition", "attachment; filename=chatbot-" + id + "-conversations.json")
+                    .body(jsonExport);
+        } catch (Exception e) {
+            logger.error("Error exporting chatbot {} conversations to JSON", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * NEW FEATURE: Export all conversations for a chatbot to CSV
+     */
+    @GetMapping("/{id}/export/csv")
+    public ResponseEntity<String> exportChatbotConversationsCsv(@PathVariable Long id) {
+        try {
+            String csvExport = conversationExportService.exportConversationsToCsv(id);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv")
+                    .header("Content-Disposition", "attachment; filename=chatbot-" + id + "-conversations.csv")
+                    .body(csvExport);
+        } catch (Exception e) {
+            logger.error("Error exporting chatbot {} conversations to CSV", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * NEW FEATURE: Get quick replies for a chatbot
+     */
+    @GetMapping("/{id}/quick-replies")
+    public ResponseEntity<String> getQuickReplies(@PathVariable Long id) {
+        try {
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            String quickReplies = chatbotOpt.get().getQuickReplies();
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/json")
+                    .body(quickReplies != null ? quickReplies : "[]");
+        } catch (Exception e) {
+            logger.error("Error retrieving quick replies for chatbot {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }
