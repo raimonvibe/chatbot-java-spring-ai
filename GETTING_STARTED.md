@@ -1,6 +1,8 @@
-# 🚀 Getting Started with Noupe AI Chatbot System
+# 🚀 Getting Started with ChatWeave AI Chatbot System
 
-Welcome to the **Noupe AI Chatbot System** - a comprehensive AI-powered chatbot platform that automatically analyzes websites and creates intelligent chatbots. This is a complete clone of the Noupe AI service with advanced features.
+Welcome to **ChatWeave** - an open-source AI-powered chatbot platform that automatically analyzes websites and creates intelligent conversational agents using modern RAG architecture.
+
+> **Note**: This is an independent open-source project not affiliated with any commercial chatbot service.
 
 ## 🎯 What You Get
 
@@ -134,14 +136,14 @@ Open your browser and navigate to:
 2. **Add to Your Website**
    ```html
    <!-- Add this to your website's HTML -->
-   <div id="noupe-chatbot-1" data-chatbot-id="1"></div>
+   <div id="chatweave-chatbot-1" data-chatbot-id="1"></div>
    <script>
        (function() {
            var script = document.createElement('script');
            script.src = 'http://localhost:8080/js/chatbot-widget.js';
            script.async = true;
            script.onload = function() {
-               NoupeChatbot.init({
+               ChatWeave.init({
                    chatbotId: 1,
                    apiUrl: 'http://localhost:8080/api',
                    theme: 'default'
@@ -281,7 +283,7 @@ GET /api/chat/embed/{embedCode}
 Customize the chatbot widget appearance:
 
 ```javascript
-NoupeChatbot.init({
+ChatWeave.init({
     chatbotId: 1,
     apiUrl: 'http://localhost:8080/api',
     theme: 'custom',
@@ -335,7 +337,7 @@ Enable debug logging:
 ```yaml
 logging:
   level:
-    com.noupe: DEBUG
+    com.chatweave: DEBUG
     org.springframework.ai: DEBUG
 ```
 

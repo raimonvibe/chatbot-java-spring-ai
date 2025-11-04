@@ -38,7 +38,7 @@
         config = Object.assign(config, options);
         
         if (!config.chatbotId) {
-            console.error('Noupe Chatbot: chatbotId is required');
+            console.error('ChatWeave Chatbot: chatbotId is required');
             return;
         }
         
@@ -51,7 +51,7 @@
         // Load chatbot configuration
         loadChatbotConfig();
         
-        console.log('Noupe Chatbot initialized:', config);
+        console.log('ChatWeave Chatbot initialized:', config);
     }
     
     /**
@@ -60,7 +60,7 @@
     function createWidget() {
         // Create main container
         widgetContainer = document.createElement('div');
-        widgetContainer.id = 'noupe-chatbot-widget';
+        widgetContainer.id = 'chatweave-chatbot-widget';
         widgetContainer.style.cssText = `
             position: fixed;
             ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -71,7 +71,7 @@
         
         // Create chat container
         chatContainer = document.createElement('div');
-        chatContainer.id = 'noupe-chat-container';
+        chatContainer.id = 'chatweave-chat-container';
         chatContainer.style.cssText = `
             display: none;
             width: 350px;
@@ -102,14 +102,14 @@
                     AI Assistant
                 </h6>
             </div>
-            <button id="noupe-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
+            <button id="chatweave-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
                 <i class="fas fa-times"></i>
             </button>
         `;
         
         // Create messages container
         messageContainer = document.createElement('div');
-        messageContainer.id = 'noupe-messages';
+        messageContainer.id = 'chatweave-messages';
         messageContainer.style.cssText = `
             flex: 1;
             padding: 15px;
@@ -127,9 +127,9 @@
         `;
         inputArea.innerHTML = `
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="noupe-message-input" placeholder="Type your message..." 
+                <input type="text" id="chatweave-message-input" placeholder="Type your message..." 
                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                <button id="noupe-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                <button id="chatweave-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -137,7 +137,7 @@
         
         // Create toggle button
         toggleButton = document.createElement('button');
-        toggleButton.id = 'noupe-toggle-btn';
+        toggleButton.id = 'chatweave-toggle-btn';
         toggleButton.style.cssText = `
             width: 60px;
             height: 60px;
@@ -167,8 +167,8 @@
         document.body.appendChild(widgetContainer);
         
         // Get references to interactive elements
-        inputField = document.getElementById('noupe-message-input');
-        sendButton = document.getElementById('noupe-send-btn');
+        inputField = document.getElementById('chatweave-message-input');
+        sendButton = document.getElementById('chatweave-send-btn');
         
         // Add event listeners
         setupEventListeners();
@@ -185,7 +185,7 @@
         toggleButton.addEventListener('click', toggleChat);
         
         // Close button
-        document.getElementById('noupe-close-btn').addEventListener('click', closeChat);
+        document.getElementById('chatweave-close-btn').addEventListener('click', closeChat);
         
         // Send button
         sendButton.addEventListener('click', sendMessage);
@@ -317,7 +317,7 @@
      */
     function showTypingIndicator() {
         const typingDiv = document.createElement('div');
-        typingDiv.id = 'noupe-typing';
+        typingDiv.id = 'chatweave-typing';
         typingDiv.style.cssText = `
             margin-bottom: 15px;
             display: flex;
@@ -341,7 +341,7 @@
      * Hide typing indicator
      */
     function hideTypingIndicator() {
-        const typingDiv = document.getElementById('noupe-typing');
+        const typingDiv = document.getElementById('chatweave-typing');
         if (typingDiv) {
             typingDiv.remove();
         }
@@ -386,9 +386,9 @@
     function updateWidgetStyling() {
         // Update colors
         const elements = [
-            { selector: '#noupe-close-btn', style: 'color' },
-            { selector: '#noupe-send-btn', style: 'background' },
-            { selector: '#noupe-toggle-btn', style: 'background' }
+            { selector: '#chatweave-close-btn', style: 'color' },
+            { selector: '#chatweave-send-btn', style: 'background' },
+            { selector: '#chatweave-toggle-btn', style: 'background' }
         ];
         
         elements.forEach(({ selector, style }) => {
@@ -410,7 +410,7 @@
     document.head.appendChild(style);
     
     // Expose global API
-    window.NoupeChatbot = {
+    window.ChatWeave = {
         init: init,
         open: openChat,
         close: closeChat,

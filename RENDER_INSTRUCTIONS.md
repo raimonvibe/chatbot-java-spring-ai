@@ -1,6 +1,6 @@
 # 🚀 Deploy AI Chatbot System on Render
 
-This guide will help you deploy the Noupe AI Chatbot System on Render.com, a modern cloud platform for hosting applications.
+This guide will help you deploy the ChatWeave AI Chatbot System on Render.com, a modern cloud platform for hosting applications.
 
 ## 📋 Prerequisites
 
@@ -28,7 +28,7 @@ Before deploying, ensure you have:
 2. **Verify your project structure**
    ```
    ├── pom.xml
-   ├── src/main/java/com/noupe/chatbot/
+   ├── src/main/java/com/chatweave/chatbot/
    ├── src/main/resources/
    ├── Dockerfile (optional)
    └── README.md
@@ -171,7 +171,7 @@ SPRING_SECURITY_USER_NAME=admin
 SPRING_SECURITY_USER_PASSWORD=your-secure-password
 
 # Logging
-LOGGING_LEVEL_COM_NOUPE=INFO
+LOGGING_LEVEL_COM_CHATWEAVE=INFO
 LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_AI=WARN
 ```
 
@@ -237,7 +237,7 @@ Enable debug logging for troubleshooting:
 
 ```bash
 LOG_LEVEL=DEBUG
-LOGGING_LEVEL_COM_NOUPE=DEBUG
+LOGGING_LEVEL_COM_CHATWEAVE=DEBUG
 LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_AI=DEBUG
 ```
 

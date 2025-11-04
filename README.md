@@ -1,6 +1,8 @@
-# 🤖 Noupe AI Chatbot System
+# 🤖 ChatWeave AI Chatbot System
 
-A comprehensive AI-powered chatbot system built with Java Spring AI that analyzes websites and creates intelligent chatbots automatically. This is a complete clone of the Noupe AI chatbot service with advanced features.
+An open-source AI-powered chatbot platform built with Java Spring AI that analyzes websites and creates intelligent conversational agents automatically. Built using modern RAG (Retrieval Augmented Generation) architecture with Spring AI, OpenAI, and vector embeddings.
+
+> **Disclaimer**: This is an independent open-source project and is not affiliated with, endorsed by, or associated with Noupe, JotForm, or any other commercial chatbot service.
 
 ## ✨ Features
 
