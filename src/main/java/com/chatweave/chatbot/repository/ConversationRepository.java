@@ -26,7 +26,13 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
      * Find all conversations for a chatbot
      */
     List<Conversation> findByChatbot(Chatbot chatbot);
-    
+
+    /**
+     * Find all conversations by chatbot ID
+     */
+    @Query("SELECT c FROM Conversation c WHERE c.chatbot.id = :chatbotId")
+    List<Conversation> findByChatbotId(@Param("chatbotId") Long chatbotId);
+
     /**
      * Find active conversations for a chatbot
      */

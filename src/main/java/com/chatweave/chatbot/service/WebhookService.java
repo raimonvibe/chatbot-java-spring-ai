@@ -92,7 +92,7 @@ public class WebhookService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("conversation_id", conversation.getId());
         payload.put("user_ip", conversation.getUserIp());
-        payload.put("language", conversation.getLanguage());
+        payload.put("language", conversation.getUserLanguage());
         payload.put("created_at", conversation.getCreatedAt());
 
         sendWebhookEvent(chatbot, "conversation_started", payload);
@@ -106,8 +106,8 @@ public class WebhookService {
         payload.put("conversation_id", conversation.getId());
         payload.put("message_id", message.getId());
         payload.put("message_content", message.getContent());
-        payload.put("is_from_user", message.getIsFromUser());
-        payload.put("timestamp", message.getTimestamp());
+        payload.put("is_from_user", message.getIsUserMessage());
+        payload.put("timestamp", message.getCreatedAt());
 
         sendWebhookEvent(chatbot, "message_sent", payload);
     }
@@ -119,9 +119,9 @@ public class WebhookService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("conversation_id", conversation.getId());
         payload.put("message_count", conversation.getMessages().size());
-        payload.put("duration_minutes", 
-            conversation.getLastMessageAt() != null ? 
-            java.time.Duration.between(conversation.getCreatedAt(), conversation.getLastMessageAt()).toMinutes() : 0);
+        payload.put("duration_minutes",
+            conversation.getEndedAt() != null ?
+            java.time.Duration.between(conversation.getCreatedAt(), conversation.getEndedAt()).toMinutes() : 0);
 
         sendWebhookEvent(chatbot, "conversation_ended", payload);
     }
