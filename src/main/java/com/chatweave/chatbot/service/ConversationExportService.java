@@ -92,14 +92,14 @@ public class ConversationExportService {
             for (Message message : conversation.getMessages()) {
                 writer.append(csvEscape(conversation.getId().toString())).append(",");
                 writer.append(csvEscape(conversation.getUserIp())).append(",");
-                writer.append(csvEscape(conversation.getLanguage())).append(",");
+                writer.append(csvEscape(conversation.getUserLanguage())).append(",");
                 writer.append(csvEscape(conversation.getCreatedAt().format(dateFormatter))).append(",");
-                writer.append(csvEscape(conversation.getLastMessageAt() != null ? 
-                    conversation.getLastMessageAt().format(dateFormatter) : "")).append(",");
-                writer.append(conversation.getMessages().size()).append(",");
+                writer.append(csvEscape(conversation.getEndedAt() != null ?
+                    conversation.getEndedAt().format(dateFormatter) : "")).append(",");
+                writer.append(String.valueOf(conversation.getMessages().size())).append(",");
                 writer.append(csvEscape(message.getId().toString())).append(",");
-                writer.append(csvEscape(message.getTimestamp().format(dateFormatter))).append(",");
-                writer.append(message.getIsFromUser() ? "User" : "Bot").append(",");
+                writer.append(csvEscape(message.getCreatedAt().format(dateFormatter))).append(",");
+                writer.append(message.getIsUserMessage() ? "User" : "Bot").append(",");
                 writer.append(csvEscape(message.getType().toString())).append(",");
                 writer.append(csvEscape(message.getContent())).append(",");
                 writer.append(message.getResponseTimeMs() != null ? message.getResponseTimeMs().toString() : "").append("\n");
@@ -117,17 +117,17 @@ public class ConversationExportService {
         data.put("conversation_id", conversation.getId());
         data.put("user_ip", conversation.getUserIp());
         data.put("user_agent", conversation.getUserAgent());
-        data.put("language", conversation.getLanguage());
+        data.put("language", conversation.getUserLanguage());
         data.put("created_at", conversation.getCreatedAt());
-        data.put("last_message_at", conversation.getLastMessageAt());
+        data.put("ended_at", conversation.getEndedAt());
         data.put("is_active", conversation.getIsActive());
 
         List<Map<String, Object>> messages = new ArrayList<>();
         for (Message message : conversation.getMessages()) {
             Map<String, Object> messageData = new HashMap<>();
             messageData.put("message_id", message.getId());
-            messageData.put("timestamp", message.getTimestamp());
-            messageData.put("sender", message.getIsFromUser() ? "user" : "bot");
+            messageData.put("timestamp", message.getCreatedAt());
+            messageData.put("sender", message.getIsUserMessage() ? "user" : "bot");
             messageData.put("type", message.getType());
             messageData.put("content", message.getContent());
             messageData.put("response_time_ms", message.getResponseTimeMs());
@@ -144,15 +144,15 @@ public class ConversationExportService {
      */
     private String buildCsvFromConversation(Conversation conversation) {
         StringWriter writer = new StringWriter();
-        
+
         // CSV Header
         writer.append("Message ID,Timestamp,Sender,Message Type,Content,Response Time (ms)\n");
 
         // CSV Data
         for (Message message : conversation.getMessages()) {
             writer.append(csvEscape(message.getId().toString())).append(",");
-            writer.append(csvEscape(message.getTimestamp().format(dateFormatter))).append(",");
-            writer.append(message.getIsFromUser() ? "User" : "Bot").append(",");
+            writer.append(csvEscape(message.getCreatedAt().format(dateFormatter))).append(",");
+            writer.append(message.getIsUserMessage() ? "User" : "Bot").append(",");
             writer.append(csvEscape(message.getType().toString())).append(",");
             writer.append(csvEscape(message.getContent())).append(",");
             writer.append(message.getResponseTimeMs() != null ? message.getResponseTimeMs().toString() : "").append("\n");
