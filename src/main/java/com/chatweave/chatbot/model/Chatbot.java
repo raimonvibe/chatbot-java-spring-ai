@@ -47,10 +47,23 @@ public class Chatbot {
     
     @Column(columnDefinition = "TEXT")
     private String brandingConfig;
-    
+
+    // NEW FEATURE: Webhook Integration
+    @Column(length = 500)
+    private String webhookUrl;
+
+    @ElementCollection
+    @CollectionTable(name = "chatbot_webhook_events", joinColumns = @JoinColumn(name = "chatbot_id"))
+    @Column(name = "event")
+    private List<String> webhookEvents = new ArrayList<>();
+
+    // NEW FEATURE: Quick Replies
+    @Column(columnDefinition = "TEXT")
+    private String quickReplies; // JSON array of quick reply configurations
+
     @Column(nullable = false)
     private Boolean isActive = true;
-    
+
     @Column(nullable = false)
     private String embedCode;
     
@@ -79,7 +92,7 @@ public class Chatbot {
     
     // Helper method to generate unique embed code
     private String generateEmbedCode() {
-        return String.format("noupe-chatbot-%d", System.currentTimeMillis());
+        return String.format("chatweave-bot-%d", System.currentTimeMillis());
     }
     
     // Getters and Setters
@@ -193,5 +206,30 @@ public class Chatbot {
     
     public void setWebsiteContents(List<WebsiteContent> websiteContents) {
         this.websiteContents = websiteContents;
+    }
+
+    // Getters and Setters for new features
+    public String getWebhookUrl() {
+        return webhookUrl;
+    }
+
+    public void setWebhookUrl(String webhookUrl) {
+        this.webhookUrl = webhookUrl;
+    }
+
+    public List<String> getWebhookEvents() {
+        return webhookEvents;
+    }
+
+    public void setWebhookEvents(List<String> webhookEvents) {
+        this.webhookEvents = webhookEvents;
+    }
+
+    public String getQuickReplies() {
+        return quickReplies;
+    }
+
+    public void setQuickReplies(String quickReplies) {
+        this.quickReplies = quickReplies;
     }
 }

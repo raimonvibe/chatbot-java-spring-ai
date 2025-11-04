@@ -6,6 +6,11 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 
 ## ✨ Features
 
+### 🚀 ChatWeave Exclusive Features
+- **⚡ Webhook Integration**: Send real-time conversation events to external systems (CRM, Slack, Discord, custom webhooks)
+- **📊 Conversation Export**: Export chat history in JSON or CSV formats for analytics and reporting
+- **💬 Quick Replies**: Configure suggested response buttons for common questions to improve UX
+
 ### 🧠 AI-Powered Intelligence
 - **Automatic Website Analysis**: Crawls and analyzes website content to build knowledge base
 - **Vector Embeddings**: Uses advanced AI embeddings for semantic search and context retrieval
@@ -135,6 +140,57 @@ POST /api/chat/{chatbotId}
 
 # Get chatbot by embed code
 GET /api/chat/embed/{embedCode}
+```
+
+#### 🚀 NEW: Conversation Export API
+```bash
+# Export single conversation to JSON
+GET /api/chatbots/conversations/{conversationId}/export/json
+
+# Export single conversation to CSV
+GET /api/chatbots/conversations/{conversationId}/export/csv
+
+# Export all chatbot conversations to JSON
+GET /api/chatbots/{id}/export/json
+
+# Export all chatbot conversations to CSV
+GET /api/chatbots/{id}/export/csv
+```
+
+#### 🚀 NEW: Quick Replies API
+```bash
+# Get quick replies for a chatbot
+GET /api/chatbots/{id}/quick-replies
+
+# Update chatbot with quick replies (in update request)
+PUT /api/chatbots/{id}
+{
+  "quickReplies": "[{\"text\": \"What are your hours?\", \"value\": \"hours\"}, {\"text\": \"Pricing info\", \"value\": \"pricing\"}]"
+}
+```
+
+#### 🚀 NEW: Webhook Configuration
+```bash
+# Configure webhook in chatbot update
+PUT /api/chatbots/{id}
+{
+  "webhookUrl": "https://your-app.com/webhook",
+  "webhookEvents": ["conversation_started", "message_sent", "conversation_ended"]
+}
+
+# Webhook payload structure (sent to your URL):
+{
+  "event": "conversation_started",
+  "chatbot_id": 1,
+  "chatbot_name": "My Chatbot",
+  "timestamp": 1698765432000,
+  "data": {
+    "conversation_id": 123,
+    "user_ip": "192.168.1.1",
+    "language": "en",
+    "created_at": "2024-01-01T12:00:00"
+  }
+}
 ```
 
 ## 🛠️ Configuration
