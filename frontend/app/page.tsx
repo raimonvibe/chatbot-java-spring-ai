@@ -20,7 +20,7 @@ export default function Home() {
             AI Chatbot
           </h1>
           <p className="text-gray-600 text-lg">
-            Ask me anything, I'm here to help
+            Ask me anything, I&apos;m here to help
           </p>
         </motion.div>
 
