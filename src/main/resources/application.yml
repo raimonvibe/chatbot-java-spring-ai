@@ -47,13 +47,6 @@ spring:
         options:
           model: text-embedding-ada-002
 
-    vectorstore:
-      pinecone:
-        api-key: ${PINECONE_API_KEY:your-pinecone-api-key-here}
-        environment: ${PINECONE_ENVIRONMENT:your-pinecone-environment}
-        index-name: chatbot-vectors
-        namespace: default
-
 # Application Configuration
 app:
   chatbot:

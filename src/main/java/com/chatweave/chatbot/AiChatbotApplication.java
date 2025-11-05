@@ -18,7 +18,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @author ChatWeave Development Team
  * @version 1.0.0
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {
+    org.springframework.ai.autoconfigure.vectorstore.pinecone.PineconeVectorStoreAutoConfiguration.class
+})
 @EnableAsync
 @EnableScheduling
 public class AiChatbotApplication {
