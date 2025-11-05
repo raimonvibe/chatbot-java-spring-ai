@@ -2,8 +2,9 @@ package com.chatweave.chatbot.config;
 
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -23,5 +24,14 @@ public class AiConfiguration {
     public ChatClient chatClient(AnthropicChatModel anthropicChatModel) {
         return ChatClient.builder(anthropicChatModel)
                 .build();
+    }
+
+    /**
+     * Simple in-memory VectorStore for development
+     * For production, configure Pinecone or another persistent vector store
+     */
+    @Bean
+    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
+        return new SimpleVectorStore(embeddingModel);
     }
 }
