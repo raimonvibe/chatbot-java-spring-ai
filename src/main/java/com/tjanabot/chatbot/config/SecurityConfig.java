@@ -27,7 +27,7 @@ import java.util.Arrays;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Value("${cors.allowed-origins:http://localhost:3000}")
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:3001,http://localhost:3002}")
     private String allowedOrigins;
 
     @Autowired private RateLimitingFilter rateLimitingFilter;
@@ -44,7 +44,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                .requestMatchers("/api/chatbots/**", "/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
+                .requestMatchers("/api/chatbots/**").permitAll()  // Allow public access for development
+                .requestMatchers("/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
