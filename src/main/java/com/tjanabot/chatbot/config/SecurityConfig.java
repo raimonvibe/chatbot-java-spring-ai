@@ -1,6 +1,8 @@
 package com.tjanabot.chatbot.config;
 
+import com.tjanabot.chatbot.security.CustomOAuth2UserService;
 import com.tjanabot.chatbot.security.JwtAuthenticationFilter;
+import com.tjanabot.chatbot.security.OAuth2AuthenticationSuccessHandler;
 import com.tjanabot.chatbot.security.RateLimitingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,21 +34,33 @@ public class SecurityConfig {
 
     @Autowired private RateLimitingFilter rateLimitingFilter;
 
-    @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;  // Spring injecteert automatisch dankzij @Component
+    @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/**", "/login/**", "/oauth2/**").permitAll()
+                .requestMatchers("/stripe/webhook").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                .requestMatchers("/api/chatbots/**").permitAll()  // Allow public access for development
+                .requestMatchers("/api/chatbots/**").authenticated()  // Require authentication
+                .requestMatchers("/api/subscription/**").authenticated()
                 .requestMatchers("/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(customOAuth2UserService)
+                )
+                .successHandler(oAuth2AuthenticationSuccessHandler)
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .headers(h -> h.frameOptions(fo -> fo.sameOrigin()).contentTypeOptions(cto -> cto.disable()));
