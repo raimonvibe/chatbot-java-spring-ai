@@ -1,5 +1,7 @@
 # 🤖 TjanaBot AI Chatbot System
 
+![TjanaBot AI Logo](tjana.png)
+
 An open-source AI-powered chatbot platform built with Java Spring AI that analyzes websites and creates intelligent conversational agents automatically. Built using modern RAG (Retrieval Augmented Generation) architecture with Spring AI, Anthropic Claude 3 Haiku, and vector embeddings.
 
 > **Disclaimer**: This is an independent open-source project and is not affiliated with, endorsed by, or associated with Noupe, JotForm, or any other commercial chatbot service.
