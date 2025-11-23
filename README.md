@@ -1,4 +1,4 @@
-# 🤖 ChatWeave AI Chatbot System
+# 🤖 TjanaBot AI Chatbot System
 
 An open-source AI-powered chatbot platform built with Java Spring AI that analyzes websites and creates intelligent conversational agents automatically. Built using modern RAG (Retrieval Augmented Generation) architecture with Spring AI, Anthropic Claude 3 Haiku, and vector embeddings.
 
@@ -6,7 +6,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 
 ## ✨ Features
 
-### 🚀 ChatWeave Exclusive Features
+### 🚀 TjanaBot Exclusive Features
 - **⚡ Webhook Integration**: Send real-time conversation events to external systems (CRM, Slack, Discord, custom webhooks)
 - **📊 Conversation Export**: Export chat history in JSON or CSV formats for analytics and reporting
 - **💬 Quick Replies**: Configure suggested response buttons for common questions to improve UX

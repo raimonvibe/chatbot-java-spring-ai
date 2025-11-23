@@ -22,13 +22,13 @@ All **Week 1 critical security fixes** have been successfully implemented! Your 
 ### 1. Authentication & Authorization System
 
 **Files Created:**
-- `src/main/java/com/chatweave/chatbot/model/User.java` - User entity implementing UserDetails
-- `src/main/java/com/chatweave/chatbot/repository/UserRepository.java` - User data access
-- `src/main/java/com/chatweave/chatbot/service/CustomUserDetailsService.java` - Spring Security integration
-- `src/main/java/com/chatweave/chatbot/security/JwtTokenProvider.java` - JWT token generation/validation
-- `src/main/java/com/chatweave/chatbot/security/JwtAuthenticationFilter.java` - JWT request filter
-- `src/main/java/com/chatweave/chatbot/config/SecurityConfig.java` - Security configuration
-- `src/main/java/com/chatweave/chatbot/controller/AuthController.java` - Login/registration endpoints
+- `src/main/java/com/tjanabot/chatbot/model/User.java` - User entity implementing UserDetails
+- `src/main/java/com/tjanabot/chatbot/repository/UserRepository.java` - User data access
+- `src/main/java/com/tjanabot/chatbot/service/CustomUserDetailsService.java` - Spring Security integration
+- `src/main/java/com/tjanabot/chatbot/security/JwtTokenProvider.java` - JWT token generation/validation
+- `src/main/java/com/tjanabot/chatbot/security/JwtAuthenticationFilter.java` - JWT request filter
+- `src/main/java/com/tjanabot/chatbot/config/SecurityConfig.java` - Security configuration
+- `src/main/java/com/tjanabot/chatbot/controller/AuthController.java` - Login/registration endpoints
 
 **Features:**
 - JWT-based stateless authentication
@@ -40,7 +40,7 @@ All **Week 1 critical security fixes** have been successfully implemented! Your 
 ### 2. Rate Limiting
 
 **Files Created:**
-- `src/main/java/com/chatweave/chatbot/security/RateLimitingFilter.java` - Request rate limiting
+- `src/main/java/com/tjanabot/chatbot/security/RateLimitingFilter.java` - Request rate limiting
 
 **Limits:**
 - Chat endpoints: 20 requests/minute
@@ -53,8 +53,8 @@ All **Week 1 critical security fixes** have been successfully implemented! Your 
 **Files Modified:**
 - `src/main/resources/application.yml` - Removed hardcoded credentials, added secure defaults
 - `src/main/resources/templates/chatbot-test.html` - Fixed XSS vulnerability
-- `src/main/java/com/chatweave/chatbot/controller/ChatbotController.java` - Removed wildcard CORS
-- `src/main/java/com/chatweave/chatbot/controller/ChatController.java` - Removed wildcard CORS
+- `src/main/java/com/tjanabot/chatbot/controller/ChatbotController.java` - Removed wildcard CORS
+- `src/main/java/com/tjanabot/chatbot/controller/ChatController.java` - Removed wildcard CORS
 - `pom.xml` - Added JWT and rate limiting dependencies
 
 **Changes:**

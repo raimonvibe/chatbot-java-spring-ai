@@ -13,8 +13,8 @@
 ### 1. Input Validation & Sanitization
 
 **Files Created:**
-- `src/main/java/com/chatweave/chatbot/dto/ChatRequest.java` - Validated chat request DTO
-- `src/main/java/com/chatweave/chatbot/dto/ChatbotRequest.java` - Validated chatbot request DTO
+- `src/main/java/com/tjanabot/chatbot/dto/ChatRequest.java` - Validated chat request DTO
+- `src/main/java/com/tjanabot/chatbot/dto/ChatbotRequest.java` - Validated chatbot request DTO
 
 **Features:**
 - Comprehensive input validation with Bean Validation annotations
@@ -33,11 +33,11 @@
 ### 2. SSRF Protection
 
 **Files Created:**
-- `src/main/java/com/chatweave/chatbot/service/UrlValidationService.java` - Comprehensive URL validation
+- `src/main/java/com/tjanabot/chatbot/service/UrlValidationService.java` - Comprehensive URL validation
 
 **Files Modified:**
-- `src/main/java/com/chatweave/chatbot/service/WebsiteAnalysisService.java` - Added URL validation before crawling
-- `src/main/java/com/chatweave/chatbot/service/WebhookService.java` - Added URL validation before webhook calls
+- `src/main/java/com/tjanabot/chatbot/service/WebsiteAnalysisService.java` - Added URL validation before crawling
+- `src/main/java/com/tjanabot/chatbot/service/WebhookService.java` - Added URL validation before webhook calls
 
 **Protected Against:**
 - Access to localhost/127.0.0.1
@@ -58,7 +58,7 @@
 ### 3. Authorization Infrastructure
 
 **Files Modified:**
-- `src/main/java/com/chatweave/chatbot/model/Chatbot.java` - Added owner relationship
+- `src/main/java/com/tjanabot/chatbot/model/Chatbot.java` - Added owner relationship
 
 **Features:**
 - Added `owner` field (ManyToOne relationship with User)
@@ -73,7 +73,7 @@
 ### 4. Secure Logging
 
 **Files Created:**
-- `src/main/java/com/chatweave/chatbot/util/LogSanitizer.java` - Log sanitization utility
+- `src/main/java/com/tjanabot/chatbot/util/LogSanitizer.java` - Log sanitization utility
 
 **Features:**
 - Redacts API keys, passwords, tokens, secrets
@@ -385,16 +385,16 @@ logger.info("Test: {}", LogSanitizer.sanitize(testMessage));
 ## 📚 Files Created/Modified
 
 ### Created:
-- `src/main/java/com/chatweave/chatbot/dto/ChatRequest.java`
-- `src/main/java/com/chatweave/chatbot/dto/ChatbotRequest.java`
-- `src/main/java/com/chatweave/chatbot/service/UrlValidationService.java`
-- `src/main/java/com/chatweave/chatbot/util/LogSanitizer.java`
+- `src/main/java/com/tjanabot/chatbot/dto/ChatRequest.java`
+- `src/main/java/com/tjanabot/chatbot/dto/ChatbotRequest.java`
+- `src/main/java/com/tjanabot/chatbot/service/UrlValidationService.java`
+- `src/main/java/com/tjanabot/chatbot/util/LogSanitizer.java`
 
 ### Modified:
-- `src/main/java/com/chatweave/chatbot/controller/ChatController.java` - Uses validated ChatRequest DTO
-- `src/main/java/com/chatweave/chatbot/model/Chatbot.java` - Added owner relationship
-- `src/main/java/com/chatweave/chatbot/service/WebsiteAnalysisService.java` - SSRF protection
-- `src/main/java/com/chatweave/chatbot/service/WebhookService.java` - SSRF protection
+- `src/main/java/com/tjanabot/chatbot/controller/ChatController.java` - Uses validated ChatRequest DTO
+- `src/main/java/com/tjanabot/chatbot/model/Chatbot.java` - Added owner relationship
+- `src/main/java/com/tjanabot/chatbot/service/WebsiteAnalysisService.java` - SSRF protection
+- `src/main/java/com/tjanabot/chatbot/service/WebhookService.java` - SSRF protection
 
 ---
 
