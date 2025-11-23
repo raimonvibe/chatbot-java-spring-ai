@@ -15,7 +15,9 @@ Before deploying, ensure you have:
 - [ ] GitHub account with your code repository
 - [ ] Render.com account (free tier available)
 - [ ] Vercel account (free tier available)
-- [ ] Anthropic API key
+- [ ] Google Cloud Console account (for OAuth 2.0)
+- [ ] Stripe account (for subscription payments)
+- [ ] Anthropic API key (for AI chat)
 - [ ] Cohere API key (for embeddings)
 
 ---
@@ -89,6 +91,25 @@ ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
 # Cohere Configuration (For embeddings only)
 COHERE_API_KEY=your-cohere-api-key-here
+
+# Google OAuth 2.0 Configuration
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=https://your-backend-name.onrender.com/login/oauth2/code/google
+
+# Stripe Payment Configuration
+STRIPE_SECRET_KEY=sk_live_your-stripe-secret-key
+STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret
+STRIPE_PRICE_ID=price_your-price-id
+
+# Frontend URL (for OAuth redirects)
+FRONTEND_URL=https://your-app.vercel.app
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=https://your-app.vercel.app,http://localhost:3000
+
+# JWT Configuration
+JWT_SECRET=your-secure-random-jwt-secret-key-at-least-256-bits
 
 # Application Configuration
 SPRING_PROFILES_ACTIVE=production
@@ -300,16 +321,93 @@ java -Xmx512m -Xms256m -jar target/tjanabot-ai-chatbot-*.jar
 
 ---
 
+# 🔐 Part 3: OAuth & Payment Setup
+
+## Google OAuth 2.0 Setup
+
+1. **Create Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select existing one
+   - Enable Google+ API
+
+2. **Configure OAuth Consent Screen**
+   - Go to "APIs & Services" → "OAuth consent screen"
+   - Choose "External" user type
+   - Fill in app name, user support email, and developer email
+   - Add authorized domains (your Vercel domain)
+   - Save and continue
+
+3. **Create OAuth Credentials**
+   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+   - Application type: Web application
+   - Authorized JavaScript origins:
+     - `https://your-backend-name.onrender.com`
+   - Authorized redirect URIs:
+     - `https://your-backend-name.onrender.com/login/oauth2/code/google`
+   - Copy the Client ID and Client Secret
+
+4. **Add to Render Environment Variables**
+   - `GOOGLE_CLIENT_ID`: Your client ID
+   - `GOOGLE_CLIENT_SECRET`: Your client secret
+   - `GOOGLE_REDIRECT_URI`: Your redirect URI
+
+## Stripe Payment Setup
+
+1. **Create Stripe Account**
+   - Go to [stripe.com](https://stripe.com)
+   - Sign up for a Stripe account
+   - Complete account verification
+
+2. **Create Subscription Product**
+   - Go to Stripe Dashboard → Products → Add Product
+   - Name: "TjanaBot Subscription"
+   - Pricing model: Recurring
+   - Set price (e.g., $20/month)
+   - Copy the Price ID (starts with `price_`)
+
+3. **Set Up Webhook**
+   - Go to Developers → Webhooks → Add endpoint
+   - Endpoint URL: `https://your-backend-name.onrender.com/stripe/webhook`
+   - Events to listen:
+     - `customer.subscription.created`
+     - `customer.subscription.updated`
+     - `customer.subscription.deleted`
+     - `invoice.payment_succeeded`
+     - `invoice.payment_failed`
+   - Copy the Webhook Signing Secret (starts with `whsec_`)
+
+4. **Add to Render Environment Variables**
+   - `STRIPE_SECRET_KEY`: Your secret key (use live key for production)
+   - `STRIPE_WEBHOOK_SECRET`: Your webhook signing secret
+   - `STRIPE_PRICE_ID`: Your subscription price ID
+
+📚 **Detailed Setup Guide**: See `OAUTH_STRIPE_SETUP.md` for complete instructions
+
+---
+
 # ✅ Production Checklist
 
 ## Backend (Render)
 - [ ] Code pushed to GitHub
 - [ ] Render account created
 - [ ] Web service configured
-- [ ] Environment variables set (ANTHROPIC_API_KEY, COHERE_API_KEY)
 - [ ] PostgreSQL database created and linked
+- [ ] Google OAuth credentials configured
+- [ ] Stripe account set up with subscription product
+- [ ] Stripe webhook configured
+- [ ] Environment variables set:
+  - [ ] ANTHROPIC_API_KEY
+  - [ ] COHERE_API_KEY
+  - [ ] GOOGLE_CLIENT_ID
+  - [ ] GOOGLE_CLIENT_SECRET
+  - [ ] STRIPE_SECRET_KEY
+  - [ ] STRIPE_WEBHOOK_SECRET
+  - [ ] STRIPE_PRICE_ID
+  - [ ] FRONTEND_URL
+  - [ ] JWT_SECRET
 - [ ] Application deployed successfully
 - [ ] Health check passing (`/actuator/health`)
+- [ ] OAuth login working (`/oauth2/authorization/google`)
 - [ ] Backend URL noted for frontend
 
 ## Frontend (Vercel)
@@ -323,10 +421,14 @@ java -Xmx512m -Xms256m -jar target/tjanabot-ai-chatbot-*.jar
 
 ## Testing
 - [ ] Dashboard accessible
-- [ ] Can create chatbot
+- [ ] Google OAuth login working
+- [ ] Stripe checkout session creates successfully
+- [ ] Subscription status tracked correctly
+- [ ] Can create chatbot (with active subscription)
 - [ ] Can analyze website
 - [ ] Chat functionality working
 - [ ] Responses generated correctly
+- [ ] Webhook events processed (test with Stripe CLI)
 
 ---
 
@@ -334,7 +436,8 @@ java -Xmx512m -Xms256m -jar target/tjanabot-ai-chatbot-*.jar
 
 ## 1. Create Your First Chatbot
 - Access the dashboard at your Vercel URL
-- Login with credentials (default: admin/admin123)
+- Login with Google OAuth 2.0
+- **Note**: You'll need an active Stripe subscription to create chatbots
 - Configure your website URL
 - Analyze your website content
 - Test the chatbot functionality
