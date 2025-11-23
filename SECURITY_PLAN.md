@@ -22,10 +22,10 @@ This document outlines the comprehensive security measures implemented in the Tj
 - **Account linking** - existing users can link Google accounts
 
 **Implementation Files:**
-- `CustomOAuth2UserService.java` - Handles OAuth user lifecycle
-- `CustomOAuth2User.java` - Custom user principal wrapper
-- `OAuth2AuthenticationSuccessHandler.java` - Post-login flow control
-- `SecurityConfig.java` - OAuth2 security configuration
+- `backend/src/main/java/.../CustomOAuth2UserService.java` - Handles OAuth user lifecycle
+- `backend/src/main/java/.../CustomOAuth2User.java` - Custom user principal wrapper
+- `backend/src/main/java/.../OAuth2AuthenticationSuccessHandler.java` - Post-login flow control
+- `backend/src/main/java/.../SecurityConfig.java` - OAuth2 security configuration
 
 **Security Benefits:**
 - ✅ No password storage vulnerabilities
@@ -57,11 +57,11 @@ This document outlines the comprehensive security measures implemented in the Tj
 - **Automatic access revocation** on payment failure
 
 **Implementation Files:**
-- `Subscription.java` - Subscription entity model
-- `SubscriptionRepository.java` - Database access layer
-- `StripeService.java` - Payment processing logic
-- `StripeWebhookController.java` - Webhook event handler
-- `SubscriptionController.java` - API endpoints
+- `backend/src/main/java/.../Subscription.java` - Subscription entity model
+- `backend/src/main/java/.../SubscriptionRepository.java` - Database access layer
+- `backend/src/main/java/.../StripeService.java` - Payment processing logic
+- `backend/src/main/java/.../StripeWebhookController.java` - Webhook event handler
+- `backend/src/main/java/.../SubscriptionController.java` - API endpoints
 
 **Subscription States:**
 ```java

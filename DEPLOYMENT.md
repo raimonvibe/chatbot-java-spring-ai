@@ -38,9 +38,10 @@ Deploy your Spring Boot backend to Render.com.
 
 2. **Verify your project structure**
    ```
-   ├── pom.xml
-   ├── src/main/java/com/tjanabot/chatbot/
-   ├── src/main/resources/
+   ├── backend/
+   │   ├── pom.xml
+   │   ├── src/main/java/com/tjanabot/chatbot/
+   │   └── src/main/resources/
    ├── frontend/
    └── README.md
    ```
@@ -60,7 +61,8 @@ Deploy your Spring Boot backend to Render.com.
    ```
    Name: ai-chatbot-backend
    Environment: Java
-   Build Command: ./mvnw clean package -DskipTests
+   Root Directory: backend
+   Build Command: mvn clean package -DskipTests
    Start Command: java -jar target/tjanabot-ai-chatbot-*.jar
    ```
 
@@ -216,7 +218,7 @@ Deploy your Next.js frontend to Vercel.
 
 Make sure your Spring Boot backend allows requests from your Vercel domain.
 
-Update `src/main/java/com/tjanabot/chatbot/controller/ChatController.java`:
+Update `backend/src/main/java/com/tjanabot/chatbot/controller/ChatController.java`:
 
 ```java
 @CrossOrigin(origins = {"http://localhost:3000", "https://your-vercel-app.vercel.app"})

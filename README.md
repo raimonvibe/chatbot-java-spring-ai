@@ -101,6 +101,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 
 3. **Run the backend**
    ```bash
+   cd backend
    mvn spring-boot:run
    ```
    Backend will start on http://localhost:8081
@@ -412,11 +413,14 @@ Advanced web crawling features:
 
 ### Docker Deployment
 
-```dockerfile
-FROM openjdk:17-jdk-slim
-COPY target/ai-chatbot-*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+```bash
+# Build and run using docker-compose
+docker-compose up -d
+
+# Or build the backend manually
+cd backend
+docker build -t tjanabot-backend .
+docker run -p 8080:8080 tjanabot-backend
 ```
 
 ### Production Considerations

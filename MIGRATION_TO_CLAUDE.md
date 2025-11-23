@@ -44,7 +44,7 @@ export COHERE_API_KEY=your-cohere-api-key-here
 
 ### 3. Update Dependencies (Already Done)
 
-The `pom.xml` has been updated to include:
+The `backend/pom.xml` has been updated to include:
 ```xml
 <dependency>
     <groupId>org.springframework.ai</groupId>
@@ -84,6 +84,7 @@ spring:
 
 ```bash
 # Clean and rebuild
+cd backend
 mvn clean install
 
 # Run the application

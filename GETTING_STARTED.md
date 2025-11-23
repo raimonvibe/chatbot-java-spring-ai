@@ -51,15 +51,18 @@ export PINECONE_ENVIRONMENT=your-pinecone-environment
 
 ```bash
 # Option 1: Using Maven
+cd backend
 mvn spring-boot:run
 
 # Option 2: Using the startup script (Linux/Mac)
+cd backend
 chmod +x start.sh
 ./start.sh
 
 # Option 3: Build and run JAR
+cd backend
 mvn clean package
-java -jar target/ai-chatbot-*.jar
+java -jar target/tjanabot-ai-chatbot-*.jar
 ```
 
 ### 3. Access the Dashboard
@@ -180,7 +183,7 @@ SPRING_DATASOURCE_PASSWORD=chatbot_password
 
 ### Application Properties
 
-Edit `src/main/resources/application.yml`:
+Edit `backend/src/main/resources/application.yml`:
 
 ```yaml
 # Website Analysis Settings
