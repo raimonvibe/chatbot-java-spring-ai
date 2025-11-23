@@ -27,8 +27,9 @@ public class AiChatbotApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AiChatbotApplication.class, args);
-        System.out.println("🚀 AI Chatbot System is running!");
-        System.out.println("📊 Dashboard: http://localhost:8080");
-        System.out.println("🔧 H2 Console: http://localhost:8080/h2-console");
+        System.out.println("\n🚀 TjanaBot AI Chatbot System is running!");
+        System.out.println("📊 Frontend Dashboard: http://localhost:3000");
+        System.out.println("🔧 Backend API: http://localhost:8081");
+        System.out.println("💾 H2 Console: http://localhost:8081/h2-console\n");
     }
 }
