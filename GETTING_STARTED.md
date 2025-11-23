@@ -9,7 +9,7 @@ Welcome to **ChatWeave** - an open-source AI-powered chatbot platform that autom
 ### ✨ Core Features
 - **🧠 AI-Powered Intelligence**: Uses Anthropic Claude 3 Haiku for natural conversations
 - **🌐 Website Analysis**: Automatically crawls and analyzes website content
-- **📚 Vector Embeddings**: Advanced semantic search using OpenAI embeddings
+- **📚 Vector Embeddings**: Advanced semantic search using Cohere multilingual embeddings
 - **🌍 Multi-Language Support**: 12+ languages with automatic detection
 - **🎨 Custom Branding**: Match your brand with custom styling
 - **📊 Analytics Dashboard**: Comprehensive conversation and performance analytics
@@ -20,7 +20,7 @@ Welcome to **ChatWeave** - an open-source AI-powered chatbot platform that autom
 - **Database**: H2 (development) / PostgreSQL (production)
 - **Vector Store**: Pinecone for scalable embeddings
 - **Frontend**: Thymeleaf templates with Bootstrap
-- **AI**: Anthropic Claude 3 Haiku for chat, OpenAI for embeddings
+- **AI**: Anthropic Claude 3 Haiku for chat, Cohere for embeddings
 
 ## 🚀 Quick Start
 
@@ -28,7 +28,7 @@ Welcome to **ChatWeave** - an open-source AI-powered chatbot platform that autom
 - **Java 17+** installed
 - **Maven 3.6+** installed
 - **Anthropic API Key** (required for chat functionality)
-- **OpenAI API Key** (required for embeddings)
+- **Cohere API Key** (required for embeddings)
 
 ### 1. Setup Environment
 
@@ -39,8 +39,8 @@ cd ai-chatbot-system
 # Set your Anthropic API key for Claude
 export ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
-# Set your OpenAI API key for embeddings
-export OPENAI_API_KEY=your-openai-api-key-here
+# Set your Cohere API key for embeddings
+export COHERE_API_KEY=your-cohere-api-key-here
 
 # Optional: Set Pinecone credentials for production
 export PINECONE_API_KEY=your-pinecone-api-key-here
@@ -166,7 +166,7 @@ Create a `.env` file or set environment variables:
 
 ```bash
 # Required
-OPENAI_API_KEY=your-openai-api-key-here
+COHERE_API_KEY=your-cohere-api-key-here
 
 # Optional - for production vector storage
 PINECONE_API_KEY=your-pinecone-api-key-here
@@ -225,7 +225,7 @@ docker-compose up -d
 
 # Or build individual image
 docker build -t ai-chatbot .
-docker run -p 8080:8080 -e OPENAI_API_KEY=your-key ai-chatbot
+docker run -p 8080:8080 -e COHERE_API_KEY=your-key ai-chatbot
 ```
 
 ### Production Considerations
@@ -315,8 +315,8 @@ You are a helpful AI assistant for [Your Company Name].
 
 ### Common Issues
 
-1. **"OpenAI API Key not found"**
-   - Set the OPENAI_API_KEY environment variable
+1. **"Cohere API Key not found"**
+   - Set the COHERE_API_KEY environment variable
    - Check your API key is valid and has credits
 
 2. **"Website analysis failed"**
@@ -326,7 +326,7 @@ You are a helpful AI assistant for [Your Company Name].
 
 3. **"Chatbot not responding"**
    - Ensure content has been indexed
-   - Check OpenAI API key and credits
+   - Check Cohere API key and credits
    - Verify chatbot is active
 
 4. **"Widget not loading"**

@@ -16,7 +16,7 @@ Before deploying, ensure you have:
 - [ ] Render.com account (free tier available)
 - [ ] Vercel account (free tier available)
 - [ ] Anthropic API key
-- [ ] OpenAI API key (for embeddings)
+- [ ] Cohere API key (for embeddings)
 
 ---
 
@@ -85,8 +85,8 @@ In the Render dashboard, go to "Environment" tab and add:
 # Anthropic Configuration (Primary AI model)
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
-# OpenAI Configuration (For embeddings only)
-OPENAI_API_KEY=your-openai-api-key-here
+# Cohere Configuration (For embeddings only)
+COHERE_API_KEY=your-cohere-api-key-here
 
 # Application Configuration
 SPRING_PROFILES_ACTIVE=production
@@ -256,7 +256,7 @@ java -Xmx512m -Xms256m -jar target/chatweave-ai-chatbot-*.jar
 ```
 
 ### API Key Issues
-- Verify `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are set
+- Verify `ANTHROPIC_API_KEY` and `COHERE_API_KEY` are set
 - Check API keys have sufficient credits
 - Test API keys separately
 
@@ -304,7 +304,7 @@ java -Xmx512m -Xms256m -jar target/chatweave-ai-chatbot-*.jar
 - [ ] Code pushed to GitHub
 - [ ] Render account created
 - [ ] Web service configured
-- [ ] Environment variables set (ANTHROPIC_API_KEY, OPENAI_API_KEY)
+- [ ] Environment variables set (ANTHROPIC_API_KEY, COHERE_API_KEY)
 - [ ] PostgreSQL database created and linked
 - [ ] Application deployed successfully
 - [ ] Health check passing (`/actuator/health`)
