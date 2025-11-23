@@ -22,10 +22,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
-/**
- * Security Configuration
- * Configures authentication, authorization, CORS, and JWT
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -34,118 +30,49 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
-    @Autowired
-    private RateLimitingFilter rateLimitingFilter;
+    @Autowired private RateLimitingFilter rateLimitingFilter;
+
+    @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;  // Spring injecteert automatisch dankzij @Component
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // CSRF Configuration - Disabled for stateless JWT authentication
-            .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**") // API endpoints use JWT, not CSRF tokens
-            )
-
-            // CORS Configuration
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-            // Authorization Configuration
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints - chat functionality
-                .requestMatchers("/api/chat/**").permitAll()
-                .requestMatchers("/chatbot-widget.js").permitAll()
-                .requestMatchers("/api/health").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-
-                // Public endpoints - authentication
+                .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-
-                // Static resources
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
-
-                // H2 Console - admin only (if enabled)
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-
-                // Admin endpoints - require ADMIN role
-                .requestMatchers("/api/chatbots/**").hasRole("ADMIN")
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/analytics/**").hasRole("ADMIN")
-
-                // All other requests require authentication
+                .requestMatchers("/api/chatbots/**", "/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(h -> h.frameOptions(fo -> fo.sameOrigin()).contentTypeOptions(cto -> cto.disable()));
 
-            // Session Management - Stateless for JWT
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-
-            // Security Headers
-            .headers(headers -> headers
-                .frameOptions(frame -> frame.sameOrigin()) // Allow H2 console frames from same origin
-                .xssProtection(xss -> xss.headerValue("1; mode=block"))
-                .contentTypeOptions(cto -> cto.disable())
-            );
-
-        // Add rate limiting filter (first)
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
-
-        // Add JWT authentication filter (after rate limiting)
-        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * CORS Configuration
-     * Restricts which domains can access the API
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // Parse allowed origins from comma-separated string
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-
-        // Allowed HTTP methods
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // Allowed headers
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-
-        // Allow credentials (cookies, authorization headers)
-        configuration.setAllowCredentials(true);
-
-        // Cache preflight requests for 1 hour
-        configuration.setMaxAge(3600L);
-
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
+        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-
+        source.registerCorsConfiguration("/api/**", config);
         return source;
     }
 
-    /**
-     * Password Encoder
-     * Uses BCrypt with strength 12
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
+    @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
 
-    /**
-     * JWT Authentication Filter
-     */
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
-    }
-
-    /**
-     * Authentication Manager
-     */
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration c) throws Exception {
+        return c.getAuthenticationManager();
     }
 }
