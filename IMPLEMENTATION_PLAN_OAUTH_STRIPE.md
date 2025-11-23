@@ -2,7 +2,7 @@
 
 ## 📊 Project Overview
 
-**Objective**: Transform ChatWeave from a demo chatbot system into a SaaS chatbot generator platform with:
+**Objective**: Transform TjanaBot from a demo chatbot system into a SaaS chatbot generator platform with:
 - Google OAuth authentication
 - Stripe monthly subscription payments ($4.98/month per chatbot)
 - Preview mode (5 free messages)
@@ -331,7 +331,7 @@ protected void configure(HttpSecurity http) throws Exception {
 ### 3.2 Stripe Setup (Dashboard)
 
 **Products & Prices:**
-1. Create Product: "ChatWeave Chatbot Subscription"
+1. Create Product: "TjanaBot Chatbot Subscription"
 2. Create Price: $4.98/month recurring
 3. Copy Price ID: `price_xxxxxxxxxxxxx`
 

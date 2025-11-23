@@ -38,7 +38,7 @@
         config = Object.assign(config, options);
         
         if (!config.chatbotId) {
-            console.error('ChatWeave Chatbot: chatbotId is required');
+            console.error('TjanaBot Chatbot: chatbotId is required');
             return;
         }
         
@@ -51,7 +51,7 @@
         // Load chatbot configuration
         loadChatbotConfig();
         
-        console.log('ChatWeave Chatbot initialized:', config);
+        console.log('TjanaBot Chatbot initialized:', config);
     }
     
     /**
@@ -60,7 +60,7 @@
     function createWidget() {
         // Create main container
         widgetContainer = document.createElement('div');
-        widgetContainer.id = 'chatweave-chatbot-widget';
+        widgetContainer.id = 'tjanabot-chatbot-widget';
         widgetContainer.style.cssText = `
             position: fixed;
             ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -71,7 +71,7 @@
         
         // Create chat container
         chatContainer = document.createElement('div');
-        chatContainer.id = 'chatweave-chat-container';
+        chatContainer.id = 'tjanabot-chat-container';
         chatContainer.style.cssText = `
             display: none;
             width: 350px;
@@ -102,14 +102,14 @@
                     AI Assistant
                 </h6>
             </div>
-            <button id="chatweave-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
+            <button id="tjanabot-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
                 <i class="fas fa-times"></i>
             </button>
         `;
         
         // Create messages container
         messageContainer = document.createElement('div');
-        messageContainer.id = 'chatweave-messages';
+        messageContainer.id = 'tjanabot-messages';
         messageContainer.style.cssText = `
             flex: 1;
             padding: 15px;
@@ -127,9 +127,9 @@
         `;
         inputArea.innerHTML = `
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="chatweave-message-input" placeholder="Type your message..." 
+                <input type="text" id="tjanabot-message-input" placeholder="Type your message..." 
                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                <button id="chatweave-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                <button id="tjanabot-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -137,7 +137,7 @@
         
         // Create toggle button
         toggleButton = document.createElement('button');
-        toggleButton.id = 'chatweave-toggle-btn';
+        toggleButton.id = 'tjanabot-toggle-btn';
         toggleButton.style.cssText = `
             width: 60px;
             height: 60px;
@@ -167,8 +167,8 @@
         document.body.appendChild(widgetContainer);
         
         // Get references to interactive elements
-        inputField = document.getElementById('chatweave-message-input');
-        sendButton = document.getElementById('chatweave-send-btn');
+        inputField = document.getElementById('tjanabot-message-input');
+        sendButton = document.getElementById('tjanabot-send-btn');
         
         // Add event listeners
         setupEventListeners();
@@ -185,7 +185,7 @@
         toggleButton.addEventListener('click', toggleChat);
         
         // Close button
-        document.getElementById('chatweave-close-btn').addEventListener('click', closeChat);
+        document.getElementById('tjanabot-close-btn').addEventListener('click', closeChat);
         
         // Send button
         sendButton.addEventListener('click', sendMessage);
@@ -317,7 +317,7 @@
      */
     function showTypingIndicator() {
         const typingDiv = document.createElement('div');
-        typingDiv.id = 'chatweave-typing';
+        typingDiv.id = 'tjanabot-typing';
         typingDiv.style.cssText = `
             margin-bottom: 15px;
             display: flex;
@@ -341,7 +341,7 @@
      * Hide typing indicator
      */
     function hideTypingIndicator() {
-        const typingDiv = document.getElementById('chatweave-typing');
+        const typingDiv = document.getElementById('tjanabot-typing');
         if (typingDiv) {
             typingDiv.remove();
         }
@@ -386,9 +386,9 @@
     function updateWidgetStyling() {
         // Update colors
         const elements = [
-            { selector: '#chatweave-close-btn', style: 'color' },
-            { selector: '#chatweave-send-btn', style: 'background' },
-            { selector: '#chatweave-toggle-btn', style: 'background' }
+            { selector: '#tjanabot-close-btn', style: 'color' },
+            { selector: '#tjanabot-send-btn', style: 'background' },
+            { selector: '#tjanabot-toggle-btn', style: 'background' }
         ];
         
         elements.forEach(({ selector, style }) => {
@@ -410,7 +410,7 @@
     document.head.appendChild(style);
     
     // Expose global API
-    window.ChatWeave = {
+    window.TjanaBot = {
         init: init,
         open: openChat,
         close: closeChat,

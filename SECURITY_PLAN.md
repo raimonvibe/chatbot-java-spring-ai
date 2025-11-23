@@ -1,4 +1,4 @@
-# 🔒 Security Improvement Plan - ChatWeave AI Chatbot
+# 🔒 Security Improvement Plan - TjanaBot AI Chatbot
 
 ## Executive Summary
 
@@ -21,10 +21,10 @@ These vulnerabilities allow unauthorized access to all data and functionality.
 
 #### Create Security Configuration
 
-Create `src/main/java/com/chatweave/chatbot/config/SecurityConfig.java`:
+Create `src/main/java/com/tjanabot/chatbot/config/SecurityConfig.java`:
 
 ```java
-package com.chatweave.chatbot.config;
+package com.tjanabot.chatbot.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -106,10 +106,10 @@ public class SecurityConfig {
 
 #### Implement JWT Authentication
 
-Create `src/main/java/com/chatweave/chatbot/security/JwtAuthenticationFilter.java`:
+Create `src/main/java/com/tjanabot/chatbot/security/JwtAuthenticationFilter.java`:
 
 ```java
-package com.chatweave.chatbot.security;
+package com.tjanabot.chatbot.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -164,10 +164,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 }
 ```
 
-Create `src/main/java/com/chatweave/chatbot/security/JwtTokenProvider.java`:
+Create `src/main/java/com/tjanabot/chatbot/security/JwtTokenProvider.java`:
 
 ```java
-package com.chatweave.chatbot.security;
+package com.tjanabot.chatbot.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -288,10 +288,10 @@ spring:
 
 #### Create User Management
 
-Create `src/main/java/com/chatweave/chatbot/model/User.java`:
+Create `src/main/java/com/tjanabot/chatbot/model/User.java`:
 
 ```java
-package com.chatweave.chatbot.model;
+package com.tjanabot.chatbot.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -419,10 +419,10 @@ In HTML head:
 
 #### Create Rate Limiting Filter
 
-Create `src/main/java/com/chatweave/chatbot/security/RateLimitingFilter.java`:
+Create `src/main/java/com/tjanabot/chatbot/security/RateLimitingFilter.java`:
 
 ```java
-package com.chatweave.chatbot.security;
+package com.tjanabot.chatbot.security;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -570,10 +570,10 @@ private String websiteUrl;
 
 #### Webhook URL Validation
 
-Create validation service `src/main/java/com/chatweave/chatbot/service/UrlValidationService.java`:
+Create validation service `src/main/java/com/tjanabot/chatbot/service/UrlValidationService.java`:
 
 ```java
-package com.chatweave.chatbot.service;
+package com.tjanabot.chatbot.service;
 
 import org.springframework.stereotype.Service;
 
@@ -739,17 +739,17 @@ spring:
 
 logging:
   level:
-    com.chatweave: INFO  # Change from DEBUG
+    com.tjanabot: INFO  # Change from DEBUG
     org.springframework.ai: WARN  # Change from DEBUG
     org.springframework.security: INFO
 ```
 
 #### Sanitize Logs
 
-Create `src/main/java/com/chatweave/chatbot/util/LogSanitizer.java`:
+Create `src/main/java/com/tjanabot/chatbot/util/LogSanitizer.java`:
 
 ```java
-package com.chatweave.chatbot.util;
+package com.tjanabot.chatbot.util;
 
 import java.util.regex.Pattern;
 
@@ -804,7 +804,7 @@ http.headers(headers -> headers
 
 #### Add Session Timeout
 
-Create `src/main/java/com/chatweave/chatbot/service/SessionManagementService.java`:
+Create `src/main/java/com/tjanabot/chatbot/service/SessionManagementService.java`:
 
 ```java
 @Scheduled(fixedDelay = 3600000) // Run every hour
@@ -830,7 +830,7 @@ public void cleanupExpiredSessions() {
 
 #### Add Privacy Consent
 
-Create `src/main/java/com/chatweave/chatbot/model/PrivacyConsent.java`:
+Create `src/main/java/com/tjanabot/chatbot/model/PrivacyConsent.java`:
 
 ```java
 @Entity
@@ -1425,7 +1425,7 @@ public class PaymentController {
 
 #### PCI Compliance Notes
 
-**✅ ChatWeave is PCI-DSS compliant by design:**
+**✅ TjanaBot is PCI-DSS compliant by design:**
 
 1. **No Card Data Stored**: Stripe handles all card processing
 2. **No Card Data Touched**: Payment forms hosted by Stripe
@@ -1550,7 +1550,7 @@ public class EmbedCodeService {
 
         // Generate HTML with Content Security Policy hints
         return String.format("""
-            <!-- ChatWeave AI Chatbot -->
+            <!-- TjanaBot AI Chatbot -->
             <script>
               (function() {
                 var script = document.createElement('script');
@@ -1581,7 +1581,7 @@ public class PaymentAuditLogger {
     private static final Logger auditLog = LoggerFactory.getLogger("PAYMENT_AUDIT");
 
     @AfterReturning(
-        pointcut = "execution(* com.chatweave.chatbot.service.SubscriptionService.activateSubscription(..))",
+        pointcut = "execution(* com.tjanabot.chatbot.service.SubscriptionService.activateSubscription(..))",
         returning = "subscription"
     )
     public void logSubscriptionActivation(JoinPoint joinPoint, Subscription subscription) {
@@ -1593,7 +1593,7 @@ public class PaymentAuditLogger {
     }
 
     @AfterReturning(
-        pointcut = "execution(* com.chatweave.chatbot.service.SubscriptionService.cancelSubscription(..))",
+        pointcut = "execution(* com.tjanabot.chatbot.service.SubscriptionService.cancelSubscription(..))",
         returning = "subscription"
     )
     public void logSubscriptionCancellation(JoinPoint joinPoint, Subscription subscription) {
@@ -1604,7 +1604,7 @@ public class PaymentAuditLogger {
     }
 
     @AfterThrowing(
-        pointcut = "execution(* com.chatweave.chatbot.controller.StripeWebhookController.*(..))",
+        pointcut = "execution(* com.tjanabot.chatbot.controller.StripeWebhookController.*(..))",
         throwing = "exception"
     )
     public void logWebhookFailure(JoinPoint joinPoint, Exception exception) {
@@ -1662,7 +1662,7 @@ APP_URL=https://yourdomain.com  # HTTPS only
 
 #### Add Security Event Logging
 
-Create `src/main/java/com/chatweave/chatbot/audit/SecurityEventLogger.java`:
+Create `src/main/java/com/tjanabot/chatbot/audit/SecurityEventLogger.java`:
 
 ```java
 @Component
