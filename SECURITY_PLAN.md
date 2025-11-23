@@ -273,8 +273,8 @@ jwt:
 ai:
   anthropic:
     api-key: ${ANTHROPIC_API_KEY}  # No default!
-  openai:
-    api-key: ${OPENAI_API_KEY}  # No default!
+  cohere:
+    api-key: ${COHERE_API_KEY}  # No default!
 ```
 
 #### Disable H2 Console in Production
@@ -1042,7 +1042,7 @@ spring:
 
 ```bash
 export ANTHROPIC_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
+export COHERE_API_KEY="your-key"
 export JWT_SECRET="your-very-long-secret-key-min-256-bits"
 ```
 

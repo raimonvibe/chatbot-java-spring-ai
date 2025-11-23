@@ -1,18 +1,18 @@
-# 🔄 Migration Guide: OpenAI → Anthropic Claude
+# 🔄 Migration Guide: OpenAI → Anthropic Claude + Cohere
 
-This guide explains the migration from OpenAI to Anthropic Claude 3 Haiku for chat functionality.
+This guide explains the migration from OpenAI to Anthropic Claude 3 Haiku for chat functionality and Cohere for embeddings.
 
 ## 📋 What Changed
 
 ### Before (OpenAI)
 - **Chat Model**: GPT-3.5-turbo
-- **Embeddings**: text-embedding-ada-002
+- **Embeddings**: text-embedding-ada-002 (1536 dimensions)
 - **Provider**: OpenAI for both
 
-### After (Claude + OpenAI)
+### After (Claude + Cohere)
 - **Chat Model**: Claude 3 Haiku (Anthropic)
-- **Embeddings**: text-embedding-ada-002 (OpenAI)
-- **Providers**: Claude for chat, OpenAI for embeddings
+- **Embeddings**: embed-multilingual-v3.0 (Cohere, 1024 dimensions)
+- **Providers**: Claude for chat, Cohere for multilingual embeddings
 
 ## 🎯 Why Claude 3 Haiku?
 
@@ -38,8 +38,8 @@ This guide explains the migration from OpenAI to Anthropic Claude 3 Haiku for ch
 # Add Anthropic API key
 export ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
-# Keep OpenAI API key for embeddings
-export OPENAI_API_KEY=your-openai-api-key-here
+# Add Cohere API key for embeddings
+export COHERE_API_KEY=your-cohere-api-key-here
 ```
 
 ### 3. Update Dependencies (Already Done)
@@ -53,7 +53,7 @@ The `pom.xml` has been updated to include:
 
 <dependency>
     <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+    <artifactId>spring-ai-cohere-spring-boot-starter</artifactId>
 </dependency>
 ```
 
@@ -72,12 +72,12 @@ spring:
           temperature: 0.7
           max-tokens: 1000
 
-    # OpenAI for embeddings
-    openai:
-      api-key: ${OPENAI_API_KEY}
+    # Cohere for embeddings
+    cohere:
+      api-key: ${COHERE_API_KEY}
       embedding:
         options:
-          model: text-embedding-ada-002
+          model: embed-multilingual-v3.0
 ```
 
 ### 5. Build and Run
@@ -164,8 +164,8 @@ max-tokens: 1000  # Default
 ### Error: "Anthropic API key not found"
 **Solution**: Ensure `ANTHROPIC_API_KEY` is set in your environment
 
-### Error: "OpenAI API key not found"
-**Solution**: Ensure `OPENAI_API_KEY` is still set (needed for embeddings)
+### Error: "Cohere API key not found"
+**Solution**: Ensure `COHERE_API_KEY` is set (needed for embeddings)
 
 ### Error: "ChatClient bean not found"
 **Solution**: Check that `AiConfiguration.java` exists and is properly configured
@@ -205,4 +205,4 @@ If you need to revert back to OpenAI:
 
 ---
 
-**Note**: Both API keys (Anthropic and OpenAI) are required for the system to work properly - Anthropic for chat and OpenAI for embeddings.
+**Note**: Both API keys (Anthropic and Cohere) are required for the system to work properly - Anthropic for chat and Cohere for multilingual embeddings.
