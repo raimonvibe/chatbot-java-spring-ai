@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # AI Chatbot Application
   chatbot-app:
-    build: .
+    build: ./backend
     ports:
       - "8080:8080"
     environment:
@@ -18,7 +18,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./logs:/app/logs
+      - ./backend/logs:/app/logs
     restart: unless-stopped
     networks:
       - chatbot-network

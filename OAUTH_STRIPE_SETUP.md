@@ -161,6 +161,7 @@ STRIPE_CANCEL_URL=http://localhost:3000/pricing
 
 1. Start your backend server:
    ```bash
+   cd backend
    mvn spring-boot:run
    ```
 

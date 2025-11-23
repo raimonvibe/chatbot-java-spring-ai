@@ -210,7 +210,7 @@ ALTER TABLE chatbots
 
 ### 2.1 Dependencies
 
-**Add to `pom.xml`:**
+**Add to `backend/pom.xml`:**
 ```xml
 <!-- OAuth2 Client -->
 <dependency>
@@ -319,7 +319,7 @@ protected void configure(HttpSecurity http) throws Exception {
 
 ### 3.1 Dependencies
 
-**Add to `pom.xml`:**
+**Add to `backend/pom.xml`:**
 ```xml
 <dependency>
     <groupId>com.stripe</groupId>
