@@ -33,13 +33,13 @@ spring:
           temperature: 0.7
           max-tokens: 1000
 
-    # Cohere for embeddings only
-    cohere:
-      api-key: ${COHERE_API_KEY}
-      base-url: https://api.cohere.com
+    # OpenAI for embeddings only
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: https://api.openai.com
       embedding:
         options:
-          model: embed-multilingual-v3.0
+          model: text-embedding-ada-002
 
 # Application Configuration
 app:
@@ -55,8 +55,8 @@ app:
     user-agent: "AI-Chatbot-Crawler/1.0"
   
   embedding:
-    model: embed-multilingual-v3.0
-    dimensions: 1024
+    model: text-embedding-ada-002
+    dimensions: 1536
     batch-size: 100
 
 # Logging
