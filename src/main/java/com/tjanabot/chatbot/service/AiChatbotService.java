@@ -149,20 +149,28 @@ public class AiChatbotService {
      * Generate AI response using RAG (Retrieval Augmented Generation)
      */
     private String generateResponse(Chatbot chatbot, Conversation conversation, String userMessage, String userLanguage) {
-        
+
         // Retrieve relevant context from vector store
         List<Document> relevantDocs = retrieveRelevantContext(chatbot, userMessage);
-        
+
         // Build conversation history
         List<com.tjanabot.chatbot.model.Message> recentMessages = getRecentMessages(conversation);
-        
+
+        // Check if this is the first message (for Christian greeting)
+        boolean isFirstMessage = recentMessages.isEmpty();
+
         // Create system prompt with context
         String systemPrompt = buildSystemPrompt(chatbot, relevantDocs, userLanguage);
-        
+
+        // Add Christian greeting instruction for first message
+        if (isFirstMessage && chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
+            systemPrompt += "\nIMPORTANT: This is the first message. Start your response with a warm Christian greeting (e.g., 'Welcome! God's blessings to you!', 'Greetings in Christ!', 'Peace be with you!').\n";
+        }
+
         // Build messages for the chat
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(systemPrompt));
-        
+
         // Add conversation history
         for (com.tjanabot.chatbot.model.Message msg : recentMessages) {
             if (msg.getIsUserMessage()) {
@@ -171,14 +179,14 @@ public class AiChatbotService {
                 messages.add(new AssistantMessage(msg.getContent()));
             }
         }
-        
+
         // Add current user message
         messages.add(new UserMessage(userMessage));
-        
+
         // Generate response
         Prompt prompt = new Prompt(messages);
         ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
-        
+
         return response.getResult().getOutput().getContent();
     }
     
@@ -222,23 +230,40 @@ public class AiChatbotService {
      */
     private String buildSystemPrompt(Chatbot chatbot, List<Document> relevantDocs, String userLanguage) {
         StringBuilder prompt = new StringBuilder();
-        
+
         // Base system prompt
         prompt.append("You are an AI assistant for ").append(chatbot.getName()).append(".\n");
         prompt.append("You help visitors by answering questions about the business and its services.\n");
         prompt.append("Be helpful, friendly, and professional in your responses.\n");
         prompt.append("If you don't know something, politely say so and suggest contacting the business directly.\n");
-        
+
+        // Add Christian values if enabled
+        if (chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
+            prompt.append("\nChristian Values:\n");
+            prompt.append("- Approach all interactions with love, kindness, and compassion\n");
+            prompt.append("- Reflect Christian values of honesty, integrity, and service to others\n");
+            prompt.append("- Be respectful, patient, and understanding in all communications\n");
+            prompt.append("- Seek to help and bless those you interact with\n");
+
+            // Add Bible verse if configured
+            if (chatbot.getBibleVerse() != null && !chatbot.getBibleVerse().trim().isEmpty()) {
+                prompt.append("\nGuiding Scripture: ").append(chatbot.getBibleVerse()).append("\n");
+            }
+
+            // Add footer instruction for Christian blessing
+            prompt.append("\nIMPORTANT: End each response with a brief Christian blessing or encouragement (e.g., 'God bless you!', 'May you be blessed!', 'Grace and peace to you!').\n");
+        }
+
         // Add custom prompt if configured
         if (chatbot.getCustomPrompt() != null && !chatbot.getCustomPrompt().trim().isEmpty()) {
             prompt.append("\nAdditional instructions: ").append(chatbot.getCustomPrompt()).append("\n");
         }
-        
+
         // Add language-specific instructions
         if (userLanguage != null && !userLanguage.equals("en")) {
             prompt.append("\nRespond in ").append(getLanguageName(userLanguage)).append(".\n");
         }
-        
+
         // Add relevant context
         if (!relevantDocs.isEmpty()) {
             prompt.append("\nRelevant information about the business:\n");
@@ -246,7 +271,7 @@ public class AiChatbotService {
                 prompt.append("- ").append(doc.getContent()).append("\n");
             }
         }
-        
+
         return prompt.toString();
     }
     

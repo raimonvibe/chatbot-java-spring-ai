@@ -4,6 +4,7 @@ import com.tjanabot.chatbot.model.Chatbot;
 import com.tjanabot.chatbot.service.AiChatbotService;
 import com.tjanabot.chatbot.service.WebsiteAnalysisService;
 import com.tjanabot.chatbot.service.ConversationExportService;
+import com.tjanabot.chatbot.service.BibleVerseService;
 import com.tjanabot.chatbot.repository.ChatbotRepository;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -31,16 +32,19 @@ public class ChatbotController {
     private final AiChatbotService aiChatbotService;
     private final WebsiteAnalysisService websiteAnalysisService;
     private final ConversationExportService conversationExportService;
+    private final BibleVerseService bibleVerseService;
 
     @Autowired
     public ChatbotController(ChatbotRepository chatbotRepository,
                            AiChatbotService aiChatbotService,
                            WebsiteAnalysisService websiteAnalysisService,
-                           ConversationExportService conversationExportService) {
+                           ConversationExportService conversationExportService,
+                           BibleVerseService bibleVerseService) {
         this.chatbotRepository = chatbotRepository;
         this.aiChatbotService = aiChatbotService;
         this.websiteAnalysisService = websiteAnalysisService;
         this.conversationExportService = conversationExportService;
+        this.bibleVerseService = bibleVerseService;
     }
     
     /**
@@ -110,7 +114,10 @@ public class ChatbotController {
             chatbot.setWebhookUrl(chatbotDetails.getWebhookUrl());
             chatbot.setWebhookEvents(chatbotDetails.getWebhookEvents());
             chatbot.setQuickReplies(chatbotDetails.getQuickReplies());
-            
+            // CHRISTIAN MESSAGING FEATURES
+            chatbot.setBibleVerse(chatbotDetails.getBibleVerse());
+            chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
+
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
             logger.info("Updated chatbot: {}", updatedChatbot.getName());
             return ResponseEntity.ok(updatedChatbot);
@@ -383,6 +390,50 @@ public class ChatbotController {
                     .body(quickReplies != null ? quickReplies : "[]");
         } catch (Exception e) {
             logger.error("Error retrieving quick replies for chatbot {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * CHRISTIAN MESSAGING FEATURE: Suggest Bible verse based on website topic
+     */
+    @PostMapping("/{id}/suggest-bible-verse")
+    public ResponseEntity<Map<String, String>> suggestBibleVerse(@PathVariable Long id) {
+        try {
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Gather website content for context
+            String websiteContent = websiteAnalysisService.getAnalyzedContent(chatbot);
+
+            // Suggest Bible verse
+            String suggestedVerse = bibleVerseService.suggestBibleVerse(
+                chatbot.getWebsiteUrl(),
+                chatbot.getDescription(),
+                websiteContent
+            );
+
+            // Auto-update chatbot with suggested verse if Christian messaging is enabled
+            if (chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
+                chatbot.setBibleVerse(suggestedVerse);
+                chatbotRepository.save(chatbot);
+            }
+
+            Map<String, String> response = Map.of(
+                "chatbotId", id.toString(),
+                "suggestedVerse", suggestedVerse,
+                "autoApplied", (chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) ? "true" : "false"
+            );
+
+            logger.info("Suggested Bible verse for chatbot {}: {}", id, suggestedVerse);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error suggesting Bible verse for chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

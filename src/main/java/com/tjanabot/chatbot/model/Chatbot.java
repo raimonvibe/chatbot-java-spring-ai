@@ -65,6 +65,13 @@ public class Chatbot {
     @Column(columnDefinition = "TEXT")
     private String quickReplies; // JSON array of quick reply configurations
 
+    // Christian Messaging Features
+    @Column(columnDefinition = "TEXT")
+    private String bibleVerse; // Bible verse relevant to website topic
+
+    @Column(nullable = false)
+    private Boolean christianMessagingEnabled = true; // Enable Christian values in responses
+
     @Column(nullable = false)
     private Boolean isActive = true;
 
@@ -243,5 +250,21 @@ public class Chatbot {
 
     public void setQuickReplies(String quickReplies) {
         this.quickReplies = quickReplies;
+    }
+
+    public String getBibleVerse() {
+        return bibleVerse;
+    }
+
+    public void setBibleVerse(String bibleVerse) {
+        this.bibleVerse = bibleVerse;
+    }
+
+    public Boolean getChristianMessagingEnabled() {
+        return christianMessagingEnabled;
+    }
+
+    public void setChristianMessagingEnabled(Boolean christianMessagingEnabled) {
+        this.christianMessagingEnabled = christianMessagingEnabled;
     }
 }

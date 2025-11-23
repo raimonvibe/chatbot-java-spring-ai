@@ -156,6 +156,42 @@
                         </div>
                     </div>
 
+                    <!-- Christian Messaging -->
+                    <div class="form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-cross me-2"></i>Christian Messaging
+                        </h4>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="christianMessagingEnabled"
+                                       name="christianMessagingEnabled" th:field="*{christianMessagingEnabled}" checked>
+                                <label class="form-check-label" for="christianMessagingEnabled">
+                                    Enable Christian Values in Responses
+                                </label>
+                            </div>
+                            <div class="form-text">When enabled, chatbot will include Christian values, blessings, and Bible verses in its responses</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="bibleVerse" class="form-label">
+                                Bible Verse
+                                <span class="text-muted">(Optional - relevant to your website topic)</span>
+                            </label>
+                            <div class="input-group">
+                                <textarea class="form-control" id="bibleVerse" name="bibleVerse"
+                                          th:field="*{bibleVerse}" rows="3"
+                                          placeholder="e.g., Matthew 5:16 - 'Let your light shine before others...'"></textarea>
+                            </div>
+                            <div class="form-text">
+                                This verse will guide the chatbot's responses and can be shown to visitors.
+                                <button type="button" class="btn btn-sm btn-link p-0" onclick="suggestBibleVerse()">
+                                    <i class="fas fa-lightbulb"></i> Suggest verse based on website topic
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Branding -->
                     <div class="form-section">
                         <h4 class="mb-3">
@@ -210,6 +246,42 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const selectedLanguages = new Set();
+
+        // Suggest Bible verse based on website topic
+        async function suggestBibleVerse() {
+            const chatbotId = /*[[${chatbot.id}]]*/ null;
+
+            if (!chatbotId) {
+                alert('Please save the chatbot first, then analyze the website before suggesting a Bible verse.');
+                return;
+            }
+
+            const websiteUrl = document.getElementById('websiteUrl').value;
+            if (!websiteUrl) {
+                alert('Please enter a website URL first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/chatbots/${chatbotId}/suggest-bible-verse`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('bibleVerse').value = data.suggestedVerse;
+                    alert('Bible verse suggested successfully!\n\n' + data.suggestedVerse);
+                } else {
+                    alert('Could not suggest Bible verse. Please ensure website has been analyzed first.');
+                }
+            } catch (error) {
+                console.error('Error suggesting Bible verse:', error);
+                alert('Error suggesting Bible verse. Please try again.');
+            }
+        }
         
         // Initialize with existing languages if editing
         document.addEventListener('DOMContentLoaded', function() {

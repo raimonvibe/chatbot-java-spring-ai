@@ -300,13 +300,46 @@ public class WebsiteAnalysisService {
      */
     public Map<String, Object> getAnalysisStats(Chatbot chatbot) {
         List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot);
-        
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalPages", contents.size());
         stats.put("totalWords", contents.stream().mapToInt(WebsiteContent::getWordCount).sum());
         stats.put("totalCharacters", contents.stream().mapToInt(WebsiteContent::getContentLength).sum());
         stats.put("indexedPages", contents.stream().mapToInt(c -> c.getIsIndexed() ? 1 : 0).sum());
-        
+
         return stats;
+    }
+
+    /**
+     * Get analyzed website content as a concatenated string (for Bible verse suggestion)
+     */
+    public String getAnalyzedContent(Chatbot chatbot) {
+        List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot);
+
+        if (contents.isEmpty()) {
+            return "";
+        }
+
+        // Concatenate first 3 pages of content (or all if less than 3) for context
+        StringBuilder combinedContent = new StringBuilder();
+        contents.stream()
+            .limit(3)
+            .forEach(content -> {
+                if (content.getTitle() != null) {
+                    combinedContent.append(content.getTitle()).append(" ");
+                }
+                if (content.getMetaDescription() != null) {
+                    combinedContent.append(content.getMetaDescription()).append(" ");
+                }
+                if (content.getContent() != null) {
+                    // Limit content to first 500 characters per page
+                    String truncatedContent = content.getContent().length() > 500
+                        ? content.getContent().substring(0, 500)
+                        : content.getContent();
+                    combinedContent.append(truncatedContent).append(" ");
+                }
+            });
+
+        return combinedContent.toString();
     }
 }
