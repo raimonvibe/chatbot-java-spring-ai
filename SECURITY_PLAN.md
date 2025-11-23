@@ -4,9 +4,9 @@
 
 **Current Security Status: CRITICAL (2/10)**
 
-This application has critical security vulnerabilities that make it **UNSAFE FOR PRODUCTION**. This plan outlines a phased approach to address all identified vulnerabilities and achieve a production-ready security posture.
+This application has critical security vulnerabilities that make it **UNSAFE FOR PRODUCTION**. This plan outlines a phased approach to address all identified vulnerabilities and achieve a production-ready security posture, including Google OAuth and Stripe payment integration security.
 
-**Target Security Status: 9/10** (after implementation)
+**Target Security Status: 9.5/10** (after implementation including OAuth & Payments)
 
 ---
 
@@ -1060,6 +1060,602 @@ Add dependency:
 
 ---
 
+## 🔐 PHASE 6: OAuth & Payment Security (Week 6)
+
+This phase covers security for Google OAuth integration and Stripe payment processing.
+
+### 6.1 Google OAuth Security
+
+**Priority: CRITICAL**
+**Effort: 2-3 days**
+
+#### Secure OAuth2 Configuration
+
+**application.yml:**
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}  # Never hardcode
+            client-secret: ${GOOGLE_CLIENT_SECRET}  # Never commit to git
+            scope:
+              - profile
+              - email
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+            authorization-grant-type: authorization_code
+
+# Production: Add allowed redirect URIs to Google Console
+# - https://yourdomain.com/login/oauth2/code/google
+# NEVER allow wildcards or http:// in production
+```
+
+#### Validate OAuth State Parameter
+
+Prevent CSRF attacks during OAuth flow:
+
+```java
+@Service
+public class CustomOAuth2UserService extends DefaultOAuth2UserService {
+
+    @Override
+    public OAuth2User loadUser(OAuth2UserRequest userRequest) {
+        OAuth2User oAuth2User = super.loadUser(userRequest);
+
+        // Validate state parameter (Spring Security handles this)
+        // Additional validation
+        String email = oAuth2User.getAttribute("email");
+        Boolean emailVerified = oAuth2User.getAttribute("email_verified");
+
+        // CRITICAL: Only accept verified emails
+        if (emailVerified == null || !emailVerified) {
+            throw new OAuth2AuthenticationException("Email not verified");
+        }
+
+        // Validate email domain (optional - for B2B)
+        if (email != null && email.endsWith("@competitor.com")) {
+            throw new OAuth2AuthenticationException("Domain not allowed");
+        }
+
+        return oAuth2User;
+    }
+}
+```
+
+#### Secure User Creation from OAuth
+
+```java
+@Service
+public class OAuth2UserService {
+
+    public User createOrUpdateUser(OAuth2User oAuth2User) {
+        String googleId = oAuth2User.getAttribute("sub");
+        String email = oAuth2User.getAttribute("email");
+        String name = oAuth2User.getAttribute("name");
+        String picture = oAuth2User.getAttribute("picture");
+
+        // Input validation
+        if (googleId == null || email == null) {
+            throw new IllegalArgumentException("Invalid OAuth2 user data");
+        }
+
+        // Sanitize inputs
+        email = sanitizeEmail(email);
+        name = sanitizeString(name, 100);
+
+        // Check if user exists by Google ID (primary)
+        Optional<User> existingUser = userRepository.findByGoogleId(googleId);
+
+        if (existingUser.isPresent()) {
+            // Update existing user
+            User user = existingUser.get();
+            user.setEmail(email);
+            user.setProfilePictureUrl(picture);
+            user.setLastLogin(LocalDateTime.now());
+            return userRepository.save(user);
+        }
+
+        // Check if email already exists with different auth provider
+        Optional<User> emailUser = userRepository.findByEmail(email);
+        if (emailUser.isPresent()) {
+            User user = emailUser.get();
+            if (user.getAuthProvider() == AuthProvider.LOCAL) {
+                // SECURITY: Don't auto-link accounts
+                // User must manually link or use password login
+                throw new OAuth2AuthenticationException(
+                    "Account exists with password login. Please sign in with password."
+                );
+            }
+        }
+
+        // Create new user
+        User newUser = new User();
+        newUser.setGoogleId(googleId);
+        newUser.setEmail(email);
+        newUser.setUsername(email); // Use email as username
+        newUser.setAuthProvider(AuthProvider.GOOGLE);
+        newUser.setProfilePictureUrl(picture);
+        newUser.setEnabled(true);
+        newUser.getRoles().add("USER");
+        newUser.setPassword(null); // OAuth users don't need password
+
+        return userRepository.save(newUser);
+    }
+
+    private String sanitizeEmail(String email) {
+        if (email == null) return null;
+        email = email.toLowerCase().trim();
+        // Validate email format
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            throw new IllegalArgumentException("Invalid email format");
+        }
+        return email;
+    }
+
+    private String sanitizeString(String input, int maxLength) {
+        if (input == null) return null;
+        input = input.trim();
+        if (input.length() > maxLength) {
+            input = input.substring(0, maxLength);
+        }
+        // Remove potentially harmful characters
+        return input.replaceAll("[<>\"']", "");
+    }
+}
+```
+
+#### Rate Limit OAuth Endpoints
+
+```java
+@Configuration
+public class OAuth2RateLimitConfig {
+
+    @Bean
+    public RateLimitingFilter oauth2RateLimiter() {
+        return new RateLimitingFilter(
+            "/login/oauth2/**",
+            10,  // 10 attempts
+            Duration.ofMinutes(15)  // per 15 minutes
+        );
+    }
+}
+```
+
+### 6.2 Stripe Payment Security
+
+**Priority: CRITICAL**
+**Effort: 3-4 days**
+
+#### Secure Stripe Configuration
+
+**application.yml:**
+```yaml
+stripe:
+  api-key: ${STRIPE_SECRET_KEY}  # sk_live_... for production
+  publishable-key: ${STRIPE_PUBLISHABLE_KEY}  # pk_live_... (safe for frontend)
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}  # whsec_...
+  price-id: ${STRIPE_PRICE_ID}  # price_...
+
+# CRITICAL SECURITY RULES:
+# 1. NEVER expose STRIPE_SECRET_KEY to frontend
+# 2. NEVER commit keys to git
+# 3. Use test keys (sk_test_...) in development
+# 4. Rotate keys if compromised
+# 5. Use restricted API keys with minimal permissions
+```
+
+#### Verify Webhook Signatures
+
+**CRITICAL: Always verify webhooks to prevent spoofing**
+
+```java
+@RestController
+@RequestMapping("/api/webhooks/stripe")
+public class StripeWebhookController {
+
+    @Value("${stripe.webhook-secret}")
+    private String webhookSecret;
+
+    private static final Logger logger = LoggerFactory.getLogger(StripeWebhookController.class);
+
+    @PostMapping
+    public ResponseEntity<String> handleWebhook(
+            @RequestBody String payload,
+            @RequestHeader("Stripe-Signature") String sigHeader) {
+
+        Event event;
+
+        try {
+            // CRITICAL: Verify signature before processing
+            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+        } catch (SignatureVerificationException e) {
+            // SECURITY: Log but don't reveal details
+            logger.error("Webhook signature verification failed");
+            return ResponseEntity.status(400).body("Invalid signature");
+        }
+
+        // Process verified event
+        try {
+            switch (event.getType()) {
+                case "checkout.session.completed":
+                    handleCheckoutCompleted(event);
+                    break;
+                case "customer.subscription.deleted":
+                    handleSubscriptionDeleted(event);
+                    break;
+                case "invoice.payment_failed":
+                    handlePaymentFailed(event);
+                    break;
+                default:
+                    logger.info("Unhandled event type: {}", event.getType());
+            }
+        } catch (Exception e) {
+            logger.error("Error processing webhook", e);
+            return ResponseEntity.status(500).body("Processing error");
+        }
+
+        return ResponseEntity.ok("Success");
+    }
+
+    private void handleCheckoutCompleted(Event event) {
+        Session session = (Session) event.getDataObjectDeserializer()
+            .getObject()
+            .orElseThrow();
+
+        // Validate metadata
+        Map<String, String> metadata = session.getMetadata();
+        if (metadata == null || !metadata.containsKey("chatbot_id")) {
+            throw new IllegalStateException("Missing chatbot_id in metadata");
+        }
+
+        Long chatbotId = Long.parseLong(metadata.get("chatbot_id"));
+
+        // Idempotency: Check if already processed
+        if (subscriptionService.isAlreadyActivated(chatbotId)) {
+            logger.warn("Duplicate webhook: chatbot {} already activated", chatbotId);
+            return;
+        }
+
+        // Activate subscription
+        subscriptionService.activateSubscription(
+            chatbotId,
+            session.getCustomer(),
+            session.getSubscription()
+        );
+
+        logger.info("Activated subscription for chatbot {}", chatbotId);
+    }
+}
+```
+
+#### Validate Subscription Status Before Access
+
+```java
+@Service
+public class SubscriptionValidationService {
+
+    public void validateAccess(Long chatbotId) {
+        Chatbot chatbot = chatbotRepository.findById(chatbotId)
+            .orElseThrow(() -> new ResourceNotFoundException("Chatbot not found"));
+
+        Subscription subscription = chatbot.getSubscription();
+
+        if (subscription == null) {
+            throw new PaymentRequiredException("No subscription found");
+        }
+
+        // Check subscription status
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new PaymentRequiredException(
+                "Subscription not active: " + subscription.getStatus()
+            );
+        }
+
+        // Check subscription not expired
+        if (subscription.getCurrentPeriodEnd().isBefore(LocalDateTime.now())) {
+            // Mark as expired
+            subscription.setStatus(SubscriptionStatus.PAST_DUE);
+            subscriptionRepository.save(subscription);
+            throw new PaymentRequiredException("Subscription expired");
+        }
+
+        // Check message limits
+        if (chatbot.getMessageCount() >= chatbot.getMessageLimit()) {
+            throw new QuotaExceededException("Monthly message limit reached");
+        }
+    }
+}
+```
+
+#### Secure Checkout Session Creation
+
+```java
+@RestController
+@RequestMapping("/api/payment")
+public class PaymentController {
+
+    @PostMapping("/create-checkout-session")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> createCheckoutSession(
+            @RequestBody @Valid CreateCheckoutRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        Long chatbotId = request.getChatbotId();
+
+        // Authorization: User must own chatbot
+        Chatbot chatbot = chatbotRepository.findById(chatbotId)
+            .orElseThrow(() -> new ResourceNotFoundException("Chatbot not found"));
+
+        if (!chatbot.getOwner().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("Not authorized");
+        }
+
+        // Prevent duplicate subscriptions
+        if (chatbot.getSubscription().getStatus() == SubscriptionStatus.ACTIVE) {
+            throw new IllegalStateException("Chatbot already has active subscription");
+        }
+
+        // Create Stripe customer if needed
+        String customerId = stripeService.getOrCreateCustomer(currentUser);
+
+        // Create checkout session with metadata
+        SessionCreateParams params = SessionCreateParams.builder()
+            .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+            .setCustomer(customerId)
+            .addLineItem(
+                SessionCreateParams.LineItem.builder()
+                    .setPrice(stripePriceId)
+                    .setQuantity(1L)
+                    .build()
+            )
+            .setSuccessUrl(appUrl + "/payment/success?session_id={CHECKOUT_SESSION_ID}")
+            .setCancelUrl(appUrl + "/payment/cancel")
+            .putMetadata("chatbot_id", chatbotId.toString())
+            .putMetadata("user_id", currentUser.getId().toString())
+            .build();
+
+        Session session = stripeService.createSession(params);
+
+        return ResponseEntity.ok(Map.of("url", session.getUrl()));
+    }
+}
+```
+
+#### PCI Compliance Notes
+
+**✅ ChatWeave is PCI-DSS compliant by design:**
+
+1. **No Card Data Stored**: Stripe handles all card processing
+2. **No Card Data Touched**: Payment forms hosted by Stripe
+3. **HTTPS Only**: All communication encrypted
+4. **Stripe Checkout**: SAQ A compliance (simplest)
+
+**Your Responsibilities:**
+- ✅ Use HTTPS everywhere
+- ✅ Never log card data (we don't have access)
+- ✅ Verify webhook signatures
+- ✅ Use latest Stripe SDK
+- ✅ Rotate API keys if compromised
+
+### 6.3 Subscription Fraud Prevention
+
+#### Detect Suspicious Activity
+
+```java
+@Service
+public class FraudDetectionService {
+
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+
+    public void detectAnomalies(User user) {
+        // Check multiple failed payments
+        long failedCount = subscriptionRepository
+            .countByUserAndStatusAndUpdatedAtAfter(
+                user,
+                SubscriptionStatus.PAST_DUE,
+                LocalDateTime.now().minusDays(7)
+            );
+
+        if (failedCount > 3) {
+            logger.warn("Multiple payment failures for user {}", user.getId());
+            // Consider blocking or manual review
+        }
+
+        // Check rapid subscription creation/cancellation
+        long recentSubs = subscriptionRepository
+            .countByUserAndCreatedAtAfter(
+                user,
+                LocalDateTime.now().minusHours(24)
+            );
+
+        if (recentSubs > 5) {
+            logger.warn("Suspicious subscription activity for user {}", user.getId());
+            // Rate limit or require manual approval
+        }
+
+        // Check disposable email domains
+        if (isDisposableEmail(user.getEmail())) {
+            logger.warn("Disposable email detected: {}", user.getEmail());
+            // Require additional verification
+        }
+    }
+
+    private boolean isDisposableEmail(String email) {
+        String[] disposableDomains = {
+            "tempmail.com", "guerrillamail.com", "10minutemail.com"
+        };
+        String domain = email.substring(email.indexOf("@") + 1);
+        return Arrays.asList(disposableDomains).contains(domain.toLowerCase());
+    }
+}
+```
+
+#### Prevent Subscription Sharing
+
+```java
+@Service
+public class SubscriptionSharingDetection {
+
+    public void checkForSharing(Chatbot chatbot, HttpServletRequest request) {
+        String embedCode = chatbot.getEmbedCode();
+
+        // Track domains using embed code
+        String referer = request.getHeader("Referer");
+        if (referer != null) {
+            String domain = extractDomain(referer);
+
+            // Check if domain matches chatbot's website
+            String authorizedDomain = extractDomain(chatbot.getWebsiteUrl());
+
+            if (!domain.equals(authorizedDomain)) {
+                logger.warn("Embed code {} used on unauthorized domain: {}",
+                    embedCode, domain);
+
+                // Options:
+                // 1. Block request
+                // 2. Watermark response
+                // 3. Alert owner
+                // 4. Charge extra
+            }
+        }
+    }
+
+    private String extractDomain(String url) {
+        try {
+            URL urlObj = new URL(url);
+            return urlObj.getHost();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}
+```
+
+### 6.4 Secure Embed Code Generation
+
+```java
+@Service
+public class EmbedCodeService {
+
+    public String generateSecureEmbedCode(Chatbot chatbot) {
+        // SECURITY: Only show embed code if subscription is active
+        if (chatbot.getSubscription().getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new PaymentRequiredException("Activate subscription to get embed code");
+        }
+
+        String embedCode = chatbot.getEmbedCode();
+
+        // Generate HTML with Content Security Policy hints
+        return String.format("""
+            <!-- ChatWeave AI Chatbot -->
+            <script>
+              (function() {
+                var script = document.createElement('script');
+                script.src = 'https://yourdomain.com/chatbot-widget.js';
+                script.dataset.chatbotId = '%s';
+                script.dataset.embedCode = '%s';
+                script.async = true;
+                script.integrity = 'sha384-...';  // Add SRI hash
+                script.crossOrigin = 'anonymous';
+                document.body.appendChild(script);
+              })();
+            </script>
+            """,
+            chatbot.getId(),
+            embedCode
+        );
+    }
+}
+```
+
+### 6.5 Audit Logging for Payments
+
+```java
+@Aspect
+@Component
+public class PaymentAuditLogger {
+
+    private static final Logger auditLog = LoggerFactory.getLogger("PAYMENT_AUDIT");
+
+    @AfterReturning(
+        pointcut = "execution(* com.chatweave.chatbot.service.SubscriptionService.activateSubscription(..))",
+        returning = "subscription"
+    )
+    public void logSubscriptionActivation(JoinPoint joinPoint, Subscription subscription) {
+        auditLog.info("SUBSCRIPTION_ACTIVATED - User: {}, Chatbot: {}, Stripe: {}",
+            subscription.getUser().getId(),
+            subscription.getChatbot().getId(),
+            subscription.getStripeSubscriptionId()
+        );
+    }
+
+    @AfterReturning(
+        pointcut = "execution(* com.chatweave.chatbot.service.SubscriptionService.cancelSubscription(..))",
+        returning = "subscription"
+    )
+    public void logSubscriptionCancellation(JoinPoint joinPoint, Subscription subscription) {
+        auditLog.info("SUBSCRIPTION_CANCELED - User: {}, Chatbot: {}, Reason: manual",
+            subscription.getUser().getId(),
+            subscription.getChatbot().getId()
+        );
+    }
+
+    @AfterThrowing(
+        pointcut = "execution(* com.chatweave.chatbot.controller.StripeWebhookController.*(..))",
+        throwing = "exception"
+    )
+    public void logWebhookFailure(JoinPoint joinPoint, Exception exception) {
+        auditLog.error("WEBHOOK_FAILED - Error: {}", exception.getMessage());
+    }
+}
+```
+
+### 6.6 Environment Variable Security Checklist
+
+**Production Environment Variables:**
+
+```bash
+# CRITICAL: Never commit these to git
+# Use secrets management (AWS Secrets Manager, Vault, etc.)
+
+# OAuth
+GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxx
+
+# Stripe
+STRIPE_SECRET_KEY=sk_live_xxx  # NEVER sk_test in production
+STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_ID=price_xxx
+
+# Database
+DATABASE_URL=postgresql://...
+DB_PASSWORD=xxx  # Strong password (20+ chars)
+
+# JWT
+JWT_SECRET=xxx  # 256-bit minimum
+
+# AI APIs
+ANTHROPIC_API_KEY=sk-ant-xxx
+COHERE_API_KEY=xxx
+
+# App
+APP_URL=https://yourdomain.com  # HTTPS only
+```
+
+**Security Requirements:**
+- ✅ All secrets in environment variables
+- ✅ Different keys for dev/staging/production
+- ✅ Rotate keys quarterly
+- ✅ Use secrets manager in production
+- ✅ Never log secrets
+- ✅ Restrict access to production secrets
+
+---
+
 ## 📊 Security Monitoring & Incident Response
 
 ### Implement Logging & Monitoring
@@ -1154,6 +1750,21 @@ public class SecurityEventLogger {
 - [ ] Create incident response plan
 - [ ] Final security audit
 
+### Week 6 (OAuth & Payments)
+- [ ] Configure Google OAuth2 securely
+- [ ] Validate OAuth email verification
+- [ ] Implement secure user creation from OAuth
+- [ ] Add OAuth rate limiting
+- [ ] Configure Stripe with environment variables
+- [ ] Implement webhook signature verification
+- [ ] Add subscription validation before access
+- [ ] Secure checkout session creation
+- [ ] Implement fraud detection service
+- [ ] Add subscription sharing detection
+- [ ] Create payment audit logging
+- [ ] Test PCI compliance requirements
+- [ ] Document payment security measures
+
 ---
 
 ## 🎯 Success Criteria
@@ -1175,8 +1786,15 @@ After completing this plan, your application should:
 13. ✅ Have no critical/high vulnerabilities in dependencies
 14. ✅ Be GDPR compliant
 15. ✅ Have proper authorization checks
+16. ✅ Securely integrate Google OAuth with email verification
+17. ✅ Verify all Stripe webhook signatures
+18. ✅ Validate subscription status before granting access
+19. ✅ Be PCI-DSS compliant (SAQ A level)
+20. ✅ Detect and prevent payment fraud
+21. ✅ Audit log all payment-related events
+22. ✅ Never expose payment API keys to frontend
 
-**Target Security Rating: 9/10**
+**Target Security Rating: 9.5/10**
 
 ---
 
