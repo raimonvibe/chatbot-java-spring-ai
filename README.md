@@ -10,6 +10,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 - **⚡ Webhook Integration**: Send real-time conversation events to external systems (CRM, Slack, Discord, custom webhooks)
 - **📊 Conversation Export**: Export chat history in JSON or CSV formats for analytics and reporting
 - **💬 Quick Replies**: Configure suggested response buttons for common questions to improve UX
+- **✝️ Christian Messaging**: Integrate Christian values, Bible verses, and blessings into chatbot responses based on website topics
 
 ### 🧠 AI-Powered Intelligence
 - **Automatic Website Analysis**: Crawls and analyzes website content to build knowledge base
@@ -194,6 +195,34 @@ PUT /api/chatbots/{id}
   }
 }
 ```
+
+#### ✝️ NEW: Christian Messaging API
+```bash
+# Suggest Bible verse based on website topic
+POST /api/chatbots/{id}/suggest-bible-verse
+
+# Response:
+{
+  "chatbotId": "1",
+  "suggestedVerse": "Proverbs 16:3 - 'Commit to the Lord whatever you do, and he will establish your plans.'",
+  "autoApplied": "true"
+}
+
+# Update chatbot with Christian messaging
+PUT /api/chatbots/{id}
+{
+  "christianMessagingEnabled": true,
+  "bibleVerse": "Matthew 5:16 - 'Let your light shine before others, that they may see your good deeds and glorify your Father in heaven.'"
+}
+```
+
+**Christian Messaging Features:**
+- Automatically suggests relevant Bible verses based on website topic (30+ categories)
+- Includes Christian values in chatbot personality (love, kindness, compassion)
+- Adds faith-based greetings for first-time visitors
+- Incorporates blessings in response footers
+- Supports topics: business, healthcare, education, technology, hospitality, finance, and more
+- Can be enabled/disabled per chatbot
 
 ## 🛠️ Configuration
 
