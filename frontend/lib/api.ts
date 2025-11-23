@@ -21,7 +21,7 @@ export interface Chatbot {
   brandingConfig: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082';
 
 export async function sendMessage(
   chatbotId: number,
