@@ -217,7 +217,7 @@ spring:
       api-key: ${COHERE_API_KEY}
       embedding:
         options:
-          model: embed-english-v3.0
+          model: embed-multilingual-v3.0
 
 # Website Analysis Settings
 app:
