@@ -1,6 +1,10 @@
 package com.tjanabot.chatbot.controller;
 
 import com.tjanabot.chatbot.model.Chatbot;
+import com.tjanabot.chatbot.model.Subscription;
+import com.tjanabot.chatbot.model.User;
+import com.tjanabot.chatbot.repository.SubscriptionRepository;
+import com.tjanabot.chatbot.security.CustomOAuth2User;
 import com.tjanabot.chatbot.service.AiChatbotService;
 import com.tjanabot.chatbot.service.WebsiteAnalysisService;
 import com.tjanabot.chatbot.service.ConversationExportService;
@@ -12,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,27 +38,77 @@ public class ChatbotController {
     private final WebsiteAnalysisService websiteAnalysisService;
     private final ConversationExportService conversationExportService;
     private final BibleVerseService bibleVerseService;
+    private final SubscriptionRepository subscriptionRepository;
 
     @Autowired
     public ChatbotController(ChatbotRepository chatbotRepository,
                            AiChatbotService aiChatbotService,
                            WebsiteAnalysisService websiteAnalysisService,
                            ConversationExportService conversationExportService,
-                           BibleVerseService bibleVerseService) {
+                           BibleVerseService bibleVerseService,
+                           SubscriptionRepository subscriptionRepository) {
         this.chatbotRepository = chatbotRepository;
         this.aiChatbotService = aiChatbotService;
         this.websiteAnalysisService = websiteAnalysisService;
         this.conversationExportService = conversationExportService;
         this.bibleVerseService = bibleVerseService;
+        this.subscriptionRepository = subscriptionRepository;
+    }
+
+    // ============================================================================
+    // HELPER METHODS FOR AUTHORIZATION AND SUBSCRIPTION
+    // ============================================================================
+
+    /**
+     * Check if user has an active subscription
+     */
+    private boolean hasActiveSubscription(User user) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
+        return subscriptionOpt.isPresent() && subscriptionOpt.get().canUseChatbot();
+    }
+
+    /**
+     * Check if user owns the chatbot
+     */
+    private boolean isOwner(User user, Chatbot chatbot) {
+        return chatbot.getOwner() != null && chatbot.getOwner().getId().equals(user.getId());
+    }
+
+    /**
+     * Verify user can access chatbot (owns it and has active subscription)
+     */
+    private ResponseEntity<Void> verifyAccess(User user, Chatbot chatbot) {
+        if (!hasActiveSubscription(user)) {
+            logger.warn("User {} attempted to access chatbot without active subscription", user.getEmail());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        if (!isOwner(user, chatbot)) {
+            logger.warn("User {} attempted to access chatbot {} without ownership", user.getEmail(), chatbot.getId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return null;
     }
     
     /**
-     * Get all chatbots
+     * Get all chatbots owned by the current user
      */
     @GetMapping
-    public ResponseEntity<List<Chatbot>> getAllChatbots() {
+    public ResponseEntity<List<Chatbot>> getAllChatbots(
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
-            List<Chatbot> chatbots = chatbotRepository.findAll();
+            User user = currentUser.getUser();
+
+            if (!hasActiveSubscription(user)) {
+                logger.warn("User {} attempted to access chatbots without active subscription", user.getEmail());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            List<Chatbot> chatbots = chatbotRepository.findAll().stream()
+                .filter(chatbot -> isOwner(user, chatbot))
+                .toList();
+
             return ResponseEntity.ok(chatbots);
         } catch (Exception e) {
             logger.error("Error retrieving chatbots", e);
@@ -65,11 +120,23 @@ public class ChatbotController {
      * Get chatbot by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Chatbot> getChatbot(@PathVariable Long id) {
+    public ResponseEntity<Chatbot> getChatbot(@PathVariable Long id,
+                                              @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
-            Optional<Chatbot> chatbot = chatbotRepository.findById(id);
-            return chatbot.map(ResponseEntity::ok)
-                        .orElse(ResponseEntity.notFound().build());
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
+            return ResponseEntity.ok(chatbot);
         } catch (Exception e) {
             logger.error("Error retrieving chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -80,10 +147,22 @@ public class ChatbotController {
      * Create a new chatbot
      */
     @PostMapping
-    public ResponseEntity<Chatbot> createChatbot(@Valid @RequestBody Chatbot chatbot) {
+    public ResponseEntity<Chatbot> createChatbot(@Valid @RequestBody Chatbot chatbot,
+                                                 @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
+
+            // Check if user has active subscription
+            if (!hasActiveSubscription(user)) {
+                logger.warn("User {} attempted to create chatbot without active subscription", user.getEmail());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // Set the owner
+            chatbot.setOwner(user);
+
             Chatbot savedChatbot = chatbotRepository.save(chatbot);
-            logger.info("Created new chatbot: {}", savedChatbot.getName());
+            logger.info("Created new chatbot: {} for user: {}", savedChatbot.getName(), user.getEmail());
             return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
         } catch (Exception e) {
             logger.error("Error creating chatbot", e);
@@ -95,14 +174,24 @@ public class ChatbotController {
      * Update a chatbot
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Chatbot> updateChatbot(@PathVariable Long id, @Valid @RequestBody Chatbot chatbotDetails) {
+    public ResponseEntity<Chatbot> updateChatbot(@PathVariable Long id,
+                                                 @Valid @RequestBody Chatbot chatbotDetails,
+                                                 @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
             chatbot.setName(chatbotDetails.getName());
             chatbot.setDescription(chatbotDetails.getDescription());
             chatbot.setPrimaryLanguage(chatbotDetails.getPrimaryLanguage());
@@ -132,16 +221,28 @@ public class ChatbotController {
      * Delete a chatbot
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteChatbot(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteChatbot(@PathVariable Long id,
+                                              @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
-            if (!chatbotRepository.existsById(id)) {
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return accessCheck;
+            }
+
             chatbotRepository.deleteById(id);
-            logger.info("Deleted chatbot: {}", id);
+            logger.info("Deleted chatbot: {} for user: {}", id, user.getEmail());
             return ResponseEntity.noContent().build();
-            
+
         } catch (Exception e) {
             logger.error("Error deleting chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -152,14 +253,23 @@ public class ChatbotController {
      * Analyze website for a chatbot
      */
     @PostMapping("/{id}/analyze")
-    public ResponseEntity<Map<String, Object>> analyzeWebsite(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> analyzeWebsite(@PathVariable Long id,
+                                                              @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
             
             // Start website analysis asynchronously
             CompletableFuture<List<com.tjanabot.chatbot.model.WebsiteContent>> analysisFuture = 
@@ -186,14 +296,23 @@ public class ChatbotController {
      * Index website content for a chatbot
      */
     @PostMapping("/{id}/index")
-    public ResponseEntity<Map<String, Object>> indexContent(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> indexContent(@PathVariable Long id,
+                                                            @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
             
             // Start content indexing
             aiChatbotService.indexWebsiteContent(chatbot);
@@ -217,14 +336,23 @@ public class ChatbotController {
      * Get chatbot analytics
      */
     @GetMapping("/{id}/analytics")
-    public ResponseEntity<Map<String, Object>> getAnalytics(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getAnalytics(@PathVariable Long id,
+                                                            @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
             
             // Get conversation analytics
             Map<String, Object> conversationAnalytics = aiChatbotService.getConversationAnalytics(id);
@@ -253,14 +381,23 @@ public class ChatbotController {
      * Get chatbot embed code
      */
     @GetMapping("/{id}/embed")
-    public ResponseEntity<Map<String, String>> getEmbedCode(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> getEmbedCode(@PathVariable Long id,
+                                                            @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
             String embedCode = generateEmbedCode(chatbot);
             
             Map<String, String> response = Map.of(
@@ -343,8 +480,24 @@ public class ChatbotController {
      * NEW FEATURE: Export all conversations for a chatbot to JSON
      */
     @GetMapping("/{id}/export/json")
-    public ResponseEntity<String> exportChatbotConversationsJson(@PathVariable Long id) {
+    public ResponseEntity<String> exportChatbotConversationsJson(@PathVariable Long id,
+                                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
             String jsonExport = conversationExportService.exportConversationsToJson(id);
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
@@ -360,8 +513,24 @@ public class ChatbotController {
      * NEW FEATURE: Export all conversations for a chatbot to CSV
      */
     @GetMapping("/{id}/export/csv")
-    public ResponseEntity<String> exportChatbotConversationsCsv(@PathVariable Long id) {
+    public ResponseEntity<String> exportChatbotConversationsCsv(@PathVariable Long id,
+                                                                 @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
             String csvExport = conversationExportService.exportConversationsToCsv(id);
             return ResponseEntity.ok()
                     .header("Content-Type", "text/csv")
@@ -377,14 +546,25 @@ public class ChatbotController {
      * NEW FEATURE: Get quick replies for a chatbot
      */
     @GetMapping("/{id}/quick-replies")
-    public ResponseEntity<String> getQuickReplies(@PathVariable Long id) {
+    public ResponseEntity<String> getQuickReplies(@PathVariable Long id,
+                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
-            String quickReplies = chatbotOpt.get().getQuickReplies();
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
+            String quickReplies = chatbot.getQuickReplies();
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
                     .body(quickReplies != null ? quickReplies : "[]");
@@ -398,14 +578,23 @@ public class ChatbotController {
      * CHRISTIAN MESSAGING FEATURE: Suggest Bible verse based on website topic
      */
     @PostMapping("/{id}/suggest-bible-verse")
-    public ResponseEntity<Map<String, String>> suggestBibleVerse(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> suggestBibleVerse(@PathVariable Long id,
+                                                                 @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
             Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
 
             // Gather website content for context
             String websiteContent = websiteAnalysisService.getAnalyzedContent(chatbot);

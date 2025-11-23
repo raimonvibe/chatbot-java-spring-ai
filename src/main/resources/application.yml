@@ -21,6 +21,25 @@ spring:
       enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
 
+  # OAuth2 Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+
   # Spring AI Configuration
   ai:
     # Anthropic Claude for chat
@@ -90,3 +109,11 @@ jwt:
 # CORS Configuration
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+# Stripe Configuration
+stripe:
+  api-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+  price-id: ${STRIPE_PRICE_ID}
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}}
+  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/pricing}

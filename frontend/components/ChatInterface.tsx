@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Message from './Message';
 import { sendMessage, getQuickReplies, type Message as MessageType } from '@/lib/api';
+import { Send, Book } from 'lucide-react';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<MessageType[]>([
@@ -95,13 +96,19 @@ export default function ChatInterface() {
 
   return (
     <motion.div
-      className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-200/50"
+      className="bg-brown-50/90 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden border-2 border-brown-300"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
+      {/* Header */}
+      <div className="bg-gradient-to-r from-brown-600 to-gold-600 px-6 py-4 flex items-center gap-2 border-b-2 border-brown-700">
+        <Book className="w-6 h-6 text-white" strokeWidth={2} />
+        <h3 className="text-white font-semibold text-lg">TjanaBot Assistant</h3>
+      </div>
+
       {/* Messages Container */}
-      <div className="h-[500px] overflow-y-auto p-6 custom-scrollbar">
+      <div className="h-[500px] overflow-y-auto p-6 custom-scrollbar bg-gradient-to-b from-brown-50/50 to-brown-100/50">
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => (
             <Message key={message.id} message={message} index={index} />
@@ -116,20 +123,20 @@ export default function ChatInterface() {
             exit={{ opacity: 0 }}
             className="flex justify-start mb-4"
           >
-            <div className="bg-white rounded-2xl px-4 py-3 shadow-md border border-gray-100">
+            <div className="bg-brown-100 rounded-2xl px-4 py-3 shadow-md border border-brown-300">
               <div className="flex space-x-2">
                 <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
+                  className="w-2 h-2 bg-brown-600 rounded-full"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
                 />
                 <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
+                  className="w-2 h-2 bg-brown-600 rounded-full"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
                 />
                 <motion.div
-                  className="w-2 h-2 bg-gray-400 rounded-full"
+                  className="w-2 h-2 bg-brown-600 rounded-full"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
                 />
@@ -143,7 +150,7 @@ export default function ChatInterface() {
 
       {/* Quick Replies */}
       {quickReplies.length > 0 && (
-        <div className="px-6 py-3 border-t border-gray-200/50">
+        <div className="px-6 py-3 border-t-2 border-brown-200 bg-brown-50/50">
           <div className="flex flex-wrap gap-2">
             {quickReplies.map((reply, index) => (
               <motion.button
@@ -154,7 +161,7 @@ export default function ChatInterface() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleQuickReply(reply)}
-                className="px-3 py-1.5 text-sm bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full hover:from-blue-200 hover:to-purple-200 transition-colors"
+                className="px-3 py-1.5 text-sm bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 rounded-full hover:from-brown-200 hover:to-gold-200 transition-colors border border-brown-300"
                 disabled={isLoading}
               >
                 {reply}
@@ -165,7 +172,7 @@ export default function ChatInterface() {
       )}
 
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-200/50 bg-gray-50/50">
+      <div className="p-4 border-t-2 border-brown-200 bg-brown-100/50">
         <div className="flex gap-2">
           <motion.input
             type="text"
@@ -174,30 +181,17 @@ export default function ChatInterface() {
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex-1 px-4 py-3 rounded-xl border-2 border-brown-300 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-white text-brown-900"
             whileFocus={{ scale: 1.01 }}
           />
           <motion.button
             onClick={() => handleSendMessage()}
             disabled={!input.trim() || isLoading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-              />
-            </svg>
+            <Send className="w-5 h-5" />
           </motion.button>
         </div>
       </div>

@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AI Chatbot',
-  description: 'Beautiful AI chatbot with wave animations',
+  title: 'TjanaBot - Christian AI Chatbot Platform',
+  description: 'Create AI-powered chatbots infused with Christian values and biblical wisdom for your ministry or business',
 };
 
 export default function RootLayout({

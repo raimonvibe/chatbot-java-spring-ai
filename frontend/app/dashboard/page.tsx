@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, type Chatbot } from '@/lib/api';
 import Link from 'next/link';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle } from 'lucide-react';
 
 export default function Dashboard() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
@@ -82,24 +83,32 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Book className="w-16 h-16 text-brown-600 animate-pulse mb-4" strokeWidth={1.5} />
+        <div className="text-xl text-brown-700">Loading your chatbots...</div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-8">
+    <main className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            TjanaBot Dashboard
-          </h1>
+          <div className="flex items-center gap-3">
+            <Book className="w-10 h-10 text-brown-700" strokeWidth={1.5} />
+            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
+              TjanaBot Dashboard
+            </h1>
+          </div>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
           >
-            {showCreateForm ? 'Cancel' : 'Create New Chatbot'}
+            {showCreateForm ? (
+              <><X className="w-5 h-5" /> Cancel</>
+            ) : (
+              <><Plus className="w-5 h-5" /> Create New Chatbot</>
+            )}
           </button>
         </div>
 
@@ -107,43 +116,46 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-xl p-8 mb-8"
+            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-brown-200"
           >
-            <h2 className="text-2xl font-bold mb-6">Create New Chatbot</h2>
+            <div className="flex items-center gap-2 mb-6">
+              <Book className="w-6 h-6 text-brown-700" />
+              <h2 className="text-2xl font-bold text-brown-800">Create New Chatbot</h2>
+            </div>
             <form onSubmit={handleCreateChatbot} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Name</label>
+                <label className="block text-sm font-medium mb-2 text-brown-800">Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-2 text-brown-800">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
                   rows={3}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Website URL</label>
+                <label className="block text-sm font-medium mb-2 text-brown-800">Website URL</label>
                 <input
                   type="url"
                   value={formData.websiteUrl}
                   onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
                   placeholder="https://example.com"
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
                   required
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-brown-600 mt-1">
                   The chatbot will analyze and learn from this website
                 </p>
               </div>
@@ -151,9 +163,13 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={creating}
-                className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium disabled:opacity-50"
+                className="w-full px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                {creating ? 'Creating...' : 'Create Chatbot'}
+                {creating ? (
+                  <>Creating...</>
+                ) : (
+                  <><CheckCircle className="w-5 h-5" /> Create Chatbot</>
+                )}
               </button>
             </form>
           </motion.div>
@@ -165,16 +181,20 @@ export default function Dashboard() {
               key={chatbot.chatbotId}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all"
+              className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border border-brown-200"
             >
-              <h3 className="text-xl font-bold mb-2">{chatbot.name}</h3>
-              <p className="text-gray-600 mb-4">{chatbot.description}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <Book className="w-5 h-5 text-brown-700" />
+                <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
+              </div>
+              <p className="text-brown-700 mb-4">{chatbot.description}</p>
 
               <div className="space-y-2">
                 <Link
                   href={`/chatbot/${chatbot.chatbotId}`}
-                  className="block w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-center hover:bg-blue-200 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-brown-100 text-brown-800 rounded-lg hover:bg-brown-200 transition-colors font-medium"
                 >
+                  <Eye className="w-4 h-4" />
                   Preview Chatbot
                 </Link>
 
@@ -183,8 +203,9 @@ export default function Dashboard() {
                     handleGetEmbedCode(chatbot.chatbotId);
                     setSelectedChatbot(chatbot);
                   }}
-                  className="w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gold-100 text-gold-800 rounded-lg hover:bg-gold-200 transition-colors font-medium"
                 >
+                  <Code className="w-4 h-4" />
                   Get Embed Code
                 </button>
               </div>
@@ -194,11 +215,13 @@ export default function Dashboard() {
 
         {chatbots.length === 0 && !showCreateForm && (
           <div className="text-center py-16">
-            <p className="text-xl text-gray-600 mb-4">No chatbots yet</p>
+            <Book className="w-20 h-20 text-brown-400 mx-auto mb-4" strokeWidth={1.5} />
+            <p className="text-xl text-brown-700 mb-4">No chatbots yet</p>
             <button
               onClick={() => setShowCreateForm(true)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium"
+              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center gap-2"
             >
+              <Plus className="w-5 h-5" />
               Create Your First Chatbot
             </button>
           </div>
@@ -208,15 +231,18 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
             onClick={() => setEmbedCode('')}
           >
             <div
-              className="bg-white rounded-2xl p-8 max-w-2xl w-full"
+              className="bg-brown-50 rounded-2xl p-8 max-w-2xl w-full border-2 border-brown-300 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-2xl font-bold mb-4">Embed Code for {selectedChatbot.name}</h3>
-              <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Code className="w-6 h-6 text-brown-700" />
+                <h3 className="text-2xl font-bold text-brown-800">Embed Code for {selectedChatbot.name}</h3>
+              </div>
+              <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900">
                 <code>{embedCode}</code>
               </pre>
               <div className="flex gap-4">
@@ -225,14 +251,16 @@ export default function Dashboard() {
                     navigator.clipboard.writeText(embedCode);
                     alert('Copied to clipboard!');
                   }}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >
+                  <Copy className="w-4 h-4" />
                   Copy Code
                 </button>
                 <button
                   onClick={() => setEmbedCode('')}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors flex items-center gap-2"
                 >
+                  <X className="w-4 h-4" />
                   Close
                 </button>
               </div>
