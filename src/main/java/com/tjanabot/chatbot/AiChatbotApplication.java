@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * - Custom branding and styling
  * - Conversation tracking and analytics
  * 
- * @author ChatWeave Development Team
+ * @author TjanaBot Development Team
  * @version 1.0.0
  */
 @SpringBootApplication(exclude = {

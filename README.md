@@ -6,6 +6,14 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 
 ## ✨ Features
 
+### 🎯 Modern Frontend Dashboard
+- **📊 Intuitive Dashboard**: Beautiful Next.js dashboard for managing all your chatbots
+- **🚀 One-Click Creation**: Create chatbots with just a name, description, and website URL
+- **👁️ Live Preview**: Test your chatbots in real-time with a full chat interface
+- **📋 Embed Code Generator**: Get ready-to-use embed codes for your website
+- **🎨 Modern UI**: Built with Next.js 15, Tailwind CSS, and Framer Motion for smooth animations
+- **📱 Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
+
 ### 🚀 TjanaBot Exclusive Features
 - **⚡ Webhook Integration**: Send real-time conversation events to external systems (CRM, Slack, Discord, custom webhooks)
 - **📊 Conversation Export**: Export chat history in JSON or CSV formats for analytics and reporting
@@ -36,11 +44,36 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 - **Website Crawling**: Intelligent web scraping with content filtering
 - **Vector Store Integration**: Scalable vector database for content storage
 
+## 🛠️ Tech Stack
+
+### Backend
+- **Java 17+** with Spring Boot 3.2
+- **Spring AI** for AI integrations and RAG architecture
+- **Anthropic Claude 3 Haiku** for conversational AI
+- **Cohere** for multilingual embeddings (embed-multilingual-v3.0)
+- **Spring Data JPA** with H2/PostgreSQL
+- **Spring Security** with JWT authentication
+- **WebFlux** for reactive HTTP clients
+
+### Frontend
+- **Next.js 15** with App Router
+- **React 18** with TypeScript
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **RESTful API** integration
+
+### AI & Vector Storage
+- **Custom Cohere Integration** using HTTP API
+- **Vector Embeddings** (1024 dimensions)
+- **Optional Pinecone** for production vector storage
+- **RAG Architecture** for accurate, context-aware responses
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Java 17 or higher
 - Maven 3.6+
+- Node.js 18+ and npm (for frontend)
 - Anthropic API key (for Claude AI chat)
 - Cohere API key (for embeddings)
 - Optional: Pinecone API key (for vector storage)
@@ -54,49 +87,73 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
    ```
 
 2. **Configure environment variables**
+
+   Create a `.env` file in the root directory:
    ```bash
-   export ANTHROPIC_API_KEY=your-anthropic-api-key-here
-   export COHERE_API_KEY=your-cohere-api-key-here  # For embeddings
-   export PINECONE_API_KEY=your-pinecone-api-key-here  # Optional
-   export PINECONE_ENVIRONMENT=your-pinecone-environment  # Optional
+   ANTHROPIC_API_KEY=your-anthropic-api-key-here
+   COHERE_API_KEY=your-cohere-api-key-here
+   JWT_SECRET=your-secret-key-here
+   PINECONE_API_KEY=your-pinecone-api-key-here  # Optional
+   PINECONE_ENVIRONMENT=your-pinecone-environment  # Optional
    ```
 
-3. **Run the application**
+3. **Run the backend**
    ```bash
    mvn spring-boot:run
    ```
+   Backend will start on http://localhost:8081
 
-4. **Access the dashboard**
-   - Open http://localhost:8080 in your browser
-   - Default admin credentials: admin/admin123
+4. **Run the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Frontend will start on http://localhost:3000
+
+5. **Access the application**
+   - Frontend Dashboard: http://localhost:3000
+   - Backend API: http://localhost:8081
+   - H2 Console: http://localhost:8081/h2-console
 
 ## 📖 Usage Guide
 
 ### Creating Your First Chatbot
 
 1. **Access the Dashboard**
-   - Navigate to http://localhost:8080
-   - Click "Create New Chatbot"
+   - Navigate to http://localhost:3000
+   - You'll see the TjanaBot homepage
+   - Click "Dashboard" or "Go to Dashboard to create your first chatbot"
 
-2. **Configure Basic Settings**
-   - Enter chatbot name and description
-   - Provide your website URL for analysis
-   - Select primary language and supported languages
+2. **Create a New Chatbot**
+   - Click "Create New Chatbot" button
+   - Fill in the form:
+     - **Name**: Give your chatbot a name (e.g., "Support Assistant")
+     - **Description**: Describe what your chatbot does
+     - **Website URL**: Enter your website URL (e.g., https://example.com)
+   - Click "Create Chatbot"
 
-3. **Analyze Your Website**
-   - Click "Analyze Website" to crawl and extract content
-   - The system will automatically process your website pages
-   - Content is indexed for AI training
+3. **Automatic Website Analysis**
+   - The system automatically starts analyzing your website
+   - It crawls pages, extracts content, and creates embeddings
+   - This process may take a few minutes depending on your website size
 
-4. **Test Your Chatbot**
-   - Use the built-in testing interface
-   - Try different questions to see how it responds
-   - Adjust settings as needed
+4. **Preview Your Chatbot**
+   - From the dashboard, click "Preview Chatbot" on your chatbot card
+   - Test the chatbot by asking questions about your website
+   - The chatbot will use the analyzed content to provide accurate answers
+   - Quick replies (if configured) will appear below the chat
 
-5. **Embed on Your Website**
-   - Copy the generated embed code
-   - Add it to your website's HTML
-   - The chatbot widget will appear automatically
+5. **Get Embed Code**
+   - Click "Get Embed Code" on your chatbot card
+   - Copy the provided HTML/JavaScript code
+   - Paste it into your website's HTML
+   - The chatbot widget will appear on your site
+
+6. **Manage Multiple Chatbots**
+   - Create different chatbots for different websites or purposes
+   - Each chatbot has its own knowledge base and configuration
+   - Switch between chatbots from the dashboard
 
 ### API Endpoints
 

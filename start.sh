@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# ChatWeave AI Chatbot System Startup Script
+# TjanaBot AI Chatbot System Startup Script
 
-echo "🤖 Starting ChatWeave AI Chatbot System..."
+echo "🤖 Starting TjanaBot AI Chatbot System..."
 
 # Check if Java is installed
 if ! command -v java &> /dev/null; then
@@ -51,4 +51,4 @@ echo "📝 Logs: ./logs/chatbot.log"
 echo ""
 echo "Press Ctrl+C to stop the application"
 
-java -jar target/chatweave-ai-chatbot-*.jar
+java -jar target/tjanabot-ai-chatbot-*.jar

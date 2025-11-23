@@ -103,7 +103,7 @@ public class Chatbot {
     
     // Helper method to generate unique embed code
     private String generateEmbedCode() {
-        return String.format("chatweave-bot-%d", System.currentTimeMillis());
+        return String.format("tjanabot-bot-%d", System.currentTimeMillis());
     }
     
     // Getters and Setters
