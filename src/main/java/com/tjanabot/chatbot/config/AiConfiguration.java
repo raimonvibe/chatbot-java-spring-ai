@@ -5,6 +5,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -16,6 +17,12 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class AiConfiguration {
 
+    @Value("${COHERE_API_KEY}")
+    private String cohereApiKey;
+
+    @Value("${app.embedding.model:embed-multilingual-v3.0}")
+    private String embeddingModel;
+
     /**
      * Primary ChatClient bean using Anthropic Claude
      */
@@ -24,6 +31,14 @@ public class AiConfiguration {
     public ChatClient chatClient(AnthropicChatModel anthropicChatModel) {
         return ChatClient.builder(anthropicChatModel)
                 .build();
+    }
+
+    /**
+     * Cohere EmbeddingModel bean
+     */
+    @Bean
+    public EmbeddingModel embeddingModel() {
+        return new CohereEmbeddingModel(cohereApiKey, embeddingModel);
     }
 
     /**

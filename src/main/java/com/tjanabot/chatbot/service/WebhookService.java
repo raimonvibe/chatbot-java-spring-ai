@@ -22,7 +22,7 @@ import java.util.Map;
  * NEW FEATURE: Webhook Integration Service
  * Sends real-time events to external URLs when conversations happen
  * 
- * @author ChatWeave Development Team
+ * @author TjanaBot Development Team
  */
 @Service
 public class WebhookService {
@@ -78,7 +78,7 @@ public class WebhookService {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(webhookUrl))
                     .header("Content-Type", "application/json")
-                    .header("User-Agent", "ChatWeave-Webhook/1.0")
+                    .header("User-Agent", "TjanaBot-Webhook/1.0")
                     .timeout(Duration.ofSeconds(10))
                     .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                     .build();

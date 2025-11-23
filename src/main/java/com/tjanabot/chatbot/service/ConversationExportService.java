@@ -17,7 +17,7 @@ import java.util.*;
  * NEW FEATURE: Conversation Export Service
  * Exports conversation history in various formats (JSON, CSV)
  * 
- * @author ChatWeave Development Team
+ * @author TjanaBot Development Team
  */
 @Service
 public class ConversationExportService {

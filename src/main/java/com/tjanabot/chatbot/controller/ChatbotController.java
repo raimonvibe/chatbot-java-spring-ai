@@ -282,14 +282,14 @@ public class ChatbotController {
      */
     private String generateEmbedCode(Chatbot chatbot) {
         return String.format("""
-            <div id="chatweave-chatbot-%d" data-chatbot-id="%d"></div>
+            <div id="tjanabot-chatbot-%d" data-chatbot-id="%d"></div>
             <script>
                 (function() {
                     var script = document.createElement('script');
                     script.src = 'http://localhost:8080/js/chatbot-widget.js';
                     script.async = true;
                     script.onload = function() {
-                        ChatWeave.init({
+                        TjanaBot.init({
                             chatbotId: %d,
                             apiUrl: 'http://localhost:8080/api',
                             theme: 'default'
