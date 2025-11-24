@@ -13,7 +13,7 @@ permissions:
 
 env:
   JAVA_VERSION: '17'
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
 
 jobs:
   # Backend Build and Test
@@ -80,8 +80,7 @@ jobs:
         run: npm ci
 
       - name: Run frontend tests
-        run: npm test || echo "No tests defined"
-        continue-on-error: true
+        run: npm run test:ci
 
       - name: Build frontend
         run: npm run build
