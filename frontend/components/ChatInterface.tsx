@@ -187,6 +187,7 @@ export default function ChatInterface() {
           <motion.button
             onClick={() => handleSendMessage()}
             disabled={!input.trim() || isLoading}
+            aria-label="Send message"
             className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
