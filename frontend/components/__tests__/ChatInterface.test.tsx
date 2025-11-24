@@ -261,11 +261,15 @@ describe('ChatInterface Component', () => {
         chatbotId: 1,
       })
 
-      // Loading indicator should disappear
+      // Loading should complete - verify by typing new text and checking button state
       await waitFor(() => {
-        const sendButton = screen.getByRole('button', { name: /send/i })
-        expect(sendButton).not.toBeDisabled()
+        expect(screen.getByText('Response')).toBeInTheDocument()
       })
+
+      // After loading completes, user should be able to send another message
+      await user.type(input, 'New message')
+      const sendButton = screen.getByRole('button', { name: /send/i })
+      expect(sendButton).not.toBeDisabled()
     })
 
     it('should disable input and buttons while loading', async () => {
