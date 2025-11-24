@@ -25,7 +25,7 @@ public class LogSanitizer {
     );
 
     private static final Pattern BEARER_TOKEN_PATTERN = Pattern.compile(
-        "(Bearer\\s+)([\\w-]+\\.?[\\w-]+\\.?[\\w-]+)",
+        "(Bearer\\s+)([\\w\\.-]+)",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -35,7 +35,13 @@ public class LogSanitizer {
     );
 
     private static final Pattern AUTHORIZATION_PATTERN = Pattern.compile(
-        "(Authorization[\"']?\\s*[:=]\\s*[\"']?)([^\n\"']+)",
+        "(Authorization[\"']?\\s*[:=]\\s*[\"']?)(?!\\s*Bearer)([^\n\"']+)",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Database URL pattern (matches jdbc:...:password@... or protocol://user:password@...)
+    private static final Pattern DATABASE_URL_PATTERN = Pattern.compile(
+        "://([^:/@]+):([^@/]+)@",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -82,6 +88,9 @@ public class LogSanitizer {
 
         // Redact Authorization headers
         sanitized = AUTHORIZATION_PATTERN.matcher(sanitized).replaceAll("$1" + REDACTED);
+
+        // Redact database URL passwords (protocol://user:password@host)
+        sanitized = DATABASE_URL_PATTERN.matcher(sanitized).replaceAll("://$1:" + REDACTED + "@");
 
         // Partially redact emails (keep first 2 chars and domain)
         sanitized = EMAIL_PATTERN.matcher(sanitized).replaceAll(matchResult -> {

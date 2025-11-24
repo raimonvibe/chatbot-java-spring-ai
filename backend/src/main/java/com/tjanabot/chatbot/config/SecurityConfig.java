@@ -63,7 +63,38 @@ public class SecurityConfig {
                 .successHandler(oAuth2AuthenticationSuccessHandler)
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .headers(h -> h.frameOptions(fo -> fo.sameOrigin()).contentTypeOptions(cto -> cto.disable()));
+            .headers(headers -> headers
+                // X-Frame-Options: Prevent clickjacking
+                .frameOptions(frame -> frame.sameOrigin())
+                // X-Content-Type-Options: Prevent MIME sniffing
+                .contentTypeOptions(contentType -> {})
+                // X-XSS-Protection: Enable browser XSS protection
+                .xssProtection(xss -> xss.headerValue(
+                    org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                // Strict-Transport-Security: Force HTTPS (31536000 = 1 year)
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000))
+                // Content-Security-Policy: Restrict resource loading
+                .contentSecurityPolicy(csp -> csp
+                    .policyDirectives("default-src 'self'; " +
+                        "script-src 'self' 'unsafe-inline' https://js.stripe.com https://accounts.google.com; " +
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                        "font-src 'self' https://fonts.gstatic.com; " +
+                        "img-src 'self' data: https:; " +
+                        "connect-src 'self' https://api.stripe.com https://accounts.google.com; " +
+                        "frame-src 'self' https://js.stripe.com https://accounts.google.com; " +
+                        "object-src 'none'; " +
+                        "base-uri 'self'; " +
+                        "form-action 'self'; " +
+                        "frame-ancestors 'self'"))
+                // Referrer-Policy: Control referrer information
+                .referrerPolicy(referrer -> referrer.policy(
+                    org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                // Permissions-Policy: Control browser features
+                .permissionsPolicy(permissions -> permissions
+                    .policy("geolocation=(), microphone=(), camera=()"))
+            );
 
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

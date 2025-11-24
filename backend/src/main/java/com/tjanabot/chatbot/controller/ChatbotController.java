@@ -10,6 +10,7 @@ import com.tjanabot.chatbot.service.WebsiteAnalysisService;
 import com.tjanabot.chatbot.service.ConversationExportService;
 import com.tjanabot.chatbot.service.BibleVerseService;
 import com.tjanabot.chatbot.repository.ChatbotRepository;
+import com.tjanabot.chatbot.util.LogSanitizer;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,12 +80,12 @@ public class ChatbotController {
      */
     private ResponseEntity<Void> verifyAccess(User user, Chatbot chatbot) {
         if (!hasActiveSubscription(user)) {
-            logger.warn("User {} attempted to access chatbot without active subscription", user.getEmail());
+            logger.warn("User {} attempted to access chatbot without active subscription", LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         if (!isOwner(user, chatbot)) {
-            logger.warn("User {} attempted to access chatbot {} without ownership", user.getEmail(), chatbot.getId());
+            logger.warn("User {} attempted to access chatbot {} without ownership", LogSanitizer.sanitize(user.getEmail()), chatbot.getId());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -101,7 +102,7 @@ public class ChatbotController {
             User user = currentUser.getUser();
 
             if (!hasActiveSubscription(user)) {
-                logger.warn("User {} attempted to access chatbots without active subscription", user.getEmail());
+                logger.warn("User {} attempted to access chatbots without active subscription", LogSanitizer.sanitize(user.getEmail()));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
@@ -154,7 +155,7 @@ public class ChatbotController {
 
             // Check if user has active subscription
             if (!hasActiveSubscription(user)) {
-                logger.warn("User {} attempted to create chatbot without active subscription", user.getEmail());
+                logger.warn("User {} attempted to create chatbot without active subscription", LogSanitizer.sanitize(user.getEmail()));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
@@ -162,7 +163,7 @@ public class ChatbotController {
             chatbot.setOwner(user);
 
             Chatbot savedChatbot = chatbotRepository.save(chatbot);
-            logger.info("Created new chatbot: {} for user: {}", savedChatbot.getName(), user.getEmail());
+            logger.info("Created new chatbot: {} for user: {}", LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
         } catch (Exception e) {
             logger.error("Error creating chatbot", e);
@@ -208,7 +209,7 @@ public class ChatbotController {
             chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
 
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
-            logger.info("Updated chatbot: {}", updatedChatbot.getName());
+            logger.info("Updated chatbot: {}", LogSanitizer.sanitize(updatedChatbot.getName()));
             return ResponseEntity.ok(updatedChatbot);
             
         } catch (Exception e) {
@@ -240,7 +241,7 @@ public class ChatbotController {
             }
 
             chatbotRepository.deleteById(id);
-            logger.info("Deleted chatbot: {} for user: {}", id, user.getEmail());
+            logger.info("Deleted chatbot: {} for user: {}", id, LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.noContent().build();
 
         } catch (Exception e) {
@@ -283,7 +284,7 @@ public class ChatbotController {
                 "message", "Website analysis started. Check back later for results."
             );
             
-            logger.info("Started website analysis for chatbot: {}", chatbot.getName());
+            logger.info("Started website analysis for chatbot: {}", LogSanitizer.sanitize(chatbot.getName()));
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
@@ -323,7 +324,7 @@ public class ChatbotController {
                 "message", "Website content has been indexed and is ready for chatbot interactions."
             );
             
-            logger.info("Completed content indexing for chatbot: {}", chatbot.getName());
+            logger.info("Completed content indexing for chatbot: {}", LogSanitizer.sanitize(chatbot.getName()));
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {

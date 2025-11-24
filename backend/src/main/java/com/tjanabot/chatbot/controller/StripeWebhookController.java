@@ -6,6 +6,7 @@ import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
 import com.stripe.net.Webhook;
 import com.tjanabot.chatbot.service.StripeService;
+import com.tjanabot.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,10 +44,10 @@ public class StripeWebhookController {
             // Verify webhook signature
             event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
         } catch (SignatureVerificationException e) {
-            logger.error("Invalid Stripe webhook signature", e);
+            logger.error("Invalid Stripe webhook signature: {}", LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
         } catch (Exception e) {
-            logger.error("Error processing Stripe webhook", e);
+            logger.error("Error processing Stripe webhook: {}", LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Webhook error");
         }
 
@@ -93,7 +94,7 @@ public class StripeWebhookController {
                     logger.info("Unhandled Stripe event type: {}", event.getType());
             }
         } catch (Exception e) {
-            logger.error("Error handling Stripe webhook event: {}", event.getType(), e);
+            logger.error("Error handling Stripe webhook event {}: {}", event.getType(), LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing event");
         }
 
