@@ -1,19 +1,4 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: chatbot-postgres
-    env: docker
-    plan: free
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    envVars:
-      - key: POSTGRES_DB
-        value: chatbot
-      - key: POSTGRES_USER
-        value: postgres
-      - key: POSTGRES_PASSWORD
-        generateValue: true
-
   # Backend Service
   - type: web
     name: chatbot-backend
