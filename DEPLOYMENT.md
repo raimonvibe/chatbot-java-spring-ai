@@ -137,7 +137,14 @@ This project includes a `render.yaml` file for automated deployment.
 
 ### Option B: Manual Docker Service Creation
 
-If Blueprint deployment doesn't work, create services manually:
+If Blueprint deployment doesn't work, create services manually.
+
+**Important Note about Database URLs:**
+When you create a PostgreSQL database on Render, it provides:
+- **Internal Database URL**: `postgresql://internal-host:5432/db` (use this for Render services)
+- **External Database URL**: `postgresql://external-host:5432/db` (use this from your local machine)
+
+Always use the **Internal URL** for services running on Render - it's faster and more secure!
 
 #### Create PostgreSQL Database
 
@@ -150,8 +157,12 @@ If Blueprint deployment doesn't work, create services manually:
    - Plan: Free tier
 
 2. **Note Database Credentials**
-   - Internal Database URL will be used by backend
-   - Render automatically provides environment variables
+
+   Render provides two connection URLs:
+   - **Internal Database URL** - Use this for services running on Render (faster, more secure)
+   - **External Database URL** - Use this only when connecting from outside Render (local dev, GUI tools)
+
+   For your backend service on Render, you'll use the **Internal Database URL**
 
 #### Create Backend Service
 
@@ -174,14 +185,28 @@ If Blueprint deployment doesn't work, create services manually:
    - Free tier: 512MB RAM (sufficient for testing)
    - Starter: 1GB RAM (recommended for production)
 
-4. **Environment Variables**
+4. **Link PostgreSQL Database (Important!)**
+
+   Before adding environment variables:
+   - Scroll down to "Environment Variables" section
+   - Click "Add Environment Variable"
+   - Look for "Add from Database" or "Link Database" option
+   - Select your `chatbot-postgres` database
+   - Render will automatically add `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`
+
+5. **Environment Variables**
 
    Add in the "Environment" tab:
    ```bash
-   # Database (auto-filled from PostgreSQL service)
-   SPRING_DATASOURCE_URL=<from postgres service>
-   SPRING_DATASOURCE_USERNAME=<from postgres service>
-   SPRING_DATASOURCE_PASSWORD=<from postgres service>
+   # Database Connection
+   # Option 1: Link the PostgreSQL database and use Render's auto-fill
+   SPRING_DATASOURCE_URL=${DATABASE_URL}
+
+   # Option 2: Manually copy the Internal Database URL from your PostgreSQL service
+   # SPRING_DATASOURCE_URL=postgresql://user:password@host:5432/database
+
+   # Note: If you link the database, Render auto-fills DATABASE_URL, USERNAME, and PASSWORD
+   # You typically don't need to set these separately
 
    # Spring Configuration
    SPRING_JPA_HIBERNATE_DDL_AUTO=update
@@ -201,10 +226,11 @@ If Blueprint deployment doesn't work, create services manually:
    STRIPE_SECRET_KEY=your-stripe-key
    ```
 
-5. **Deploy Backend**
+6. **Deploy Backend**
    - Click "Create Web Service"
-   - Wait for Docker build to complete
+   - Wait for Docker build to complete (10-15 minutes first time)
    - Check logs for any errors
+   - Look for "Started ChatbotApplication" in logs
 
 #### Create Frontend Service
 
