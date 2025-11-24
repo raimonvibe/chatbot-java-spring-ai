@@ -59,14 +59,19 @@ export async function getChatbot(chatbotId: number): Promise<Chatbot> {
 }
 
 export async function getQuickReplies(chatbotId: number): Promise<string[]> {
-  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/quick-replies`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/quick-replies`);
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    // Return empty array on network errors
     return [];
   }
-
-  const data = await response.json();
-  return Array.isArray(data) ? data : [];
 }
 
 export async function getAllChatbots(): Promise<Chatbot[]> {
