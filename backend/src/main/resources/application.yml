@@ -112,9 +112,9 @@ cors:
 
 # Stripe Configuration
 stripe:
-  api-key: ${STRIPE_SECRET_KEY}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
-  price-id: ${STRIPE_PRICE_ID}
+  api-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  price-id: ${STRIPE_PRICE_ID:}
   price-amount: 498  # Default price in cents ($4.98)
   price-currency: usd
   product-name: "TjanaBot Monthly Subscription"
