@@ -33,16 +33,16 @@ public class StripeService {
 
     private static final Logger logger = LoggerFactory.getLogger(StripeService.class);
 
-    @Value("${stripe.api-key}")
+    @Value("${stripe.api-key:}")
     private String stripeApiKey;
 
-    @Value("${stripe.price-id}")
+    @Value("${stripe.price-id:}")
     private String stripePriceId;
 
-    @Value("${stripe.success-url}")
+    @Value("${stripe.success-url:http://localhost:3000/dashboard}")
     private String successUrl;
 
-    @Value("${stripe.cancel-url}")
+    @Value("${stripe.cancel-url:http://localhost:3000/pricing}")
     private String cancelUrl;
 
     @Autowired
@@ -53,7 +53,12 @@ public class StripeService {
 
     @PostConstruct
     public void init() {
-        Stripe.apiKey = stripeApiKey;
+        if (stripeApiKey != null && !stripeApiKey.isEmpty()) {
+            Stripe.apiKey = stripeApiKey;
+            logger.info("Stripe API initialized");
+        } else {
+            logger.warn("Stripe API key not configured - payment features will be disabled");
+        }
     }
 
     /**
