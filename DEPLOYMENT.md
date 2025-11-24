@@ -680,12 +680,28 @@ Deploy your Next.js frontend to Vercel.
 
 3. **Set Environment Variables**
 
-   Add these environment variables in Vercel:
+   **REQUIRED - Add this in Vercel:**
 
-   | Name | Value | Description |
-   |------|-------|-------------|
-   | `NEXT_PUBLIC_API_URL` | Your Render backend URL | Example: `https://ai-chatbot-backend.onrender.com` |
-   | `NEXT_PUBLIC_DEFAULT_CHATBOT_ID` | `1` | Your default chatbot ID (optional) |
+   ```
+   NEXT_PUBLIC_API_URL=https://your-backend-url.onrender.com
+   ```
+
+   Replace `your-backend-url.onrender.com` with your actual Render backend URL.
+
+   **OPTIONAL:**
+
+   ```
+   NEXT_PUBLIC_DEFAULT_CHATBOT_ID=1
+   ```
+
+   **⚠️ Note:** Unlike your change-my-com-v2 project, this frontend does NOT need:
+   - ❌ `NEXTAUTH_URL` (auth is handled on backend)
+   - ❌ `NEXTAUTH_SECRET` (auth is handled on backend)
+   - ❌ `GOOGLE_CLIENT_ID` (OAuth is backend-only)
+   - ❌ `GOOGLE_CLIENT_SECRET` (OAuth is backend-only)
+   - ❌ `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (payments are backend-only)
+
+   This frontend only communicates with the backend API - all authentication and payment processing happens on the backend!
 
 4. **Deploy**
    - Click "Deploy"
