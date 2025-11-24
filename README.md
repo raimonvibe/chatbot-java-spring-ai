@@ -73,14 +73,48 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 ## 🚀 Quick Start
 
 ### Prerequisites
+
+**Option 1: Docker (Recommended)**
+- Docker 20.10+ and Docker Compose 2.0+
+- Anthropic API key (for Claude AI chat)
+- Cohere API key (for embeddings)
+- Optional: Pinecone API key (for vector storage)
+
+**Option 2: Local Development**
 - Java 17 or higher
 - Maven 3.6+
-- Node.js 18+ and npm (for frontend)
+- Node.js 20+ and npm (for frontend)
 - Anthropic API key (for Claude AI chat)
 - Cohere API key (for embeddings)
 - Optional: Pinecone API key (for vector storage)
 
 ### Installation
+
+#### Option 1: Docker (Recommended)
+
+The fastest way to get started:
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd ai-chatbot-system
+
+# 2. Copy and configure environment variables
+cp .env.example .env
+# Edit .env and add your API keys
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Access the application
+# - Frontend: http://localhost:3000
+# - Backend API: http://localhost:8080
+# - Database: PostgreSQL on localhost:5432
+```
+
+That's it! The entire stack is now running.
+
+#### Option 2: Local Development
 
 1. **Clone the repository**
    ```bash
@@ -411,25 +445,148 @@ Advanced web crawling features:
 
 ## 🚀 Deployment
 
-### Docker Deployment
+### Docker Deployment (Recommended)
+
+#### Using Docker Compose (Local Development)
+
+The easiest way to run the entire stack locally:
 
 ```bash
-# Build and run using docker-compose
+# 1. Copy environment variables
+cp .env.example .env
+# Edit .env and add your API keys
+
+# 2. Start all services (PostgreSQL, Backend, Frontend)
 docker-compose up -d
 
-# Or build the backend manually
+# 3. View logs
+docker-compose logs -f
+
+# 4. Stop all services
+docker-compose down
+```
+
+This will start:
+- PostgreSQL database on `localhost:5432`
+- Backend API on `localhost:8080`
+- Frontend dashboard on `localhost:3000`
+
+#### Building Individual Services
+
+**Backend:**
+```bash
 cd backend
 docker build -t tjanabot-backend .
-docker run -p 8080:8080 tjanabot-backend
+docker run -p 8080:8080 \
+  -e ANTHROPIC_API_KEY=your-key \
+  -e COHERE_API_KEY=your-key \
+  -e JWT_SECRET=your-secret \
+  tjanabot-backend
 ```
+
+**Frontend:**
+```bash
+cd frontend
+docker build -t tjanabot-frontend .
+docker run -p 3000:3000 \
+  -e NEXT_PUBLIC_API_URL=http://localhost:8080 \
+  tjanabot-frontend
+```
+
+### Deploying to Render
+
+This project includes a `render.yaml` file for easy deployment to Render:
+
+#### One-Click Deploy
+
+1. **Fork this repository** to your GitHub account
+
+2. **Sign up for Render** at https://render.com
+
+3. **Create a New Blueprint Instance**
+   - Go to https://dashboard.render.com/blueprints
+   - Click "New Blueprint Instance"
+   - Connect your GitHub repository
+   - Select the forked repository
+
+4. **Configure Environment Variables**
+
+   Render will automatically create the services. Set these environment variables in the Render dashboard:
+
+   **Backend Service:**
+   - `ANTHROPIC_API_KEY` - Your Anthropic API key
+   - `COHERE_API_KEY` - Your Cohere API key
+   - `PINECONE_API_KEY` - Your Pinecone API key (optional)
+   - `PINECONE_ENVIRONMENT` - Your Pinecone environment (optional)
+   - `PINECONE_INDEX_NAME` - Your Pinecone index name (default: chatbot-vectors)
+   - `GOOGLE_CLIENT_ID` - For Google OAuth (optional)
+   - `GOOGLE_CLIENT_SECRET` - For Google OAuth (optional)
+   - `STRIPE_SECRET_KEY` - For payments (optional)
+   - `STRIPE_WEBHOOK_SECRET` - For Stripe webhooks (optional)
+
+   **Frontend Service:**
+   - `NEXT_PUBLIC_API_URL` - Will be auto-filled with your backend URL
+
+5. **Deploy**
+   - Click "Apply" to deploy all services
+   - Render will automatically:
+     - Create a PostgreSQL database
+     - Build and deploy the backend (Java)
+     - Build and deploy the frontend (Next.js)
+     - Connect all services together
+
+6. **Access Your Application**
+   - Frontend: `https://your-app.onrender.com`
+   - Backend API: `https://your-api.onrender.com`
+
+#### Manual Docker Deployment on Render
+
+If you prefer manual deployment:
+
+1. **Create Web Services** in Render dashboard
+2. **Select "Docker"** as the environment
+3. **Set Docker paths:**
+   - Backend: `./backend/Dockerfile`
+   - Frontend: `./frontend/Dockerfile`
+4. **Configure environment variables** as shown above
+5. **Deploy**
 
 ### Production Considerations
 
-1. **Database**: Use PostgreSQL for production
-2. **Vector Store**: Configure Pinecone for scalability
-3. **Security**: Implement proper authentication and authorization
-4. **Monitoring**: Add application monitoring and logging
-5. **Scaling**: Use load balancers for high availability
+1. **Database**:
+   - Use PostgreSQL for production (included in docker-compose)
+   - Enable backups and replication
+   - Configure connection pooling
+
+2. **Vector Store**:
+   - Configure Pinecone for scalability
+   - Use separate indexes for different environments
+   - Monitor usage and costs
+
+3. **Security**:
+   - Use strong JWT secrets (minimum 32 characters)
+   - Enable HTTPS/TLS
+   - Implement proper authentication and authorization
+   - Rotate API keys regularly
+   - Use environment variables for all secrets
+
+4. **Monitoring**:
+   - Add application monitoring (e.g., New Relic, DataDog)
+   - Configure logging aggregation
+   - Set up health check endpoints
+   - Monitor API rate limits
+
+5. **Scaling**:
+   - Use load balancers for high availability
+   - Configure horizontal scaling based on metrics
+   - Optimize Docker images for faster deployments
+   - Use CDN for frontend assets
+
+6. **Performance**:
+   - Enable Docker multi-stage builds (already configured)
+   - Use container resource limits
+   - Configure JVM heap size appropriately
+   - Enable database query caching
 
 ## 🤝 Contributing
 

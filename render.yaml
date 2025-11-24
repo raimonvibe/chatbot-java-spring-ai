@@ -1,0 +1,83 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: chatbot-postgres
+    env: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: POSTGRES_DB
+        value: chatbot
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+
+  # Backend Service
+  - type: web
+    name: chatbot-backend
+    env: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      # Database Configuration (auto-filled from postgres service)
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: chatbot-postgres
+          property: connectionString
+      
+      # AI Configuration (set these in Render dashboard)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_ENVIRONMENT
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: chatbot-vectors
+      
+      # Security
+      - key: JWT_SECRET
+        generateValue: true
+      
+      # OAuth (optional - set in dashboard if needed)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      
+      # Stripe (optional - set in dashboard if needed)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      
+      # Spring Configuration
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+
+  # Frontend Service
+  - type: web
+    name: chatbot-frontend
+    env: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /
+    envVars:
+      # Backend API URL (auto-filled from backend service)
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: chatbot-backend
+          property: host
+
+databases:
+  - name: chatbot-postgres
+    databaseName: chatbot
+    plan: free
