@@ -5,8 +5,7 @@ services:
     env: docker
     plan: free
     region: oregon
-    rootDir: backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     healthCheckPath: /actuator/health
     envVars:
       # Database Configuration (auto-filled from postgres service)
@@ -53,8 +52,7 @@ services:
     env: docker
     plan: free
     region: oregon
-    rootDir: frontend
-    dockerfilePath: Dockerfile
+    dockerfilePath: frontend/Dockerfile
     healthCheckPath: /
     envVars:
       # Backend API URL (auto-filled from backend service)
