@@ -6,6 +6,7 @@ import com.tjanabot.chatbot.model.User;
 import com.tjanabot.chatbot.repository.SubscriptionRepository;
 import com.tjanabot.chatbot.security.CustomOAuth2User;
 import com.tjanabot.chatbot.service.StripeService;
+import com.tjanabot.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +68,7 @@ public class SubscriptionController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error retrieving subscription status", e);
+            logger.error("Error retrieving subscription status: {}", LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -95,16 +96,16 @@ public class SubscriptionController {
             Map<String, String> response = new HashMap<>();
             response.put("checkoutUrl", checkoutUrl);
 
-            logger.info("Created checkout session for user: {}", user.getEmail());
+            logger.info("Created checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.ok(response);
 
         } catch (StripeException e) {
-            logger.error("Stripe error creating checkout session", e);
+            logger.error("Stripe error creating checkout session: {}", LogSanitizer.sanitizeException(e));
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to create checkout session");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         } catch (Exception e) {
-            logger.error("Error creating checkout session", e);
+            logger.error("Error creating checkout session: {}", LogSanitizer.sanitizeException(e));
             Map<String, String> error = new HashMap<>();
             error.put("error", "Internal server error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
@@ -125,21 +126,21 @@ public class SubscriptionController {
             Map<String, String> response = new HashMap<>();
             response.put("message", "Subscription canceled successfully");
 
-            logger.info("Canceled subscription for user: {}", user.getEmail());
+            logger.info("Canceled subscription for user: {}", LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
-            logger.error("Error canceling subscription: {}", e.getMessage());
+            logger.error("Error canceling subscription: {}", LogSanitizer.sanitize(e.getMessage()));
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         } catch (StripeException e) {
-            logger.error("Stripe error canceling subscription", e);
+            logger.error("Stripe error canceling subscription: {}", LogSanitizer.sanitizeException(e));
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to cancel subscription");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         } catch (Exception e) {
-            logger.error("Error canceling subscription", e);
+            logger.error("Error canceling subscription: {}", LogSanitizer.sanitizeException(e));
             Map<String, String> error = new HashMap<>();
             error.put("error", "Internal server error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
@@ -162,7 +163,7 @@ public class SubscriptionController {
                 .orElse(ResponseEntity.notFound().build());
 
         } catch (Exception e) {
-            logger.error("Error retrieving subscription details", e);
+            logger.error("Error retrieving subscription details: {}", LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

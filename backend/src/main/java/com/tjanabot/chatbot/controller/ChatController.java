@@ -4,6 +4,7 @@ import com.tjanabot.chatbot.dto.ChatRequest;
 import com.tjanabot.chatbot.model.Chatbot;
 import com.tjanabot.chatbot.repository.ChatbotRepository;
 import com.tjanabot.chatbot.service.AiChatbotService;
+import com.tjanabot.chatbot.util.LogSanitizer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
@@ -83,7 +84,7 @@ public class ChatController {
             return ResponseEntity.ok(responseData);
 
         } catch (Exception e) {
-            logger.error("Error processing chat message for chatbot {}", chatbotId, e);
+            logger.error("Error processing chat message for chatbot {}: {}", chatbotId, LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Failed to process message"
             ));
@@ -121,7 +122,7 @@ public class ChatController {
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            logger.error("Error retrieving chatbot by embed code {}", embedCode, e);
+            logger.error("Error retrieving chatbot by embed code {}: {}", LogSanitizer.sanitize(embedCode), LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Failed to retrieve chatbot"
             ));
@@ -149,7 +150,7 @@ public class ChatController {
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            logger.error("Error retrieving conversation history for chatbot {} session {}", chatbotId, sessionId, e);
+            logger.error("Error retrieving conversation history for chatbot {} session {}: {}", chatbotId, LogSanitizer.sanitize(sessionId), LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Failed to retrieve conversation history"
             ));

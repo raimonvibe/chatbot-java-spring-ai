@@ -224,7 +224,15 @@ public class UrlValidationService {
             return false;
         }
 
-        // Allowed ports: 80, 443, 8080, 8443, 3000-3999 (common dev ports)
+        // Explicitly blocked dangerous ports
+        int[] blockedPorts = {22, 23, 25, 110, 143, 3306, 3389, 5432, 6379, 9200, 27017};
+        for (int blockedPort : blockedPorts) {
+            if (port == blockedPort) {
+                return false;
+            }
+        }
+
+        // Allowed ports: 80, 443, 8080, 8443, 3000-3999 (common dev ports, excluding blocked ones)
         return port == 80 || port == 443 || port == 8080 || port == 8443 ||
                (port >= 3000 && port <= 3999);
     }
@@ -235,7 +243,8 @@ public class UrlValidationService {
     public String extractDomain(String url) {
         try {
             URI uri = new URI(url);
-            return uri.getHost();
+            String host = uri.getHost();
+            return host != null ? host : "invalid-url";
         } catch (Exception e) {
             return "invalid-url";
         }
