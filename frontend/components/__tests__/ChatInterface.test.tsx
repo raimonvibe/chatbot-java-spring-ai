@@ -13,6 +13,17 @@ const mockSendMessage = api.sendMessage as jest.MockedFunction<typeof api.sendMe
 const mockGetQuickReplies = api.getQuickReplies as jest.MockedFunction<typeof api.getQuickReplies>
 
 describe('ChatInterface Component', () => {
+  // Suppress console.error during tests (we test error handling, so errors are expected)
+  const originalError = console.error
+
+  beforeAll(() => {
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = originalError
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetQuickReplies.mockResolvedValue([])
