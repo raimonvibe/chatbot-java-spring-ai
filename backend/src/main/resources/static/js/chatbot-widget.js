@@ -42,8 +42,11 @@
             return;
         }
         
-        // Generate session ID
-        sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // Generate session ID using cryptographically secure random values
+        const randomValues = new Uint8Array(16);
+        crypto.getRandomValues(randomValues);
+        const randomString = Array.from(randomValues, byte => byte.toString(16).padStart(2, '0')).join('');
+        sessionId = 'session_' + Date.now() + '_' + randomString;
         
         // Create widget
         createWidget();
