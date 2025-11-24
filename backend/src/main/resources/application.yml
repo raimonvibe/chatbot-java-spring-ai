@@ -115,5 +115,8 @@ stripe:
   api-key: ${STRIPE_SECRET_KEY}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET}
   price-id: ${STRIPE_PRICE_ID}
+  price-amount: 498  # Default price in cents ($4.98)
+  price-currency: usd
+  product-name: "TjanaBot Monthly Subscription"
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/pricing}

@@ -39,6 +39,15 @@ public class StripeService {
     @Value("${stripe.price-id:}")
     private String stripePriceId;
 
+    @Value("${stripe.price-amount:498}")
+    private Long priceAmount;
+
+    @Value("${stripe.price-currency:usd}")
+    private String priceCurrency;
+
+    @Value("${stripe.product-name:TjanaBot Monthly Subscription}")
+    private String productName;
+
     @Value("${stripe.success-url:http://localhost:3000/dashboard}")
     private String successUrl;
 
@@ -68,16 +77,40 @@ public class StripeService {
         // Get or create Stripe customer
         String customerId = getOrCreateCustomer(user);
 
+        // Build line item - use Price ID if available, otherwise use default price
+        SessionCreateParams.LineItem.Builder lineItemBuilder = SessionCreateParams.LineItem.builder()
+            .setQuantity(1L);
+
+        if (stripePriceId != null && !stripePriceId.isEmpty()) {
+            // Use existing Stripe Price ID
+            lineItemBuilder.setPrice(stripePriceId);
+            logger.info("Using Stripe Price ID: {}", stripePriceId);
+        } else {
+            // Use default inline price
+            lineItemBuilder.setPriceData(
+                SessionCreateParams.LineItem.PriceData.builder()
+                    .setCurrency(priceCurrency)
+                    .setUnitAmount(priceAmount)
+                    .setRecurring(
+                        SessionCreateParams.LineItem.PriceData.Recurring.builder()
+                            .setInterval(SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
+                            .build()
+                    )
+                    .setProductData(
+                        SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                            .setName(productName)
+                            .build()
+                    )
+                    .build()
+            );
+            logger.info("Using default price: ${}{} per month", priceAmount / 100.0, priceCurrency.toUpperCase());
+        }
+
         // Create checkout session
         SessionCreateParams params = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
             .setCustomer(customerId)
-            .addLineItem(
-                SessionCreateParams.LineItem.builder()
-                    .setPrice(stripePriceId)
-                    .setQuantity(1L)
-                    .build()
-            )
+            .addLineItem(lineItemBuilder.build())
             .setSuccessUrl(successUrl)
             .setCancelUrl(cancelUrl)
             .putMetadata("user_id", user.getId().toString())
