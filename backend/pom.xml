@@ -60,7 +60,7 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>25.0.0</version>
+            <version>31.0.0</version>
         </dependency>
 
         <!-- Environment Variables Support -->
@@ -110,7 +110,7 @@
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.17.2</version>
+            <version>1.21.2</version>
         </dependency>
         
         <dependency>
