@@ -10,32 +10,32 @@ public class LogSanitizer {
 
     // Patterns for sensitive data
     private static final Pattern API_KEY_PATTERN = Pattern.compile(
-        "(api[_-]?key[\"']?\\s*[:=]\\s*[\"']?)([\\w-]+)",
+        "(api[_-]?key[\"']?\\s*[:=]\\s*[\"']?)([\\w-]{1,100})",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-        "(password[\"']?\\s*[:=]\\s*[\"']?)([^\"'\\s]+)",
+        "(password[\"']?\\s*[:=]\\s*[\"']?)([^\"'\\s]{1,100})",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
-        "(token[\"']?\\s*[:=]\\s*[\"']?)([\\w-]+)",
+        "(token[\"']?\\s*[:=]\\s*[\"']?)([\\w\\.-]{1,500})",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern BEARER_TOKEN_PATTERN = Pattern.compile(
-        "(Bearer\\s+)([\\w\\.-]+)",
+        "(Bearer\\s+)([\\w\\.-]{1,500})",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern SECRET_PATTERN = Pattern.compile(
-        "(secret[\"']?\\s*[:=]\\s*[\"']?)([\\w-]+)",
+        "(secret[\"']?\\s*[:=]\\s*[\"']?)([\\w-]{1,100})",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern AUTHORIZATION_PATTERN = Pattern.compile(
-        "(Authorization[\"']?\\s*[:=]\\s*[\"']?)(?!\\s*Bearer)([^\n\"']+)",
+        "(Authorization[\"']?\\s*[:=]\\s*[\"']?)(?!\\s*Bearer)([^\n\"']{1,500})",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -47,7 +47,7 @@ public class LogSanitizer {
 
     // Email pattern (partially redact)
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
-        "([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})"
+        "([a-zA-Z0-9._%+-]{1,64})@([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)"
     );
 
     // IP Address pattern (partially redact)

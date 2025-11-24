@@ -308,7 +308,19 @@
             const container = document.getElementById('selectedLanguages');
             const tag = document.createElement('span');
             tag.className = 'language-tag';
-            tag.innerHTML = language.toUpperCase() + ' <span class="remove" onclick="removeLanguage(\'' + language + '\')">&times;</span>';
+
+            // Safely add language text
+            tag.textContent = language.toUpperCase() + ' ';
+
+            // Create remove button safely
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove';
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', function() {
+                removeLanguage(language);
+            });
+
+            tag.appendChild(removeBtn);
             container.appendChild(tag);
         }
         
