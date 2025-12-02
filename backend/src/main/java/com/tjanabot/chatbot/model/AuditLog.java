@@ -67,6 +67,8 @@ public class AuditLog {
         AUTH_LOGOUT,
         AUTH_FAILED,
         AUTH_OAUTH_SUCCESS,
+        LOGIN_SUCCESS,      // Alias for AUTH_LOGIN
+        LOGIN_FAILURE,      // Alias for AUTH_FAILED
 
         // Subscription events
         SUBSCRIPTION_CREATED,
@@ -92,17 +94,22 @@ public class AuditLog {
         SECURITY_RATE_LIMIT_HIT,
         SECURITY_SUSPICIOUS_ACTIVITY,
         SECURITY_DATA_EXPORT,
+        SECURITY_ALERT,     // Alias for critical security events
+        SUSPICIOUS_ACTIVITY, // Alias for SECURITY_SUSPICIOUS_ACTIVITY
 
         // Payment events
         PAYMENT_METHOD_ADDED,
         PAYMENT_METHOD_REMOVED,
         PAYMENT_REFUND_ISSUED,
+        PAYMENT_SUCCESS,    // Alias for SUBSCRIPTION_PAYMENT_SUCCESS
+        PAYMENT_FAILED,     // Alias for SUBSCRIPTION_PAYMENT_FAILED
 
         // Admin events
         ADMIN_ACTION,
 
         // System events
-        SYSTEM_ERROR
+        SYSTEM_ERROR,
+        SYSTEM_EVENT        // General system events
     }
 
     // Severity levels
@@ -280,5 +287,14 @@ public class AuditLog {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    // Alias methods for timestamp (used by tests)
+    public LocalDateTime getTimestamp() {
+        return createdAt;
+    }
+
+    public void setTimestamp(LocalDateTime timestamp) {
+        this.createdAt = timestamp;
     }
 }

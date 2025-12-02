@@ -92,4 +92,31 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
      * Delete old audit logs (for cleanup)
      */
     void deleteByCreatedAtBefore(LocalDateTime date);
+
+    // Additional methods for tests (non-pageable versions)
+
+    /**
+     * Find all audit logs for a user ordered by timestamp descending
+     */
+    List<AuditLog> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * Find audit logs by event type ordered by timestamp descending
+     */
+    List<AuditLog> findByEventTypeOrderByCreatedAtDesc(AuditLog.EventType eventType);
+
+    /**
+     * Find audit logs by severity ordered by timestamp descending
+     */
+    List<AuditLog> findBySeverityOrderByCreatedAtDesc(AuditLog.Severity severity);
+
+    /**
+     * Find audit logs within timestamp range ordered by timestamp descending
+     */
+    List<AuditLog> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end);
+
+    /**
+     * Count events by user ID, event type after a specific timestamp
+     */
+    long countByUserIdAndEventTypeAndCreatedAtAfter(Long userId, AuditLog.EventType eventType, LocalDateTime timestamp);
 }

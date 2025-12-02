@@ -49,13 +49,12 @@ class AuditServiceTest {
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
 
         // Act
-        auditService.log(
+        auditService.logWithIpAddress(
             AuditLog.EventType.LOGIN_SUCCESS,
             AuditLog.Severity.INFO,
             "User logged in",
             testUser,
-            "192.168.1.1",
-            null
+            "192.168.1.1"
         );
 
         // Assert
@@ -211,11 +210,10 @@ class AuditServiceTest {
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
 
         // Act
-        auditService.log(
+        auditService.logWithIpAddress(
             AuditLog.EventType.SYSTEM_EVENT,
             AuditLog.Severity.INFO,
             "System started",
-            null,
             null,
             null
         );
