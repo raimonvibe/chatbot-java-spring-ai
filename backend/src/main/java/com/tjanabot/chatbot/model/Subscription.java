@@ -45,6 +45,15 @@ public class Subscription {
     private LocalDateTime canceledAt;
 
     @Column
+    private Integer paymentRetryCount = 0;
+
+    @Column
+    private LocalDateTime lastPaymentAttempt;
+
+    @Column
+    private LocalDateTime gracePeriodEnd;
+
+    @Column
     private LocalDateTime createdAt;
 
     @Column
@@ -196,5 +205,29 @@ public class Subscription {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getPaymentRetryCount() {
+        return paymentRetryCount;
+    }
+
+    public void setPaymentRetryCount(Integer paymentRetryCount) {
+        this.paymentRetryCount = paymentRetryCount;
+    }
+
+    public LocalDateTime getLastPaymentAttempt() {
+        return lastPaymentAttempt;
+    }
+
+    public void setLastPaymentAttempt(LocalDateTime lastPaymentAttempt) {
+        this.lastPaymentAttempt = lastPaymentAttempt;
+    }
+
+    public LocalDateTime getGracePeriodEnd() {
+        return gracePeriodEnd;
+    }
+
+    public void setGracePeriodEnd(LocalDateTime gracePeriodEnd) {
+        this.gracePeriodEnd = gracePeriodEnd;
     }
 }

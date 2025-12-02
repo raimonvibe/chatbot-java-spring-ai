@@ -83,11 +83,22 @@ public class StripeWebhookController {
                     break;
 
                 case "invoice.payment_succeeded":
-                    logger.info("Payment succeeded for invoice");
+                    com.stripe.model.Invoice successInvoice = (com.stripe.model.Invoice) stripeObject;
+                    if (successInvoice.getSubscription() != null) {
+                        stripeService.handlePaymentSuccess(successInvoice.getSubscription());
+                        logger.info("Payment succeeded for invoice, subscription updated");
+                    }
                     break;
 
                 case "invoice.payment_failed":
-                    logger.warn("Payment failed for invoice");
+                    com.stripe.model.Invoice failedInvoice = (com.stripe.model.Invoice) stripeObject;
+                    if (failedInvoice.getSubscription() != null) {
+                        stripeService.handlePaymentFailure(
+                            failedInvoice.getSubscription(),
+                            failedInvoice.getId()
+                        );
+                        logger.warn("Payment failed for invoice, grace period/retry logic applied");
+                    }
                     break;
 
                 default:

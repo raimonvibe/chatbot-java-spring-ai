@@ -120,3 +120,5 @@ stripe:
   product-name: "TjanaBot Monthly Subscription"
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/pricing}
+  grace-period-days: 7  # Days before access is revoked after first payment failure
+  max-retry-attempts: 3  # Maximum payment retry attempts before revoking access

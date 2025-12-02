@@ -167,4 +167,172 @@ public class SubscriptionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Change subscription plan (upgrade or downgrade)
+     */
+    @PostMapping("/change-plan")
+    public ResponseEntity<Map<String, String>> changePlan(
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody Map<String, String> request) {
+
+        try {
+            User user = currentUser.getUser();
+            String newPriceId = request.get("priceId");
+            String planStr = request.get("plan");
+
+            if (newPriceId == null || planStr == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing required fields: priceId and plan");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            Subscription.SubscriptionPlan newPlan;
+            try {
+                newPlan = Subscription.SubscriptionPlan.valueOf(planStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid plan: " + planStr);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            stripeService.changeSubscriptionPlan(user.getId(), newPriceId, newPlan);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Subscription plan changed successfully to " + newPlan);
+
+            logger.info("Changed subscription plan for user {} to: {}",
+                LogSanitizer.sanitize(user.getEmail()), newPlan);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            logger.error("Error changing plan: {}", LogSanitizer.sanitize(e.getMessage()));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (StripeException e) {
+            logger.error("Stripe error changing plan: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to change subscription plan");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        } catch (Exception e) {
+            logger.error("Error changing plan: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * Upgrade subscription plan
+     */
+    @PostMapping("/upgrade")
+    public ResponseEntity<Map<String, String>> upgradePlan(
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody Map<String, String> request) {
+
+        try {
+            User user = currentUser.getUser();
+            String newPriceId = request.get("priceId");
+            String planStr = request.get("plan");
+
+            if (newPriceId == null || planStr == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing required fields: priceId and plan");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            Subscription.SubscriptionPlan newPlan;
+            try {
+                newPlan = Subscription.SubscriptionPlan.valueOf(planStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid plan: " + planStr);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            stripeService.upgradeSubscription(user.getId(), newPriceId, newPlan);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Subscription upgraded successfully to " + newPlan);
+
+            logger.info("Upgraded subscription for user {} to: {}",
+                LogSanitizer.sanitize(user.getEmail()), newPlan);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            logger.error("Error upgrading: {}", LogSanitizer.sanitize(e.getMessage()));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (StripeException e) {
+            logger.error("Stripe error upgrading: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to upgrade subscription");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        } catch (Exception e) {
+            logger.error("Error upgrading: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * Downgrade subscription plan
+     */
+    @PostMapping("/downgrade")
+    public ResponseEntity<Map<String, String>> downgradePlan(
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody Map<String, String> request) {
+
+        try {
+            User user = currentUser.getUser();
+            String newPriceId = request.get("priceId");
+            String planStr = request.get("plan");
+
+            if (newPriceId == null || planStr == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing required fields: priceId and plan");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            Subscription.SubscriptionPlan newPlan;
+            try {
+                newPlan = Subscription.SubscriptionPlan.valueOf(planStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid plan: " + planStr);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            stripeService.downgradeSubscription(user.getId(), newPriceId, newPlan);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Subscription will be downgraded to " + newPlan + " at the end of the billing period");
+
+            logger.info("Scheduled downgrade for user {} to: {}",
+                LogSanitizer.sanitize(user.getEmail()), newPlan);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            logger.error("Error downgrading: {}", LogSanitizer.sanitize(e.getMessage()));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (StripeException e) {
+            logger.error("Stripe error downgrading: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to downgrade subscription");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        } catch (Exception e) {
+            logger.error("Error downgrading: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 }
