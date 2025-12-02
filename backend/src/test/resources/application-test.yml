@@ -1,0 +1,52 @@
+# Test Configuration
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:15:///testdb
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Disable OAuth for testing
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+
+# Test values
+jwt:
+  secret: test-jwt-secret-key-for-testing-purposes-only-minimum-256-bits
+  expiration: 86400000
+
+stripe:
+  api-key: sk_test_fake_key_for_testing
+  webhook-secret: whsec_test_fake_webhook_secret
+  price-id: price_test_123
+  grace-period-days: 7
+  max-retry-attempts: 3
+
+# AI API keys (use fake values in tests)
+anthropic:
+  api-key: test-anthropic-key
+
+cohere:
+  api-key: test-cohere-key
+
+# Disable rate limiting in tests
+app:
+  rate-limiting:
+    enabled: false
+
+logging:
+  level:
+    com.tjanabot: WARN
+    org.springframework: WARN
+    org.hibernate: ERROR
