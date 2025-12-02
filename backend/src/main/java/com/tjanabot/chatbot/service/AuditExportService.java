@@ -125,6 +125,72 @@ public class AuditExportService {
         return date.format(DATE_FORMATTER);
     }
 
+    // Additional methods for test support (String-based exports)
+
+    /**
+     * Export audit logs to CSV format (String output for tests)
+     */
+    public String exportToCsv(LocalDateTime start, LocalDateTime end) {
+        List<AuditLog> logs = auditService.getAuditLogsBetween(start, end);
+        return convertToCsvString(logs);
+    }
+
+    /**
+     * Export user-specific audit logs to CSV format (String output for tests)
+     */
+    public String exportUserLogsToCsv(Long userId) {
+        List<AuditLog> logs = auditService.getAuditLogsForUser(userId);
+        return convertToCsvString(logs);
+    }
+
+    /**
+     * Export audit logs to JSON format (String output for tests)
+     */
+    public String exportToJson(LocalDateTime start, LocalDateTime end) {
+        List<AuditLog> logs = auditService.getAuditLogsBetween(start, end);
+        return convertToJsonString(logs);
+    }
+
+    /**
+     * Convert audit logs to CSV string
+     */
+    private String convertToCsvString(List<AuditLog> logs) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID,Timestamp,User ID,Event Type,Severity,Description,IP Address\n");
+
+        for (AuditLog log : logs) {
+            csv.append(log.getId()).append(",");
+            csv.append(formatDate(log.getCreatedAt())).append(",");
+            csv.append(log.getUser() != null ? log.getUser().getId() : "").append(",");
+            csv.append(log.getEventType()).append(",");
+            csv.append(log.getSeverity()).append(",");
+            csv.append(escapeCSV(log.getDescription())).append(",");
+            csv.append(log.getIpAddress() != null ? log.getIpAddress() : "");
+            csv.append("\n");
+        }
+
+        return csv.toString();
+    }
+
+    /**
+     * Convert audit logs to JSON string
+     */
+    private String convertToJsonString(List<AuditLog> logs) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+            List<AuditLogExportDTO> exportLogs = logs.stream()
+                .map(this::toExportDTO)
+                .toList();
+
+            return mapper.writeValueAsString(exportLogs);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to convert audit logs to JSON", e);
+        }
+    }
+
     /**
      * DTO for audit log export (avoids circular references and includes only necessary fields)
      */

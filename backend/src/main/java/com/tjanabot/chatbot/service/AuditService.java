@@ -217,4 +217,56 @@ public class AuditService {
         auditLogRepository.deleteByCreatedAtBefore(cutoffDate);
         logger.info("Cleaned up audit logs older than {} days", daysToKeep);
     }
+
+    // Additional methods for test support
+
+    /**
+     * Log an audit event with explicit IP address (for testing)
+     */
+    @Async
+    @Transactional
+    public void logWithIpAddress(AuditLog.EventType eventType, AuditLog.Severity severity, String description,
+                                 User user, String ipAddress) {
+        AuditLog log = new AuditLog.Builder(eventType, description)
+            .user(user)
+            .severity(severity)
+            .description(description)
+            .ipAddress(ipAddress)
+            .build();
+
+        auditLogRepository.save(log);
+        logger.debug("Audit log created: {} - {}", eventType, description);
+    }
+
+    /**
+     * Get all audit logs for a user (non-pageable)
+     */
+    @Transactional(readOnly = true)
+    public List<AuditLog> getAuditLogsForUser(Long userId) {
+        return auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /**
+     * Get audit logs by event type (non-pageable)
+     */
+    @Transactional(readOnly = true)
+    public List<AuditLog> getAuditLogsByEventType(AuditLog.EventType eventType) {
+        return auditLogRepository.findByEventTypeOrderByCreatedAtDesc(eventType);
+    }
+
+    /**
+     * Get audit logs by severity (non-pageable)
+     */
+    @Transactional(readOnly = true)
+    public List<AuditLog> getAuditLogsBySeverity(AuditLog.Severity severity) {
+        return auditLogRepository.findBySeverityOrderByCreatedAtDesc(severity);
+    }
+
+    /**
+     * Get audit logs between dates (non-pageable)
+     */
+    @Transactional(readOnly = true)
+    public List<AuditLog> getAuditLogsBetween(LocalDateTime start, LocalDateTime end) {
+        return auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end);
+    }
 }
