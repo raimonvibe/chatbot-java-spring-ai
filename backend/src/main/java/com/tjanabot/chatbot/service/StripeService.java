@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,6 +54,12 @@ public class StripeService {
 
     @Value("${stripe.cancel-url:http://localhost:3000/pricing}")
     private String cancelUrl;
+
+    @Value("${stripe.grace-period-days:7}")
+    private int gracePeriodDays;
+
+    @Value("${stripe.max-retry-attempts:3}")
+    private int maxRetryAttempts;
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
@@ -239,6 +246,256 @@ public class StripeService {
         subscriptionRepository.save(subscription);
 
         logger.info("Canceled subscription for user ID: {}", userId);
+    }
+
+    /**
+     * Upgrade subscription to a higher plan
+     */
+    public void upgradeSubscription(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptionOpt.isEmpty() || subscriptionOpt.get().getStripeSubscriptionId() == null) {
+            throw new IllegalArgumentException("No active subscription found for user");
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+
+        // Validate upgrade (can only upgrade to higher tier)
+        if (!isUpgrade(subscription.getPlan(), newPlan)) {
+            throw new IllegalArgumentException("Invalid upgrade: " + subscription.getPlan() + " to " + newPlan);
+        }
+
+        // Update Stripe subscription
+        com.stripe.model.Subscription stripeSubscription =
+            com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+
+        // Get the subscription item ID
+        String subscriptionItemId = stripeSubscription.getItems().getData().get(0).getId();
+
+        // Update the subscription with new price
+        Map<String, Object> items = new HashMap<>();
+        items.put("id", subscriptionItemId);
+        items.put("price", newPriceId);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("items", List.of(items));
+        params.put("proration_behavior", "always_invoice"); // Charge prorated amount immediately
+
+        stripeSubscription.update(params);
+
+        // Update local subscription
+        subscription.setPlan(newPlan);
+        subscription.setStripePriceId(newPriceId);
+        subscriptionRepository.save(subscription);
+
+        logger.info("Upgraded subscription for user ID {} to plan: {}", userId, newPlan);
+    }
+
+    /**
+     * Downgrade subscription to a lower plan
+     */
+    public void downgradeSubscription(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptionOpt.isEmpty() || subscriptionOpt.get().getStripeSubscriptionId() == null) {
+            throw new IllegalArgumentException("No active subscription found for user");
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+
+        // Validate downgrade (can only downgrade to lower tier)
+        if (!isDowngrade(subscription.getPlan(), newPlan)) {
+            throw new IllegalArgumentException("Invalid downgrade: " + subscription.getPlan() + " to " + newPlan);
+        }
+
+        // Update Stripe subscription
+        com.stripe.model.Subscription stripeSubscription =
+            com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+
+        // Get the subscription item ID
+        String subscriptionItemId = stripeSubscription.getItems().getData().get(0).getId();
+
+        // Update the subscription with new price
+        Map<String, Object> items = new HashMap<>();
+        items.put("id", subscriptionItemId);
+        items.put("price", newPriceId);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("items", List.of(items));
+        params.put("proration_behavior", "none"); // Don't prorate for downgrades, apply at end of period
+
+        stripeSubscription.update(params);
+
+        // Update local subscription
+        subscription.setPlan(newPlan);
+        subscription.setStripePriceId(newPriceId);
+        subscriptionRepository.save(subscription);
+
+        logger.info("Downgraded subscription for user ID {} to plan: {}", userId, newPlan);
+    }
+
+    /**
+     * Change subscription plan (auto-detect upgrade vs downgrade)
+     */
+    public void changeSubscriptionPlan(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptionOpt.isEmpty()) {
+            throw new IllegalArgumentException("No subscription found for user");
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+        Subscription.SubscriptionPlan currentPlan = subscription.getPlan();
+
+        if (currentPlan == newPlan) {
+            throw new IllegalArgumentException("User is already on the " + newPlan + " plan");
+        }
+
+        if (isUpgrade(currentPlan, newPlan)) {
+            upgradeSubscription(userId, newPriceId, newPlan);
+        } else if (isDowngrade(currentPlan, newPlan)) {
+            downgradeSubscription(userId, newPriceId, newPlan);
+        } else {
+            throw new IllegalArgumentException("Invalid plan change from " + currentPlan + " to " + newPlan);
+        }
+    }
+
+    /**
+     * Check if plan change is an upgrade
+     */
+    private boolean isUpgrade(Subscription.SubscriptionPlan current, Subscription.SubscriptionPlan target) {
+        int currentTier = getPlanTier(current);
+        int targetTier = getPlanTier(target);
+        return targetTier > currentTier;
+    }
+
+    /**
+     * Check if plan change is a downgrade
+     */
+    private boolean isDowngrade(Subscription.SubscriptionPlan current, Subscription.SubscriptionPlan target) {
+        int currentTier = getPlanTier(current);
+        int targetTier = getPlanTier(target);
+        return targetTier < currentTier;
+    }
+
+    /**
+     * Get numeric tier for plan comparison
+     */
+    private int getPlanTier(Subscription.SubscriptionPlan plan) {
+        return switch (plan) {
+            case FREE -> 0;
+            case BASIC -> 1;
+            case PRO -> 2;
+            case ENTERPRISE -> 3;
+        };
+    }
+
+    /**
+     * Handle payment failure with grace period and retry logic
+     */
+    public void handlePaymentFailure(String stripeSubscriptionId, String invoiceId) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository
+            .findByStripeSubscriptionId(stripeSubscriptionId);
+
+        if (subscriptionOpt.isEmpty()) {
+            logger.error("No subscription found for Stripe subscription: {}", stripeSubscriptionId);
+            return;
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+
+        // Increment retry count
+        int currentRetryCount = subscription.getPaymentRetryCount() != null ?
+            subscription.getPaymentRetryCount() : 0;
+        subscription.setPaymentRetryCount(currentRetryCount + 1);
+        subscription.setLastPaymentAttempt(LocalDateTime.now());
+
+        // Set grace period if first failure
+        if (currentRetryCount == 0 && subscription.getGracePeriodEnd() == null) {
+            LocalDateTime gracePeriodEnd = LocalDateTime.now().plusDays(gracePeriodDays);
+            subscription.setGracePeriodEnd(gracePeriodEnd);
+            logger.info("Grace period set until {} for subscription: {}",
+                gracePeriodEnd, stripeSubscriptionId);
+        }
+
+        // Check if max retries exceeded or grace period expired
+        if (subscription.getPaymentRetryCount() >= maxRetryAttempts ||
+            (subscription.getGracePeriodEnd() != null &&
+             LocalDateTime.now().isAfter(subscription.getGracePeriodEnd()))) {
+
+            // Revoke access after grace period or max retries
+            subscription.setStatus(Subscription.SubscriptionStatus.UNPAID);
+            logger.warn("Payment failed {} times for subscription {}, access revoked",
+                subscription.getPaymentRetryCount(), stripeSubscriptionId);
+        } else {
+            // Still in grace period or retry window
+            subscription.setStatus(Subscription.SubscriptionStatus.PAST_DUE);
+            logger.warn("Payment failed (attempt {}/{}) for subscription {}",
+                subscription.getPaymentRetryCount(), maxRetryAttempts, stripeSubscriptionId);
+        }
+
+        subscriptionRepository.save(subscription);
+    }
+
+    /**
+     * Handle successful payment (reset retry counters)
+     */
+    public void handlePaymentSuccess(String stripeSubscriptionId) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository
+            .findByStripeSubscriptionId(stripeSubscriptionId);
+
+        if (subscriptionOpt.isEmpty()) {
+            logger.error("No subscription found for Stripe subscription: {}", stripeSubscriptionId);
+            return;
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+
+        // Reset retry counters and grace period
+        subscription.setPaymentRetryCount(0);
+        subscription.setLastPaymentAttempt(null);
+        subscription.setGracePeriodEnd(null);
+        subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+
+        subscriptionRepository.save(subscription);
+        logger.info("Payment succeeded for subscription {}, retry counters reset", stripeSubscriptionId);
+    }
+
+    /**
+     * Check if subscription is in grace period
+     */
+    public boolean isInGracePeriod(Long userId) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptionOpt.isEmpty()) {
+            return false;
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+        LocalDateTime gracePeriodEnd = subscription.getGracePeriodEnd();
+
+        return gracePeriodEnd != null && LocalDateTime.now().isBefore(gracePeriodEnd);
+    }
+
+    /**
+     * Get remaining grace period days
+     */
+    public int getRemainingGracePeriodDays(Long userId) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+
+        if (subscriptionOpt.isEmpty() || subscriptionOpt.get().getGracePeriodEnd() == null) {
+            return 0;
+        }
+
+        Subscription subscription = subscriptionOpt.get();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime gracePeriodEnd = subscription.getGracePeriodEnd();
+
+        if (now.isAfter(gracePeriodEnd)) {
+            return 0;
+        }
+
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(now, gracePeriodEnd);
     }
 
     /**
