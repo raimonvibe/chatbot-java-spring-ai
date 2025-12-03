@@ -71,7 +71,7 @@ class AuditServiceTest {
     @DisplayName("Should detect too many failed logins")
     void shouldDetectTooManyFailedLogins() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndTimestampAfter(
+        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
             eq(1L),
             eq(AuditLog.EventType.LOGIN_FAILURE),
             any(LocalDateTime.class)
@@ -83,14 +83,14 @@ class AuditServiceTest {
         // Assert
         assertThat(result).isTrue();
         verify(auditLogRepository, times(1))
-            .countByUserIdAndEventTypeAndTimestampAfter(eq(1L), eq(AuditLog.EventType.LOGIN_FAILURE), any());
+            .countByUserIdAndEventTypeAndCreatedAtAfter(eq(1L), eq(AuditLog.EventType.LOGIN_FAILURE), any());
     }
 
     @Test
     @DisplayName("Should not flag normal number of failed logins")
     void shouldNotFlagNormalFailedLogins() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndTimestampAfter(
+        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
             eq(1L),
             eq(AuditLog.EventType.LOGIN_FAILURE),
             any(LocalDateTime.class)
@@ -107,7 +107,7 @@ class AuditServiceTest {
     @DisplayName("Should detect too many payment failures")
     void shouldDetectTooManyPaymentFailures() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndTimestampAfter(
+        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
             eq(1L),
             eq(AuditLog.EventType.PAYMENT_FAILED),
             any(LocalDateTime.class)
@@ -119,7 +119,7 @@ class AuditServiceTest {
         // Assert
         assertThat(result).isTrue();
         verify(auditLogRepository, times(1))
-            .countByUserIdAndEventTypeAndTimestampAfter(eq(1L), eq(AuditLog.EventType.PAYMENT_FAILED), any());
+            .countByUserIdAndEventTypeAndCreatedAtAfter(eq(1L), eq(AuditLog.EventType.PAYMENT_FAILED), any());
     }
 
     @Test
@@ -130,7 +130,7 @@ class AuditServiceTest {
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.LOGIN_SUCCESS),
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.CHATBOT_CREATED)
         );
-        when(auditLogRepository.findByUserIdOrderByTimestampDesc(1L)).thenReturn(mockLogs);
+        when(auditLogRepository.findByUserIdOrderByCreatedAtDesc(1L)).thenReturn(mockLogs);
 
         // Act
         List<AuditLog> logs = auditService.getAuditLogsForUser(1L);
@@ -138,7 +138,7 @@ class AuditServiceTest {
         // Assert
         assertThat(logs).hasSize(2);
         assertThat(logs.get(0).getEventType()).isEqualTo(AuditLog.EventType.LOGIN_SUCCESS);
-        verify(auditLogRepository, times(1)).findByUserIdOrderByTimestampDesc(1L);
+        verify(auditLogRepository, times(1)).findByUserIdOrderByCreatedAtDesc(1L);
     }
 
     @Test
@@ -149,7 +149,7 @@ class AuditServiceTest {
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.PAYMENT_FAILED),
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.PAYMENT_FAILED)
         );
-        when(auditLogRepository.findByEventTypeOrderByTimestampDesc(AuditLog.EventType.PAYMENT_FAILED))
+        when(auditLogRepository.findByEventTypeOrderByCreatedAtDesc(AuditLog.EventType.PAYMENT_FAILED))
             .thenReturn(mockLogs);
 
         // Act
@@ -159,7 +159,7 @@ class AuditServiceTest {
         assertThat(logs).hasSize(2);
         assertThat(logs).allMatch(log -> log.getEventType() == AuditLog.EventType.PAYMENT_FAILED);
         verify(auditLogRepository, times(1))
-            .findByEventTypeOrderByTimestampDesc(AuditLog.EventType.PAYMENT_FAILED);
+            .findByEventTypeOrderByCreatedAtDesc(AuditLog.EventType.PAYMENT_FAILED);
     }
 
     @Test
@@ -170,7 +170,7 @@ class AuditServiceTest {
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.SECURITY_ALERT, AuditLog.Severity.CRITICAL),
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.SUSPICIOUS_ACTIVITY, AuditLog.Severity.CRITICAL)
         );
-        when(auditLogRepository.findBySeverityOrderByTimestampDesc(AuditLog.Severity.CRITICAL))
+        when(auditLogRepository.findBySeverityOrderByCreatedAtDesc(AuditLog.Severity.CRITICAL))
             .thenReturn(mockLogs);
 
         // Act
@@ -180,7 +180,7 @@ class AuditServiceTest {
         assertThat(logs).hasSize(2);
         assertThat(logs).allMatch(log -> log.getSeverity() == AuditLog.Severity.CRITICAL);
         verify(auditLogRepository, times(1))
-            .findBySeverityOrderByTimestampDesc(AuditLog.Severity.CRITICAL);
+            .findBySeverityOrderByCreatedAtDesc(AuditLog.Severity.CRITICAL);
     }
 
     @Test
@@ -192,7 +192,7 @@ class AuditServiceTest {
         List<AuditLog> mockLogs = Arrays.asList(
             TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.LOGIN_SUCCESS)
         );
-        when(auditLogRepository.findByTimestampBetweenOrderByTimestampDesc(start, end))
+        when(auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end))
             .thenReturn(mockLogs);
 
         // Act
@@ -200,7 +200,7 @@ class AuditServiceTest {
 
         // Assert
         assertThat(logs).hasSize(1);
-        verify(auditLogRepository, times(1)).findByTimestampBetweenOrderByTimestampDesc(start, end);
+        verify(auditLogRepository, times(1)).findByCreatedAtBetweenOrderByCreatedAtDesc(start, end);
     }
 
     @Test

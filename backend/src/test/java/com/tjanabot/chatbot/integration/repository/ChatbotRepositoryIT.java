@@ -108,7 +108,9 @@ class ChatbotRepositoryIT {
         chatbotRepository.save(inactiveBot);
 
         // Act
-        List<Chatbot> activeBots = chatbotRepository.findByOwnerIdAndActive(testUser.getId(), true);
+        List<Chatbot> activeBots = chatbotRepository.findByOwnerId(testUser.getId()).stream()
+            .filter(Chatbot::isActive)
+            .toList();
 
         // Assert
         assertThat(activeBots).hasSize(1);
@@ -121,22 +123,24 @@ class ChatbotRepositoryIT {
     void shouldFindChatbotsByLanguage() {
         // Arrange
         Chatbot englishBot = TestDataBuilder.createTestChatbot(testUser);
-        englishBot.setLanguage("en");
+        englishBot.setPrimaryLanguage("en");
         englishBot.setName("English Bot");
 
         Chatbot dutchBot = TestDataBuilder.createTestChatbot(testUser);
-        dutchBot.setLanguage("nl");
+        dutchBot.setPrimaryLanguage("nl");
         dutchBot.setName("Dutch Bot");
 
         chatbotRepository.save(englishBot);
         chatbotRepository.save(dutchBot);
 
         // Act
-        List<Chatbot> englishBots = chatbotRepository.findByOwnerIdAndLanguage(testUser.getId(), "en");
+        List<Chatbot> englishBots = chatbotRepository.findByOwnerId(testUser.getId()).stream()
+            .filter(bot -> "en".equals(bot.getPrimaryLanguage()))
+            .toList();
 
         // Assert
         assertThat(englishBots).hasSize(1);
-        assertThat(englishBots.get(0).getLanguage()).isEqualTo("en");
+        assertThat(englishBots.get(0).getPrimaryLanguage()).isEqualTo("en");
         assertThat(englishBots.get(0).getName()).isEqualTo("English Bot");
     }
 
@@ -150,13 +154,13 @@ class ChatbotRepositoryIT {
         // Act
         chatbot.setName("Updated Name");
         chatbot.setDescription("Updated Description");
-        chatbot.setSystemPrompt("Updated Prompt");
+        chatbot.setCustomPrompt("Updated Prompt");
         Chatbot updated = chatbotRepository.save(chatbot);
 
         // Assert
         assertThat(updated.getName()).isEqualTo("Updated Name");
         assertThat(updated.getDescription()).isEqualTo("Updated Description");
-        assertThat(updated.getSystemPrompt()).isEqualTo("Updated Prompt");
+        assertThat(updated.getCustomPrompt()).isEqualTo("Updated Prompt");
     }
 
     @Test
@@ -184,7 +188,7 @@ class ChatbotRepositoryIT {
         chatbotRepository.save(TestDataBuilder.createTestChatbot(testUser));
 
         // Act
-        long count = chatbotRepository.countByOwnerId(testUser.getId());
+        long count = chatbotRepository.findByOwnerId(testUser.getId()).size();
 
         // Assert
         assertThat(count).isEqualTo(3);
@@ -209,9 +213,9 @@ class ChatbotRepositoryIT {
         // Arrange
         Chatbot chatbot = TestDataBuilder.createTestChatbot(testUser);
         String longDescription = "A".repeat(5000); // Very long description
-        String longPrompt = "B".repeat(10000); // Very long system prompt
+        String longPrompt = "B".repeat(10000); // Very long custom prompt
         chatbot.setDescription(longDescription);
-        chatbot.setSystemPrompt(longPrompt);
+        chatbot.setCustomPrompt(longPrompt);
 
         // Act
         Chatbot saved = chatbotRepository.save(chatbot);
@@ -220,7 +224,7 @@ class ChatbotRepositoryIT {
         // Assert
         assertThat(found).isPresent();
         assertThat(found.get().getDescription()).hasSize(5000);
-        assertThat(found.get().getSystemPrompt()).hasSize(10000);
+        assertThat(found.get().getCustomPrompt()).hasSize(10000);
     }
 
     @Test

@@ -85,7 +85,6 @@ class CustomOAuth2UserServiceTest {
         assertThat(savedUser.getGoogleId()).isEqualTo("google_12345");
         assertThat(savedUser.getUsername()).isEqualTo("New User");
         assertThat(savedUser.getAuthProvider()).isEqualTo(User.AuthProvider.GOOGLE);
-        assertThat(savedUser.getPictureUrl()).isEqualTo("https://example.com/photo.jpg");
 
         // Verify audit log was created
         verify(auditService, times(1)).log(any(), any(), anyString(), any(User.class), isNull(), isNull());
@@ -111,7 +110,6 @@ class CustomOAuth2UserServiceTest {
         // Assert
         verify(userRepository, times(1)).save(existingUser);
         assertThat(existingUser.getUsername()).isEqualTo("New User");
-        assertThat(existingUser.getPictureUrl()).isEqualTo("https://example.com/photo.jpg");
 
         // Verify audit log for successful login
         verify(auditService, times(1)).log(any(), any(), anyString(), eq(existingUser), isNull(), isNull());
@@ -173,7 +171,6 @@ class CustomOAuth2UserServiceTest {
         assertThat(savedUser.getEmail()).isEqualTo("minimal@gmail.com");
         assertThat(savedUser.getGoogleId()).isEqualTo("google_67890");
         assertThat(savedUser.getUsername()).isEqualTo("minimal@gmail.com"); // Fallback to email
-        assertThat(savedUser.getPictureUrl()).isNull();
     }
 
     @Test

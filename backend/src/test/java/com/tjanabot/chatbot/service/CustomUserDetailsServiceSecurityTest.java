@@ -52,7 +52,7 @@ class CustomUserDetailsServiceSecurityTest {
         validUser.setUsername("testuser");
         validUser.setEmail("test@example.com");
         validUser.setPassword("$2a$10$hashed.password.here");
-        validUser.setAccountLocked(false);
+        validUser.setAccountNonLocked(true);
         validUser.setEnabled(true);
     }
 
@@ -149,7 +149,7 @@ class CustomUserDetailsServiceSecurityTest {
     @DisplayName("SECURITY: Must return locked account (to be validated by Spring Security)")
     void mustReturnLockedAccount_forValidation() {
         // Arrange - Locked account
-        validUser.setAccountLocked(true);
+        validUser.setAccountNonLocked(false);
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(validUser));
 
         // Act

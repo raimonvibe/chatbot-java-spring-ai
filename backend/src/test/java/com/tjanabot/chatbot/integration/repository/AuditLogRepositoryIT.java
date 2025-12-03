@@ -72,7 +72,7 @@ class AuditLogRepositoryIT {
 
     @Test
     @DisplayName("Should find audit logs by user ID ordered by timestamp desc")
-    void shouldFindByUserIdOrderByTimestampDesc() {
+    void shouldFindByUserIdOrderByCreatedAtDesc() {
         // Arrange
         AuditLog log1 = TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.LOGIN_SUCCESS);
         log1.setTimestamp(LocalDateTime.now().minusHours(2));
@@ -84,7 +84,7 @@ class AuditLogRepositoryIT {
         auditLogRepository.save(log2);
 
         // Act
-        List<AuditLog> logs = auditLogRepository.findByUserIdOrderByTimestampDesc(testUser.getId());
+        List<AuditLog> logs = auditLogRepository.findByUserIdOrderByCreatedAtDesc(testUser.getId());
 
         // Assert
         assertThat(logs).hasSize(2);
@@ -101,7 +101,7 @@ class AuditLogRepositoryIT {
         auditLogRepository.save(TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.LOGIN_FAILURE));
 
         // Act
-        List<AuditLog> successLogs = auditLogRepository.findByEventTypeOrderByTimestampDesc(
+        List<AuditLog> successLogs = auditLogRepository.findByEventTypeOrderByCreatedAtDesc(
             AuditLog.EventType.LOGIN_SUCCESS
         );
 
@@ -122,7 +122,7 @@ class AuditLogRepositoryIT {
             AuditLog.Severity.CRITICAL));
 
         // Act
-        List<AuditLog> criticalLogs = auditLogRepository.findBySeverityOrderByTimestampDesc(
+        List<AuditLog> criticalLogs = auditLogRepository.findBySeverityOrderByCreatedAtDesc(
             AuditLog.Severity.CRITICAL
         );
 
@@ -149,7 +149,7 @@ class AuditLogRepositoryIT {
         auditLogRepository.save(oldLog);
 
         // Act
-        List<AuditLog> recentLogs = auditLogRepository.findByTimestampBetweenOrderByTimestampDesc(
+        List<AuditLog> recentLogs = auditLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(
             weekAgo, now
         );
 
@@ -178,7 +178,7 @@ class AuditLogRepositoryIT {
         auditLogRepository.save(oldFailure);
 
         // Act
-        long count = auditLogRepository.countByUserIdAndEventTypeAndTimestampAfter(
+        long count = auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
             testUser.getId(),
             AuditLog.EventType.LOGIN_FAILURE,
             cutoff
@@ -248,7 +248,7 @@ class AuditLogRepositoryIT {
         }
 
         // Assert
-        List<AuditLog> allLogs = auditLogRepository.findByUserIdOrderByTimestampDesc(testUser.getId());
+        List<AuditLog> allLogs = auditLogRepository.findByUserIdOrderByCreatedAtDesc(testUser.getId());
         assertThat(allLogs).hasSizeGreaterThanOrEqualTo(AuditLog.EventType.values().length);
     }
 
@@ -266,7 +266,7 @@ class AuditLogRepositoryIT {
         }
 
         // Assert
-        List<AuditLog> allLogs = auditLogRepository.findByUserIdOrderByTimestampDesc(testUser.getId());
+        List<AuditLog> allLogs = auditLogRepository.findByUserIdOrderByCreatedAtDesc(testUser.getId());
         assertThat(allLogs).hasSizeGreaterThanOrEqualTo(AuditLog.Severity.values().length);
     }
 
@@ -282,7 +282,7 @@ class AuditLogRepositoryIT {
         auditLogRepository.deleteById(oldLog.getId());
 
         // Assert
-        List<AuditLog> remainingLogs = auditLogRepository.findByUserIdOrderByTimestampDesc(testUser.getId());
+        List<AuditLog> remainingLogs = auditLogRepository.findByUserIdOrderByCreatedAtDesc(testUser.getId());
         assertThat(remainingLogs).isEmpty();
     }
 }

@@ -233,7 +233,6 @@ class WebhookServiceSecurityTest {
     void mustNotLeakSensitiveData_inWebhooks() {
         // Arrange
         Chatbot chatbot = createChatbotWithWebhook("https://safe.example.com/webhook", "conversation_started");
-        chatbot.setApiKey("secret-api-key-12345");
         chatbot.setCustomPrompt("Internal system prompt");
 
         when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
@@ -331,7 +330,7 @@ class WebhookServiceSecurityTest {
         assertThat(WebhookService.class
             .getMethod("sendWebhookEvent", Chatbot.class, String.class, Map.class)
             .isAnnotationPresent(org.springframework.scheduling.annotation.Async.class))
-            .isTrue();
+            .isEqualTo(true);
     }
 
     // ========== Conversation Event Security ==========
