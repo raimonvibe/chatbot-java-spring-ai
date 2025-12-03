@@ -71,7 +71,7 @@ public class ChatController {
             );
 
             // Extract response content
-            String responseContent = response.getResult().getOutput().getContent();
+            String responseContent = response.getResult().getOutput().getText();
 
             // Return response
             Map<String, Object> responseData = Map.of(

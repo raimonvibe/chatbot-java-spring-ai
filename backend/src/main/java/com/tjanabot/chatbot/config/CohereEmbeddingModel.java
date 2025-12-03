@@ -64,7 +64,7 @@ public class CohereEmbeddingModel implements EmbeddingModel {
 
     @Override
     public float[] embed(Document document) {
-        return embed(document.getContent());
+        return embed(document.getText());
     }
 
     @Override

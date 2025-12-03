@@ -187,7 +187,7 @@ public class AiChatbotService {
         Prompt prompt = new Prompt(messages);
         ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
 
-        return response.getResult().getOutput().getContent();
+        return response.getResult().getOutput().getText();
     }
     
     /**
@@ -195,19 +195,16 @@ public class AiChatbotService {
      */
     private List<Document> retrieveRelevantContext(Chatbot chatbot, String userMessage) {
         try {
-            // Search for relevant documents
-            SearchRequest searchRequest = SearchRequest.query(userMessage)
-                .withTopK(5)
-                .withSimilarityThreshold(0.7);
-            
-            List<Document> documents = vectorStore.similaritySearch(searchRequest);
-            
-            // Filter documents by chatbot
+            // Search for relevant documents using Spring AI 1.0 API
+            List<Document> documents = vectorStore.similaritySearch(userMessage);
+
+            // Filter documents by chatbot and apply similarity threshold
             return documents.stream()
-                .filter(doc -> doc.getMetadata().containsKey("chatbotId") && 
+                .filter(doc -> doc.getMetadata().containsKey("chatbotId") &&
                               doc.getMetadata().get("chatbotId").equals(chatbot.getId().toString()))
+                .limit(5)
                 .collect(Collectors.toList());
-                
+
         } catch (Exception e) {
             logger.warn("Failed to retrieve context from vector store", e);
             return new ArrayList<>();
@@ -268,7 +265,7 @@ public class AiChatbotService {
         if (!relevantDocs.isEmpty()) {
             prompt.append("\nRelevant information about the business:\n");
             for (Document doc : relevantDocs) {
-                prompt.append("- ").append(doc.getContent()).append("\n");
+                prompt.append("- ").append(doc.getText()).append("\n");
             }
         }
 
