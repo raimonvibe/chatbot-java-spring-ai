@@ -131,21 +131,21 @@ public class TestDataBuilder {
         Conversation conversation = new Conversation();
         conversation.setChatbot(chatbot);
         conversation.setSessionId(UUID.randomUUID().toString());
-        conversation.setStartedAt(LocalDateTime.now());
-        conversation.setLastMessageAt(LocalDateTime.now());
+        conversation.setCreatedAt(LocalDateTime.now());
         return conversation;
     }
 
     /**
      * Create a message
      */
-    public static Message createMessage(Conversation conversation, Message.Sender sender, String content) {
+    public static Message createMessage(Conversation conversation, Message.MessageType type, String content, boolean isUserMessage) {
         Message message = new Message();
         message.setConversation(conversation);
-        message.setSender(sender);
+        message.setType(type);
         message.setContent(content);
-        message.setLanguage("en");
-        message.setTimestamp(LocalDateTime.now());
+        message.setIsUserMessage(isUserMessage);
+        message.setResponseTimeMs(0);
+        message.setCreatedAt(LocalDateTime.now());
         return message;
     }
 }
