@@ -11,9 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -40,10 +40,10 @@ class ChatbotControllerIT {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private ChatbotService chatbotService;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
     private User testUser;
@@ -240,7 +240,7 @@ class ChatbotControllerIT {
         request.setName("<script>alert('XSS')</script>Test Bot");
         request.setDescription("<img src=x onerror=alert(1)>");
         request.setWebsiteUrl("https://example.com");
-        request.setSystemPrompt("Normal prompt");
+        request.setCustomPrompt("Normal prompt");
 
         // The service should sanitize the input
         when(chatbotService.createChatbot(any(Chatbot.class), any(User.class)))
