@@ -48,6 +48,11 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
      * Find chatbots created in date range
      */
     @Query("SELECT c FROM Chatbot c WHERE c.createdAt BETWEEN :startDate AND :endDate")
-    List<Chatbot> findByCreatedAtBetween(@Param("startDate") java.time.LocalDateTime startDate, 
+    List<Chatbot> findByCreatedAtBetween(@Param("startDate") java.time.LocalDateTime startDate,
                                         @Param("endDate") java.time.LocalDateTime endDate);
+
+    /**
+     * Find chatbots by owner ID
+     */
+    List<Chatbot> findByOwnerId(Long ownerId);
 }

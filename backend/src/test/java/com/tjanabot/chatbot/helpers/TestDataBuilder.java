@@ -56,8 +56,8 @@ public class TestDataBuilder {
         chatbot.setName("Test Bot " + UUID.randomUUID().toString().substring(0, 8));
         chatbot.setDescription("Test chatbot for unit testing");
         chatbot.setOwner(owner);
-        chatbot.setLanguage("en");
-        chatbot.setSystemPrompt("You are a helpful assistant.");
+        chatbot.setPrimaryLanguage("en");
+        chatbot.setCustomPrompt("You are a helpful assistant.");
         chatbot.setWebsiteUrl("https://example.com");
         chatbot.setActive(true);
         return chatbot;

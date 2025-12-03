@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-ai.version>1.1.0-M1-PLATFORM-2</spring-ai.version>
+        <spring-ai.version>1.0.3</spring-ai.version>
     </properties>
 
     <dependencies>
@@ -70,27 +70,28 @@
             <version>4.0.0</version>
         </dependency>
 
-        <!-- Spring AI -->
+        <!-- Spring AI - Anthropic Model (Claude) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-anthropic-spring-boot-starter</artifactId>
+            <artifactId>spring-ai-anthropic</artifactId>
+        </dependency>
+
+        <!-- Spring AI - Chat Client API -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
+        </dependency>
+
+        <!-- Spring AI - PDF Document Reader -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-pdf-document-reader</artifactId>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
-        <!-- Pinecone Vector Store -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-pinecone-store-spring-boot-starter</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-pdf-document-reader</artifactId>
         </dependency>
 
         <!-- Database -->
