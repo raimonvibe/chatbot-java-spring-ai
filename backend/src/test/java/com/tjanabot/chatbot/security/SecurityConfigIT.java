@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -48,12 +49,12 @@ class SecurityConfigIT {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().isNot(401)); // Not unauthorized (may be 400 bad request)
+            .andExpect(status().is(not(401))); // Not unauthorized (may be 400 bad request)
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().isNot(401));
+            .andExpect(status().is(not(401)));
     }
 
     @Test
@@ -79,7 +80,7 @@ class SecurityConfigIT {
 
         mockMvc.perform(get("/api/chatbots")
                 .header("Authorization", "Bearer valid_token"))
-            .andExpect(status().isNot(401)); // Not unauthorized
+            .andExpect(status().is(not(401))); // Not unauthorized
     }
 
     @Test
@@ -128,7 +129,7 @@ class SecurityConfigIT {
         mockMvc.perform(post("/api/chatbots")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().isNot(403)); // Should be 401 (unauthorized), not 403 (CSRF)
+            .andExpect(status().is(not(403))); // Should be 401 (unauthorized), not 403 (CSRF)
     }
 
     @Test
@@ -145,7 +146,7 @@ class SecurityConfigIT {
     @DisplayName("Should allow admin access to admin endpoints")
     void shouldAllowAdminAccess() throws Exception {
         mockMvc.perform(get("/api/admin/audit-logs"))
-            .andExpect(status().isNot(403)); // Not forbidden
+            .andExpect(status().is(not(403))); // Not forbidden
     }
 
     @Test
@@ -180,7 +181,7 @@ class SecurityConfigIT {
         mockMvc.perform(get("/login/oauth2/code/google")
                 .param("code", "test_auth_code")
                 .param("state", "test_state"))
-            .andExpect(status().isNot(404)); // Endpoint should exist
+            .andExpect(status().is(not(404))); // Endpoint should exist
     }
 
     @Test
