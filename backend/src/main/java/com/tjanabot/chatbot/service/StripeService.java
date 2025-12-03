@@ -174,8 +174,10 @@ public class StripeService {
         subscription.setStripePriceId(stripeSubscription.getItems().getData().get(0).getPrice().getId());
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
         subscription.setPlan(Subscription.SubscriptionPlan.BASIC);  // Default plan
-        subscription.setCurrentPeriodStart(convertToLocalDateTime(stripeSubscription.getCurrentPeriodStart()));
-        subscription.setCurrentPeriodEnd(convertToLocalDateTime(stripeSubscription.getCurrentPeriodEnd()));
+        // Get billing periods from subscription item (Stripe API 2025-03-31+)
+        com.stripe.model.SubscriptionItem firstItem = stripeSubscription.getItems().getData().get(0);
+        subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
+        subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
 
         subscriptionRepository.save(subscription);
         logger.info("Subscription created for user: {}", subscription.getUser().getEmail());
@@ -195,8 +197,12 @@ public class StripeService {
 
         Subscription subscription = subscriptionOpt.get();
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
-        subscription.setCurrentPeriodStart(convertToLocalDateTime(stripeSubscription.getCurrentPeriodStart()));
-        subscription.setCurrentPeriodEnd(convertToLocalDateTime(stripeSubscription.getCurrentPeriodEnd()));
+        // Get billing periods from subscription item (Stripe API 2025-03-31+)
+        if (!stripeSubscription.getItems().getData().isEmpty()) {
+            com.stripe.model.SubscriptionItem firstItem = stripeSubscription.getItems().getData().get(0);
+            subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
+            subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
+        }
 
         if (stripeSubscription.getCanceledAt() != null) {
             subscription.setCanceledAt(convertToLocalDateTime(stripeSubscription.getCanceledAt()));
@@ -522,5 +528,12 @@ public class StripeService {
             return null;
         }
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), ZoneId.systemDefault());
+    }
+
+    private LocalDateTime convertToLocalDateTime(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 }

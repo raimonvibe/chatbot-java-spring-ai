@@ -18,9 +18,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @author TjanaBot Development Team
  * @version 1.0.0
  */
-@SpringBootApplication(exclude = {
-    org.springframework.ai.autoconfigure.vectorstore.pinecone.PineconeVectorStoreAutoConfiguration.class
-})
+@SpringBootApplication
 @EnableAsync
 @EnableScheduling
 public class AiChatbotApplication {
