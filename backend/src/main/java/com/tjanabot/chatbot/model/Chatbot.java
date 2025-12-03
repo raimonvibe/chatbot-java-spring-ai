@@ -182,9 +182,18 @@ public class Chatbot {
     public Boolean getIsActive() {
         return isActive;
     }
-    
+
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    // Convenience methods for active status
+    public boolean isActive() {
+        return Boolean.TRUE.equals(isActive);
+    }
+
+    public void setActive(boolean active) {
+        this.isActive = active;
     }
     
     public String getEmbedCode() {

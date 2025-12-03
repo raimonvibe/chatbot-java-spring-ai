@@ -238,6 +238,16 @@ public class UrlValidationService {
     }
 
     /**
+     * Alias for isValidAndSafe() for convenience
+     *
+     * @param url The URL to validate
+     * @return true if URL is safe, false otherwise
+     */
+    public boolean isValid(String url) {
+        return isValidAndSafe(url);
+    }
+
+    /**
      * Extract domain from URL for logging (without sensitive params)
      */
     public String extractDomain(String url) {
