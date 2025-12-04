@@ -86,7 +86,7 @@ class StripeWebhookControllerIT {
             .andExpect(status().isOk());
 
         verify(stripeService, times(1)).handlePaymentSuccess("sub_test_123");
-        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), anyString());
+        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), any());
     }
 
     @Test
@@ -120,7 +120,7 @@ class StripeWebhookControllerIT {
             .andExpect(status().isOk());
 
         verify(stripeService, times(1)).handlePaymentFailure("sub_test_123", "in_test_456");
-        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), anyString());
+        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), any());
     }
 
     @Test
@@ -146,7 +146,7 @@ class StripeWebhookControllerIT {
 
         String signature = "t=1234567890,v1=test_signature";
 
-        doNothing().when(stripeService).handleSubscriptionUpdated("sub_test_123", "active", "price_pro_monthly");
+        doNothing().when(stripeService).handleSubscriptionUpdated(any(com.stripe.model.Subscription.class));
 
         // Act & Assert
         mockMvc.perform(post("/api/webhooks/stripe")
@@ -155,7 +155,7 @@ class StripeWebhookControllerIT {
                 .header("Stripe-Signature", signature))
             .andExpect(status().isOk());
 
-        verify(stripeService, times(1)).handleSubscriptionUpdated("sub_test_123", "active", "price_pro_monthly");
+        verify(stripeService, times(1)).handleSubscriptionUpdated(any(com.stripe.model.Subscription.class));
     }
 
     @Test
@@ -177,7 +177,7 @@ class StripeWebhookControllerIT {
 
         String signature = "t=1234567890,v1=test_signature";
 
-        doNothing().when(stripeService).handleSubscriptionCanceled("sub_test_123");
+        doNothing().when(stripeService).handleSubscriptionDeleted(any(com.stripe.model.Subscription.class));
 
         // Act & Assert
         mockMvc.perform(post("/api/webhooks/stripe")
@@ -186,8 +186,8 @@ class StripeWebhookControllerIT {
                 .header("Stripe-Signature", signature))
             .andExpect(status().isOk());
 
-        verify(stripeService, times(1)).handleSubscriptionCanceled("sub_test_123");
-        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), anyString());
+        verify(stripeService, times(1)).handleSubscriptionDeleted(any(com.stripe.model.Subscription.class));
+        verify(auditService, times(1)).log(any(), any(), anyString(), isNull(), isNull(), any());
     }
 
     @Test
@@ -319,7 +319,7 @@ class StripeWebhookControllerIT {
             contains("Stripe webhook"),
             isNull(),
             isNull(),
-            anyString()
+            any()
         );
     }
 

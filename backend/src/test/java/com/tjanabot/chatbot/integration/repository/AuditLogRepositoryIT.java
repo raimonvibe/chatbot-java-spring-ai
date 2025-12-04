@@ -18,7 +18,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -225,13 +227,18 @@ class AuditLogRepositoryIT {
     void shouldStoreMetadataAsJson() {
         // Arrange
         AuditLog log = TestDataBuilder.createAuditLog(testUser, AuditLog.EventType.PAYMENT_SUCCESS);
-        log.setMetadata("{\"amount\": 4.98, \"currency\": \"USD\"}");
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("amount", "4.98");
+        metadata.put("currency", "USD");
+        log.setMetadata(metadata);
 
         // Act
         AuditLog saved = auditLogRepository.save(log);
 
         // Assert
-        assertThat(saved.getMetadata()).isEqualTo("{\"amount\": 4.98, \"currency\": \"USD\"}");
+        assertThat(saved.getMetadata()).isNotNull();
+        assertThat(saved.getMetadata().get("amount")).isEqualTo("4.98");
+        assertThat(saved.getMetadata().get("currency")).isEqualTo("USD");
     }
 
     @Test
