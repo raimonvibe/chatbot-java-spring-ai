@@ -1,6 +1,7 @@
 package com.tjanabot.chatbot.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tjanabot.chatbot.config.TestJacksonConfiguration;
 import com.tjanabot.chatbot.dto.ChatbotRequest;
 import com.tjanabot.chatbot.dto.RegisterRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestJacksonConfiguration.class)
 @DisplayName("Input Validation Security Tests")
 class InputValidationSecurityTest {
 
