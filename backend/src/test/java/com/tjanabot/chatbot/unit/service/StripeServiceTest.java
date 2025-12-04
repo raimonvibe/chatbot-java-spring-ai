@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -44,6 +45,10 @@ class StripeServiceTest {
 
         testSubscription = TestDataBuilder.createActiveSubscription(testUser);
         testSubscription.setId(1L);
+
+        // Set @Value fields using ReflectionTestUtils
+        ReflectionTestUtils.setField(stripeService, "gracePeriodDays", 7);
+        ReflectionTestUtils.setField(stripeService, "maxRetryAttempts", 3);
     }
 
     @Test
@@ -172,7 +177,8 @@ class StripeServiceTest {
     void shouldCalculateRemainingGracePeriodDays() {
         // Arrange
         Long userId = 1L;
-        testSubscription.setGracePeriodEnd(LocalDateTime.now().plusDays(3));
+        // Set grace period end to 3 days + 1 hour from now to ensure full 3 days
+        testSubscription.setGracePeriodEnd(LocalDateTime.now().plusDays(3).plusHours(1));
 
         when(subscriptionRepository.findByUserId(userId))
             .thenReturn(Optional.of(testSubscription));
