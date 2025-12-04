@@ -195,7 +195,7 @@ class WebsiteAnalysisServiceSecurityTest {
 
         // First URL is valid, but service must re-validate after redirect
         when(urlValidationService.isValidAndSafe("https://safe.com")).thenReturn(true);
-        when(urlValidationService.isValidAndSafe(argThat(url ->
+        lenient().when(urlValidationService.isValidAndSafe(argThat(url ->
             url != null && url.contains("localhost")))).thenReturn(false);
 
         // Act
@@ -295,8 +295,8 @@ class WebsiteAnalysisServiceSecurityTest {
         Chatbot chatbot = createChatbot("https://example.com");
         when(urlValidationService.isValidAndSafe("https://example.com")).thenReturn(true);
 
-        // Different domain should be rejected by internal validation
-        when(urlValidationService.isValidAndSafe("https://evil.com")).thenReturn(true);
+        // Different domain should be rejected by internal validation (lenient as may not be called)
+        lenient().when(urlValidationService.isValidAndSafe("https://evil.com")).thenReturn(true);
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
