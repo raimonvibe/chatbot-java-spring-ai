@@ -7,6 +7,7 @@ import com.tjanabot.chatbot.repository.ChatbotRepository;
 import com.tjanabot.chatbot.service.AuditService;
 import com.tjanabot.chatbot.service.ChatbotService;
 import com.tjanabot.chatbot.service.UrlValidationService;
+import com.tjanabot.chatbot.util.XssSanitizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,9 @@ class ChatbotServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private XssSanitizer xssSanitizer;
+
     @InjectMocks
     private ChatbotService chatbotService;
 
@@ -50,6 +54,9 @@ class ChatbotServiceTest {
 
         testChatbot = TestDataBuilder.createTestChatbot(testUser);
         testChatbot.setId(1L);
+
+        // Default behavior: return input as-is for sanitization
+        when(xssSanitizer.sanitize(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
