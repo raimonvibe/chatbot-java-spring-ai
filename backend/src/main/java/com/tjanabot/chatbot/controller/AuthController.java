@@ -1,12 +1,11 @@
 package com.tjanabot.chatbot.controller;
 
+import com.tjanabot.chatbot.dto.LoginRequest;
+import com.tjanabot.chatbot.dto.RegisterRequest;
 import com.tjanabot.chatbot.model.User;
 import com.tjanabot.chatbot.repository.UserRepository;
 import com.tjanabot.chatbot.security.JwtTokenProvider;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,25 +49,25 @@ public class AuthController {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(),
+                            loginRequest.getEmail(),
                             loginRequest.getPassword()
                     )
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            String jwt = jwtTokenProvider.generateToken(loginRequest.getUsername());
+            String jwt = jwtTokenProvider.generateToken(loginRequest.getEmail());
 
             Map<String, Object> response = new HashMap<>();
             response.put("token", jwt);
             response.put("type", "Bearer");
-            response.put("username", loginRequest.getUsername());
+            response.put("email", loginRequest.getEmail());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid username or password"));
+                    .body(Map.of("error", "Invalid email or password"));
         }
     }
 
@@ -136,73 +135,5 @@ public class AuthController {
         response.put("roles", user.getRoles());
 
         return ResponseEntity.ok(response);
-    }
-}
-
-/**
- * Login Request DTO
- */
-class LoginRequest {
-    @NotBlank(message = "Username is required")
-    private String username;
-
-    @NotBlank(message = "Password is required")
-    private String password;
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-}
-
-/**
- * Register Request DTO
- */
-class RegisterRequest {
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters")
-    private String username;
-
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email should be valid")
-    private String email;
-
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    private String password;
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 }

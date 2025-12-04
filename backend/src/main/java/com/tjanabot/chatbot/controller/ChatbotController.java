@@ -1,5 +1,6 @@
 package com.tjanabot.chatbot.controller;
 
+import com.tjanabot.chatbot.dto.ChatbotRequest;
 import com.tjanabot.chatbot.model.Chatbot;
 import com.tjanabot.chatbot.model.Subscription;
 import com.tjanabot.chatbot.model.User;
@@ -117,14 +118,69 @@ public class ChatbotController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
+    /**
+     * Search chatbots by query
+     */
+    @GetMapping("/search")
+    public ResponseEntity<?> searchChatbots(
+            @RequestParam String query,
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            // Validate query parameter for NoSQL injection attempts
+            if (query == null || query.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Query parameter is required"));
+            }
+
+            // Reject NoSQL injection patterns
+            if (query.contains("{") || query.contains("}") || query.contains("$") ||
+                query.contains("[") || query.contains("]")) {
+                logger.warn("Rejected search query with potential NoSQL injection: {}", LogSanitizer.sanitize(query));
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid query format"));
+            }
+
+            // Check if user is authenticated (for testing, may be null)
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            User user = currentUser.getUser();
+            if (!hasActiveSubscription(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // Simple search implementation (can be enhanced)
+            List<Chatbot> results = chatbotRepository.findAll().stream()
+                .filter(chatbot -> isOwner(user, chatbot))
+                .filter(chatbot -> chatbot.getName().toLowerCase().contains(query.toLowerCase()) ||
+                                   (chatbot.getDescription() != null &&
+                                    chatbot.getDescription().toLowerCase().contains(query.toLowerCase())))
+                .toList();
+
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            logger.error("Error searching chatbots", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     /**
      * Get chatbot by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Chatbot> getChatbot(@PathVariable Long id,
+    public ResponseEntity<?> getChatbot(@PathVariable Long id,
                                               @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            // Validate ID is positive
+            if (id == null || id < 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid chatbot ID"));
+            }
+
+            // Check if user is authenticated (for testing, may be null)
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
@@ -149,9 +205,15 @@ public class ChatbotController {
      * Create a new chatbot
      */
     @PostMapping
-    public ResponseEntity<Chatbot> createChatbot(@Valid @RequestBody Chatbot chatbot,
+    public ResponseEntity<?> createChatbot(@Valid @RequestBody ChatbotRequest request,
                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            // Validation happens automatically via @Valid - if we reach here, input is valid
+            // Check if user is authenticated (for testing, may be null)
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
             User user = currentUser.getUser();
 
             // Check if user has active subscription
@@ -160,7 +222,28 @@ public class ChatbotController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            // Set the owner
+            // Convert DTO to entity
+            Chatbot chatbot = new Chatbot();
+            chatbot.setName(request.getName());
+            chatbot.setWebsiteUrl(request.getWebsiteUrl());
+            chatbot.setDescription(request.getDescription());
+            chatbot.setPrimaryLanguage(request.getPrimaryLanguage());
+
+            // Parse supported languages from comma-separated string
+            if (request.getSupportedLanguages() != null && !request.getSupportedLanguages().trim().isEmpty()) {
+                chatbot.setSupportedLanguages(
+                    java.util.Arrays.asList(request.getSupportedLanguages().split(","))
+                        .stream()
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toList())
+                );
+            }
+
+            chatbot.setCustomPrompt(request.getCustomPrompt());
+            chatbot.setWebhookUrl(request.getWebhookUrl());
+            chatbot.setBrandingConfig(request.getBrandingConfig());
+            chatbot.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
             chatbot.setOwner(user);
 
             Chatbot savedChatbot = chatbotRepository.save(chatbot);

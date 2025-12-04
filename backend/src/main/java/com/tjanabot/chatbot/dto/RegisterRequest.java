@@ -1,5 +1,6 @@
 package com.tjanabot.chatbot.dto;
 
+import com.tjanabot.chatbot.validation.NotCommonPassword;
 import jakarta.validation.constraints.*;
 
 /**
@@ -8,8 +9,9 @@ import jakarta.validation.constraints.*;
 public class RegisterRequest {
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @Email(message = "Invalid email format", regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
     @Size(max = 255, message = "Email must not exceed 255 characters")
+    @Pattern(regexp = "^[^\\x00-\\x1F\\x7F<>]*$", message = "Email contains invalid characters")
     private String email;
 
     @NotBlank(message = "Username is required")
@@ -26,6 +28,7 @@ public class RegisterRequest {
         regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
         message = "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character"
     )
+    @NotCommonPassword
     private String password;
 
     // Constructors
