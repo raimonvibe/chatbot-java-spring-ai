@@ -5,6 +5,7 @@ import com.tjanabot.chatbot.repository.ChatbotRepository;
 import com.tjanabot.chatbot.service.AiChatbotService;
 import com.tjanabot.chatbot.service.WebsiteAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("/")
+@Profile("!test")
 public class WebController {
     
     private final ChatbotRepository chatbotRepository;

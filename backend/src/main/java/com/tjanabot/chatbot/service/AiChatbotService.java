@@ -21,6 +21,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
+@Profile("!test")
 public class AiChatbotService {
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);

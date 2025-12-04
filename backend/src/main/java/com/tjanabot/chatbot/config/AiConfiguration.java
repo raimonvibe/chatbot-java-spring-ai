@@ -9,15 +9,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 
 /**
  * Configuration for AI services
  * Uses Claude (Anthropic) for chat and Cohere for embeddings
  */
 @Configuration
+@Profile("!test")
 public class AiConfiguration {
 
-    @Value("${COHERE_API_KEY}")
+    @Value("${spring.ai.cohere.api-key}")
     private String cohereApiKey;
 
     @Value("${app.embedding.model:embed-multilingual-v3.0}")
