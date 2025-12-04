@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Profile;
 /**
  * Configuration for AI services
  * Uses Claude (Anthropic) for chat and Cohere for embeddings
+ * Only active in non-test profiles (tests use MockAiConfiguration)
  */
 @Configuration
 @Profile("!test")

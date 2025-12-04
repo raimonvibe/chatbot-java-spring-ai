@@ -20,7 +20,6 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("/")
-@Profile("!test")
 public class WebController {
     
     private final ChatbotRepository chatbotRepository;

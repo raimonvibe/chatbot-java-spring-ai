@@ -1,9 +1,17 @@
 package com.tjanabot.chatbot.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tjanabot.chatbot.config.MockAiConfiguration;
 import com.tjanabot.chatbot.config.TestJacksonConfiguration;
 import com.tjanabot.chatbot.dto.ChatbotRequest;
 import com.tjanabot.chatbot.dto.RegisterRequest;
+import com.tjanabot.chatbot.model.Chatbot;
+import com.tjanabot.chatbot.model.User;
+import com.tjanabot.chatbot.repository.ChatbotRepository;
+import com.tjanabot.chatbot.repository.UserRepository;
+import com.tjanabot.chatbot.security.JwtTokenProvider;
+import com.tjanabot.chatbot.service.AuditService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,17 +21,21 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestJacksonConfiguration.class)
+@Import({TestJacksonConfiguration.class, MockAiConfiguration.class})
 @DisplayName("Input Validation Security Tests")
 class InputValidationSecurityTest {
 
@@ -32,6 +44,38 @@ class InputValidationSecurityTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private UserRepository userRepository;
+
+    @MockitoBean
+    private ChatbotRepository chatbotRepository;
+
+    @MockitoBean
+    private PasswordEncoder passwordEncoder;
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private AuditService auditService;
+
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setEmail("test@example.com");
+        testUser.setUsername("testuser");
+
+        // Setup default mock behaviors
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(jwtTokenProvider.generateToken(any())).thenReturn("jwt_token_123");
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {

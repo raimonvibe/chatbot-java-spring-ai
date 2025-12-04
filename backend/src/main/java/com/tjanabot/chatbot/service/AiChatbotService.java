@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-@Profile("!test")
 public class AiChatbotService {
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);
