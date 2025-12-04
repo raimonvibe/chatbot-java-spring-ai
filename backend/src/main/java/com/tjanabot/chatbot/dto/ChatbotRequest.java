@@ -1,5 +1,6 @@
 package com.tjanabot.chatbot.dto;
 
+import com.tjanabot.chatbot.validation.SafeUrl;
 import jakarta.validation.constraints.*;
 
 /**
@@ -17,10 +18,7 @@ public class ChatbotRequest {
     private String name;
 
     @NotBlank(message = "Website URL is required")
-    @Pattern(
-        regexp = "^https?://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(:[0-9]+)?(/.*)?$",
-        message = "Website URL must be a valid HTTP or HTTPS URL"
-    )
+    @SafeUrl
     @Size(max = 500, message = "Website URL must not exceed 500 characters")
     private String websiteUrl;
 
@@ -38,12 +36,10 @@ public class ChatbotRequest {
     private String supportedLanguages;
 
     @Size(max = 2000, message = "Custom prompt must not exceed 2000 characters")
+    @Pattern(regexp = "^[^<>]*$", message = "Custom prompt contains invalid characters")
     private String customPrompt;
 
-    @Pattern(
-        regexp = "^https?://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(:[0-9]+)?(/.*)?$",
-        message = "Webhook URL must be a valid HTTP or HTTPS URL"
-    )
+    @SafeUrl
     @Size(max = 500, message = "Webhook URL must not exceed 500 characters")
     private String webhookUrl;
 
