@@ -55,8 +55,8 @@ class ChatbotServiceTest {
         testChatbot = TestDataBuilder.createTestChatbot(testUser);
         testChatbot.setId(1L);
 
-        // Default behavior: return input as-is for sanitization
-        when(xssSanitizer.sanitize(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        // Default behavior: return input as-is for sanitization (lenient for tests that don't use it)
+        lenient().when(xssSanitizer.sanitize(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -251,6 +251,11 @@ class ChatbotServiceTest {
         Chatbot botWithScript = TestDataBuilder.createTestChatbot(testUser);
         botWithScript.setDescription("<script>alert('XSS')</script>Normal description");
 
+        // Mock sanitization to remove script tags (simulating real XSS sanitization)
+        when(xssSanitizer.sanitize("<script>alert('XSS')</script>Normal description"))
+            .thenReturn("Normal description");
+        when(xssSanitizer.sanitize(botWithScript.getName())).thenReturn(botWithScript.getName());
+
         when(urlValidationService.isValid(anyString())).thenReturn(true);
         ArgumentCaptor<Chatbot> captor = ArgumentCaptor.forClass(Chatbot.class);
         when(chatbotRepository.save(captor.capture())).thenReturn(botWithScript);
@@ -259,6 +264,7 @@ class ChatbotServiceTest {
         chatbotService.createChatbot(botWithScript, testUser);
 
         // Assert
+        verify(xssSanitizer, atLeastOnce()).sanitize(anyString());
         Chatbot saved = captor.getValue();
         assertThat(saved.getDescription()).doesNotContain("<script>");
         assertThat(saved.getDescription()).contains("Normal description");

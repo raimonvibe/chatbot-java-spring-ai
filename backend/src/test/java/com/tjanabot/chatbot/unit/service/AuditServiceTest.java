@@ -90,7 +90,7 @@ class AuditServiceTest {
     @DisplayName("Should not flag normal number of failed logins")
     void shouldNotFlagNormalFailedLogins() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
+        lenient().when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
             eq(1L),
             eq(AuditLog.EventType.LOGIN_FAILURE),
             any(LocalDateTime.class)
