@@ -88,10 +88,16 @@ class CustomOAuth2UserServiceTest {
         userAttributes.put("name", "New User");
         userAttributes.put("picture", "https://example.com/photo.jpg");
 
-        when(userRequest.getClientRegistration()).thenReturn(clientRegistration);
-        when(userRequest.getAccessToken()).thenReturn(accessToken);
-        when(oauth2User.getAttributes()).thenReturn(userAttributes);
-        when(oauth2User.getName()).thenReturn("google_12345");
+        lenient().when(userRequest.getClientRegistration()).thenReturn(clientRegistration);
+        lenient().when(userRequest.getAccessToken()).thenReturn(accessToken);
+        lenient().when(oauth2User.getAttributes()).thenReturn(userAttributes);
+        lenient().when(oauth2User.getName()).thenReturn("google_12345");
+
+        // Mock getAttribute calls for individual attributes
+        lenient().when(oauth2User.getAttribute("sub")).thenReturn("google_12345");
+        lenient().when(oauth2User.getAttribute("email")).thenReturn("newuser@gmail.com");
+        lenient().when(oauth2User.getAttribute("name")).thenReturn("New User");
+        lenient().when(oauth2User.getAttribute("picture")).thenReturn("https://example.com/photo.jpg");
     }
 
     // Helper method to call the private processOAuth2User method
@@ -183,7 +189,11 @@ class CustomOAuth2UserServiceTest {
         minimalAttributes.put("email", "minimal@gmail.com");
         // No 'name' or 'picture'
 
-        when(oauth2User.getAttributes()).thenReturn(minimalAttributes);
+        lenient().when(oauth2User.getAttributes()).thenReturn(minimalAttributes);
+        lenient().when(oauth2User.getAttribute("sub")).thenReturn("google_67890");
+        lenient().when(oauth2User.getAttribute("email")).thenReturn("minimal@gmail.com");
+        lenient().when(oauth2User.getAttribute("name")).thenReturn(null);
+        lenient().when(oauth2User.getAttribute("picture")).thenReturn(null);
         when(userRepository.findByGoogleId("google_67890")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("minimal@gmail.com")).thenReturn(Optional.empty());
 

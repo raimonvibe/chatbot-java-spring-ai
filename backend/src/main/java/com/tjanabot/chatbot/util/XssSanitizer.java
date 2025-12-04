@@ -14,8 +14,11 @@ public class XssSanitizer {
 
     // Patterns for detecting and removing dangerous content
     private static final Pattern SCRIPT_PATTERN = Pattern.compile("<script[^>]*>.*?</script>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern SCRIPT_TAG_PATTERN = Pattern.compile("</?script[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern IFRAME_PATTERN = Pattern.compile("<iframe[^>]*>.*?</iframe>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern IFRAME_TAG_PATTERN = Pattern.compile("</?iframe[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern OBJECT_PATTERN = Pattern.compile("<object[^>]*>.*?</object>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern OBJECT_TAG_PATTERN = Pattern.compile("</?object[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern EMBED_PATTERN = Pattern.compile("<embed[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern ONCLICK_PATTERN = Pattern.compile("on\\w+\\s*=", Pattern.CASE_INSENSITIVE);
     private static final Pattern JAVASCRIPT_PATTERN = Pattern.compile("javascript:", Pattern.CASE_INSENSITIVE);
@@ -33,12 +36,21 @@ public class XssSanitizer {
         }
 
         String sanitized = input;
+        String previous;
 
-        // Remove dangerous HTML tags
-        sanitized = SCRIPT_PATTERN.matcher(sanitized).replaceAll("");
-        sanitized = IFRAME_PATTERN.matcher(sanitized).replaceAll("");
-        sanitized = OBJECT_PATTERN.matcher(sanitized).replaceAll("");
-        sanitized = EMBED_PATTERN.matcher(sanitized).replaceAll("");
+        // Repeatedly remove dangerous HTML tags until no more changes occur (handles nested tags)
+        do {
+            previous = sanitized;
+            sanitized = SCRIPT_PATTERN.matcher(sanitized).replaceAll("");
+            sanitized = IFRAME_PATTERN.matcher(sanitized).replaceAll("");
+            sanitized = OBJECT_PATTERN.matcher(sanitized).replaceAll("");
+            sanitized = EMBED_PATTERN.matcher(sanitized).replaceAll("");
+        } while (!sanitized.equals(previous));
+
+        // Remove any orphaned opening/closing tags
+        sanitized = SCRIPT_TAG_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized = IFRAME_TAG_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized = OBJECT_TAG_PATTERN.matcher(sanitized).replaceAll("");
 
         // Remove event handlers and dangerous protocols
         sanitized = ONCLICK_PATTERN.matcher(sanitized).replaceAll("");

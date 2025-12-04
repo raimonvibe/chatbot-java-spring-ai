@@ -71,9 +71,8 @@ class AuditServiceTest {
     @DisplayName("Should detect too many failed logins")
     void shouldDetectTooManyFailedLogins() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
+        when(auditLogRepository.countFailedLoginAttempts(
             eq(1L),
-            eq(AuditLog.EventType.LOGIN_FAILURE),
             any(LocalDateTime.class)
         )).thenReturn(6L);
 
@@ -83,16 +82,15 @@ class AuditServiceTest {
         // Assert
         assertThat(result).isTrue();
         verify(auditLogRepository, times(1))
-            .countByUserIdAndEventTypeAndCreatedAtAfter(eq(1L), eq(AuditLog.EventType.LOGIN_FAILURE), any());
+            .countFailedLoginAttempts(eq(1L), any());
     }
 
     @Test
     @DisplayName("Should not flag normal number of failed logins")
     void shouldNotFlagNormalFailedLogins() {
         // Arrange
-        lenient().when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
+        lenient().when(auditLogRepository.countFailedLoginAttempts(
             eq(1L),
-            eq(AuditLog.EventType.LOGIN_FAILURE),
             any(LocalDateTime.class)
         )).thenReturn(3L);
 
@@ -107,9 +105,8 @@ class AuditServiceTest {
     @DisplayName("Should detect too many payment failures")
     void shouldDetectTooManyPaymentFailures() {
         // Arrange
-        when(auditLogRepository.countByUserIdAndEventTypeAndCreatedAtAfter(
+        when(auditLogRepository.countPaymentFailures(
             eq(1L),
-            eq(AuditLog.EventType.PAYMENT_FAILED),
             any(LocalDateTime.class)
         )).thenReturn(4L);
 
@@ -119,7 +116,7 @@ class AuditServiceTest {
         // Assert
         assertThat(result).isTrue();
         verify(auditLogRepository, times(1))
-            .countByUserIdAndEventTypeAndCreatedAtAfter(eq(1L), eq(AuditLog.EventType.PAYMENT_FAILED), any());
+            .countPaymentFailures(eq(1L), any());
     }
 
     @Test

@@ -160,7 +160,7 @@ class JwtTokenProviderTest {
     void shouldGenerateDifferentTokens_forSameUserAtDifferentTimes() throws InterruptedException {
         // Arrange & Act
         String token1 = jwtTokenProvider.generateToken(TEST_USERNAME);
-        Thread.sleep(10); // Small delay to ensure different issuedAt timestamp
+        Thread.sleep(1000); // 1 second delay to ensure different issuedAt timestamp (JWT uses seconds)
         String token2 = jwtTokenProvider.generateToken(TEST_USERNAME);
 
         // Assert
