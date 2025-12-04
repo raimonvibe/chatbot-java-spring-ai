@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @RestController
 @RequestMapping("/api/chatbots")
-@Profile("!test")
 public class ChatbotController {
     
     private static final Logger logger = LoggerFactory.getLogger(ChatbotController.class);

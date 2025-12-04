@@ -27,7 +27,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/chat")
 @Validated
-@Profile("!test")
 public class ChatController {
     
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
