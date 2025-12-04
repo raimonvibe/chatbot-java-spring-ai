@@ -3,10 +3,10 @@ spring:
     name: tjanabot-ai-chatbot
 
   datasource:
-    url: jdbc:h2:mem:chatbotdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${DATABASE_URL:jdbc:h2:mem:chatbotdb}
+    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
 
   jpa:
     hibernate:
@@ -14,6 +14,7 @@ spring:
     show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.H2Dialect}
         format_sql: false
 
   h2:
