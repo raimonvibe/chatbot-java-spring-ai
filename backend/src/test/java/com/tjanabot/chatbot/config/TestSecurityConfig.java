@@ -25,6 +25,9 @@ public class TestSecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
                 .anyRequest().permitAll()
             )
+            // lgtm[java/spring-disabled-csrf-protection]
+            // CSRF is intentionally disabled in test environment to simplify integration testing.
+            // Production security config (SecurityConfig.java) has CSRF properly enabled.
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
