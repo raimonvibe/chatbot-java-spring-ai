@@ -91,9 +91,11 @@ public class SecurityConfig {
                 // Referrer-Policy: Control referrer information
                 .referrerPolicy(referrer -> referrer.policy(
                     org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                // Permissions-Policy: Control browser features
-                .permissionsPolicy(permissions -> permissions
-                    .policy("geolocation=(), microphone=(), camera=()"))
+            )
+            // Permissions-Policy: Control browser features (added separately due to deprecation)
+            .headers(headers -> headers
+                .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                    "Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
             );
 
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
