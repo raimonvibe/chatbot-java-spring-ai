@@ -1,5 +1,6 @@
 package com.tjanabot.chatbot.config;
 
+import com.tjanabot.chatbot.config.CohereEmbeddingModel;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.embedding.EmbeddingModel;
