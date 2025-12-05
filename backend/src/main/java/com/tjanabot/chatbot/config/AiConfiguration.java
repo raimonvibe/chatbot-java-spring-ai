@@ -1,6 +1,9 @@
 package com.tjanabot.chatbot.config;
 
 import com.tjanabot.chatbot.config.CohereEmbeddingModel;
+import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.anthropic.AnthropicChatOptions;
+import org.springframework.ai.anthropic.api.AnthropicApi;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -16,17 +19,13 @@ import org.springframework.context.annotation.Profile;
  * Configuration for AI services
  * Uses Claude (Anthropic) for chat and Cohere for embeddings
  * Only active in non-test profiles (tests use MockAiConfiguration)
- *
- * Spring AI Auto-Configuration:
- * - AnthropicChatModel is auto-configured by Spring Boot when:
- *   1. spring-ai-anthropic dependency is present (in pom.xml)
- *   2. spring.ai.anthropic.api-key property is set
- * - Configuration is in application.yml under spring.ai.anthropic.*
- * - If auto-configuration fails, check that ANTHROPIC_API_KEY env var is set
  */
 @Configuration
 @Profile("!test")
 public class AiConfiguration {
+
+    @Value("${spring.ai.anthropic.api-key:${ANTHROPIC_API_KEY}}")
+    private String anthropicApiKey;
 
     @Value("${spring.ai.cohere.api-key:${COHERE_API_KEY:}}")
     private String cohereApiKey;
@@ -35,17 +34,30 @@ public class AiConfiguration {
     private String embeddingModel;
 
     /**
+     * AnthropicApi bean - required by AnthropicChatModel
+     */
+    @Bean
+    public AnthropicApi anthropicApi() {
+        return new AnthropicApi(anthropicApiKey);
+    }
+
+    /**
+     * ChatModel bean using Anthropic Claude
+     * Created manually since Spring AI auto-configuration doesn't always work
+     */
+    @Bean
+    public ChatModel anthropicChatModel(AnthropicApi anthropicApi) {
+        var options = AnthropicChatOptions.builder()
+                .model(AnthropicApi.ChatModel.CLAUDE_3_HAIKU.getValue())
+                .temperature(0.7)
+                .maxTokens(1000)
+                .build();
+
+        return new AnthropicChatModel(anthropicApi, options);
+    }
+
+    /**
      * Primary ChatClient bean using Anthropic Claude
-     *
-     * IMPORTANT: ChatModel is auto-configured by Spring AI
-     * - Requires: spring-ai-anthropic dependency (in pom.xml)
-     * - Requires: spring.ai.anthropic.api-key property
-     * - Set via: ANTHROPIC_API_KEY environment variable
-     *
-     * If this fails with "No qualifying bean of type ChatModel":
-     * 1. Verify ANTHROPIC_API_KEY is set in environment
-     * 2. Check application.yml has spring.ai.anthropic.api-key: ${ANTHROPIC_API_KEY}
-     * 3. Ensure spring-ai-anthropic is in pom.xml dependencies
      */
     @Bean
     @Primary
