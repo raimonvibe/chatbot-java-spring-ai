@@ -29,7 +29,7 @@ import java.util.Arrays;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003}")
+    @Value("${cors.allowed-origins:http://localhost:3000, https://chatbot-java-spring-ai.vercel.app}")
     private String allowedOrigins;
 
     @Autowired private RateLimitingFilter rateLimitingFilter;
