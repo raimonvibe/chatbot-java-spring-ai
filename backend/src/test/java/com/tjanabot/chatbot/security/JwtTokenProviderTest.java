@@ -104,8 +104,11 @@ class JwtTokenProviderTest {
     void shouldRejectToken_whenSignatureIsInvalid() {
         // Arrange
         String token = jwtTokenProvider.generateToken(TEST_USERNAME);
-        // Tamper with the token by changing the last character
-        String tamperedToken = token.substring(0, token.length() - 1) + "X";
+        String[] parts = token.split("\\.");
+        // Tamper with the signature part (last part) by changing multiple characters
+        String originalSignature = parts[2];
+        String tamperedSignature = originalSignature.substring(0, Math.max(0, originalSignature.length() - 10)) + "XXXXXXXXXX";
+        String tamperedToken = parts[0] + "." + parts[1] + "." + tamperedSignature;
 
         // Act
         boolean isValid = jwtTokenProvider.validateToken(tamperedToken);
