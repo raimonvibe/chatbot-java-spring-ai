@@ -51,7 +51,10 @@ public class SecurityConfig {
                 .requestMatchers("/stripe/webhook").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                .requestMatchers("/api/chatbots/**").authenticated()  // Require authentication
+                // Allow public GET requests to read chatbot data
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
+                // Protect write operations (POST, PUT, DELETE)
+                .requestMatchers("/api/chatbots/**").authenticated()
                 .requestMatchers("/api/subscription/**").authenticated()
                 .requestMatchers("/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
