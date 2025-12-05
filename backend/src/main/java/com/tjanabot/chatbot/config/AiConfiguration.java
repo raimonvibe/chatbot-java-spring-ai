@@ -36,22 +36,30 @@ public class AiConfiguration {
     private String embeddingModel;
 
     /**
-     * Primary ChatClient bean using Anthropic Claude
-     *
-     * ChatModel is auto-injected by Spring AI autoconfiguration.
-     * Spring AI will create AnthropicChatModel bean based on:
-     * - spring.ai.anthropic.api-key property (from application.yml)
-     * - ANTHROPIC_API_KEY environment variable
+     * ChatModel bean - will be auto-configured by Spring AI if ANTHROPIC_API_KEY is set
+     * If not auto-configured, creates a stub that throws helpful error when used
      */
     @Bean
     @Primary
-    public ChatClient chatClient(@Autowired(required = false) ChatModel chatModel) {
-        if (chatModel == null) {
+    public ChatModel chatModel() {
+        // This creates a stub that will fail with a helpful message
+        // Spring AI should override this with auto-configured AnthropicChatModel if API key is set
+        return (prompt) -> {
             throw new IllegalStateException(
-                "ChatModel bean not found! Ensure ANTHROPIC_API_KEY is set and " +
-                "spring-ai-anthropic dependency is in classpath."
+                "ChatModel not properly configured! " +
+                "Ensure ANTHROPIC_API_KEY environment variable is set. " +
+                "Check Render dashboard environment variables."
             );
-        }
+        };
+    }
+
+    /**
+     * Primary ChatClient bean using Anthropic Claude
+     * Uses the ChatModel bean (either auto-configured or stub above)
+     */
+    @Bean
+    @Primary
+    public ChatClient chatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel).build();
     }
 
