@@ -1,6 +1,28 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-brown-50: #fdf8f3;
+  --color-brown-100: #f5ebdc;
+  --color-brown-200: #dec9b5;
+  --color-brown-300: #d2b48c;
+  --color-brown-400: #c9a882;
+  --color-brown-500: #a67c52;
+  --color-brown-600: #8b5a3c;
+  --color-brown-700: #6d4530;
+  --color-brown-800: #4a2f1f;
+  --color-brown-900: #3e2723;
+
+  --color-gold-50: #fefce8;
+  --color-gold-100: #fef9c3;
+  --color-gold-200: #fef08a;
+  --color-gold-300: #fde047;
+  --color-gold-400: #facc15;
+  --color-gold-500: #eab308;
+  --color-gold-600: #ca8a04;
+  --color-gold-700: #a16207;
+  --color-gold-800: #854d0e;
+  --color-gold-900: #713f12;
+}
 
 :root {
   /* Christian-themed light brown gradient colors */
