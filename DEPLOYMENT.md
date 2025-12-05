@@ -151,18 +151,47 @@ Always use the **Internal URL** for services running on Render - it's faster and
 1. **In Render Dashboard**
    - Click "New +" → "PostgreSQL"
    - Name: `chatbot-postgres`
-   - Database: `chatbot`
-   - User: `postgres` (auto-generated)
-   - Region: Choose closest to your users
-   - Plan: Free tier
+   - Database Name: `chatbot`
+   - User: `chatbot` (auto-generated, or use default)
+   - Region: Choose closest to your users (e.g., Oregon)
+   - Plan: **Free** (sufficient for testing)
+   - PostgreSQL Version: 16 (or latest available)
 
-2. **Note Database Credentials**
+2. **Wait for Database Creation**
+   - Database creation takes 2-5 minutes
+   - Status will change from "Creating" to "Available"
+   - You'll see a green checkmark when ready
 
-   Render provides two connection URLs:
-   - **Internal Database URL** - Use this for services running on Render (faster, more secure)
-   - **External Database URL** - Use this only when connecting from outside Render (local dev, GUI tools)
+3. **Copy Database Connection Details**
 
-   For your backend service on Render, you'll use the **Internal Database URL**
+   After database is created, go to the database dashboard and copy:
+
+   **Internal Database URL** (CRITICAL - Use this for your backend service):
+   ```
+   postgresql://chatbot:XXXXX@dpg-XXXXXXX/chatbot
+   ```
+
+   **External Database URL** (Only for local development/database tools):
+   ```
+   postgresql://chatbot:XXXXX@dpg-XXXXXXX.oregon-postgres.render.com/chatbot
+   ```
+
+   **⚠️ IMPORTANT**: The Internal URL is DIFFERENT from the External URL:
+   - Internal URL hostname: `dpg-XXXXXXX` (shorter, no domain suffix)
+   - External URL hostname: `dpg-XXXXXXX.oregon-postgres.render.com` (includes region and domain)
+
+   **Always use the Internal URL for backend services on Render** - it's faster and more secure!
+
+4. **Note Individual Credentials** (Alternative to connection string)
+
+   You can also use individual credentials:
+   ```
+   Host: dpg-XXXXXXX (internal) or dpg-XXXXXXX.oregon-postgres.render.com (external)
+   Port: 5432
+   Database: chatbot
+   Username: chatbot
+   Password: [shown in dashboard]
+   ```
 
 #### Create Backend Service
 
@@ -185,46 +214,66 @@ Always use the **Internal URL** for services running on Render - it's faster and
    - Free tier: 512MB RAM (sufficient for testing)
    - Starter: 1GB RAM (recommended for production)
 
-4. **Link PostgreSQL Database (Important!)**
+4. **Configure Environment Variables** (CRITICAL STEP)
 
-   Before adding environment variables:
-   - Scroll down to "Environment Variables" section
-   - Click "Add Environment Variable"
-   - Look for "Add from Database" or "Link Database" option
-   - Select your `chatbot-postgres` database
-   - Render will automatically add `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`
+   In the "Environment" tab, add these variables one by one:
 
-5. **Environment Variables**
-
-   Add in the "Environment" tab:
+   **Database Configuration (REQUIRED):**
    ```bash
-   # Database Connection
-   # Option 1: Link the PostgreSQL database and use Render's auto-fill
-   SPRING_DATASOURCE_URL=${DATABASE_URL}
-
-   # Option 2: Manually copy the Internal Database URL from your PostgreSQL service
-   # SPRING_DATASOURCE_URL=postgresql://user:password@host:5432/database
-
-   # Note: If you link the database, Render auto-fills DATABASE_URL, USERNAME, and PASSWORD
-   # You typically don't need to set these separately
-
-   # Spring Configuration
-   SPRING_JPA_HIBERNATE_DDL_AUTO=update
-   SPRING_PROFILES_ACTIVE=production
-
-   # AI Configuration
-   ANTHROPIC_API_KEY=your-key-here
-   COHERE_API_KEY=your-key-here
-
-   # Security
-   JWT_SECRET=your-secret-at-least-32-characters
-
-   # Optional
-   PINECONE_API_KEY=your-pinecone-key
-   GOOGLE_CLIENT_ID=your-google-client-id
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   STRIPE_SECRET_KEY=your-stripe-key
+   # Copy the INTERNAL Database URL from your PostgreSQL service
+   DATABASE_URL=postgresql://chatbot:YOUR_PASSWORD@dpg-XXXXXXX/chatbot
+   DATABASE_DRIVER=org.postgresql.Driver
+   HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+   DDL_AUTO=update
    ```
+
+   **⚠️ CRITICAL**: Make sure you use the **Internal Database URL**, NOT the External one!
+   - ✅ Correct: `postgresql://chatbot:pass@dpg-abc123/chatbot`
+   - ❌ Wrong: `postgresql://chatbot:pass@dpg-abc123.oregon-postgres.render.com/chatbot`
+
+   **AI Configuration (REQUIRED):**
+   ```bash
+   ANTHROPIC_API_KEY=sk-ant-YOUR-KEY-HERE
+   COHERE_API_KEY=YOUR-COHERE-KEY-HERE
+   ```
+
+   **Security (REQUIRED):**
+   ```bash
+   JWT_SECRET=your-secure-random-string-at-least-32-characters-long
+   ```
+
+   **CORS Configuration (REQUIRED for frontend connection):**
+   ```bash
+   CORS_ALLOWED_ORIGINS=http://localhost:3000,https://your-vercel-app.vercel.app
+   ```
+
+   **Optional Services:**
+   ```bash
+   # Vector Storage (Optional)
+   PINECONE_API_KEY=your-pinecone-key
+   PINECONE_ENVIRONMENT=your-environment
+   PINECONE_INDEX_NAME=chatbot-vectors
+
+   # OAuth (Optional)
+   GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+   # Stripe Payments (Optional)
+   STRIPE_SECRET_KEY=sk_test_YOUR-KEY-HERE
+   STRIPE_WEBHOOK_SECRET=whsec_YOUR-WEBHOOK-SECRET
+   STRIPE_PRICE_ID=price_YOUR-PRICE-ID
+   ```
+
+5. **Verify Environment Variables**
+
+   Double-check these critical variables are set correctly:
+   - [ ] DATABASE_URL (using Internal URL)
+   - [ ] DATABASE_DRIVER
+   - [ ] HIBERNATE_DIALECT
+   - [ ] ANTHROPIC_API_KEY
+   - [ ] COHERE_API_KEY
+   - [ ] JWT_SECRET
+   - [ ] CORS_ALLOWED_ORIGINS
 
 6. **Deploy Backend**
    - Click "Create Web Service"
@@ -658,55 +707,132 @@ SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE=5
    - Copy this URL - you'll need it for frontend deployment
    - Example: `https://ai-chatbot-backend.onrender.com`
 
-## Frontend Deployment (Vercel)
+---
 
-Deploy your Next.js frontend to Vercel.
+# 🚀 Frontend Deployment to Vercel
 
-## Step 1: Deploy to Vercel Dashboard
+Deploy your Next.js frontend to Vercel for optimal performance and scalability.
+
+## Prerequisites
+
+Before deploying to Vercel, ensure you have:
+- [ ] Backend deployed on Render (with URL noted)
+- [ ] GitHub repository with your code
+- [ ] Vercel account (free tier available)
+
+## Step 1: Prepare Your Repository
+
+1. **Ensure Frontend Code is Ready**
+
+   Your repository should have this structure:
+   ```
+   ├── frontend/
+   │   ├── src/
+   │   ├── public/
+   │   ├── package.json
+   │   ├── next.config.js
+   │   └── Dockerfile
+   └── backend/
+   ```
+
+2. **Push Latest Changes to GitHub**
+   ```bash
+   git add .
+   git commit -m "Prepare frontend for Vercel deployment"
+   git push origin main
+   ```
+
+## Step 2: Deploy to Vercel
 
 ### Option A: Using Vercel Dashboard (Recommended)
 
-1. **Go to Vercel Dashboard**
+1. **Create Vercel Account**
    - Visit [vercel.com](https://vercel.com)
-   - Click "Add New Project"
-   - Import your GitHub repository
+   - Sign up with your GitHub account
+   - Authorize Vercel to access your repositories
 
-2. **Configure Project Settings**
-   - **Framework Preset**: Next.js
-   - **Root Directory**: `frontend` ⚠️ **IMPORTANT**
-   - **Build Command**: `npm run build` (auto-detected)
-   - **Output Directory**: `.next` (auto-detected)
-   - **Install Command**: `npm install` (auto-detected)
+2. **Import Your Project**
+   - Click "Add New..." → "Project"
+   - Select "Import Git Repository"
+   - Find and select your repository: `chatbot-java-spring-ai`
+   - Click "Import"
 
-3. **Set Environment Variables**
+3. **Configure Project Settings** ⚠️ **CRITICAL STEP**
 
-   **REQUIRED - Add this in Vercel:**
+   **Framework Preset:**
+   - Framework: `Next.js` (should auto-detect)
 
+   **Root Directory:** ⚠️ **MOST IMPORTANT**
+   - Click "Edit" next to Root Directory
+   - Set to: `frontend`
+   - This tells Vercel your Next.js app is in the `frontend` folder, not the root
+
+   **Build & Development Settings:**
+   - Build Command: `npm run build` (auto-detected, leave as is)
+   - Output Directory: `.next` (auto-detected, leave as is)
+   - Install Command: `npm install` (auto-detected, leave as is)
+   - Development Command: `npm run dev` (auto-detected, leave as is)
+
+4. **Configure Environment Variables** ⚠️ **REQUIRED**
+
+   Click "Add Environment Variable" and add:
+
+   **Required Variable:**
    ```
-   NEXT_PUBLIC_API_URL=https://your-backend-url.onrender.com
+   Key: NEXT_PUBLIC_API_URL
+   Value: https://chatbot-backend-xxx.onrender.com
    ```
 
-   Replace `your-backend-url.onrender.com` with your actual Render backend URL.
+   Replace `chatbot-backend-xxx.onrender.com` with your **actual Render backend URL**.
 
-   **OPTIONAL:**
+   **How to find your backend URL:**
+   - Go to Render Dashboard
+   - Click on your backend service
+   - Copy the URL at the top (e.g., `https://chatbot-backend-abc123.onrender.com`)
+   - Paste it as the value for `NEXT_PUBLIC_API_URL`
 
+   **Optional Variables:**
    ```
-   NEXT_PUBLIC_DEFAULT_CHATBOT_ID=1
+   Key: NEXT_PUBLIC_DEFAULT_CHATBOT_ID
+   Value: 1
    ```
 
-   **⚠️ Note:** Unlike your change-my-com-v2 project, this frontend does NOT need:
-   - ❌ `NEXTAUTH_URL` (auth is handled on backend)
-   - ❌ `NEXTAUTH_SECRET` (auth is handled on backend)
-   - ❌ `GOOGLE_CLIENT_ID` (OAuth is backend-only)
-   - ❌ `GOOGLE_CLIENT_SECRET` (OAuth is backend-only)
-   - ❌ `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (payments are backend-only)
+   **⚠️ Important Notes:**
+   - This frontend does NOT need `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, or any OAuth/Stripe keys
+   - All authentication and payments are handled by the backend
+   - The frontend only communicates with the backend API
 
-   This frontend only communicates with the backend API - all authentication and payment processing happens on the backend!
-
-4. **Deploy**
+5. **Deploy**
    - Click "Deploy"
-   - Wait for build to complete
-   - Visit your deployment URL
+   - Wait for build to complete (2-5 minutes)
+   - Vercel will show build logs in real-time
+   - Look for "Build Completed" message
+   - You'll get a deployment URL: `https://your-project-name.vercel.app`
+
+6. **Verify Deployment**
+   - Click "Visit" to open your deployed frontend
+   - Check that the homepage loads correctly
+   - Open browser DevTools (F12) → Console tab
+   - Look for any errors (there should be none)
+   - Verify API URL is correct by checking network requests
+
+### Common Vercel Deployment Issues
+
+**Issue 1: 404 Error on Homepage**
+- **Cause**: Root Directory not set to `frontend`
+- **Fix**: Go to Project Settings → General → Root Directory → Set to `frontend` → Redeploy
+
+**Issue 2: Environment Variable Not Working**
+- **Cause**: Environment variables only apply to new builds
+- **Fix**: After adding env vars, click "Deployments" → "..." → "Redeploy"
+
+**Issue 3: CORS Errors in Browser Console**
+- **Cause**: Backend not allowing requests from Vercel domain
+- **Fix**: Update `CORS_ALLOWED_ORIGINS` on Render backend (see Step 3 below)
+
+**Issue 4: API Calls Returning 404**
+- **Cause**: `NEXT_PUBLIC_API_URL` is wrong or missing
+- **Fix**: Verify the URL in Vercel → Settings → Environment Variables
 
 ### Option B: Using Vercel CLI
 
@@ -745,7 +871,70 @@ Deploy your Next.js frontend to Vercel.
    vercel --prod
    ```
 
-## Step 2: Configure CORS on Backend
+## Step 3: Connect Frontend to Backend (CORS Configuration)
+
+After deploying your frontend to Vercel, you need to update your backend to allow requests from your Vercel domain.
+
+1. **Get Your Vercel Deployment URL**
+   - After deployment completes, copy your Vercel URL
+   - Example: `https://chatbot-frontend-abc123.vercel.app`
+
+2. **Update Backend CORS Configuration**
+
+   Go to your Render backend service:
+   - Open Render Dashboard
+   - Go to your backend service (`chatbot-backend`)
+   - Click "Environment" tab
+   - Find the `CORS_ALLOWED_ORIGINS` variable
+   - Update its value to include your Vercel URL:
+
+   ```
+   http://localhost:3000,https://chatbot-frontend-abc123.vercel.app
+   ```
+
+   **If CORS_ALLOWED_ORIGINS doesn't exist, add it:**
+   - Click "Add Environment Variable"
+   - Key: `CORS_ALLOWED_ORIGINS`
+   - Value: `http://localhost:3000,https://your-vercel-app.vercel.app`
+
+3. **Redeploy Backend**
+   - After updating CORS, click "Manual Deploy" → "Deploy latest commit"
+   - Wait for redeployment (2-3 minutes)
+   - This applies the new CORS settings
+
+4. **Test the Connection**
+   - Open your Vercel frontend URL
+   - Open browser DevTools (F12) → Console tab
+   - Try logging in or creating a chatbot
+   - You should NOT see any CORS errors
+   - API calls should work successfully
+
+## Step 4: Final Verification Checklist
+
+After deploying both frontend and backend:
+
+**Backend (Render):**
+- [ ] Service shows "Live" status (green)
+- [ ] Health endpoint works: `https://your-backend.onrender.com/actuator/health`
+- [ ] Returns `{"status":"UP"}`
+- [ ] Database connection successful (check logs)
+- [ ] No errors in deployment logs
+
+**Frontend (Vercel):**
+- [ ] Deployment shows "Ready" status
+- [ ] Homepage loads without errors
+- [ ] No CORS errors in browser console
+- [ ] Can navigate between pages
+- [ ] API calls to backend work
+
+**Integration:**
+- [ ] Can access login page
+- [ ] OAuth login redirects correctly (if configured)
+- [ ] Dashboard loads
+- [ ] Can make API requests to backend
+- [ ] No network errors in DevTools
+
+## Step 2: Configure CORS on Backend (Legacy Section - See Step 3 Above)
 
 Make sure your Spring Boot backend allows requests from your Vercel domain.
 
