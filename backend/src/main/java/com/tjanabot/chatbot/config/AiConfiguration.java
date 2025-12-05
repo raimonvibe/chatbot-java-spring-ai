@@ -8,7 +8,6 @@ import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -19,15 +18,14 @@ import org.springframework.context.annotation.Profile;
  * Uses Claude (Anthropic) for chat and Cohere for embeddings
  * Only active in non-test profiles (tests use MockAiConfiguration)
  *
- * IMPORTANT: This configuration enables Spring AI autoconfiguration explicitly
- * via @EnableAutoConfiguration to ensure AnthropicChatModel bean is created.
+ * Spring AI autoconfiguration is handled by Spring Boot's main @SpringBootApplication
+ * This configuration just creates the ChatClient bean using the auto-configured ChatModel
  *
  * Required environment variables:
  * - ANTHROPIC_API_KEY: Anthropic API key for Claude
  * - COHERE_API_KEY: Cohere API key for embeddings
  */
 @Configuration
-@EnableAutoConfiguration
 @Profile("!test")
 public class AiConfiguration {
 
