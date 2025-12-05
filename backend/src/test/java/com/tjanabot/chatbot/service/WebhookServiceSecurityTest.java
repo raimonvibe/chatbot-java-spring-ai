@@ -142,7 +142,6 @@ class WebhookServiceSecurityTest {
     void mustOnlySendWebhook_forEnabledEvents() {
         // Arrange - Only "conversation_started" is enabled
         Chatbot chatbot = createChatbotWithWebhook("https://safe.example.com/webhook", "conversation_started");
-        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         Map<String, Object> payload = new HashMap<>();
 
@@ -165,7 +164,6 @@ class WebhookServiceSecurityTest {
         // Arrange - No events configured
         Chatbot chatbot = createChatbotWithWebhook("https://safe.example.com/webhook");
         chatbot.setWebhookEvents(null);
-        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         Map<String, Object> payload = new HashMap<>();
 

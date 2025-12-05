@@ -90,32 +90,33 @@ public class BibleVerseService {
                              (websiteContent != null ? websiteContent.toLowerCase() : "") + " " +
                              (websiteUrl != null ? websiteUrl.toLowerCase() : "");
 
-        // Try to find the most relevant verse based on keywords
+        // Check highly specific keyword patterns first (to override "service" substring matches)
+        if (containsAny(combinedText, "church", "worship", "faith", "prayer")) {
+            return "Hebrews 10:25 - 'Not giving up meeting together, as some are in the habit of doing, but encouraging one another—and all the more as you see the Day approaching.'";
+        }
+
+        if (containsAny(combinedText, "beauty", "salon", "spa")) {
+            return "1 Peter 3:3-4 - 'Your beauty should not come from outward adornment, such as elaborate hairstyles and the wearing of gold jewelry or fine clothes. Rather, it should be that of your inner self, the unfading beauty of a gentle and quiet spirit.'";
+        }
+
+        // Try to find the most relevant verse based on keywords from TOPIC_VERSES
         for (Map.Entry<String, String> entry : TOPIC_VERSES.entrySet()) {
             if (combinedText.contains(entry.getKey())) {
                 return entry.getValue();
             }
         }
 
-        // Additional keyword matching for common variations
+        // Additional keyword matching for common variations (checked after TOPIC_VERSES)
         if (containsAny(combinedText, "shop", "store", "retail", "ecommerce", "commerce")) {
             return "Proverbs 11:1 - 'The Lord detests dishonest scales, but accurate weights find favor with him.'";
         }
 
-        if (containsAny(combinedText, "church", "worship", "faith", "prayer", "bible")) {
-            return "Hebrews 10:25 - 'Not giving up meeting together, as some are in the habit of doing, but encouraging one another—and all the more as you see the Day approaching.'";
-        }
-
-        if (containsAny(combinedText, "care", "support", "help", "assist")) {
+        if (containsAny(combinedText, "care", "support", "assist")) {
             return "Galatians 6:2 - 'Carry each other's burdens, and in this way you will fulfill the law of Christ.'";
         }
 
         if (containsAny(combinedText, "food", "cooking", "recipe", "kitchen")) {
             return "Matthew 4:4 - 'Man shall not live on bread alone, but on every word that comes from the mouth of God.'";
-        }
-
-        if (containsAny(combinedText, "beauty", "salon", "spa")) {
-            return "1 Peter 3:3-4 - 'Your beauty should not come from outward adornment, such as elaborate hairstyles and the wearing of gold jewelry or fine clothes. Rather, it should be that of your inner self, the unfading beauty of a gentle and quiet spirit.'";
         }
 
         // Return default verse if no specific match found
