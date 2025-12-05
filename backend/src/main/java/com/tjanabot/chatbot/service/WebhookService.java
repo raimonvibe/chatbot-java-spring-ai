@@ -51,16 +51,17 @@ public class WebhookService {
             return; // No webhook configured
         }
 
+        // Check if this event type is enabled BEFORE validating URL
+        List<String> webhookEvents = chatbot.getWebhookEvents();
+        if (webhookEvents == null || !webhookEvents.contains(eventType)) {
+            return; // This event type is not enabled
+        }
+
         // SSRF Protection: Validate webhook URL
         if (!urlValidationService.isValidAndSafe(webhookUrl)) {
             logger.warn("Blocked unsafe webhook URL for chatbot {}: {}",
                 chatbot.getId(), urlValidationService.extractDomain(webhookUrl));
             return;
-        }
-
-        List<String> webhookEvents = chatbot.getWebhookEvents();
-        if (webhookEvents == null || !webhookEvents.contains(eventType)) {
-            return; // This event type is not enabled
         }
 
         try {

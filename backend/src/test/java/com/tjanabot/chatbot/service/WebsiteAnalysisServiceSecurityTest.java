@@ -220,6 +220,7 @@ class WebsiteAnalysisServiceSecurityTest {
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
+        result.get(); // Wait for async operation to complete
 
         // Assert - Service MUST call validation multiple times
         verify(urlValidationService, atLeastOnce()).isValidAndSafe(anyString());
