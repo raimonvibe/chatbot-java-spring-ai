@@ -1,60 +1,58 @@
-# Multi-stage build for Next.js application
+# ─────────────────────────────────────────────────────────────
+# Next.js 14+ Production Dockerfile (standalone mode – < 100 MB)
+# ─────────────────────────────────────────────────────────────
 
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
-
+# Stage 1 – Install only production dependencies (best layer caching)
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-
-# Install dependencies based on the preferred package manager
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci --only=production
+RUN npm ci --only=production --ignore-scripts
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
-
+# Stage 2 – Build the application
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
+# Install ALL dependencies (dev deps needed for build)
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
+# Copy source code
 COPY frontend/ .
 
-# Build Next.js application
-# Disable telemetry during build
+# Disable Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build
 RUN npm run build
 
-# Stage 3: Runner
-FROM node:20-alpine AS runner
-
+# Stage 3 – Final minimal production image
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Non-root user (security)
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy only what is strictly needed for standalone mode
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Set ownership
-RUN chown -R nextjs:nodejs /app
+# Standalone includes server.js + node_modules + .next
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Expose the port
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Simple & reliable health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start the application
+# Start the app
 CMD ["node", "server.js"]
