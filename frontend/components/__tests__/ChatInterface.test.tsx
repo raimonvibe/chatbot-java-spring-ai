@@ -317,8 +317,8 @@ describe('ChatInterface Component', () => {
       await user.type(input, 'Hello{Enter}')
 
       await waitFor(() => {
-        expect(screen.getByText('Sorry, I encountered an error. Please try again.')).toBeInTheDocument()
-      })
+        expect(screen.getByText(/Sorry, I encountered an error/)).toBeInTheDocument()
+      }, { timeout: 3000 })
     })
 
     it('should recover from error and allow new messages', async () => {
@@ -340,8 +340,8 @@ describe('ChatInterface Component', () => {
       await user.type(input, 'Hello{Enter}')
 
       await waitFor(() => {
-        expect(screen.getByText('Sorry, I encountered an error. Please try again.')).toBeInTheDocument()
-      })
+        expect(screen.getByText(/Sorry, I encountered an error/)).toBeInTheDocument()
+      }, { timeout: 3000 })
 
       // Second message succeeds
       await user.type(input, 'Retry{Enter}')

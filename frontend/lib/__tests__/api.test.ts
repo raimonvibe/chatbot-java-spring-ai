@@ -70,6 +70,7 @@ describe('API Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
+        json: async () => ({ error: 'Failed to send message' }),
       } as Response)
 
       await expect(sendMessage(1, 'Hello')).rejects.toThrow('Failed to send message')
@@ -101,7 +102,8 @@ describe('API Module', () => {
       const result = await getChatbot(1)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/chatbots/1')
+        expect.stringMatching(/\/api\/chatbots\/1/),
+        expect.any(Object)
       )
       expect(result).toEqual(mockChatbot)
     })
@@ -128,7 +130,8 @@ describe('API Module', () => {
       const result = await getQuickReplies(1)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/chatbots/1/quick-replies')
+        expect.stringMatching(/\/api\/chatbots\/1\/quick-replies/),
+        expect.any(Object)
       )
       expect(result).toEqual(mockReplies)
     })
@@ -193,7 +196,8 @@ describe('API Module', () => {
       const result = await getAllChatbots()
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/chatbots')
+        expect.stringMatching(/\/api\/chatbots$/),
+        expect.any(Object)
       )
       expect(result).toEqual(mockChatbots)
     })
@@ -309,7 +313,8 @@ describe('API Module', () => {
       const result = await getEmbedCode(1)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/chatbots/1/embed')
+        expect.stringMatching(/\/api\/chatbots\/1\/embed/),
+        expect.any(Object)
       )
       expect(result).toBe(mockEmbedCode)
     })
