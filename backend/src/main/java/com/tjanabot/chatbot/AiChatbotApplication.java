@@ -1,0 +1,50 @@
+package com.tjanabot.chatbot;
+
+import com.tjanabot.chatbot.config.EnvironmentVariableConfig;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+/**
+ * Main application class for the AI Chatbot System
+ * 
+ * This application provides:
+ * - Website content analysis and crawling
+ * - AI-powered chatbot generation
+ * - Multi-language support
+ * - Custom branding and styling
+ * - Conversation tracking and analytics
+ * 
+ * Note: spring-dotenv 4.0.0 auto-loads .env files from the working directory
+ * 
+ * EnvironmentVariableConfig ensures environment variables are available as Spring properties
+ * before Spring AI auto-configuration runs.
+ * 
+ * @author TjanaBot Development Team
+ * @version 1.0.0
+ */
+@SpringBootApplication
+@EnableAsync
+@EnableScheduling
+public class AiChatbotApplication {
+
+    public static void main(String[] args) {
+        System.out.println("🚀 Starting TjanaBot AI Chatbot System...");
+        System.out.println("🔧 Registering EnvironmentVariableConfig listener...");
+        
+        SpringApplication app = new SpringApplication(AiChatbotApplication.class);
+        
+        // Register EnvironmentVariableConfig listener (Spring Boot 4.0.0 compatible)
+        EnvironmentVariableConfig config = new EnvironmentVariableConfig();
+        app.addListeners(config);
+        System.out.println("✅ EnvironmentVariableConfig listener registered");
+        
+        System.out.println("🔧 Starting Spring Boot application...");
+        app.run(args);
+        System.out.println("\n🚀 TjanaBot AI Chatbot System is running!");
+        System.out.println("📊 Frontend Dashboard: http://localhost:3000");
+        System.out.println("🔧 Backend API: http://localhost:8081");
+        System.out.println("💾 H2 Console: http://localhost:8081/h2-console\n");
+    }
+}

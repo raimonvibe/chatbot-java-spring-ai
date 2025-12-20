@@ -1,0 +1,44 @@
+# GitGuardian configuration file
+# This file configures GitGuardian secret scanning to exclude test files
+# where example tokens and passwords are used for testing purposes
+
+version: 2
+
+# Paths to exclude from secret scanning
+paths-ignore:
+  # Backend test files
+  - backend/src/test/**
+  - "**/test/**"
+  - "**/*Test.java"
+  - "**/*Test.ts"
+  - "**/*Test.tsx"
+
+  # Frontend test files
+  - frontend/**/__tests__/**
+  - frontend/**/*.test.ts
+  - frontend/**/*.test.tsx
+  - frontend/**/*.spec.ts
+  - frontend/**/*.spec.tsx
+  - frontend/jest.setup.js
+  - frontend/jest.config.js
+
+  # Test documentation
+  - "**/TEST_DOCUMENTATION.md"
+
+  # Lock files and generated files
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+  - "**/.next/**"
+  - "**/target/**"
+  - "**/node_modules/**"
+
+# Specific patterns to ignore (test tokens that are publicly known examples)
+matches-ignore:
+  - name: JWT test tokens
+    match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+
+  - name: Example passwords in tests
+    match: password.*test
+
+# This configuration ensures that GitGuardian focuses on actual secrets
+# rather than flagging test fixtures and example data used in unit tests.

@@ -1,0 +1,74 @@
+services:
+  # Backend Service
+  - type: web
+    name: chatbot-backend
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: backend/Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      # Database Configuration (auto-filled from postgres service)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chatbot-postgres
+          property: connectionString
+      - key: DATABASE_DRIVER
+        value: org.postgresql.Driver
+      - key: HIBERNATE_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: DDL_AUTO
+        value: update
+      
+      # AI Configuration (set these in Render dashboard)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_ENVIRONMENT
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: chatbot-vectors
+      
+      # Security
+      - key: JWT_SECRET
+        generateValue: true
+      
+      # OAuth (optional - set in dashboard if needed)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      
+      # Stripe (optional - set in dashboard if needed)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      
+      # Spring Configuration
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+
+  # Frontend Service
+  - type: web
+    name: chatbot-frontend
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: frontend/Dockerfile
+    healthCheckPath: /
+    envVars:
+      # Backend API URL (auto-filled from backend service)
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: chatbot-backend
+          property: host
+
+databases:
+  - name: chatbot-postgres
+    databaseName: chatbot
+    plan: free

@@ -1,0 +1,136 @@
+# Render Environment Variables Configuration
+
+## Overzicht
+
+Deze applicatie gebruikt **spring-dotenv 4.0.0** voor lokale ontwikkeling (laadt `.env` files automatisch) en **system environment variables** in productie op Render.
+
+## Belangrijk: Verschil tussen lokale .env en Render
+
+- **Lokaal**: spring-dotenv laadt automatisch `.env` files uit de working directory
+- **Render/Productie**: Environment variables worden direct ingesteld als system environment variables (geen .env file nodig)
+
+## Vereiste Environment Variables voor Render
+
+Zorg ervoor dat alle volgende variabelen zijn ingesteld in het Render dashboard:
+
+### 🔐 Security & Authentication
+```
+JWT_SECRET=<jouw-jwt-secret-key>
+JWT_EXPIRATION=86400000
+JWT_REFRESH_EXPIRATION=604800000
+```
+
+### 🤖 AI Services
+```
+ANTHROPIC_API_KEY=<jouw-anthropic-api-key>
+COHERE_API_KEY=<jouw-cohere-api-key>
+```
+
+### 🔑 OAuth2 (Google Login)
+```
+GOOGLE_CLIENT_ID=<jouw-google-client-id>
+GOOGLE_CLIENT_SECRET=<jouw-google-client-secret>
+```
+
+### 💳 Stripe Payments
+```
+STRIPE_SECRET_KEY=<jouw-stripe-secret-key>
+STRIPE_WEBHOOK_SECRET=<jouw-stripe-webhook-secret>
+STRIPE_PRICE_ID=<jouw-stripe-price-id>
+STRIPE_SUCCESS_URL=https://jouw-domein.com/dashboard?session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://jouw-domein.com/pricing
+```
+
+### 🗄️ Database (PostgreSQL op Render)
+```
+DATABASE_URL=jdbc:postgresql://<host>:<port>/<database>
+DATABASE_DRIVER=org.postgresql.Driver
+DATABASE_USERNAME=<username>
+DATABASE_PASSWORD=<password>
+```
+
+### 🌐 Server Configuration
+```
+PORT=10000
+CORS_ALLOWED_ORIGINS=https://jouw-domein.com,https://*.vercel.app
+```
+
+### 📊 Optional Configuration
+```
+DDL_AUTO=update
+SHOW_SQL=false
+HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+LOG_LEVEL=INFO
+H2_CONSOLE_ENABLED=false
+```
+
+## Mapping: .env → Render Environment Variables
+
+| .env Variable | Render Environment Variable | application.yml Reference |
+|--------------|----------------------------|---------------------------|
+| `JWT_SECRET` | `JWT_SECRET` | `${JWT_SECRET}` |
+| `ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY` | `${ANTHROPIC_API_KEY}` |
+| `COHERE_API_KEY` | `COHERE_API_KEY` | `${COHERE_API_KEY}` |
+| `GOOGLE_CLIENT_ID` | `GOOGLE_CLIENT_ID` | `${GOOGLE_CLIENT_ID:}` |
+| `GOOGLE_CLIENT_SECRET` | `GOOGLE_CLIENT_SECRET` | `${GOOGLE_CLIENT_SECRET:}` |
+| `STRIPE_SECRET_KEY` | `STRIPE_SECRET_KEY` | `${STRIPE_SECRET_KEY:}` |
+| `STRIPE_WEBHOOK_SECRET` | `STRIPE_WEBHOOK_SECRET` | `${STRIPE_WEBHOOK_SECRET:}` |
+| `DATABASE_URL` | `DATABASE_URL` | `${DATABASE_URL:jdbc:h2:mem:chatbotdb}` |
+| `PORT` | `PORT` | `${PORT:8081}` |
+
+## Hoe spring-dotenv werkt
+
+### Lokale ontwikkeling:
+1. spring-dotenv 4.0.0 laadt automatisch `.env` files
+2. Variabelen worden beschikbaar gemaakt als Spring properties
+3. `${VARIABLE_NAME}` in `application.yml` wordt vervangen
+
+### Productie (Render):
+1. Render stelt environment variables in als **system environment variables**
+2. Spring Boot leest deze automatisch (zonder spring-dotenv nodig)
+3. `${VARIABLE_NAME}` in `application.yml` wordt vervangen door system env vars
+
+## Probleem: Waarom werkt het niet?
+
+**Mogelijke oorzaken:**
+1. ✅ Variabele namen komen overeen (JWT_SECRET = JWT_SECRET)
+2. ❌ **JWT_SECRET had geen default waarde** - als deze ontbreekt, crasht de app
+3. ❌ **ANTHROPIC_API_KEY had geen default** - als deze ontbreekt, werkt chat niet
+
+## Oplossing: Graceful error handling
+
+✅ **FIXED**: 
+- `JWT_SECRET`: **VERPLICHT** - App crasht met duidelijke error als deze ontbreekt
+- `ANTHROPIC_API_KEY`: Optioneel - App start, maar chat functionaliteit werkt niet zonder
+- `COHERE_API_KEY`: Optioneel - App start, maar embeddings werken niet zonder
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Optioneel - OAuth2 login wordt alleen geconfigureerd als beide zijn ingesteld
+
+## Belangrijk voor Render
+
+**Zorg ervoor dat ALLE vereiste variabelen zijn ingesteld in Render dashboard:**
+
+### ✅ Verplicht (zonder deze crasht de app):
+- `JWT_SECRET` - **VERPLICHT** - App start niet zonder deze variabele (security requirement)
+
+### ⚠️ Aanbevolen (app start zonder, maar functionaliteit werkt niet):
+- `ANTHROPIC_API_KEY` - Voor chat functionaliteit (app start zonder, maar chat werkt niet)
+- `COHERE_API_KEY` - Voor embeddings (app start zonder, maar embeddings werken niet)
+- `DATABASE_URL` - Voor PostgreSQL (anders gebruikt H2 in-memory)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - **Voor OAuth login** (beide vereist, OAuth2 wordt alleen geconfigureerd als beide zijn ingesteld)
+- `STRIPE_SECRET_KEY` - Voor betalingen
+
+## Verificatie in Render
+
+Na het instellen van environment variables in Render:
+1. Deploy de applicatie
+2. Check de logs voor errors over ontbrekende variabelen
+3. Test `/actuator/health` endpoint
+4. Test chat functionaliteit
+
+## Spring-dotenv gedrag
+
+- **Lokaal**: spring-dotenv 4.0.0 laadt automatisch `.env` files
+- **Render**: Environment variables worden direct als system env vars ingesteld
+- **Spring Boot**: Leest automatisch system environment variables (zonder spring-dotenv nodig)
+- **Conclusie**: In Render werkt het ZONDER .env file - alleen system env vars nodig!
+
