@@ -17,6 +17,17 @@ const config = {
     '**/__tests__/**/*.test.[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)',
   ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.next/',
+    '/e2e/',  // Exclude Playwright E2E tests - they should run separately
+    '/test-results/',
+    '/playwright-report/',
+    '/coverage/',
+  ],
+  modulePathIgnorePatterns: [
+    '/.next/standalone/',  // Fix Haste module naming collision
+  ],
   collectCoverageFrom: [
     'components/**/*.{js,jsx,ts,tsx}',
     'lib/**/*.{js,jsx,ts,tsx}',
