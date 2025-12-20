@@ -192,10 +192,19 @@ export const testSubscriptions: Record<string, TestSubscription> = {
 };
 
 /**
+ * Generate a cryptographically secure random number for test IDs
+ */
+function getSecureRandomInt(max: number): number {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] % max;
+}
+
+/**
  * Generate a random test user
  */
 export function generateTestUser(overrides: Partial<TestUser> = {}): TestUser {
-  const randomId = Math.floor(Math.random() * 10000);
+  const randomId = getSecureRandomInt(10000);
   return {
     id: randomId,
     email: `test${randomId}@example.com`,
@@ -211,7 +220,7 @@ export function generateTestUser(overrides: Partial<TestUser> = {}): TestUser {
  * Generate a random test chatbot
  */
 export function generateTestChatbot(overrides: Partial<TestChatbot> = {}): TestChatbot {
-  const randomId = Math.floor(Math.random() * 10000);
+  const randomId = getSecureRandomInt(10000);
   const now = new Date().toISOString();
   return {
     id: randomId,
