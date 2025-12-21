@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, checkAuth, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2 } from 'lucide-react';
@@ -167,6 +167,28 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteAllChatbots = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${chatbots.length} chatbot(s)? This action cannot be undone and will reset your testing environment.`)) {
+      return;
+    }
+
+    try {
+      const result = await deleteAllChatbots();
+      setChatbots([]);
+      // Update subscription status after deletion
+      setSubscriptionStatus({
+        isPreviewMode: false,
+        canAccessIntegrationScript: false,
+        maxChatbots: 3, // Preview mode allows 3 chatbots
+        currentChatbotCount: 0,
+      });
+      alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);
+    } catch (error: any) {
+      console.error('Error deleting all chatbots:', error);
+      alert('Failed to delete all chatbots. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -215,16 +237,27 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
-          >
-            {showCreateForm ? (
-              <><X className="w-5 h-5" /> Cancel</>
-            ) : (
-              <><Plus className="w-5 h-5" /> Create New Chatbot</>
+          <div className="flex items-center gap-3">
+            {chatbots.length > 0 && (
+              <button
+                onClick={handleDeleteAllChatbots}
+                className="px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 hover:shadow-lg transition-all flex items-center gap-2"
+                title="Delete all chatbots (for testing)"
+              >
+                <Trash2 className="w-5 h-5" /> Delete All
+              </button>
             )}
-          </button>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
+            >
+              {showCreateForm ? (
+                <><X className="w-5 h-5" /> Cancel</>
+              ) : (
+                <><Plus className="w-5 h-5" /> Create New Chatbot</>
+              )}
+            </button>
+          </div>
         </div>
 
         {showCreateForm && (

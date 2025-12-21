@@ -273,3 +273,16 @@ export async function deleteChatbot(chatbotId: number): Promise<void> {
     throw new Error('Failed to delete chatbot');
   }
 }
+
+export async function deleteAllChatbots(): Promise<{ message: string; deletedCount: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete all chatbots');
+  }
+
+  return response.json();
+}

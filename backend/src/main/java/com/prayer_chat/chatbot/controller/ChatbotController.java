@@ -410,6 +410,43 @@ public class ChatbotController {
     }
     
     /**
+     * Delete all chatbots for the current user (useful for testing/resetting)
+     */
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> deleteAllChatbots(
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            User user = currentUser.getUser();
+            
+            // Find all chatbots owned by this user
+            List<Chatbot> userChatbots = chatbotRepository.findByOwnerId(user.getId());
+            
+            if (userChatbots.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "message", "No chatbots found to delete",
+                    "deletedCount", 0
+                ));
+            }
+            
+            // Delete all chatbots
+            int deletedCount = userChatbots.size();
+            chatbotRepository.deleteAll(userChatbots);
+            
+            logger.info("Deleted {} chatbots for user: {}", deletedCount, LogSanitizer.sanitize(user.getEmail()));
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Successfully deleted all chatbots",
+                "deletedCount", deletedCount
+            ));
+
+        } catch (Exception e) {
+            logger.error("Error deleting all chatbots for user", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to delete chatbots"));
+        }
+    }
+    
+    /**
      * Analyze website for a chatbot
      * Enforces cost protection limits for preview mode users:
      * - Website size limit (50 pages max for preview)
