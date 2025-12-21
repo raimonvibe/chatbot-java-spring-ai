@@ -87,6 +87,8 @@ public class ChatController {
         } catch (RuntimeException e) {
             String errorMessage = e.getMessage();
             logger.error("Error processing chat message for chatbot {}: {}", chatbotId, LogSanitizer.sanitizeException(e));
+            logger.error("Exception type: {}, Cause: {}", e.getClass().getName(), 
+                e.getCause() != null ? e.getCause().getClass().getName() : "none");
             
             // Return specific error messages for common issues
             if (errorMessage != null && errorMessage.contains("not found")) {
@@ -100,13 +102,35 @@ public class ChatController {
                 ));
             }
             
+            // Check for AI configuration errors
+            if (errorMessage != null && (errorMessage.contains("ANTHROPIC_API_KEY") || 
+                                         errorMessage.contains("ChatModel") || 
+                                         errorMessage.contains("not properly configured"))) {
+                logger.error("AI service configuration error detected. Check ANTHROPIC_API_KEY and COHERE_API_KEY environment variables.");
+                return ResponseEntity.status(503).body(Map.of(
+                    "error", "AI service is not configured. Please contact support."
+                ));
+            }
+            
             return ResponseEntity.status(500).body(Map.of(
                 "error", errorMessage != null ? errorMessage : "Failed to process message"
             ));
         } catch (Exception e) {
-            logger.error("Error processing chat message for chatbot {}: {}", chatbotId, LogSanitizer.sanitizeException(e));
+            logger.error("Unexpected error processing chat message for chatbot {}: {}", chatbotId, LogSanitizer.sanitizeException(e));
+            logger.error("Exception type: {}, Cause: {}", e.getClass().getName(), 
+                e.getCause() != null ? e.getCause().getClass().getName() : "none");
+            
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("ANTHROPIC_API_KEY") || 
+                                     errorMsg.contains("ChatModel") || 
+                                     errorMsg.contains("not properly configured"))) {
+                return ResponseEntity.status(503).body(Map.of(
+                    "error", "AI service is not configured. Please contact support."
+                ));
+            }
+            
             return ResponseEntity.status(500).body(Map.of(
-                "error", "Failed to process message: " + (e.getMessage() != null ? e.getMessage() : "Unknown error")
+                "error", "Failed to process message: " + (errorMsg != null ? errorMsg : "Unknown error")
             ));
         }
     }

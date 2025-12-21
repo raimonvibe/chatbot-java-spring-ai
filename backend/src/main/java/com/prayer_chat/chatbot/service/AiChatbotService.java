@@ -185,10 +185,23 @@ public class AiChatbotService {
         messages.add(new UserMessage(userMessage));
 
         // Generate response
-        Prompt prompt = new Prompt(messages);
-        ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
-
-        return response.getResult().getOutput().getText();
+        try {
+            Prompt prompt = new Prompt(messages);
+            ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
+            return response.getResult().getOutput().getText();
+        } catch (IllegalStateException e) {
+            // This usually means ChatModel is not configured (missing API key)
+            if (e.getMessage() != null && (e.getMessage().contains("ANTHROPIC_API_KEY") || 
+                                            e.getMessage().contains("ChatModel") || 
+                                            e.getMessage().contains("not properly configured"))) {
+                logger.error("AI service not configured. Check ANTHROPIC_API_KEY environment variable.");
+                throw new RuntimeException("AI service is not configured. Please ensure ANTHROPIC_API_KEY is set.", e);
+            }
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error generating AI response: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to generate AI response: " + e.getMessage(), e);
+        }
     }
     
     /**
