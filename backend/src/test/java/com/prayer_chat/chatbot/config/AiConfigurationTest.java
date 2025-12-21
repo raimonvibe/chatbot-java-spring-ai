@@ -17,7 +17,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -39,23 +38,11 @@ import static org.mockito.Mockito.*;
 class AiConfigurationTest {
 
     private AiConfiguration aiConfiguration;
-    private String originalAnthropicApiKey;
-    private String originalCohereApiKey;
 
     @BeforeEach
     void setUp() {
-        // Save original environment variables
-        originalAnthropicApiKey = System.getenv("ANTHROPIC_API_KEY");
-        originalCohereApiKey = System.getenv("COHERE_API_KEY");
-        
         // Create configuration instance
         aiConfiguration = new AiConfiguration();
-    }
-
-    @AfterEach
-    void tearDown() {
-        // Restore original environment variables (if any)
-        // Note: We can't actually restore them, but we clear our test values
     }
 
     // ========== SECURITY: API Key Validation Tests ==========
