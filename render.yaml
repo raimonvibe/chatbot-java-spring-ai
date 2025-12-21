@@ -51,6 +51,17 @@ services:
       # Spring Configuration
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
         value: update
+      
+      # Frontend URL for OAuth2 redirects (auto-filled from frontend service)
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: chatbot-frontend
+          property: host
+      
+      # CORS Configuration (includes production domain, Render frontend, and Vercel test URL)
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://prayer-chat.com,${FRONTEND_URL},https://chatbot-java-spring-ai.vercel.app
 
   # Frontend Service
   - type: web

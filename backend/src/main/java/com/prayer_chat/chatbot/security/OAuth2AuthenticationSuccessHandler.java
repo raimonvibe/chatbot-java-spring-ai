@@ -41,11 +41,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private String getFrontendUrl() {
         // Use explicit FRONTEND_URL if set
         if (frontendUrlOverride != null && !frontendUrlOverride.trim().isEmpty()) {
-            logger.debug("Using FRONTEND_URL override: {}", frontendUrlOverride);
+            logger.info("Using FRONTEND_URL override: {}", frontendUrlOverride);
             return frontendUrlOverride.trim();
         }
         
         if (allowedOrigins == null || allowedOrigins.trim().isEmpty()) {
+            logger.warn("No allowed origins configured, using default localhost");
             return "http://localhost:3000";
         }
         
@@ -53,21 +54,47 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String[] origins = allowedOrigins.split(",");
         
         // First, try to find a non-localhost URL (for production)
+        // Priority: 1. prayer-chat.com (production), 2. vercel.app (testing), 3. Other HTTPS, 4. First non-localhost
+        String productionUrl = null;
+        String testUrl = null;
+        String firstNonLocalhost = null;
+        
         for (String origin : origins) {
             String trimmed = origin.trim();
-            if (!trimmed.isEmpty() && !trimmed.startsWith("http://localhost") && !trimmed.startsWith("http://127.0.0.1")) {
-                // Remove wildcard patterns if present
-                trimmed = trimmed.replace("https://*.", "https://");
-                logger.debug("Using non-localhost origin: {}", trimmed);
-                return trimmed;
+            if (trimmed.isEmpty()) continue;
+            
+            // Remove wildcard patterns if present
+            trimmed = trimmed.replace("https://*.", "https://");
+            
+            // Skip localhost URLs
+            if (trimmed.startsWith("http://localhost") || trimmed.startsWith("http://127.0.0.1")) {
+                continue;
+            }
+            
+            // Track first non-localhost URL
+            if (firstNonLocalhost == null) {
+                firstNonLocalhost = trimmed;
+            }
+            
+            // Prioritize prayer-chat.com (production domain)
+            if (trimmed.contains("prayer-chat.com")) {
+                productionUrl = trimmed;
+                break; // Highest priority, use immediately
+            }
+            
+            // Track vercel.app URLs for testing (but don't break, continue to check for prayer-chat.com)
+            if (testUrl == null && trimmed.contains("vercel.app")) {
+                testUrl = trimmed;
             }
         }
         
-        // Fallback to first URL (for local development)
-        String firstOrigin = origins[0].trim();
-        firstOrigin = firstOrigin.replace("https://*.", "https://");
-        logger.debug("Using first origin (may be localhost): {}", firstOrigin);
-        return firstOrigin;
+        // Use production URL if found, otherwise test URL, otherwise first non-localhost, otherwise first URL
+        String selectedUrl = productionUrl != null ? productionUrl :
+                            (testUrl != null ? testUrl :
+                            (firstNonLocalhost != null ? firstNonLocalhost : origins[0].trim()));
+        
+        logger.info("Selected frontend URL for redirect: {} (from allowed origins: {})", selectedUrl, allowedOrigins);
+        return selectedUrl;
     }
 
     @Override
