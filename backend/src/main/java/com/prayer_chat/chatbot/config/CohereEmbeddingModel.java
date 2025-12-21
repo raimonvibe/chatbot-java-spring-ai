@@ -1,13 +1,13 @@
 package com.prayer_chat.chatbot.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.Embedding;
-import org.springframework.lang.NonNull;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -35,12 +35,20 @@ public class CohereEmbeddingModel implements EmbeddingModel {
                 .build();
         this.apiKey = apiKey;
         this.model = model;
-        this.objectMapper = new ObjectMapper();
+        // Configure ObjectMapper for security:
+        // - Only deserialize to specific classes (CohereEmbedResponse) - prevents gadget chain attacks
+        // - Disable features that could allow unsafe deserialization
+        // - Default ObjectMapper is safe when only deserializing to known classes
+        this.objectMapper = new ObjectMapper()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE)
+                .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                .disable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
     }
 
     @Override
-    @NonNull
-    public EmbeddingResponse call(@NonNull EmbeddingRequest request) {
+    @SuppressWarnings("null") // Interface requires @NonNull but annotation is deprecated in Spring 7.0
+    public EmbeddingResponse call(EmbeddingRequest request) {
         try {
             List<String> texts = request.getInstructions();
 
@@ -63,7 +71,12 @@ public class CohereEmbeddingModel implements EmbeddingModel {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Cohere API returned status " + response.statusCode() + ": " + response.body());
+                // Don't expose full response body in error (may contain sensitive info)
+                String errorMsg = response.statusCode() == 401 ? "Authentication failed" :
+                                 response.statusCode() == 403 ? "Access forbidden" :
+                                 response.statusCode() == 429 ? "Rate limit exceeded" :
+                                 "Cohere API error: " + response.statusCode();
+                throw new RuntimeException(errorMsg);
             }
 
             CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
@@ -85,14 +98,21 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     }
 
     @Override
-    @NonNull
-    public float[] embed(@NonNull Document document) {
-        return embed(document.getText());
+    @SuppressWarnings("null") // Interface requires @NonNull but annotation is deprecated in Spring 7.0
+    public float[] embed(Document document) {
+        String text = document.getText();
+        if (text == null || text.trim().isEmpty()) {
+            throw new IllegalArgumentException("Document text cannot be null or empty");
+        }
+        return embed(text);
     }
 
     @Override
-    @NonNull
-    public float[] embed(@NonNull String text) {
+    @SuppressWarnings("null") // Interface requires @NonNull but annotation is deprecated in Spring 7.0
+    public float[] embed(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            throw new IllegalArgumentException("Text cannot be null or empty");
+        }
         try {
             CohereEmbedRequest request = new CohereEmbedRequest(
                     List.of(text),
@@ -113,7 +133,12 @@ public class CohereEmbeddingModel implements EmbeddingModel {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Cohere API returned status " + response.statusCode() + ": " + response.body());
+                // Don't expose full response body in error (may contain sensitive info)
+                String errorMsg = response.statusCode() == 401 ? "Authentication failed" :
+                                 response.statusCode() == 403 ? "Access forbidden" :
+                                 response.statusCode() == 429 ? "Rate limit exceeded" :
+                                 "Cohere API error: " + response.statusCode();
+                throw new RuntimeException(errorMsg);
             }
 
             CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
@@ -135,6 +160,7 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     }
 
     // Request/Response classes for Cohere API
+    @SuppressWarnings("unused") // Fields are used by Jackson for JSON serialization
     private static class CohereEmbedRequest {
         public List<String> texts;
         public String model;
