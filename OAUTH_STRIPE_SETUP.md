@@ -29,12 +29,14 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 
 1. Go to "APIs & Services" → "OAuth consent screen"
 2. Select "External" (unless you have Google Workspace)
-3. Click "Create"
+3. Click "Create" (or "Edit" if already created)
 4. Fill in the required information:
-   - **App name**: Prayer-Chat AI Chatbot
+   - **App name**: `Prayer-Chat` (⚠️ **IMPORTANT**: This is what users see in the consent screen!)
    - **User support email**: Your email
    - **Developer contact information**: Your email
 5. Click "Save and Continue"
+
+**⚠️ Note**: If you see "Tjanabot" in the consent screen, you need to update the **App name** in Google Cloud Console. This cannot be changed via code - it's a Google Cloud Console setting.
 6. **Scopes**: Click "Add or Remove Scopes"
    - Add: `userinfo.email`
    - Add: `userinfo.profile`

@@ -55,4 +55,10 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
      * Find chatbots by owner ID
      */
     List<Chatbot> findByOwnerId(Long ownerId);
+    
+    /**
+     * Count chatbots by owner
+     */
+    @Query("SELECT COUNT(c) FROM Chatbot c WHERE c.owner.id = :ownerId")
+    Long countByOwner(@Param("ownerId") Long ownerId);
 }

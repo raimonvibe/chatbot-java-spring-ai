@@ -11,13 +11,16 @@ import com.prayer_chat.chatbot.service.ChatbotService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.BibleVerseService;
+import com.prayer_chat.chatbot.service.CostTrackingService;
+import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,7 +29,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * REST Controller for chatbot management
@@ -44,6 +46,10 @@ public class ChatbotController {
     private final ConversationExportService conversationExportService;
     private final BibleVerseService bibleVerseService;
     private final SubscriptionRepository subscriptionRepository;
+    private final CostTrackingService costTrackingService;
+    private final WebsiteSizeEstimator websiteSizeEstimator;
+    private final WebsiteContentRepository websiteContentRepository;
+    private final AccessControlService accessControlService;
 
     @Autowired
     public ChatbotController(ChatbotRepository chatbotRepository,
@@ -52,7 +58,11 @@ public class ChatbotController {
                            WebsiteAnalysisService websiteAnalysisService,
                            ConversationExportService conversationExportService,
                            BibleVerseService bibleVerseService,
-                           SubscriptionRepository subscriptionRepository) {
+                           SubscriptionRepository subscriptionRepository,
+                           CostTrackingService costTrackingService,
+                           WebsiteSizeEstimator websiteSizeEstimator,
+                           WebsiteContentRepository websiteContentRepository,
+                           AccessControlService accessControlService) {
         this.chatbotRepository = chatbotRepository;
         this.chatbotService = chatbotService;
         this.aiChatbotService = aiChatbotService;
@@ -60,6 +70,10 @@ public class ChatbotController {
         this.conversationExportService = conversationExportService;
         this.bibleVerseService = bibleVerseService;
         this.subscriptionRepository = subscriptionRepository;
+        this.costTrackingService = costTrackingService;
+        this.websiteSizeEstimator = websiteSizeEstimator;
+        this.websiteContentRepository = websiteContentRepository;
+        this.accessControlService = accessControlService;
     }
 
     // ============================================================================
@@ -67,11 +81,19 @@ public class ChatbotController {
     // ============================================================================
 
     /**
-     * Check if user has an active subscription
+     * Check if user has an active subscription or is in preview mode
      */
     private boolean hasActiveSubscription(User user) {
-        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
-        return subscriptionOpt.isPresent() && subscriptionOpt.get().canUseChatbot();
+        // Use AccessControlService to check subscription (includes preview mode)
+        // Service is always injected via constructor, so no null check needed
+        return accessControlService.hasActiveSubscription(user) || accessControlService.isPreviewMode(user);
+    }
+    
+    /**
+     * Check if user is in preview mode (helper method)
+     */
+    private boolean isPreviewMode(User user) {
+        return costTrackingService.isPreviewMode(user);
     }
 
     /**
@@ -226,10 +248,44 @@ public class ChatbotController {
 
             User user = currentUser.getUser();
 
-            // Check if user has active subscription
-            if (!hasActiveSubscription(user)) {
-                logger.warn("User {} attempted to create chatbot without active subscription", LogSanitizer.sanitize(user.getEmail()));
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            // Check if user has active subscription (or is in preview mode)
+            if (!accessControlService.hasActiveSubscription(user) && !accessControlService.isPreviewMode(user)) {
+                logger.warn("User {} attempted to create chatbot without active subscription or preview mode", LogSanitizer.sanitize(user.getEmail()));
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Active subscription or preview mode required to create chatbots."
+                ));
+            }
+
+            // Enforce one chatbot per account limit for preview mode
+            // Use synchronized check-and-create pattern to prevent race conditions
+            Long currentChatbotCount = chatbotRepository.countByOwner(user.getId());
+            if (!accessControlService.canCreateChatbot(user, currentChatbotCount)) {
+                int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
+                logger.warn("User {} attempted to create chatbot but limit reached (current: {}, max: {})", 
+                    LogSanitizer.sanitize(user.getEmail()), currentChatbotCount, maxAllowed);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "One chatbot per account limit reached. Preview mode allows 1 chatbot. Upgrade to create more.",
+                    "currentCount", currentChatbotCount,
+                    "maxAllowed", maxAllowed,
+                    "upgradeRequired", true
+                ));
+            }
+            
+            // Double-check after acquiring lock (defense in depth)
+            // This prevents race condition where two requests both pass the initial check
+            if (isPreviewMode(user)) {
+                // Re-check count right before creation to catch any concurrent creations
+                Long finalCount = chatbotRepository.countByOwner(user.getId());
+                if (finalCount >= 1) {
+                    logger.warn("User {} attempted to create chatbot but limit reached (race condition detected, count: {})", 
+                        LogSanitizer.sanitize(user.getEmail()), finalCount);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "error", "One chatbot per account limit reached. Preview mode allows 1 chatbot. Upgrade to create more.",
+                        "currentCount", finalCount,
+                        "maxAllowed", 1,
+                        "upgradeRequired", true
+                    ));
+                }
             }
 
             // Convert DTO to entity
@@ -349,6 +405,10 @@ public class ChatbotController {
     
     /**
      * Analyze website for a chatbot
+     * Enforces cost protection limits for preview mode users:
+     * - Website size limit (50 pages max for preview)
+     * - Scan frequency limit (1 scan/day for preview)
+     * - Cost limit ($5/month for preview)
      */
     @PostMapping("/{id}/analyze")
     public ResponseEntity<Map<String, Object>> analyzeWebsite(@PathVariable Long id,
@@ -369,24 +429,79 @@ public class ChatbotController {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
             }
             
-            // Start website analysis asynchronously
-            CompletableFuture<List<com.prayer_chat.chatbot.model.WebsiteContent>> analysisFuture = 
-                websiteAnalysisService.analyzeWebsite(chatbot);
+            // Check if user is in preview mode
+            boolean isPreviewMode = costTrackingService.isPreviewMode(user);
+            
+            // 1. Check scan frequency limit (1 scan/day for preview mode)
+            if (isPreviewMode) {
+                java.time.LocalDateTime oneDayAgo = java.time.LocalDateTime.now().minusDays(1);
+                Long scansInLastDay = websiteContentRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
+                if (scansInLastDay != null && scansInLastDay >= 1) {
+                    logger.warn("User {} attempted to scan website but daily limit reached (preview mode: 1 scan/day)", 
+                        LogSanitizer.sanitize(user.getEmail()));
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "error", "Daily scan limit reached. Preview mode allows 1 scan per day. Upgrade to continue.",
+                        "limit", "1 scan per day",
+                        "upgradeRequired", true
+                    ));
+                }
+            }
+            
+            // 2. Estimate website size BEFORE scanning (prevents costs for large sites)
+            int estimatedPages = websiteSizeEstimator.estimateSize(chatbot.getWebsiteUrl());
+            int maxPagesForUser = isPreviewMode ? 50 : Integer.MAX_VALUE;
+            
+            if (estimatedPages > maxPagesForUser) {
+                logger.warn("User {} attempted to scan website with {} pages (limit: {} for preview mode)", 
+                    LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Subscribe to scan larger websites.",
+                    "estimatedPages", estimatedPages,
+                    "maxPages", maxPagesForUser,
+                    "upgradeRequired", true
+                ));
+            }
+            
+            // 3. Estimate cost and check cost limit
+            if (isPreviewMode) {
+                // Estimate tokens: ~2000 tokens per page (conservative estimate)
+                int estimatedTokens = estimatedPages * 2000;
+                java.math.BigDecimal estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
+                
+                try {
+                    costTrackingService.checkCostLimit(user, estimatedCost);
+                } catch (RuntimeException e) {
+                    logger.warn("User {} attempted to scan website but cost limit would be exceeded: {}", 
+                        LogSanitizer.sanitize(user.getEmail()), e.getMessage());
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "error", e.getMessage(),
+                        "estimatedCost", estimatedCost.toString(),
+                        "upgradeRequired", true
+                    ));
+                }
+            }
+            
+            // All checks passed - start website analysis asynchronously
+            websiteAnalysisService.analyzeWebsite(chatbot);
             
             // Return analysis status
             Map<String, Object> response = Map.of(
                 "status", "analysis_started",
                 "chatbotId", id,
                 "websiteUrl", chatbot.getWebsiteUrl(),
+                "estimatedPages", estimatedPages,
                 "message", "Website analysis started. Check back later for results."
             );
             
-            logger.info("Started website analysis for chatbot: {}", LogSanitizer.sanitize(chatbot.getName()));
+            logger.info("Started website analysis for chatbot: {} (estimated {} pages)", 
+                LogSanitizer.sanitize(chatbot.getName()), estimatedPages);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("Error starting website analysis for chatbot {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "An error occurred while starting website analysis. Please try again."
+            ));
         }
     }
     
@@ -479,7 +594,7 @@ public class ChatbotController {
      * Get chatbot embed code
      */
     @GetMapping("/{id}/embed")
-    public ResponseEntity<Map<String, String>> getEmbedCode(@PathVariable Long id,
+    public ResponseEntity<?> getEmbedCode(@PathVariable Long id,
                                                             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
             User user = currentUser.getUser();
@@ -496,6 +611,18 @@ public class ChatbotController {
             if (accessCheck != null) {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
             }
+            
+            // Check if user can access integration script (requires paid subscription)
+            if (!accessControlService.canAccessIntegrationScript(user)) {
+                logger.warn("User {} attempted to access integration script without paid subscription", 
+                    LogSanitizer.sanitize(user.getEmail()));
+                return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+                    "error", "Upgrade to paid tier for integration script access. Preview mode does not include integration script access.",
+                    "upgradeRequired", true,
+                    "message", "We'd love to help you share your message more widely! Upgrade to access the integration script."
+                ));
+            }
+            
             String embedCode = generateEmbedCode(chatbot);
             
             Map<String, String> response = Map.of(

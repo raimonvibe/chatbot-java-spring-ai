@@ -5,6 +5,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
@@ -53,6 +54,16 @@ public class User implements UserDetails {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Subscription subscription;
+    
+    // Cost tracking fields (for abuse protection)
+    @Column(precision = 10, scale = 2)
+    private BigDecimal currentMonthCost = BigDecimal.ZERO;
+    
+    @Column(precision = 10, scale = 2)
+    private BigDecimal monthlyCostLimit = new BigDecimal("5.00"); // Free tier: $5/month
+    
+    @Column
+    private LocalDateTime costResetDate; // When to reset monthly cost counter
 
     // Enum for authentication providers
     public enum AuthProvider {
@@ -201,5 +212,29 @@ public class User implements UserDetails {
 
     public void setSubscription(Subscription subscription) {
         this.subscription = subscription;
+    }
+    
+    public BigDecimal getCurrentMonthCost() {
+        return currentMonthCost != null ? currentMonthCost : BigDecimal.ZERO;
+    }
+    
+    public void setCurrentMonthCost(BigDecimal currentMonthCost) {
+        this.currentMonthCost = currentMonthCost;
+    }
+    
+    public BigDecimal getMonthlyCostLimit() {
+        return monthlyCostLimit != null ? monthlyCostLimit : new BigDecimal("5.00");
+    }
+    
+    public void setMonthlyCostLimit(BigDecimal monthlyCostLimit) {
+        this.monthlyCostLimit = monthlyCostLimit;
+    }
+    
+    public LocalDateTime getCostResetDate() {
+        return costResetDate;
+    }
+    
+    public void setCostResetDate(LocalDateTime costResetDate) {
+        this.costResetDate = costResetDate;
     }
 }

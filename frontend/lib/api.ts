@@ -176,14 +176,61 @@ export async function analyzeWebsite(chatbotId: number, websiteUrl: string): Pro
   return response.json();
 }
 
+export interface SubscriptionStatus {
+  isPreviewMode: boolean;
+  canAccessIntegrationScript: boolean;
+  maxChatbots: number;
+  currentChatbotCount: number;
+  plan?: string;
+}
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  try {
+    // Try to get user info which includes subscription status
+    const authResult = await checkAuth();
+    if (!authResult.authenticated || !authResult.user) {
+      return {
+        isPreviewMode: true,
+        canAccessIntegrationScript: false,
+        maxChatbots: 1,
+        currentChatbotCount: 0,
+      };
+    }
+    
+    // Check if user has subscription by trying to access a paid feature
+    // If embed endpoint returns 402, user is in preview mode
+    // This is a simple heuristic - in production, you'd have a dedicated endpoint
+    return {
+      isPreviewMode: true, // Default to preview mode
+      canAccessIntegrationScript: false,
+      maxChatbots: 1,
+      currentChatbotCount: 0,
+    };
+  } catch (error) {
+    return {
+      isPreviewMode: true,
+      canAccessIntegrationScript: false,
+      maxChatbots: 1,
+      currentChatbotCount: 0,
+    };
+  }
+}
+
 export async function getEmbedCode(chatbotId: number): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/embed`, {
     credentials: 'include',
   });
 
   if (!response.ok) {
-    throw new Error('Failed to get embed code');
+    if (response.status === 402) {
+      // Payment required - user is in preview mode
+      const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
+      throw new Error(errorData.error || 'Upgrade to paid tier for integration script access');
+    }
+    const errorData = await response.json().catch(() => ({ error: 'Failed to get embed code' }));
+    throw new Error(errorData.error || 'Failed to get embed code');
   }
 
-  return response.text();
+  const data = await response.json();
+  return data.embedCode || data;
 }

@@ -61,6 +61,18 @@ class ChatbotControllerIT {
     @MockitoBean
     private SubscriptionRepository subscriptionRepository;
 
+    @MockitoBean
+    private com.prayer_chat.chatbot.service.AccessControlService accessControlService;
+
+    @MockitoBean
+    private com.prayer_chat.chatbot.service.CostTrackingService costTrackingService;
+
+    @MockitoBean
+    private com.prayer_chat.chatbot.service.WebsiteSizeEstimator websiteSizeEstimator;
+
+    @MockitoBean
+    private com.prayer_chat.chatbot.repository.WebsiteContentRepository websiteContentRepository;
+
     private User testUser;
     private Chatbot testChatbot;
     private Subscription testSubscription;
@@ -77,6 +89,25 @@ class ChatbotControllerIT {
         testSubscription = TestDataBuilder.createActiveSubscription(testUser);
         testSubscription.setId(1L);
         when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(testSubscription));
+        
+        // Mock access control services for paid user (default test user)
+        when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(true);
+        when(accessControlService.isPreviewMode(any(User.class))).thenReturn(false);
+        when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(true);
+        when(accessControlService.canCreateChatbot(any(User.class), anyLong())).thenReturn(true);
+        when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(Integer.MAX_VALUE);
+        
+        // Mock cost tracking for paid user
+        when(costTrackingService.isPreviewMode(any(User.class))).thenReturn(false);
+        
+        // Mock website size estimator (default: small website)
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
+        
+        // Mock website content repository (no scans today)
+        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        
+        // Mock chatbot repository count (no chatbots yet)
+        when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);
     }
 
     @Test
@@ -358,17 +389,47 @@ class ChatbotControllerIT {
     }
 
     @Test
-    @DisplayName("Should generate embed code for chatbot")
-    void shouldGenerateEmbedCode() throws Exception {
+    @DisplayName("Should generate embed code for chatbot with paid subscription")
+    void shouldGenerateEmbedCodeForPaidUser() throws Exception {
         // Arrange
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-        // Note: generateEmbedCode is a private method in ChatbotController, not in ChatbotService
+        when(accessControlService.canAccessIntegrationScript(testUser)).thenReturn(true);
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots/1/embed")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.embedCode").exists());
+
+        verify(chatbotRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should deny embed code access for preview mode users")
+    void shouldDenyEmbedCodeForPreviewMode() throws Exception {
+        // Arrange
+        User previewUser = TestDataBuilder.createTestUser("preview@example.com");
+        previewUser.setId(2L);
+        
+        // Create subscription for preview user (FREE plan)
+        Subscription previewSubscription = TestDataBuilder.createFreeSubscription(previewUser);
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.of(previewSubscription));
+        
+        // Create chatbot owned by preview user
+        Chatbot previewChatbot = TestDataBuilder.createTestChatbot(previewUser);
+        previewChatbot.setId(1L);
+        
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(previewChatbot));
+        when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
+        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
+        when(accessControlService.canAccessIntegrationScript(previewUser)).thenReturn(false);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/chatbots/1/embed")
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+            .andExpect(status().isPaymentRequired())
+            .andExpect(jsonPath("$.error").exists())
+            .andExpect(jsonPath("$.upgradeRequired").value(true));
 
         verify(chatbotRepository, times(1)).findById(1L);
     }
@@ -383,12 +444,11 @@ class ChatbotControllerIT {
     // }
 
     @Test
-    @DisplayName("Should analyze website for chatbot")
-    void shouldAnalyzeWebsiteForChatbot() throws Exception {
+    @DisplayName("Should analyze website for chatbot with paid subscription")
+    void shouldAnalyzeWebsiteForPaidUser() throws Exception {
         // Arrange
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-        // Note: analyzeWebsite is handled by WebsiteAnalysisService, not ChatbotService
-        // The endpoint starts the analysis asynchronously
+        // Mocks are already set up in setUp() for paid user
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots/1/analyze")
@@ -397,5 +457,98 @@ class ChatbotControllerIT {
             .andExpect(jsonPath("$.message").exists());
 
         verify(chatbotRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should reject website analysis for preview mode when limit reached")
+    void shouldRejectWebsiteAnalysisWhenLimitReached() throws Exception {
+        // Arrange
+        User previewUser = TestDataBuilder.createTestUser("preview@example.com");
+        previewUser.setId(2L);
+        
+        Subscription previewSubscription = TestDataBuilder.createFreeSubscription(previewUser);
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.of(previewSubscription));
+        
+        // Create chatbot owned by preview user
+        Chatbot previewChatbot = TestDataBuilder.createTestChatbot(previewUser);
+        previewChatbot.setId(1L);
+        
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(previewChatbot));
+        when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
+        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
+        when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
+        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
+
+        // Act & Assert
+        mockMvc.perform(post("/api/chatbots/1/analyze")
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").exists())
+            .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verify(chatbotRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should reject website analysis for preview mode when website too large")
+    void shouldRejectWebsiteAnalysisWhenWebsiteTooLarge() throws Exception {
+        // Arrange
+        User previewUser = TestDataBuilder.createTestUser("preview@example.com");
+        previewUser.setId(2L);
+        
+        Subscription previewSubscription = TestDataBuilder.createFreeSubscription(previewUser);
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.of(previewSubscription));
+        
+        // Create chatbot owned by preview user
+        Chatbot previewChatbot = TestDataBuilder.createTestChatbot(previewUser);
+        previewChatbot.setId(1L);
+        
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(previewChatbot));
+        when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
+        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
+        when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
+        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(100); // > 50 pages
+
+        // Act & Assert
+        mockMvc.perform(post("/api/chatbots/1/analyze")
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").exists())
+            .andExpect(jsonPath("$.estimatedPages").value(100))
+            .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verify(chatbotRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should reject chatbot creation when one chatbot limit reached for preview mode")
+    void shouldRejectChatbotCreationWhenLimitReached() throws Exception {
+        // Arrange
+        User previewUser = TestDataBuilder.createTestUser("preview@example.com");
+        previewUser.setId(2L);
+        
+        ChatbotRequest request = new ChatbotRequest();
+        request.setName("Second Bot");
+        request.setDescription("Test description");
+        request.setWebsiteUrl("https://example.com");
+        request.setPrimaryLanguage("en");
+
+        when(chatbotRepository.countByOwner(previewUser.getId())).thenReturn(1L); // Already has 1 chatbot
+        when(accessControlService.canCreateChatbot(previewUser, 1L)).thenReturn(false);
+        when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
+        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
+        when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/chatbots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").exists())
+            .andExpect(jsonPath("$.upgradeRequired").value(true));
+
+        verify(chatbotService, never()).createChatbot(any(Chatbot.class), any(User.class));
     }
 }

@@ -103,6 +103,31 @@ public class TestDataBuilder {
     }
 
     /**
+     * Create a preview mode user (no subscription or FREE subscription)
+     */
+    public static User createPreviewModeUser() {
+        User user = createTestUser();
+        user.setCurrentMonthCost(java.math.BigDecimal.ZERO);
+        user.setMonthlyCostLimit(new java.math.BigDecimal("5.00"));
+        user.setCostResetDate(LocalDateTime.now());
+        return user;
+    }
+
+    /**
+     * Create a FREE subscription (preview mode)
+     */
+    public static Subscription createFreeSubscription(User user) {
+        Subscription subscription = new Subscription();
+        subscription.setUser(user);
+        subscription.setStripeCustomerId("cus_free_" + UUID.randomUUID().toString().substring(0, 8));
+        subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        subscription.setPlan(Subscription.SubscriptionPlan.FREE);
+        subscription.setCurrentPeriodStart(LocalDateTime.now());
+        subscription.setCurrentPeriodEnd(LocalDateTime.now().plusMonths(1));
+        return subscription;
+    }
+
+    /**
      * Create an audit log entry
      */
     public static AuditLog createAuditLog(User user, AuditLog.EventType eventType) {

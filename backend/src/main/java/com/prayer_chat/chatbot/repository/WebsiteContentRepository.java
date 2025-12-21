@@ -57,4 +57,31 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
      */
     @Query("SELECT wc FROM WebsiteContent wc WHERE wc.chatbot = :chatbot AND wc.wordCount >= :minWords")
     List<WebsiteContent> findByChatbotWithMinWords(@Param("chatbot") Chatbot chatbot, @Param("minWords") Integer minWords);
+    
+    /**
+     * Count scans today for a chatbot (based on chatbot owner)
+     * This counts how many times a chatbot's website was scanned today
+     */
+    @Query("SELECT COUNT(DISTINCT wc.chatbot) FROM WebsiteContent wc " +
+           "WHERE wc.chatbot.owner.id = :userId " +
+           "AND CAST(wc.createdAt AS date) = CURRENT_DATE")
+    Long countScansTodayByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Count scans today for a specific chatbot
+     */
+    @Query("SELECT COUNT(DISTINCT CAST(wc.createdAt AS date)) FROM WebsiteContent wc " +
+           "WHERE wc.chatbot = :chatbot " +
+           "AND CAST(wc.createdAt AS date) = CURRENT_DATE")
+    Long countScansTodayByChatbot(@Param("chatbot") Chatbot chatbot);
+    
+    /**
+     * Count website scans by a user after a specific date.
+     * A "scan" is represented by a WebsiteContent entry created on a specific date.
+     * This counts distinct dates when scans occurred.
+     */
+    @Query("SELECT COUNT(DISTINCT CAST(wc.createdAt AS date)) FROM WebsiteContent wc " +
+           "WHERE wc.chatbot.owner.id = :userId " +
+           "AND wc.createdAt >= :date")
+    Long countScansByUserAndDateAfter(@Param("userId") Long userId, @Param("date") java.time.LocalDateTime date);
 }
