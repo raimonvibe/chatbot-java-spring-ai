@@ -1,4 +1,4 @@
-# TjanaBot AI Chatbot - Professional Testing Strategy
+# Prayer-Chat AI Chatbot - Professional Testing Strategy
 
 **Document Version:** 1.0
 **Last Updated:** December 2, 2025
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive, professional testing strategy for the TjanaBot AI Chatbot application, incorporating industry best practices from Spring Boot testing in 2025, Stripe payment testing, and Google OAuth 2.0 authentication testing. The strategy follows the Testing Pyramid principle and modern testing methodologies.
+This document outlines a comprehensive, professional testing strategy for the Prayer-Chat AI Chatbot application, incorporating industry best practices from Spring Boot testing in 2025, Stripe payment testing, and Google OAuth 2.0 authentication testing. The strategy follows the Testing Pyramid principle and modern testing methodologies.
 
 ---
 

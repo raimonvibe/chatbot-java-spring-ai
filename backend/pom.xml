@@ -12,10 +12,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.tjanabot</groupId>
-    <artifactId>tjanabot-ai-chatbot</artifactId>
+    <groupId>com.prayer_chat</groupId>
+    <artifactId>prayer-chat-ai-chatbot</artifactId>
     <version>1.0.0</version>
-    <name>TjanaBot AI Chatbot System</name>
+    <name>Prayer-Chat AI Chatbot System</name>
     <description>Open-source AI-powered chatbot platform that analyzes websites and creates intelligent conversational agents using RAG architecture</description>
 
     <properties>

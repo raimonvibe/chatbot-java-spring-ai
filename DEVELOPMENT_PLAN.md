@@ -277,7 +277,7 @@ This plan outlines the development tasks to transform the TjanaBot application i
 1. **Update Package Structure**
    ```java
    // Current: com.tjanabot.chatbot
-   // New: com.prayerchat.chatbot
+   // New: com.prayer_chat.chatbot
    ```
    - **Note:** This is a major change requiring:
      - Directory structure changes

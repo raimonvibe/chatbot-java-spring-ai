@@ -1,4 +1,4 @@
-# TjanaBot AI Chatbot - Application Architecture Overview
+# Prayer-Chat AI Chatbot - Application Architecture Overview
 
 **Document Version:** 1.0
 **Last Updated:** December 2, 2025
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-TjanaBot is a sophisticated AI-powered chatbot platform built with Spring Boot, featuring Google OAuth 2.0 authentication, Stripe payment integration, and comprehensive security measures. This document provides a complete architectural overview for development, testing, and deployment planning.
+Prayer-Chat is a sophisticated AI-powered chatbot platform built with Spring Boot, featuring Google OAuth 2.0 authentication, Stripe payment integration, and comprehensive security measures. This document provides a complete architectural overview for development, testing, and deployment planning.
 
 ---
 

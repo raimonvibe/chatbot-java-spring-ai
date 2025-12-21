@@ -48,7 +48,7 @@ function PricingContent() {
           <div className="flex items-center justify-center gap-3 mb-6">
             <Book className="w-12 h-12 text-brown-700" strokeWidth={1.5} />
             <h1 className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
-              TjanaBot
+              Prayer-Chat
             </h1>
           </div>
 

@@ -1,7 +1,7 @@
 # Comprehensive E2E Testing Implementation Plan
 
 > **Created**: 2025-12-17
-> **Scope**: Complete E2E test coverage for TjanaBot application
+> **Scope**: Complete E2E test coverage for Prayer-Chat application
 > **Focus**: Google OAuth, Stripe payments, and entire application workflow
 
 ---

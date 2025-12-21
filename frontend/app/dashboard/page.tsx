@@ -127,7 +127,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Book className="w-10 h-10 text-brown-700" strokeWidth={1.5} />
             <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
-              TjanaBot Dashboard
+              Prayer-Chat Dashboard
             </h1>
           </div>
           <button

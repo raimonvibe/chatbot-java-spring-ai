@@ -105,7 +105,7 @@ export default function ChatInterface() {
       {/* Header */}
       <div className="bg-gradient-to-r from-brown-600 to-gold-600 px-6 py-4 flex items-center gap-2 border-b-2 border-brown-700">
         <Book className="w-6 h-6 text-white" strokeWidth={2} />
-        <h3 className="text-white font-semibold text-lg">TjanaBot Assistant</h3>
+        <h3 className="text-white font-semibold text-lg">Prayer-Chat Assistant</h3>
       </div>
 
       {/* Messages Container */}

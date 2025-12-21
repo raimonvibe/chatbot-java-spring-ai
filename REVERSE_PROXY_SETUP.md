@@ -1,6 +1,6 @@
 # Reverse Proxy Setup Guide
 
-This guide explains how to deploy the TjanaBot AI Chatbot with an nginx reverse proxy for enhanced security and better architecture.
+This guide explains how to deploy the Prayer-Chat AI Chatbot with an nginx reverse proxy for enhanced security and better architecture.
 
 ## 🎯 Architecture Overview
 

@@ -17,7 +17,7 @@ test.describe('Sample E2E Test - Phase 1 Validation', () => {
     await page.goto('/');
 
     // Check if page title is present
-    await expect(page).toHaveTitle(/TjanaBot|Chatbot/i);
+    await expect(page).toHaveTitle(/Prayer-Chat|Chatbot/i);
 
     // Check if hero section exists
     const heroSection = page.locator('main, section').first();

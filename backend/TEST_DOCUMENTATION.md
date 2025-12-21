@@ -2,7 +2,7 @@
 
 ## Overview
 
-Comprehensive test suite for TjanaBot backend with **250+ tests** covering critical security and functionality.
+Comprehensive test suite for Prayer-Chat backend with **250+ tests** covering critical security and functionality.
 
 **Test Coverage:**
 - ✅ Security utilities (LogSanitizer)
@@ -417,4 +417,4 @@ For test-related questions or issues:
 
 **Test Suite Version:** 1.0.0
 **Last Updated:** 2025-11-24
-**Maintainer:** TjanaBot Development Team
+**Maintainer:** Prayer-Chat Development Team

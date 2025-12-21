@@ -1,6 +1,6 @@
-# 🚀 Getting Started with TjanaBot AI Chatbot System
+# 🚀 Getting Started with Prayer-Chat AI Chatbot System
 
-Welcome to **TjanaBot** - an open-source AI-powered chatbot platform that automatically analyzes websites and creates intelligent conversational agents using modern RAG architecture.
+Welcome to **Prayer-Chat** - an open-source AI-powered chatbot platform that automatically analyzes websites and creates intelligent conversational agents using modern RAG architecture.
 
 > **Note**: This is an independent open-source project not affiliated with any commercial chatbot service.
 
@@ -62,7 +62,7 @@ chmod +x start.sh
 # Option 3: Build and run JAR
 cd backend
 mvn clean package
-java -jar target/tjanabot-ai-chatbot-*.jar
+java -jar target/prayer-chat-ai-chatbot-*.jar
 ```
 
 ### 3. Access the Dashboard
@@ -143,14 +143,14 @@ Open your browser and navigate to:
 2. **Add to Your Website**
    ```html
    <!-- Add this to your website's HTML -->
-   <div id="tjanabot-chatbot-1" data-chatbot-id="1"></div>
+   <div id="prayer-chat-chatbot-1" data-chatbot-id="1"></div>
    <script>
        (function() {
            var script = document.createElement('script');
            script.src = 'http://localhost:8081/js/chatbot-widget.js';
            script.async = true;
            script.onload = function() {
-               TjanaBot.init({
+               PrayerChat.init({
                    chatbotId: 1,
                    apiUrl: 'http://localhost:8081/api',
                    theme: 'default'
@@ -290,7 +290,7 @@ GET /api/chat/embed/{embedCode}
 Customize the chatbot widget appearance:
 
 ```javascript
-TjanaBot.init({
+PrayerChat.init({
     chatbotId: 1,
     apiUrl: 'http://localhost:8081/api',
     theme: 'custom',
@@ -344,7 +344,7 @@ Enable debug logging:
 ```yaml
 logging:
   level:
-    com.tjanabot: DEBUG
+    com.prayer_chat: DEBUG
     org.springframework.ai: DEBUG
 ```
 

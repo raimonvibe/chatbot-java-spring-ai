@@ -1,4 +1,4 @@
-# Testing Best Practices - TjanaBot AI Chatbot
+# Testing Best Practices - Prayer-Chat AI Chatbot
 
 > **Essential patterns and anti-patterns** for writing high-quality, maintainable tests.
 

@@ -80,8 +80,8 @@ management:
 logging:
   level:
     root: WARN
-    com.tjanabot.chatbot: DEBUG  # Enable debug logging for filter debugging
-    com.tjanabot.chatbot.security: DEBUG  # Enable debug logging for security filters
+    com.prayer_chat.chatbot: DEBUG  # Enable debug logging for filter debugging
+    com.prayer_chat.chatbot.security: DEBUG  # Enable debug logging for security filters
     org.springframework.web: WARN
     org.springframework.security: DEBUG  # Enable debug logging for Spring Security
     org.hibernate: WARN

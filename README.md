@@ -1,6 +1,6 @@
-# 🤖 TjanaBot AI Chatbot System
+# 🙏 Prayer-Chat AI Chatbot System
 
-![TjanaBot AI Logo](tjana-bot.png)
+![Prayer-Chat AI Logo](prayer-chat.png)
 
 An open-source AI-powered chatbot platform built with Java Spring AI that analyzes websites and creates intelligent conversational agents automatically. Built using modern RAG (Retrieval Augmented Generation) architecture with Spring AI, Anthropic Claude 3 Haiku, and vector embeddings.
 
@@ -16,7 +16,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 - **🎨 Modern UI**: Built with Next.js 15, Tailwind CSS, and Framer Motion for smooth animations
 - **📱 Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
 
-### 🚀 TjanaBot Exclusive Features
+### 🚀 Prayer-Chat Exclusive Features
 - **⚡ Webhook Integration**: Send real-time conversation events to external systems (CRM, Slack, Discord, custom webhooks)
 - **📊 Conversation Export**: Export chat history in JSON or CSV formats for analytics and reporting
 - **💬 Quick Replies**: Configure suggested response buttons for common questions to improve UX
@@ -159,7 +159,7 @@ That's it! The entire stack is now running.
 
 1. **Access the Dashboard**
    - Navigate to http://localhost:3000
-   - You'll see the TjanaBot homepage
+   - You'll see the Prayer-Chat homepage
    - Click "Dashboard" or "Go to Dashboard to create your first chatbot"
 
 2. **Create a New Chatbot**
@@ -478,21 +478,21 @@ This will start:
 **Backend:**
 ```bash
 cd backend
-docker build -t tjanabot-backend .
+docker build -t prayer-chat-backend .
 docker run -p 8081:8081 \
   -e ANTHROPIC_API_KEY=your-key \
   -e COHERE_API_KEY=your-key \
   -e JWT_SECRET=your-secret \
-  tjanabot-backend
+  prayer-chat-backend
 ```
 
 **Frontend:**
 ```bash
 cd frontend
-docker build -t tjanabot-frontend .
+docker build -t prayer-chat-frontend .
 docker run -p 3000:3000 \
   -e NEXT_PUBLIC_API_URL=http://localhost:8081 \
-  tjanabot-frontend
+  prayer-chat-frontend
 ```
 
 ### Deploying to Render

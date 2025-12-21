@@ -1,4 +1,4 @@
-# TjanaBot System Overzicht
+# Prayer-Chat System Overzicht
 
 **Laatste Update:** 2025-12-19  
 **Status:** Production-Ready met OAuth2-only authenticatie

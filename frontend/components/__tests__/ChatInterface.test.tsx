@@ -33,7 +33,7 @@ describe('ChatInterface Component', () => {
     it('should render the chat interface with initial message', async () => {
       render(<ChatInterface />)
 
-      expect(screen.getByText('TjanaBot Assistant')).toBeInTheDocument()
+      expect(screen.getByText('Prayer-Chat Assistant')).toBeInTheDocument()
       expect(screen.getByText('Hello! How can I help you today?')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Type your message...')).toBeInTheDocument()
     })

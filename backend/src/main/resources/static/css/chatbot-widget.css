@@ -1,11 +1,11 @@
-/* TjanaBot AI Chatbot Widget Styles */
+/* PrayerChat AI Chatbot Widget Styles */
 
-#tjanabot-chatbot-widget {
+#prayer-chat-chatbot-widget {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     z-index: 9999;
 }
 
-#tjanabot-chat-container {
+#prayer-chat-chat-container {
     display: none;
     width: 350px;
     height: 500px;
@@ -18,12 +18,12 @@
     overflow: hidden;
 }
 
-#tjanabot-chat-container.show {
+#prayer-chat-chat-container.show {
     display: flex;
 }
 
 /* Header Styles */
-.tjanabot-header {
+.prayer-chat-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 16px;
@@ -34,13 +34,13 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.tjanabot-header h6 {
+.prayer-chat-header h6 {
     margin: 0;
     font-weight: 600;
     font-size: 16px;
 }
 
-.tjanabot-close-btn {
+.prayer-chat-close-btn {
     background: none;
     border: none;
     color: white;
@@ -51,12 +51,12 @@
     transition: background-color 0.2s ease;
 }
 
-.tjanabot-close-btn:hover {
+.prayer-chat-close-btn:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Messages Container */
-#tjanabot-messages {
+#prayer-chat-messages {
     flex: 1;
     padding: 16px;
     overflow-y: auto;
@@ -64,21 +64,21 @@
     scroll-behavior: smooth;
 }
 
-.tjanabot-message {
+.prayer-chat-message {
     margin-bottom: 16px;
     display: flex;
     animation: fadeInUp 0.3s ease-out;
 }
 
-.tjanabot-message.user {
+.prayer-chat-message.user {
     justify-content: flex-end;
 }
 
-.tjanabot-message.bot {
+.prayer-chat-message.bot {
     justify-content: flex-start;
 }
 
-.tjanabot-message-bubble {
+.prayer-chat-message-bubble {
     max-width: 80%;
     padding: 12px 16px;
     border-radius: 18px;
@@ -87,13 +87,13 @@
     position: relative;
 }
 
-.tjanabot-message.user .tjanabot-message-bubble {
+.prayer-chat-message.user .prayer-chat-message-bubble {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-bottom-right-radius: 4px;
 }
 
-.tjanabot-message.bot .tjanabot-message-bubble {
+.prayer-chat-message.bot .prayer-chat-message-bubble {
     background: white;
     color: #333;
     border: 1px solid #e0e0e0;
@@ -102,7 +102,7 @@
 }
 
 /* Typing Indicator */
-.tjanabot-typing {
+.prayer-chat-typing {
     margin-bottom: 16px;
     display: flex;
     justify-content: flex-start;
@@ -110,7 +110,7 @@
     font-style: italic;
 }
 
-.tjanabot-typing-bubble {
+.prayer-chat-typing-bubble {
     background: white;
     padding: 12px 16px;
     border-radius: 18px;
@@ -118,12 +118,12 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.tjanabot-typing-dots {
+.prayer-chat-typing-dots {
     display: inline-flex;
     gap: 4px;
 }
 
-.tjanabot-typing-dots .dot {
+.prayer-chat-typing-dots .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -131,29 +131,29 @@
     animation: pulse 1.4s infinite;
 }
 
-.tjanabot-typing-dots .dot:nth-child(2) {
+.prayer-chat-typing-dots .dot:nth-child(2) {
     animation-delay: 0.2s;
 }
 
-.tjanabot-typing-dots .dot:nth-child(3) {
+.prayer-chat-typing-dots .dot:nth-child(3) {
     animation-delay: 0.4s;
 }
 
 /* Input Area */
-.tjanabot-input-area {
+.prayer-chat-input-area {
     padding: 16px;
     background: white;
     border-top: 1px solid #e0e0e0;
     border-radius: 0 0 12px 12px;
 }
 
-.tjanabot-input-container {
+.prayer-chat-input-container {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-#tjanabot-message-input {
+#prayer-chat-message-input {
     flex: 1;
     padding: 12px 16px;
     border: 1px solid #ddd;
@@ -163,12 +163,12 @@
     transition: border-color 0.2s ease;
 }
 
-#tjanabot-message-input:focus {
+#prayer-chat-message-input:focus {
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-#tjanabot-send-btn {
+#prayer-chat-send-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
@@ -183,17 +183,17 @@
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
-#tjanabot-send-btn:hover {
+#prayer-chat-send-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-#tjanabot-send-btn:active {
+#prayer-chat-send-btn:active {
     transform: scale(0.95);
 }
 
 /* Toggle Button */
-#tjanabot-toggle-btn {
+#prayer-chat-toggle-btn {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -211,16 +211,16 @@
     overflow: hidden;
 }
 
-#tjanabot-toggle-btn:hover {
+#prayer-chat-toggle-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
 }
 
-#tjanabot-toggle-btn:active {
+#prayer-chat-toggle-btn:active {
     transform: scale(0.95);
 }
 
-#tjanabot-toggle-btn::before {
+#prayer-chat-toggle-btn::before {
     content: '';
     position: absolute;
     top: 0;
@@ -232,7 +232,7 @@
     transition: transform 0.6s ease;
 }
 
-#tjanabot-toggle-btn:hover::before {
+#prayer-chat-toggle-btn:hover::before {
     transform: translateX(100%);
 }
 
@@ -273,7 +273,7 @@
 
 /* Responsive Design */
 @media (max-width: 480px) {
-    #tjanabot-chat-container {
+    #prayer-chat-chat-container {
         width: 100vw;
         height: 100vh;
         border-radius: 0;
@@ -284,7 +284,7 @@
         bottom: 0;
     }
     
-    #tjanabot-toggle-btn {
+    #prayer-chat-toggle-btn {
         width: 50px;
         height: 50px;
         font-size: 20px;
@@ -292,79 +292,79 @@
 }
 
 /* Scrollbar Styling */
-#tjanabot-messages::-webkit-scrollbar {
+#prayer-chat-messages::-webkit-scrollbar {
     width: 6px;
 }
 
-#tjanabot-messages::-webkit-scrollbar-track {
+#prayer-chat-messages::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
 }
 
-#tjanabot-messages::-webkit-scrollbar-thumb {
+#prayer-chat-messages::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
 }
 
-#tjanabot-messages::-webkit-scrollbar-thumb:hover {
+#prayer-chat-messages::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
 
 /* Dark Theme Support */
 @media (prefers-color-scheme: dark) {
-    #tjanabot-chat-container {
+    #prayer-chat-chat-container {
         background: #1a1a1a;
         border-color: #333;
     }
     
-    #tjanabot-messages {
+    #prayer-chat-messages {
         background: #2a2a2a;
     }
     
-    .tjanabot-message.bot .tjanabot-message-bubble {
+    .prayer-chat-message.bot .prayer-chat-message-bubble {
         background: #333;
         color: #fff;
         border-color: #444;
     }
     
-    .tjanabot-input-area {
+    .prayer-chat-input-area {
         background: #1a1a1a;
         border-color: #333;
     }
     
-    #tjanabot-message-input {
+    #prayer-chat-message-input {
         background: #333;
         color: #fff;
         border-color: #444;
     }
     
-    #tjanabot-message-input:focus {
+    #prayer-chat-message-input:focus {
         border-color: #667eea;
     }
 }
 
 /* Custom Branding Variables */
 :root {
-    --tjanabot-primary-color: #667eea;
-    --tjanabot-secondary-color: #764ba2;
-    --tjanabot-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --tjanabot-border-radius: 12px;
-    --tjanabot-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --prayer-chat-primary-color: #667eea;
+    --prayer-chat-secondary-color: #764ba2;
+    --prayer-chat-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --prayer-chat-border-radius: 12px;
+    --prayer-chat-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* Utility Classes */
-.tjanabot-hidden {
+.prayer-chat-hidden {
     display: none !important;
 }
 
-.tjanabot-visible {
+.prayer-chat-visible {
     display: block !important;
 }
 
-.tjanabot-fade-in {
+.prayer-chat-fade-in {
     animation: fadeInUp 0.3s ease-out;
 }
 
-.tjanabot-bounce {
+.prayer-chat-bounce {
     animation: bounce 1s ease-in-out;
 }

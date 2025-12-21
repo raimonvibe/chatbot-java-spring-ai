@@ -1,4 +1,4 @@
-# TjanaBot AI Chatbot - Testing Documentation
+# Prayer-Chat AI Chatbot - Testing Documentation
 
 **Status:** ✅ **ALL TESTS PASSING** (514/514)
 **Last Updated:** 2025-12-05

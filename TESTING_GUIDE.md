@@ -1,6 +1,6 @@
-# Testing Guide - TjanaBot AI Chatbot
+# Testing Guide - Prayer-Chat AI Chatbot
 
-> **Comprehensive guide** for running, writing, and debugging tests in the TjanaBot application.
+> **Comprehensive guide** for running, writing, and debugging tests in the Prayer-Chat application.
 
 ---
 
@@ -490,4 +490,4 @@ npx playwright test --debug
 ---
 
 **Last Updated:** 2025-12-18
-**Maintained by:** TjanaBot Development Team
+**Maintained by:** Prayer-Chat Development Team

@@ -38,7 +38,7 @@
         config = Object.assign(config, options);
         
         if (!config.chatbotId) {
-            console.error('TjanaBot Chatbot: chatbotId is required');
+            console.error('PrayerChat Chatbot: chatbotId is required');
             return;
         }
         
@@ -54,7 +54,7 @@
         // Load chatbot configuration
         loadChatbotConfig();
         
-        console.log('TjanaBot Chatbot initialized:', config);
+        console.log('PrayerChat Chatbot initialized:', config);
     }
     
     /**
@@ -63,7 +63,7 @@
     function createWidget() {
         // Create main container
         widgetContainer = document.createElement('div');
-        widgetContainer.id = 'tjanabot-chatbot-widget';
+        widgetContainer.id = 'prayer-chat-chatbot-widget';
         widgetContainer.style.cssText = `
             position: fixed;
             ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -74,7 +74,7 @@
         
         // Create chat container
         chatContainer = document.createElement('div');
-        chatContainer.id = 'tjanabot-chat-container';
+        chatContainer.id = 'prayer-chat-chat-container';
         chatContainer.style.cssText = `
             display: none;
             width: 350px;
@@ -105,14 +105,14 @@
                     AI Assistant
                 </h6>
             </div>
-            <button id="tjanabot-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
+            <button id="prayer-chat-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
                 <i class="fas fa-times"></i>
             </button>
         `;
         
         // Create messages container
         messageContainer = document.createElement('div');
-        messageContainer.id = 'tjanabot-messages';
+        messageContainer.id = 'prayer-chat-messages';
         messageContainer.style.cssText = `
             flex: 1;
             padding: 15px;
@@ -130,9 +130,9 @@
         `;
         inputArea.innerHTML = `
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="tjanabot-message-input" placeholder="Type your message..." 
+                <input type="text" id="prayer-chat-message-input" placeholder="Type your message..." 
                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                <button id="tjanabot-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                <button id="prayer-chat-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -140,7 +140,7 @@
         
         // Create toggle button
         toggleButton = document.createElement('button');
-        toggleButton.id = 'tjanabot-toggle-btn';
+        toggleButton.id = 'prayer-chat-toggle-btn';
         toggleButton.style.cssText = `
             width: 60px;
             height: 60px;
@@ -170,8 +170,8 @@
         document.body.appendChild(widgetContainer);
         
         // Get references to interactive elements
-        inputField = document.getElementById('tjanabot-message-input');
-        sendButton = document.getElementById('tjanabot-send-btn');
+        inputField = document.getElementById('prayer-chat-message-input');
+        sendButton = document.getElementById('prayer-chat-send-btn');
         
         // Add event listeners
         setupEventListeners();
@@ -188,7 +188,7 @@
         toggleButton.addEventListener('click', toggleChat);
         
         // Close button
-        document.getElementById('tjanabot-close-btn').addEventListener('click', closeChat);
+        document.getElementById('prayer-chat-close-btn').addEventListener('click', closeChat);
         
         // Send button
         sendButton.addEventListener('click', sendMessage);
@@ -320,7 +320,7 @@
      */
     function showTypingIndicator() {
         const typingDiv = document.createElement('div');
-        typingDiv.id = 'tjanabot-typing';
+        typingDiv.id = 'prayer-chat-typing';
         typingDiv.style.cssText = `
             margin-bottom: 15px;
             display: flex;
@@ -344,7 +344,7 @@
      * Hide typing indicator
      */
     function hideTypingIndicator() {
-        const typingDiv = document.getElementById('tjanabot-typing');
+        const typingDiv = document.getElementById('prayer-chat-typing');
         if (typingDiv) {
             typingDiv.remove();
         }
@@ -389,9 +389,9 @@
     function updateWidgetStyling() {
         // Update colors
         const elements = [
-            { selector: '#tjanabot-close-btn', style: 'color' },
-            { selector: '#tjanabot-send-btn', style: 'background' },
-            { selector: '#tjanabot-toggle-btn', style: 'background' }
+            { selector: '#prayer-chat-close-btn', style: 'color' },
+            { selector: '#prayer-chat-send-btn', style: 'background' },
+            { selector: '#prayer-chat-toggle-btn', style: 'background' }
         ];
         
         elements.forEach(({ selector, style }) => {
@@ -413,7 +413,7 @@
     document.head.appendChild(style);
     
     // Expose global API
-    window.TjanaBot = {
+    window.PrayerChat = {
         init: init,
         open: openChat,
         close: closeChat,

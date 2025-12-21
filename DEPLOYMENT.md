@@ -1,4 +1,4 @@
-# 🚀 Deployment Guide - TjanaBot AI Chatbot System
+# 🚀 Deployment Guide - Prayer-Chat AI Chatbot System
 
 This comprehensive guide covers deploying both the **Spring Boot backend** and **Next.js frontend** using Docker.
 
@@ -324,7 +324,7 @@ Always use the **Internal URL** for services running on Render - it's faster and
 
 2. **Test Frontend**
    - Visit `https://chatbot-frontend-xxx.onrender.com`
-   - Should see the TjanaBot homepage
+   - Should see the Prayer-Chat homepage
    - Check browser console for any errors
 
 3. **Test API Connection**
@@ -611,7 +611,7 @@ docker system prune -a
    Environment: Java
    Root Directory: backend
    Build Command: mvn clean package -DskipTests
-   Start Command: java -jar target/tjanabot-ai-chatbot-*.jar
+   Start Command: java -jar target/prayer-chat-ai-chatbot-*.jar
    ```
 
 ## Step 3: Set Up PostgreSQL Database
@@ -975,7 +975,7 @@ chmod +x mvnw
 ### Memory Issues
 Add JVM memory settings in Start Command:
 ```bash
-java -Xmx512m -Xms256m -jar target/tjanabot-ai-chatbot-*.jar
+java -Xmx512m -Xms256m -jar target/prayer-chat-ai-chatbot-*.jar
 ```
 
 ### API Key Issues
@@ -1060,7 +1060,7 @@ java -Xmx512m -Xms256m -jar target/tjanabot-ai-chatbot-*.jar
 
 2. **Create Subscription Product**
    - Go to Stripe Dashboard → Products → Add Product
-   - Name: "TjanaBot Subscription"
+   - Name: "Prayer-Chat Subscription"
    - Pricing model: Recurring
    - Set price (e.g., $20/month)
    - Copy the Price ID (starts with `price_`)

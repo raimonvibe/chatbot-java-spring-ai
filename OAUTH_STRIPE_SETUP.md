@@ -1,6 +1,6 @@
 # Google OAuth 2.0 & Stripe Setup Guide
 
-This guide will walk you through setting up Google OAuth 2.0 authentication and Stripe subscription payments for the TjanaBot AI Chatbot application.
+This guide will walk you through setting up Google OAuth 2.0 authentication and Stripe subscription payments for the Prayer-Chat AI Chatbot application.
 
 ## Table of Contents
 1. [Google OAuth 2.0 Setup](#google-oauth-20-setup)
@@ -16,7 +16,7 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Click "Select a project" → "New Project"
-3. Enter project name: `TjanaBot Chatbot` (or your preferred name)
+3. Enter project name: `Prayer-Chat Chatbot` (or your preferred name)
 4. Click "Create"
 
 ### Step 2: Enable Google+ API
@@ -31,7 +31,7 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 2. Select "External" (unless you have Google Workspace)
 3. Click "Create"
 4. Fill in the required information:
-   - **App name**: TjanaBot AI Chatbot
+   - **App name**: Prayer-Chat AI Chatbot
    - **User support email**: Your email
    - **Developer contact information**: Your email
 5. Click "Save and Continue"
@@ -47,7 +47,7 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 1. Go to "APIs & Services" → "Credentials"
 2. Click "Create Credentials" → "OAuth 2.0 Client ID"
 3. Select "Web application"
-4. **Name**: TjanaBot Web Client
+4. **Name**: Prayer-Chat Web Client
 5. **Authorized JavaScript origins**:
    - Development: `http://localhost:8081`
    - Production: `https://yourdomain.com`
@@ -81,8 +81,8 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 
 1. In Stripe Dashboard, go to "Products" → "Add product"
 2. Fill in product details:
-   - **Name**: TjanaBot Pro Subscription
-   - **Description**: Access to TjanaBot AI Chatbot platform
+   - **Name**: Prayer-Chat Pro Subscription
+   - **Description**: Access to Prayer-Chat AI Chatbot platform
 3. Under "Pricing":
    - **Pricing model**: Recurring
    - **Price**: (e.g., $19.99)

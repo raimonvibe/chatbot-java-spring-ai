@@ -21,14 +21,14 @@ export default function Home() {
           <div className="flex items-center justify-center gap-3 mb-6">
             <Book className="w-16 h-16 text-brown-700" strokeWidth={1.5} />
             <h1 className="text-6xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
-              TjanaBot
+              Prayer-Chat
             </h1>
           </div>
           <p className="text-xl md:text-2xl text-brown-800 mb-4 font-semibold">
             Christian AI Chatbots with Biblical Wisdom
           </p>
           <p className="text-lg text-brown-700 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Transform your ministry or business website into an intelligent AI assistant rooted in Christian values. Provide a URL and let TjanaBot create a chatbot that shares wisdom with grace.
+            Transform your ministry or business website into an intelligent AI assistant rooted in Christian values. Provide a URL and let Prayer-Chat create a chatbot that shares wisdom with grace.
           </p>
 
           <motion.div
