@@ -68,10 +68,18 @@
             <artifactId>spring-session-jdbc</artifactId>
         </dependency>
         
+        <!-- Explicit Netty handler dependency for SSL/TLS support -->
+        <!-- Required for OAuth2 client SSL operations -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+        
         <!-- Note: spring-boot-starter-webflux already includes reactor-netty -->
         <!-- OAuth2 client in Spring Security uses RestClient which requires reactor-netty -->
-        <!-- The NoClassDefFoundError for HttpClientSecure suggests a classloader issue -->
-        <!-- Ensure webflux is loaded before OAuth2 client by keeping it in dependencies -->
+        <!-- The NoClassDefFoundError for HttpClientSecure suggests SSL initialization issue -->
+        <!-- Explicit netty-handler dependency ensures SSL classes are available -->
 
         <!-- Actuator for health checks and metrics -->
         <dependency>
