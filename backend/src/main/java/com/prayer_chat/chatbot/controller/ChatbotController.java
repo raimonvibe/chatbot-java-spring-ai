@@ -410,13 +410,23 @@ public class ChatbotController {
     }
     
     /**
-     * Delete all chatbots for the current user (useful for testing/resetting)
+     * Delete all chatbots for the current user
+     * Only available for preview mode users (useful for testing/resetting)
+     * Paid users should use individual delete to avoid accidental bulk deletion
      */
     @DeleteMapping
     public ResponseEntity<Map<String, Object>> deleteAllChatbots(
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
             User user = currentUser.getUser();
+            
+            // Only allow bulk delete for preview mode users (safety measure)
+            if (!isPreviewMode(user)) {
+                logger.warn("User {} attempted bulk delete but is not in preview mode", LogSanitizer.sanitize(user.getEmail()));
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Bulk delete is only available for preview mode users. Please delete chatbots individually."
+                ));
+            }
             
             // Find all chatbots owned by this user
             List<Chatbot> userChatbots = chatbotRepository.findByOwnerId(user.getId());
@@ -432,7 +442,7 @@ public class ChatbotController {
             int deletedCount = userChatbots.size();
             chatbotRepository.deleteAll(userChatbots);
             
-            logger.info("Deleted {} chatbots for user: {}", deletedCount, LogSanitizer.sanitize(user.getEmail()));
+            logger.info("Deleted {} chatbots for preview mode user: {}", deletedCount, LogSanitizer.sanitize(user.getEmail()));
             
             return ResponseEntity.ok(Map.of(
                 "message", "Successfully deleted all chatbots",

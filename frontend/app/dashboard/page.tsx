@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2 } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 
 export default function Dashboard() {
@@ -189,6 +189,29 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      
+      // Redirect to Google logout to clear OAuth session
+      if (result.googleLogoutUrl) {
+        // Open Google logout in new window, then redirect
+        window.open(result.googleLogoutUrl, '_blank');
+      }
+      
+      // Redirect to login page
+      router.push('/login');
+      
+      // Force reload to clear all state
+      window.location.href = '/login';
+    } catch (error: any) {
+      console.error('Error logging out:', error);
+      // Even if logout fails, try to redirect
+      router.push('/login');
+      window.location.href = '/login';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -238,11 +261,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {chatbots.length > 0 && (
+            {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
               <button
                 onClick={handleDeleteAllChatbots}
                 className="px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 hover:shadow-lg transition-all flex items-center gap-2"
-                title="Delete all chatbots (for testing)"
+                title="Delete all chatbots (preview mode only - for testing)"
               >
                 <Trash2 className="w-5 h-5" /> Delete All
               </button>
@@ -256,6 +279,13 @@ export default function Dashboard() {
               ) : (
                 <><Plus className="w-5 h-5" /> Create New Chatbot</>
               )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-3 bg-brown-500 text-white rounded-xl font-medium hover:bg-brown-600 hover:shadow-lg transition-all flex items-center gap-2"
+              title="Logout (volledig uitloggen)"
+            >
+              <LogOut className="w-5 h-5" /> Logout
             </button>
           </div>
         </div>
