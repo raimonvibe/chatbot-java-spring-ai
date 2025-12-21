@@ -31,17 +31,42 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
     
+    @Value("${FRONTEND_URL:}")
+    private String frontendUrlOverride;
+    
     /**
-     * Get the first valid frontend URL from the allowed origins list
+     * Get the frontend URL for redirects
+     * Priority: 1. FRONTEND_URL env var, 2. First non-localhost URL from CORS, 3. First URL, 4. Default
      */
     private String getFrontendUrl() {
+        // Use explicit FRONTEND_URL if set
+        if (frontendUrlOverride != null && !frontendUrlOverride.trim().isEmpty()) {
+            logger.debug("Using FRONTEND_URL override: {}", frontendUrlOverride);
+            return frontendUrlOverride.trim();
+        }
+        
         if (allowedOrigins == null || allowedOrigins.trim().isEmpty()) {
             return "http://localhost:3000";
         }
-        // Extract first URL from comma-separated list
-        String firstOrigin = allowedOrigins.split(",")[0].trim();
-        // Remove wildcard patterns if present
+        
+        // Parse comma-separated list
+        String[] origins = allowedOrigins.split(",");
+        
+        // First, try to find a non-localhost URL (for production)
+        for (String origin : origins) {
+            String trimmed = origin.trim();
+            if (!trimmed.isEmpty() && !trimmed.startsWith("http://localhost") && !trimmed.startsWith("http://127.0.0.1")) {
+                // Remove wildcard patterns if present
+                trimmed = trimmed.replace("https://*.", "https://");
+                logger.debug("Using non-localhost origin: {}", trimmed);
+                return trimmed;
+            }
+        }
+        
+        // Fallback to first URL (for local development)
+        String firstOrigin = origins[0].trim();
         firstOrigin = firstOrigin.replace("https://*.", "https://");
+        logger.debug("Using first origin (may be localhost): {}", firstOrigin);
         return firstOrigin;
     }
 

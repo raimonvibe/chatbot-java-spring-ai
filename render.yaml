@@ -67,6 +67,13 @@ services:
           type: web
           name: chatbot-backend
           property: host
+      
+      # Frontend URL for OAuth2 redirects (auto-filled from frontend service)
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: chatbot-frontend
+          property: host
 
 databases:
   - name: chatbot-postgres
