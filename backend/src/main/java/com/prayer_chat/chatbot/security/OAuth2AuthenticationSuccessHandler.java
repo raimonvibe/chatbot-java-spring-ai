@@ -29,7 +29,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private SubscriptionRepository subscriptionRepository;
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
-    private String frontendUrl;
+    private String allowedOrigins;
+    
+    /**
+     * Get the first valid frontend URL from the allowed origins list
+     */
+    private String getFrontendUrl() {
+        if (allowedOrigins == null || allowedOrigins.trim().isEmpty()) {
+            return "http://localhost:3000";
+        }
+        // Extract first URL from comma-separated list
+        String firstOrigin = allowedOrigins.split(",")[0].trim();
+        // Remove wildcard patterns if present
+        firstOrigin = firstOrigin.replace("https://*.", "https://");
+        return firstOrigin;
+    }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -53,7 +67,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 subscriptionRepository.save(freeSubscription);
 
                 logger.info("User {} created with FREE plan, redirecting to dashboard", user.getEmail());
-                String redirectUrl = frontendUrl + "/dashboard?welcome=true";
+                String redirectUrl = getFrontendUrl() + "/dashboard?welcome=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
             }
@@ -63,14 +77,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             if (!subscription.canUseChatbot()) {
                 // Has subscription but inactive - redirect to pricing
                 logger.info("User {} has inactive subscription, redirecting to pricing", user.getEmail());
-                String redirectUrl = frontendUrl + "/pricing?upgrade=true";
+                String redirectUrl = getFrontendUrl() + "/pricing?upgrade=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
             }
 
             // User has active subscription - redirect to dashboard
             logger.info("User {} logged in successfully with active subscription", user.getEmail());
-            String redirectUrl = frontendUrl + "/dashboard";
+            String redirectUrl = getFrontendUrl() + "/dashboard";
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } else {
             // Fallback
