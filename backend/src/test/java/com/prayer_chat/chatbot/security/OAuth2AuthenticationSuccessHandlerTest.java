@@ -63,7 +63,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(successHandler, "frontendUrl", FRONTEND_URL);
+        ReflectionTestUtils.setField(successHandler, "allowedOrigins", FRONTEND_URL);
         successHandler.setRedirectStrategy(redirectStrategy);
 
         // Create test user
@@ -248,7 +248,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // Create a spy to verify superclass method is called
         OAuth2AuthenticationSuccessHandler spyHandler = spy(successHandler);
-        ReflectionTestUtils.setField(spyHandler, "frontendUrl", FRONTEND_URL);
+        ReflectionTestUtils.setField(spyHandler, "allowedOrigins", FRONTEND_URL);
         spyHandler.setRedirectStrategy(redirectStrategy);
 
         // Act
@@ -282,7 +282,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
     void shouldUseConfiguredFrontendUrl_inRedirect() throws Exception {
         // Arrange
         String customFrontendUrl = "https://example.com";
-        ReflectionTestUtils.setField(successHandler, "frontendUrl", customFrontendUrl);
+        ReflectionTestUtils.setField(successHandler, "allowedOrigins", customFrontendUrl);
 
         Subscription activeSubscription = createActiveSubscription();
         when(authentication.getPrincipal()).thenReturn(customOAuth2User);
