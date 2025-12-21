@@ -5,7 +5,7 @@
 # Stage 1 – Install only production dependencies (best layer caching)
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --only=production --ignore-scripts
 
 # Stage 2 – Build the application
@@ -13,11 +13,11 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 # Install ALL dependencies (dev deps needed for build)
-COPY package.json package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY frontend/ .
 
 # Disable Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
