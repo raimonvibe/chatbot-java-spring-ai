@@ -27,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * CRITICAL SECURITY TESTS: Delete/Recreate Attack Prevention
@@ -95,20 +96,22 @@ class DeleteRecreateAttackPreventionTest {
         testChatbot.setWebsiteUrl("https://example.com");
 
         customOAuth2User = (CustomOAuth2User) TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser).getPrincipal();
-
-        // Mock preview mode
-        when(costTrackingService.isPreviewMode(any(User.class))).thenReturn(true);
-        when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
-        when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(false);
-        when(accessControlService.canCreateChatbot(any(User.class), anyLong())).thenReturn(true);
-        when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(1);
+    }
+    
+    private void setupPreviewModeMocks() {
+        // Mock preview mode - only when needed
+        lenient().when(costTrackingService.isPreviewMode(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(false);
+        lenient().when(accessControlService.canCreateChatbot(any(User.class), anyLong())).thenReturn(true);
+        lenient().when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(1);
         
         // Mock website size estimator
-        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
+        lenient().when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
         
         // Mock cost tracking
-        when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
-        doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
+        lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
     }
 
     @Test
@@ -120,12 +123,14 @@ class DeleteRecreateAttackPreventionTest {
         // 3. User creates new chatbot
         // 4. User tries to scan again - SHOULD BE BLOCKED
 
+        setupPreviewModeMocks();
+        
         // First scan (before delete)
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
             eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
         
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-        when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(false);
+        lenient().when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(false);
 
         // First scan succeeds
         ResponseEntity<?> firstScan = chatbotController.analyzeWebsite(
@@ -169,6 +174,13 @@ class DeleteRecreateAttackPreventionTest {
     @DisplayName("SECURITY: Should use audit table, not WebsiteContent, for scan frequency check")
     void shouldUseAuditTableNotWebsiteContent() {
         // Arrange
+        lenient().when(costTrackingService.isPreviewMode(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(false);
+        lenient().when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
+        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
+        lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
             eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
@@ -189,6 +201,8 @@ class DeleteRecreateAttackPreventionTest {
     @DisplayName("SECURITY: Audit entry should persist after chatbot deletion")
     void auditEntryShouldPersistAfterChatbotDeletion() {
         // Arrange
+        setupPreviewModeMocks();
+        
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
             eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
@@ -209,7 +223,7 @@ class DeleteRecreateAttackPreventionTest {
         
         // Simulate chatbot deletion - audit should still exist
         // (In real scenario, chatbot would be deleted but audit remains)
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.empty());
+        lenient().when(chatbotRepository.findById(1L)).thenReturn(Optional.empty());
         
         // Verify audit repository still has the entry (we can't actually delete it here,
         // but the key point is that there's no cascade delete)
@@ -220,6 +234,8 @@ class DeleteRecreateAttackPreventionTest {
     @DisplayName("SECURITY: Should block scan if limit reached, even with different chatbot")
     void shouldBlockScanIfLimitReachedWithDifferentChatbot() {
         // Arrange - user already scanned today
+        setupPreviewModeMocks();
+        
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
             eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(1L);
         
@@ -246,6 +262,8 @@ class DeleteRecreateAttackPreventionTest {
     @DisplayName("SECURITY: Should allow scan after 24 hours, not after delete/recreate")
     void shouldAllowScanAfter24HoursNotAfterDeleteRecreate() {
         // Arrange - scan from yesterday (should be allowed)
+        setupPreviewModeMocks();
+        
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
             eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L); // No scans in last 24 hours
         

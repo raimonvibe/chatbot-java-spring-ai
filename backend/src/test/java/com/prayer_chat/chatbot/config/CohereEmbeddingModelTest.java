@@ -63,8 +63,10 @@ class CohereEmbeddingModelTest {
         
         // Replace HttpClient with mock using reflection
         ReflectionTestUtils.setField(embeddingModel, "httpClient", httpClient);
-        
-        // Setup default successful response
+    }
+    
+    private void setupSuccessfulResponse() throws Exception {
+        // Setup default successful response - only when needed
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(createValidCohereResponse());
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
@@ -126,7 +128,9 @@ class CohereEmbeddingModelTest {
     void shouldNotExposeApiKeyInErrors() throws Exception {
         // Simulate 401 error
         when(httpResponse.statusCode()).thenReturn(401);
-        when(httpResponse.body()).thenReturn("{\"message\":\"Invalid API key\"}");
+        lenient().when(httpResponse.body()).thenReturn("{\"message\":\"Invalid API key\"}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test text"))
                 .isInstanceOf(RuntimeException.class)
@@ -142,6 +146,8 @@ class CohereEmbeddingModelTest {
     @Test
     @DisplayName("SECURITY: API key should be in Authorization header")
     void shouldIncludeApiKeyInAuthorizationHeader() throws Exception {
+        setupSuccessfulResponse();
+        
         embeddingModel.embed("test text");
 
         ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
@@ -159,7 +165,9 @@ class CohereEmbeddingModelTest {
     @DisplayName("SECURITY: Should not expose full response body in 401 error")
     void shouldNotExposeResponseBodyIn401Error() throws Exception {
         when(httpResponse.statusCode()).thenReturn(401);
-        when(httpResponse.body()).thenReturn("{\"error\":\"Invalid API key: sk-xxxxx\"}");
+        lenient().when(httpResponse.body()).thenReturn("{\"error\":\"Invalid API key: sk-xxxxx\"}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -175,7 +183,9 @@ class CohereEmbeddingModelTest {
     @DisplayName("SECURITY: Should not expose full response body in 403 error")
     void shouldNotExposeResponseBodyIn403Error() throws Exception {
         when(httpResponse.statusCode()).thenReturn(403);
-        when(httpResponse.body()).thenReturn("{\"error\":\"Access denied: account suspended\"}");
+        lenient().when(httpResponse.body()).thenReturn("{\"error\":\"Access denied: account suspended\"}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -191,7 +201,9 @@ class CohereEmbeddingModelTest {
     @DisplayName("SECURITY: Should not expose full response body in 429 error")
     void shouldNotExposeResponseBodyIn429Error() throws Exception {
         when(httpResponse.statusCode()).thenReturn(429);
-        when(httpResponse.body()).thenReturn("{\"error\":\"Rate limit exceeded: 100 requests/hour\"}");
+        lenient().when(httpResponse.body()).thenReturn("{\"error\":\"Rate limit exceeded: 100 requests/hour\"}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -206,7 +218,9 @@ class CohereEmbeddingModelTest {
     @DisplayName("SECURITY: Should not expose full response body in 500 error")
     void shouldNotExposeResponseBodyIn500Error() throws Exception {
         when(httpResponse.statusCode()).thenReturn(500);
-        when(httpResponse.body()).thenReturn("{\"error\":\"Internal server error: database connection failed\"}");
+        lenient().when(httpResponse.body()).thenReturn("{\"error\":\"Internal server error: database connection failed\"}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -228,6 +242,8 @@ class CohereEmbeddingModelTest {
         when(httpResponse.body()).thenReturn(
             "{\"embeddings\":[[0.1,0.2,0.3]],\"@class\":\"com.prayer_chat.chatbot.model.User\"}"
         );
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         // Should only deserialize to CohereEmbedResponse, ignore @class
         assertThatCode(() -> embeddingModel.embed("test"))
@@ -241,6 +257,8 @@ class CohereEmbeddingModelTest {
         when(httpResponse.body()).thenReturn(
             "{\"embeddings\":[[0.1,0.2,0.3]],\"malicious_field\":\"value\",\"@type\":\"SomeClass\"}"
         );
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         // Should ignore unknown properties and not crash
         assertThatCode(() -> embeddingModel.embed("test"))
@@ -276,6 +294,8 @@ class CohereEmbeddingModelTest {
     @Test
     @DisplayName("Should successfully embed single text")
     void shouldEmbedSingleText() throws Exception {
+        setupSuccessfulResponse();
+        
         float[] result = embeddingModel.embed("test text");
 
         assertThat(result).isNotNull();
@@ -288,6 +308,8 @@ class CohereEmbeddingModelTest {
     @Test
     @DisplayName("Should successfully embed document")
     void shouldEmbedDocument() throws Exception {
+        setupSuccessfulResponse();
+        
         Document doc = new Document("test document text");
         float[] result = embeddingModel.embed(doc);
 
@@ -301,7 +323,10 @@ class CohereEmbeddingModelTest {
         // EmbeddingRequest requires EmbeddingOptions - use null for default
         EmbeddingRequest request = new EmbeddingRequest(List.of("text1", "text2", "text3"), null);
         
+        when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(createValidCohereResponseMultiple());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         EmbeddingResponse response = embeddingModel.call(request);
 
@@ -319,6 +344,8 @@ class CohereEmbeddingModelTest {
     @Test
     @DisplayName("Should use correct model in request")
     void shouldUseCorrectModelInRequest() throws Exception {
+        setupSuccessfulResponse();
+        
         embeddingModel.embed("test");
 
         ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
@@ -338,6 +365,8 @@ class CohereEmbeddingModelTest {
     void shouldHandleEmptyEmbeddingsList() throws Exception {
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn("{\"embeddings\":[]}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -349,6 +378,8 @@ class CohereEmbeddingModelTest {
     void shouldHandleInvalidJsonResponse() throws Exception {
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn("invalid json");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
@@ -360,7 +391,11 @@ class CohereEmbeddingModelTest {
     void shouldHandleNullEmbeddingsInResponse() throws Exception {
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn("{\"embeddings\":null}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
 
+        // Null embeddings will cause IndexOutOfBoundsException when trying to get(0)
+        // This is caught and wrapped in RuntimeException
         assertThatThrownBy(() -> embeddingModel.embed("test"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Failed to get embedding");

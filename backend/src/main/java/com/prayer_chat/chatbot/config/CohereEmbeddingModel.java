@@ -92,6 +92,9 @@ public class CohereEmbeddingModel implements EmbeddingModel {
                     .collect(Collectors.toList());
 
             return new EmbeddingResponse(embeddings);
+        } catch (RuntimeException e) {
+            // Re-throw RuntimeException as-is (preserves our specific error messages)
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to get embeddings from Cohere", e);
         }
@@ -143,12 +146,19 @@ public class CohereEmbeddingModel implements EmbeddingModel {
 
             CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
 
+            if (cohereResponse.embeddings == null || cohereResponse.embeddings.isEmpty()) {
+                throw new RuntimeException("Failed to get embedding from Cohere: empty or null embeddings");
+            }
+
             List<Double> embedding = cohereResponse.embeddings.get(0);
             float[] floatArray = new float[embedding.size()];
             for (int i = 0; i < embedding.size(); i++) {
                 floatArray[i] = embedding.get(i).floatValue();
             }
             return floatArray;
+        } catch (RuntimeException e) {
+            // Re-throw RuntimeException as-is (preserves our specific error messages)
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to get embedding from Cohere", e);
         }
