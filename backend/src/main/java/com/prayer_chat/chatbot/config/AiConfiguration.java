@@ -1,9 +1,10 @@
 package com.prayer_chat.chatbot.config;
 
-import com.prayer_chat.chatbot.config.CohereEmbeddingModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.anthropic.api.AnthropicApi;
+import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -70,21 +71,45 @@ public class AiConfiguration {
             };
         }
         
-        // If we have an API key but Spring AI didn't auto-configure, provide helpful error
-        logger.error("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
-        logger.error("This usually means Spring AI auto-configuration didn't detect the property.");
-        logger.error("Check that 'spring.ai.anthropic.api-key' property is set before Spring AI auto-configuration runs.");
-        logger.error("EnvironmentVariableConfig should have set this property. Check startup logs for confirmation.");
+        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
+        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
+        logger.warn("Creating AnthropicChatModel manually as fallback.");
+        logger.warn("This usually means Spring AI auto-configuration didn't detect the property.");
+        logger.warn("Check that 'spring.ai.anthropic.api-key' property is set before Spring AI auto-configuration runs.");
         
-        return (prompt) -> {
-            throw new IllegalStateException(
-                "ChatModel configuration error. " +
-                "ANTHROPIC_API_KEY is set but Spring AI auto-configuration failed to create AnthropicChatModel. " +
-                "The API key was found (length: " + apiKey.length() + ") but Spring AI didn't auto-configure. " +
-                "This may be a Spring AI version compatibility issue. " +
-                "Check that spring-ai-anthropic dependency is correct and Spring AI auto-configuration is enabled."
-            );
-        };
+        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
+        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
+        logger.warn("Creating AnthropicChatModel manually as fallback.");
+        
+        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
+        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
+        logger.warn("Creating AnthropicChatModel manually as fallback.");
+        
+        try {
+            // Manually create AnthropicChatModel using the builder pattern
+            AnthropicApi anthropicApi = AnthropicApi.builder().apiKey(apiKey).build();
+            AnthropicChatOptions options = AnthropicChatOptions.builder()
+                    .model("claude-3-haiku-20240307")
+                    .temperature(0.7)
+                    .maxTokens(1000)
+                    .build();
+            AnthropicChatModel anthropicChatModel = AnthropicChatModel.builder()
+                    .anthropicApi(anthropicApi)
+                    .defaultOptions(options)
+                    .build();
+            logger.info("Successfully created AnthropicChatModel manually.");
+            return anthropicChatModel;
+        } catch (Exception e) {
+            logger.error("Failed to create AnthropicChatModel manually: {}", e.getMessage(), e);
+            return (prompt) -> {
+                throw new IllegalStateException(
+                    "ChatModel configuration error. " +
+                    "ANTHROPIC_API_KEY is set but failed to create AnthropicChatModel. " +
+                    "Error: " + e.getMessage() + ". " +
+                    "Check that spring-ai-anthropic dependency is correct."
+                );
+            };
+        }
     }
 
     /**
