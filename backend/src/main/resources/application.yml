@@ -116,12 +116,12 @@ server:
   # Session configuration for OAuth2
   servlet:
     context-path: /
-      session:
+    session:
       cookie:
         name: JSESSIONID
         http-only: true
         secure: ${SESSION_COOKIE_SECURE:true}  # true for HTTPS (Render uses HTTPS)
-        same-site: none  # Required for cross-origin requests (frontend on different domain than backend)
+        same-site: "none"  # Required for cross-origin requests (frontend on different domain than backend)
         max-age: 14400  # 4 hours (14400 seconds) - matches session timeout
       timeout: 4h  # 4 hours session timeout (industry standard for SaaS)
       tracking-modes: cookie

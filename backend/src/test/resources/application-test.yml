@@ -76,6 +76,17 @@ management:
     metrics:
       enabled: true
 
+# Server configuration for tests
+server:
+  servlet:
+    session:
+      cookie:
+        name: JSESSIONID
+        http-only: true
+        secure: false  # Tests don't use HTTPS
+        same-site: "lax"  # Lax is fine for test environment
+        max-age: 3600  # 1 hour for tests
+
 # Logging
 logging:
   level:
