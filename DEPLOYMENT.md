@@ -207,8 +207,10 @@ Always use the **Internal URL** for services running on Render - it's faster and
    Branch: main
    Root Directory: (leave empty)
    Dockerfile Path: ./backend/Dockerfile
-   Docker Context: ./backend
+   Docker Context: (leave empty - uses repository root by default)
    ```
+   
+   **⚠️ IMPORTANT**: Do NOT set Docker Context to `./backend`. Leave it empty so Render uses the repository root as the build context. The Dockerfile uses paths like `COPY backend/pom.xml`, which requires the root context.
 
 3. **Set Instance Type**
    - Free tier: 512MB RAM (sufficient for testing)
@@ -295,8 +297,10 @@ Always use the **Internal URL** for services running on Render - it's faster and
    Branch: main
    Root Directory: (leave empty)
    Dockerfile Path: ./frontend/Dockerfile
-   Docker Context: ./frontend
+   Docker Context: (leave empty - uses repository root by default)
    ```
+   
+   **⚠️ IMPORTANT**: Do NOT set Docker Context to `./frontend`. Leave it empty so Render uses the repository root as the build context. The Dockerfile uses paths like `COPY frontend/package.json`, which requires the root context.
 
 3. **Environment Variables**
    ```bash

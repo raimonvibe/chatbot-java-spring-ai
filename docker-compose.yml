@@ -1,4 +1,4 @@
-version: '3.8'
+# version is obsolete in Docker Compose v2+, removed to avoid warnings
 
 services:
   # PostgreSQL Database
@@ -24,8 +24,8 @@ services:
   # Backend Service
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: chatbot-backend
     expose:
       - "8080"
@@ -73,8 +73,8 @@ services:
   # Frontend Service
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: chatbot-frontend
     expose:
       - "3000"
