@@ -7,12 +7,17 @@ import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.resources.ConnectionProvider;
+import org.springframework.lang.NonNull;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Custom Cohere implementation of Spring AI's EmbeddingModel using direct HTTP calls
+ * Configured to avoid QUIC library issues by using standard HTTP/1.1
  */
 public class CohereEmbeddingModel implements EmbeddingModel {
 
@@ -20,7 +25,17 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     private final String model;
 
     public CohereEmbeddingModel(String apiKey, String model) {
+        // Configure HttpClient to disable QUIC and use standard HTTP/1.1
+        HttpClient httpClient = HttpClient.create(ConnectionProvider.builder("cohere-http")
+                .maxConnections(50)
+                .pendingAcquireTimeout(Duration.ofSeconds(10))
+                .maxIdleTime(Duration.ofSeconds(20))
+                .build())
+                .protocol(reactor.netty.http.HttpProtocol.HTTP11) // Force HTTP/1.1, disable QUIC
+                .followRedirect(true);
+        
         this.webClient = WebClient.builder()
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(httpClient))
                 .baseUrl("https://api.cohere.com/v1")
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
@@ -29,7 +44,8 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     }
 
     @Override
-    public EmbeddingResponse call(EmbeddingRequest request) {
+    @NonNull
+    public EmbeddingResponse call(@NonNull EmbeddingRequest request) {
         try {
             List<String> texts = request.getInstructions();
 
@@ -63,12 +79,14 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     }
 
     @Override
-    public float[] embed(Document document) {
+    @NonNull
+    public float[] embed(@NonNull Document document) {
         return embed(document.getText());
     }
 
     @Override
-    public float[] embed(String text) {
+    @NonNull
+    public float[] embed(@NonNull String text) {
         try {
             CohereEmbedRequest request = new CohereEmbedRequest(
                     List.of(text),

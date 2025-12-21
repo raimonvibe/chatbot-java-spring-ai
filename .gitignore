@@ -40,6 +40,10 @@ spring.log
 .env
 .env.local
 .env.*.local
+# Keep .env.example in git (it's a template)
+!.env.example
+# Keep .env.example in git (it's a template)
+!.env.example
 
 # OS
 .DS_Store
