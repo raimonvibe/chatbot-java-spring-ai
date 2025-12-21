@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, checkAuth, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, checkAuth, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2 } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 
 export default function Dashboard() {
@@ -83,10 +83,10 @@ export default function Dashboard() {
     setAnalyzing(true);
     try {
       await analyzeWebsite(chatbotId, websiteUrl);
-      alert('Website analysis started! This may take a few minutes.');
+      // Website analysis started silently - no popup needed
     } catch (error) {
       console.error('Error analyzing website:', error);
-      alert('Failed to analyze website');
+      // Error is logged, no popup needed
     } finally {
       setAnalyzing(false);
     }
@@ -115,25 +115,55 @@ export default function Dashboard() {
 
     try {
       const newChatbot = await createChatbot(formData);
+      
+      // Keep loader visible for a moment to show completion
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setChatbots([...chatbots, newChatbot]);
       setFormData({ name: '', description: '', websiteUrl: '', primaryLanguage: 'en' });
       setShowCreateForm(false);
+      setCreating(false); // Hide loader only after successful creation
 
-      // Auto-analyze website if URL provided
+      // Auto-analyze website if URL provided (after loader is hidden)
       if (formData.websiteUrl) {
         handleAnalyzeWebsite(newChatbot.id, formData.websiteUrl);
       }
     } catch (error: any) {
       console.error('Error creating chatbot:', error);
+      setCreating(false); // Hide loader on error
+      
       // Check if it's a limit reached error
       if (error.message && (error.message.includes('limit') || error.message.includes('Upgrade'))) {
         setUpgradeMessage(error.message || 'One chatbot per account limit reached. Upgrade to create more.');
         setShowUpgradeModal(true);
       } else {
-        alert(error.message || 'Failed to create chatbot. Please try again.');
+        // Show error message without alert popup
+        setUpgradeMessage(error.message || 'Failed to create chatbot. Please try again.');
+        setShowUpgradeModal(true);
       }
-    } finally {
-      setCreating(false);
+    }
+  };
+
+  const handleDeleteChatbot = async (chatbotId: number, chatbotName: string) => {
+    if (!confirm(`Are you sure you want to delete "${chatbotName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteChatbot(chatbotId);
+      setChatbots(chatbots.filter(c => c.id !== chatbotId));
+      // Update subscription status after deletion
+      const updatedCount = chatbots.length - 1;
+      setSubscriptionStatus({
+        isPreviewMode: updatedCount >= 1,
+        canAccessIntegrationScript: false,
+        maxChatbots: 1,
+        currentChatbotCount: updatedCount,
+      });
+    } catch (error: any) {
+      console.error('Error deleting chatbot:', error);
+      // Error is logged, user can see it in console if needed
+      // No popup needed - deletion is already confirmed via confirm dialog
     }
   };
 
@@ -273,9 +303,18 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border border-brown-200"
             >
-              <div className="flex items-center gap-2 mb-3">
-                <Book className="w-5 h-5 text-brown-700" />
-                <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Book className="w-5 h-5 text-brown-700" />
+                  <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
+                </div>
+                <button
+                  onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete chatbot"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
               <p className="text-brown-700 mb-4">{chatbot.description}</p>
 
@@ -350,9 +389,9 @@ export default function Dashboard() {
               </pre>
               <div className="flex gap-4">
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(embedCode);
-                    alert('Copied to clipboard!');
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(embedCode);
+                    // Copy successful - no popup needed, user can see the code
                   }}
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >

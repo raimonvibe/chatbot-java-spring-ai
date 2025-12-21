@@ -73,6 +73,9 @@ class ChatbotControllerIT {
     @MockitoBean
     private com.prayer_chat.chatbot.repository.WebsiteContentRepository websiteContentRepository;
 
+    @MockitoBean
+    private com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository websiteScanAuditRepository;
+
     private User testUser;
     private Chatbot testChatbot;
     private Subscription testSubscription;
@@ -103,8 +106,8 @@ class ChatbotControllerIT {
         // Mock website size estimator (default: small website)
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
         
-        // Mock website content repository (no scans today)
-        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        // Mock website scan audit repository (no scans today) - SECURITY: Use audit table, not WebsiteContent
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
         
         // Mock chatbot repository count (no chatbots yet)
         when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);

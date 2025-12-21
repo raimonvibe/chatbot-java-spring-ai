@@ -256,3 +256,20 @@ export async function getEmbedCode(chatbotId: number): Promise<string> {
     return await response.text();
   }
 }
+
+export async function deleteChatbot(chatbotId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Chatbot not found');
+    }
+    if (response.status === 403) {
+      throw new Error('You do not have permission to delete this chatbot');
+    }
+    throw new Error('Failed to delete chatbot');
+  }
+}

@@ -16,6 +16,8 @@ import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
+import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
+import com.prayer_chat.chatbot.model.WebsiteScanAudit;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -49,6 +51,7 @@ public class ChatbotController {
     private final CostTrackingService costTrackingService;
     private final WebsiteSizeEstimator websiteSizeEstimator;
     private final WebsiteContentRepository websiteContentRepository;
+    private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
 
     @Autowired
@@ -62,6 +65,7 @@ public class ChatbotController {
                            CostTrackingService costTrackingService,
                            WebsiteSizeEstimator websiteSizeEstimator,
                            WebsiteContentRepository websiteContentRepository,
+                           WebsiteScanAuditRepository websiteScanAuditRepository,
                            AccessControlService accessControlService) {
         this.chatbotRepository = chatbotRepository;
         this.chatbotService = chatbotService;
@@ -73,6 +77,7 @@ public class ChatbotController {
         this.costTrackingService = costTrackingService;
         this.websiteSizeEstimator = websiteSizeEstimator;
         this.websiteContentRepository = websiteContentRepository;
+        this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
     }
 
@@ -433,9 +438,10 @@ public class ChatbotController {
             boolean isPreviewMode = costTrackingService.isPreviewMode(user);
             
             // 1. Check scan frequency limit (1 scan/day for preview mode)
+            // SECURITY: Use WebsiteScanAudit instead of WebsiteContent to prevent abuse via chatbot deletion
             if (isPreviewMode) {
                 java.time.LocalDateTime oneDayAgo = java.time.LocalDateTime.now().minusDays(1);
-                Long scansInLastDay = websiteContentRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
+                Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
                 if (scansInLastDay != null && scansInLastDay >= 1) {
                     logger.warn("User {} attempted to scan website but daily limit reached (preview mode: 1 scan/day)", 
                         LogSanitizer.sanitize(user.getEmail()));
@@ -463,10 +469,11 @@ public class ChatbotController {
             }
             
             // 3. Estimate cost and check cost limit
+            java.math.BigDecimal estimatedCost = java.math.BigDecimal.ZERO;
             if (isPreviewMode) {
                 // Estimate tokens: ~2000 tokens per page (conservative estimate)
                 int estimatedTokens = estimatedPages * 2000;
-                java.math.BigDecimal estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
+                estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
                 
                 try {
                     costTrackingService.checkCostLimit(user, estimatedCost);
@@ -481,7 +488,12 @@ public class ChatbotController {
                 }
             }
             
-            // All checks passed - start website analysis asynchronously
+            // All checks passed - create audit entry BEFORE starting scan
+            // SECURITY: This audit entry persists even if chatbot is deleted, preventing abuse
+            WebsiteScanAudit audit = new WebsiteScanAudit(user, chatbot.getWebsiteUrl(), estimatedPages, estimatedCost, chatbot.getId());
+            websiteScanAuditRepository.save(audit);
+            
+            // Start website analysis asynchronously
             websiteAnalysisService.analyzeWebsite(chatbot);
             
             // Return analysis status
