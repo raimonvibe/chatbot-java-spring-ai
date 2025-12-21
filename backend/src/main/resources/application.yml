@@ -40,6 +40,17 @@ spring:
       path: /h2-console
   
   # =============================================================================
+  # SPRING SESSION CONFIGURATION (Required for OAuth2 on cloud platforms)
+  # =============================================================================
+  session:
+    store-type: jdbc  # Store sessions in database instead of memory
+    jdbc:
+      initialize-schema: always  # Auto-create session tables
+      table-name: SPRING_SESSION  # Default table name
+      cleanup-cron: "0 0 * * * *"  # Cleanup expired sessions every hour
+    timeout: 30m  # 30 minutes session timeout
+  
+  # =============================================================================
   # OAUTH2 CONFIGURATION (Conditional - only if GOOGLE_CLIENT_ID is set)
   # =============================================================================
   # OAuth2 is configured manually in SecurityConfig only when GOOGLE_CLIENT_ID is present
