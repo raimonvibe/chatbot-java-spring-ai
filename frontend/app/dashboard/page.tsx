@@ -37,8 +37,15 @@ export default function Dashboard() {
       setAuthenticated(true);
     } catch (error) {
       console.error('Error loading chatbots:', error);
-      // If unauthorized, show login prompt
-      if ((error as any).status === 401) {
+      // If unauthorized (401) or network error (CORS), show login prompt
+      const status = (error as any).status;
+      if (status === 401 || status === 0 || !status) {
+        // 401 = Unauthorized, 0 or undefined = Network/CORS error
+        setAuthenticated(false);
+        // Don't redirect automatically - let user click the button
+        // This prevents redirect loops
+      } else {
+        // Other errors (500, etc.) - still show as unauthenticated
         setAuthenticated(false);
       }
     } finally {

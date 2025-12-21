@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
 
 // Auto-detect backend URL based on environment
 function getApiBaseUrl(): string {
@@ -35,6 +35,26 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const message = searchParams.get('message');
+  const router = useRouter();
+
+  // Check if user is already authenticated (e.g., from OAuth callback)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          // User is already authenticated, redirect to dashboard
+          router.replace('/dashboard');
+        }
+      } catch (error) {
+        // Not authenticated, stay on login page
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   const handleGoogleLogin = () => {
     // Redirect to backend OAuth2 Google login endpoint
