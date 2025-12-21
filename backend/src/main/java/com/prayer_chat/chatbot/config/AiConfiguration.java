@@ -77,14 +77,6 @@ public class AiConfiguration {
         logger.warn("This usually means Spring AI auto-configuration didn't detect the property.");
         logger.warn("Check that 'spring.ai.anthropic.api-key' property is set before Spring AI auto-configuration runs.");
         
-        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
-        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
-        logger.warn("Creating AnthropicChatModel manually as fallback.");
-        
-        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
-        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
-        logger.warn("Creating AnthropicChatModel manually as fallback.");
-        
         try {
             // Manually create AnthropicChatModel using the builder pattern
             AnthropicApi anthropicApi = AnthropicApi.builder().apiKey(apiKey).build();
