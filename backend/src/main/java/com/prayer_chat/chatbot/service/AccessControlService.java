@@ -64,13 +64,13 @@ public class AccessControlService {
     
     /**
      * Check if user can create more chatbots
-     * Preview mode: 1 chatbot max
+     * Preview mode: 3 chatbots max (temporary for testing)
      * Paid mode: unlimited (or based on subscription plan)
      */
     public boolean canCreateChatbot(User user, long currentChatbotCount) {
         if (isPreviewMode(user)) {
-            // Preview mode: max 1 chatbot
-            return currentChatbotCount < 1;
+            // Preview mode: max 3 chatbots (temporary for testing)
+            return currentChatbotCount < 3;
         } else {
             // Paid mode: unlimited (or could be based on subscription plan)
             return true;
@@ -82,7 +82,7 @@ public class AccessControlService {
      */
     public int getMaxChatbotsAllowed(User user) {
         if (isPreviewMode(user)) {
-            return 1; // Preview mode: 1 chatbot
+            return 3; // Preview mode: 3 chatbots (temporary for testing)
         } else {
             // Paid mode: unlimited (or based on subscription plan)
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
@@ -91,7 +91,7 @@ public class AccessControlService {
                 // For now, paid users get unlimited
                 return Integer.MAX_VALUE;
             }
-            return 1; // Default to 1 if no subscription found
+            return 3; // Default to 3 if no subscription found (temporary for testing)
         }
     }
     

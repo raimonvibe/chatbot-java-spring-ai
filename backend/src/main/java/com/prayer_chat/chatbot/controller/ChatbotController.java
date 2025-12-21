@@ -261,7 +261,7 @@ public class ChatbotController {
                 ));
             }
 
-            // Enforce one chatbot per account limit for preview mode
+            // Enforce chatbot limit for preview mode (3 chatbots max - temporary for testing)
             // Use synchronized check-and-create pattern to prevent race conditions
             Long currentChatbotCount = chatbotRepository.countByOwner(user.getId());
             if (!accessControlService.canCreateChatbot(user, currentChatbotCount)) {
@@ -269,7 +269,7 @@ public class ChatbotController {
                 logger.warn("User {} attempted to create chatbot but limit reached (current: {}, max: {})", 
                     LogSanitizer.sanitize(user.getEmail()), currentChatbotCount, maxAllowed);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "One chatbot per account limit reached. Preview mode allows 1 chatbot. Upgrade to create more.",
+                    "error", "Chatbot limit reached. Preview mode allows " + maxAllowed + " chatbots. Upgrade to create more.",
                     "currentCount", currentChatbotCount,
                     "maxAllowed", maxAllowed,
                     "upgradeRequired", true
@@ -281,13 +281,14 @@ public class ChatbotController {
             if (isPreviewMode(user)) {
                 // Re-check count right before creation to catch any concurrent creations
                 Long finalCount = chatbotRepository.countByOwner(user.getId());
-                if (finalCount >= 1) {
+                int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
+                if (finalCount >= maxAllowed) {
                     logger.warn("User {} attempted to create chatbot but limit reached (race condition detected, count: {})", 
                         LogSanitizer.sanitize(user.getEmail()), finalCount);
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                        "error", "One chatbot per account limit reached. Preview mode allows 1 chatbot. Upgrade to create more.",
+                        "error", "Chatbot limit reached. Preview mode allows " + maxAllowed + " chatbots. Upgrade to create more.",
                         "currentCount", finalCount,
-                        "maxAllowed", 1,
+                        "maxAllowed", maxAllowed,
                         "upgradeRequired", true
                     ));
                 }

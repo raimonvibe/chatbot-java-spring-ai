@@ -156,13 +156,39 @@ class AccessControlServiceTest {
     }
 
     @Test
-    @DisplayName("Should deny chatbot creation for preview mode users with 1 chatbot")
-    void shouldDenyChatbotCreationForPreviewModeWithOneChatbot() {
+    @DisplayName("Should allow chatbot creation for preview mode users with 1 chatbot")
+    void shouldAllowChatbotCreationForPreviewModeWithOneChatbot() {
         // Arrange
         when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
 
         // Act
         boolean canCreate = accessControlService.canCreateChatbot(testUser, 1);
+
+        // Assert
+        assertThat(canCreate).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should allow chatbot creation for preview mode users with 2 chatbots")
+    void shouldAllowChatbotCreationForPreviewModeWithTwoChatbots() {
+        // Arrange
+        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
+
+        // Act
+        boolean canCreate = accessControlService.canCreateChatbot(testUser, 2);
+
+        // Assert
+        assertThat(canCreate).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should deny chatbot creation for preview mode users with 3 chatbots")
+    void shouldDenyChatbotCreationForPreviewModeWithThreeChatbots() {
+        // Arrange
+        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
+
+        // Act
+        boolean canCreate = accessControlService.canCreateChatbot(testUser, 3);
 
         // Assert
         assertThat(canCreate).isFalse();
@@ -182,8 +208,8 @@ class AccessControlServiceTest {
     }
 
     @Test
-    @DisplayName("Should return max 1 chatbot for preview mode users")
-    void shouldReturnMaxOneChatbotForPreviewMode() {
+    @DisplayName("Should return max 3 chatbots for preview mode users (temporary for testing)")
+    void shouldReturnMaxThreeChatbotsForPreviewMode() {
         // Arrange
         when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
 
@@ -191,7 +217,7 @@ class AccessControlServiceTest {
         int maxChatbots = accessControlService.getMaxChatbotsAllowed(testUser);
 
         // Assert
-        assertThat(maxChatbots).isEqualTo(1);
+        assertThat(maxChatbots).isEqualTo(3);
     }
 
     @Test

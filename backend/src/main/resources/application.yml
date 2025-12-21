@@ -4,6 +4,8 @@
 spring:
   application:
     name: prayer-chat-ai-chatbot
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
   
   # =============================================================================
   # DATABASE CONFIGURATION
