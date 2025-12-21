@@ -1,2 +1,2 @@
-org.springframework.boot.env.EnvironmentPostProcessor=com.prayer_chat.chatbot.config.AnthropicApiKeyEnvironmentPostProcessor
+org.springframework.boot.EnvironmentPostProcessor=com.prayer_chat.chatbot.config.AnthropicApiKeyEnvironmentPostProcessor
 
