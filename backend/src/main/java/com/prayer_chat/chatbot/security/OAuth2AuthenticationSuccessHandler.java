@@ -36,13 +36,27 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     
     /**
      * Get the frontend URL for redirects
-     * Priority: 1. FRONTEND_URL env var, 2. First non-localhost URL from CORS, 3. First URL, 4. Default
+     * Priority: 1. FRONTEND_URL env var, 2. Request origin (if localhost, use localhost), 3. Production URL from CORS
      */
-    private String getFrontendUrl() {
+    private String getFrontendUrl(HttpServletRequest request) {
         // Use explicit FRONTEND_URL if set
         if (frontendUrlOverride != null && !frontendUrlOverride.trim().isEmpty()) {
             logger.info("Using FRONTEND_URL override: {}", frontendUrlOverride);
             return frontendUrlOverride.trim();
+        }
+        
+        // Check if request is coming from localhost - if so, use localhost for redirect
+        String origin = request.getHeader("Origin");
+        String referer = request.getHeader("Referer");
+        String host = request.getHeader("Host");
+        
+        boolean isLocalRequest = (origin != null && (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1"))) ||
+                                 (referer != null && (referer.startsWith("http://localhost") || referer.startsWith("http://127.0.0.1"))) ||
+                                 (host != null && (host.startsWith("localhost") || host.startsWith("127.0.0.1")));
+        
+        if (isLocalRequest) {
+            logger.info("Detected localhost request (origin: {}, referer: {}, host: {}), using localhost redirect", origin, referer, host);
+            return "http://localhost:3000";
         }
         
         if (allowedOrigins == null || allowedOrigins.trim().isEmpty()) {
@@ -58,16 +72,20 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String productionUrl = null;
         String testUrl = null;
         String firstNonLocalhost = null;
+        String localhostUrl = null;
         
-        for (String origin : origins) {
-            String trimmed = origin.trim();
+        for (String originConfig : origins) {
+            String trimmed = originConfig.trim();
             if (trimmed.isEmpty()) continue;
             
             // Remove wildcard patterns if present
             trimmed = trimmed.replace("https://*.", "https://");
             
-            // Skip localhost URLs
+            // Track localhost URLs separately
             if (trimmed.startsWith("http://localhost") || trimmed.startsWith("http://127.0.0.1")) {
+                if (localhostUrl == null) {
+                    localhostUrl = trimmed;
+                }
                 continue;
             }
             
@@ -93,10 +111,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             }
         }
         
-        // Use production URL if found, otherwise test URL, otherwise first non-localhost, otherwise first URL
+        // Use production URL if found, otherwise test URL, otherwise first non-localhost, otherwise localhost, otherwise first URL
         String selectedUrl = productionUrl != null ? productionUrl :
                             (testUrl != null ? testUrl :
-                            (firstNonLocalhost != null ? firstNonLocalhost : origins[0].trim()));
+                            (firstNonLocalhost != null ? firstNonLocalhost :
+                            (localhostUrl != null ? localhostUrl : origins[0].trim())));
         
         logger.info("Selected frontend URL for redirect: {} (from allowed origins: {})", selectedUrl, allowedOrigins);
         return selectedUrl;
@@ -124,7 +143,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 subscriptionRepository.save(freeSubscription);
 
                 logger.info("User {} created with FREE plan, redirecting to dashboard", user.getEmail());
-                String redirectUrl = getFrontendUrl() + "/dashboard?welcome=true";
+                String redirectUrl = getFrontendUrl(request) + "/dashboard?welcome=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
             }
@@ -134,14 +153,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             if (!subscription.canUseChatbot()) {
                 // Has subscription but inactive - redirect to pricing
                 logger.info("User {} has inactive subscription, redirecting to pricing", user.getEmail());
-                String redirectUrl = getFrontendUrl() + "/pricing?upgrade=true";
+                String redirectUrl = getFrontendUrl(request) + "/pricing?upgrade=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
             }
 
             // User has active subscription - redirect to dashboard
             logger.info("User {} logged in successfully with active subscription", user.getEmail());
-            String redirectUrl = getFrontendUrl() + "/dashboard";
+            String redirectUrl = getFrontendUrl(request) + "/dashboard";
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } else {
             // Fallback

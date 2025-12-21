@@ -302,13 +302,19 @@ describe('API Module', () => {
   })
 
   describe('getEmbedCode', () => {
-    it('should fetch embed code for a chatbot', async () => {
+    it('should fetch embed code for a chatbot (plain text)', async () => {
       const mockEmbedCode = '<script src="https://example.com/embed.js"></script>'
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'content-type') return 'text/html';
+            return null;
+          }),
+        },
         text: async () => mockEmbedCode,
-      } as Response)
+      } as unknown as Response)
 
       const result = await getEmbedCode(1)
 
@@ -319,13 +325,62 @@ describe('API Module', () => {
       expect(result).toBe(mockEmbedCode)
     })
 
-    it('should throw an error when request fails', async () => {
+    it('should fetch embed code for a chatbot (JSON)', async () => {
+      const mockEmbedCode = '<script src="https://example.com/embed.js"></script>'
+      const mockJsonData = { embedCode: mockEmbedCode }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'content-type') return 'application/json';
+            return null;
+          }),
+        },
+        json: async () => mockJsonData,
+      } as unknown as Response)
+
+      const result = await getEmbedCode(1)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/chatbots\/1\/embed/),
+        expect.any(Object)
+      )
+      expect(result).toBe(mockEmbedCode)
+    })
+
+    it('should throw an error when request fails (404)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
-      } as Response)
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'content-type') return 'text/plain';
+            return null;
+          }),
+        },
+        text: async () => 'Not found',
+      } as unknown as Response)
 
-      await expect(getEmbedCode(1)).rejects.toThrow('Failed to get embed code')
+      // When text response, it uses the text directly
+      await expect(getEmbedCode(1)).rejects.toThrow('Not found')
+    })
+
+    it('should throw an error when payment required (402)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'content-type') return 'application/json';
+            return null;
+          }),
+        },
+        json: async () => ({ error: 'Upgrade to paid tier for integration script access' }),
+        text: async () => 'Upgrade to paid tier for integration script access',
+      } as unknown as Response)
+
+      await expect(getEmbedCode(1)).rejects.toThrow('Upgrade to paid tier')
     })
   })
 })

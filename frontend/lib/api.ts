@@ -224,13 +224,35 @@ export async function getEmbedCode(chatbotId: number): Promise<string> {
   if (!response.ok) {
     if (response.status === 402) {
       // Payment required - user is in preview mode
-      const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
-      throw new Error(errorData.error || 'Upgrade to paid tier for integration script access');
+      // Try to parse as JSON first, fallback to text
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
+        throw new Error(errorData.error || 'Upgrade to paid tier for integration script access');
+      } else {
+        const errorText = await response.text().catch(() => 'Upgrade required');
+        throw new Error(errorText || 'Upgrade to paid tier for integration script access');
+      }
     }
-    const errorData = await response.json().catch(() => ({ error: 'Failed to get embed code' }));
-    throw new Error(errorData.error || 'Failed to get embed code');
+    // For other errors, try JSON first, then text
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to get embed code' }));
+      throw new Error(errorData.error || 'Failed to get embed code');
+    } else {
+      const errorText = await response.text().catch(() => '');
+      // Use error text if available, otherwise generic message
+      throw new Error(errorText || 'Failed to get embed code');
+    }
   }
 
-  const data = await response.json();
-  return data.embedCode || data;
+  // Check content type to determine if response is JSON or plain text
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    return data.embedCode || data;
+  } else {
+    // Backend returns plain text (HTML/JS embed code)
+    return await response.text();
+  }
 }
