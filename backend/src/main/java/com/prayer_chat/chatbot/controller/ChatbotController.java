@@ -442,11 +442,32 @@ public class ChatbotController {
             int deletedCount = userChatbots.size();
             chatbotRepository.deleteAll(userChatbots);
             
+            // Reset sequence if no chatbots remain in database (for clean ID numbering)
+            // This only affects preview mode users who delete all their chatbots
+            long totalChatbots = chatbotRepository.countAllChatbots();
+            if (totalChatbots == 0) {
+                try {
+                    // Try PostgreSQL first (production)
+                    chatbotRepository.resetSequencePostgreSQL();
+                    logger.info("Reset chatbot ID sequence (PostgreSQL)");
+                } catch (Exception e) {
+                    try {
+                        // Fallback to H2 (local development)
+                        chatbotRepository.resetSequenceH2();
+                        logger.info("Reset chatbot ID sequence (H2)");
+                    } catch (Exception e2) {
+                        // If both fail, log but don't fail the request
+                        logger.warn("Could not reset chatbot ID sequence (this is not critical): {}", e2.getMessage());
+                    }
+                }
+            }
+            
             logger.info("Deleted {} chatbots for preview mode user: {}", deletedCount, LogSanitizer.sanitize(user.getEmail()));
             
             return ResponseEntity.ok(Map.of(
                 "message", "Successfully deleted all chatbots",
-                "deletedCount", deletedCount
+                "deletedCount", deletedCount,
+                "sequenceReset", totalChatbots == 0
             ));
 
         } catch (Exception e) {
