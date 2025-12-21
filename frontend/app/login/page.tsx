@@ -5,7 +5,31 @@ import { Book } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+// Auto-detect backend URL based on environment
+function getApiBaseUrl(): string {
+  // Use explicit environment variable if set
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // Auto-detect production domain
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Production domains - use Render backend
+    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
+      return 'https://chatbot-backend-4mp4.onrender.com';
+    }
+    // Vercel preview/test deployments
+    if (hostname.includes('vercel.app')) {
+      return 'https://chatbot-backend-4mp4.onrender.com';
+    }
+  }
+  
+  // Default to localhost for local development
+  return 'http://localhost:8081';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -88,7 +112,11 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-brown-700">Loading...</div>
+      </div>
+    }>
       <LoginContent />
     </Suspense>
   );

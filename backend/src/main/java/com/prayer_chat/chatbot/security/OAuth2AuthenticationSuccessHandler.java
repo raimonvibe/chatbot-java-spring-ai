@@ -76,10 +76,15 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 firstNonLocalhost = trimmed;
             }
             
-            // Prioritize prayer-chat.com (production domain)
+            // Prioritize prayer-chat.com (production domain) - check both www and non-www
             if (trimmed.contains("prayer-chat.com")) {
-                productionUrl = trimmed;
-                break; // Highest priority, use immediately
+                // Prefer www.prayer-chat.com if available, otherwise use prayer-chat.com
+                if (trimmed.contains("www.prayer-chat.com")) {
+                    productionUrl = trimmed;
+                    break; // Highest priority, use immediately
+                } else if (productionUrl == null) {
+                    productionUrl = trimmed; // Store non-www version as fallback
+                }
             }
             
             // Track vercel.app URLs for testing (but don't break, continue to check for prayer-chat.com)

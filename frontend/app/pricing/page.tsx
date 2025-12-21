@@ -6,7 +6,31 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+// Auto-detect backend URL based on environment
+function getApiBaseUrl(): string {
+  // Use explicit environment variable if set
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // Auto-detect production domain
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Production domains - use Render backend
+    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
+      return 'https://chatbot-backend-4mp4.onrender.com';
+    }
+    // Vercel preview/test deployments
+    if (hostname.includes('vercel.app')) {
+      return 'https://chatbot-backend-4mp4.onrender.com';
+    }
+  }
+  
+  // Default to localhost for local development
+  return 'http://localhost:8081';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 function PricingContent() {
   const searchParams = useSearchParams();
