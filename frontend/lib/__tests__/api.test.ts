@@ -313,6 +313,7 @@ describe('API Module', () => {
             return null;
           }),
         },
+        json: async () => ({}), // Always provide json() method
         text: async () => mockEmbedCode,
       } as unknown as Response)
 
@@ -338,6 +339,7 @@ describe('API Module', () => {
           }),
         },
         json: async () => mockJsonData,
+        text: async () => '', // Always provide text() method
       } as unknown as Response)
 
       const result = await getEmbedCode(1)
@@ -359,6 +361,7 @@ describe('API Module', () => {
             return null;
           }),
         },
+        json: async () => ({ error: 'Not found' }), // Always provide json() method
         text: async () => 'Not found',
       } as unknown as Response)
 
