@@ -1,46 +1,41 @@
 package com.prayer_chat.chatbot.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.Embedding;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.resources.ConnectionProvider;
 import org.springframework.lang.NonNull;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Custom Cohere implementation of Spring AI's EmbeddingModel using direct HTTP calls
- * Configured to avoid QUIC library issues by using standard HTTP/1.1
+ * Custom Cohere implementation of Spring AI's EmbeddingModel using Java's native HttpClient
+ * Uses Java 11+ HttpClient instead of WebClient/Reactor Netty to avoid QUIC library issues
  */
 public class CohereEmbeddingModel implements EmbeddingModel {
 
-    private final WebClient webClient;
+    private final HttpClient httpClient;
+    private final String apiKey;
     private final String model;
+    private final ObjectMapper objectMapper;
 
     public CohereEmbeddingModel(String apiKey, String model) {
-        // Configure HttpClient to disable QUIC and use standard HTTP/1.1
-        HttpClient httpClient = HttpClient.create(ConnectionProvider.builder("cohere-http")
-                .maxConnections(50)
-                .pendingAcquireTimeout(Duration.ofSeconds(10))
-                .maxIdleTime(Duration.ofSeconds(20))
-                .build())
-                .protocol(reactor.netty.http.HttpProtocol.HTTP11) // Force HTTP/1.1, disable QUIC
-                .followRedirect(true);
-        
-        this.webClient = WebClient.builder()
-                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(httpClient))
-                .baseUrl("https://api.cohere.com/v1")
-                .defaultHeader("Authorization", "Bearer " + apiKey)
-                .defaultHeader("Content-Type", "application/json")
+        // Use Java's native HttpClient (no QUIC, no native libraries)
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(30))
                 .build();
+        this.apiKey = apiKey;
         this.model = model;
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
@@ -55,14 +50,25 @@ public class CohereEmbeddingModel implements EmbeddingModel {
                     "search_document"
             );
 
-            CohereEmbedResponse response = webClient.post()
-                    .uri("/embed")
-                    .bodyValue(cohereRequest)
-                    .retrieve()
-                    .bodyToMono(CohereEmbedResponse.class)
-                    .block();
+            String requestBody = objectMapper.writeValueAsString(cohereRequest);
+            
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.cohere.com/v1/embed"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .timeout(Duration.ofSeconds(30))
+                    .build();
 
-            List<Embedding> embeddings = response.embeddings.stream()
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Cohere API returned status " + response.statusCode() + ": " + response.body());
+            }
+
+            CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
+
+            List<Embedding> embeddings = cohereResponse.embeddings.stream()
                     .map(embedding -> {
                         float[] floatArray = new float[embedding.size()];
                         for (int i = 0; i < embedding.size(); i++) {
@@ -94,14 +100,25 @@ public class CohereEmbeddingModel implements EmbeddingModel {
                     "search_document"
             );
 
-            CohereEmbedResponse response = webClient.post()
-                    .uri("/embed")
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(CohereEmbedResponse.class)
-                    .block();
+            String requestBody = objectMapper.writeValueAsString(request);
+            
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.cohere.com/v1/embed"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .timeout(Duration.ofSeconds(30))
+                    .build();
 
-            List<Double> embedding = response.embeddings.get(0);
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Cohere API returned status " + response.statusCode() + ": " + response.body());
+            }
+
+            CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
+
+            List<Double> embedding = cohereResponse.embeddings.get(0);
             float[] floatArray = new float[embedding.size()];
             for (int i = 0; i < embedding.size(); i++) {
                 floatArray[i] = embedding.get(i).floatValue();
