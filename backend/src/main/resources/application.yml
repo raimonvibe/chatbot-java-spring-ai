@@ -48,7 +48,7 @@ spring:
       initialize-schema: always  # Auto-create session tables
       table-name: SPRING_SESSION  # Default table name
       cleanup-cron: "0 0 * * * *"  # Cleanup expired sessions every hour
-    timeout: 30m  # 30 minutes session timeout
+    timeout: 24h  # 24 hours session timeout (users stay logged in for 1 day)
   
   # =============================================================================
   # OAUTH2 CONFIGURATION (Conditional - only if GOOGLE_CLIENT_ID is set)
@@ -122,8 +122,8 @@ server:
         http-only: true
         secure: false  # Set to true in production with HTTPS
         same-site: lax  # Allows cross-site requests for OAuth2
-        max-age: 1800  # 30 minutes - enough for OAuth2 flow
-      timeout: 30m  # 30 minutes session timeout
+        max-age: 86400  # 24 hours (86400 seconds) - matches session timeout
+      timeout: 24h  # 24 hours session timeout (users stay logged in for 1 day)
       tracking-modes: cookie
   compression:
     enabled: true
