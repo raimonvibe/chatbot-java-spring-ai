@@ -50,10 +50,14 @@ This guide will walk you through setting up Google OAuth 2.0 authentication and 
 4. **Name**: Prayer-Chat Web Client
 5. **Authorized JavaScript origins**:
    - Development: `http://localhost:8081`
-   - Production: `https://yourdomain.com`
+   - Production (Render): `https://your-backend-service.onrender.com`
+   - Production (Custom Domain): `https://prayer-chat.com`
 6. **Authorized redirect URIs**:
    - Development: `http://localhost:8081/login/oauth2/code/google`
-   - Production: `https://yourdomain.com/login/oauth2/code/google`
+   - Production (Render): `https://your-backend-service.onrender.com/login/oauth2/code/google`
+   - Production (Custom Domain): `https://prayer-chat.com/login/oauth2/code/google`
+   
+   **⚠️ IMPORTANT:** Replace `your-backend-service.onrender.com` with your actual Render backend URL!
 7. Click "Create"
 8. **Copy the Client ID and Client Secret** - you'll need these for your `.env` file
 
