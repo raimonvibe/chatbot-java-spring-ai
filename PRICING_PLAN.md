@@ -26,7 +26,7 @@
 **Price:** $0/month
 
 **Included:**
-- ✅ Create 1 chatbot
+- ✅ Create 3 chatbots (temporary for testing, will be 1 in production)
 - ✅ Website size limit: 50 pages max (pre-scan check)
 - ✅ Rate-limited preview: 10 chat messages/day
 - ✅ Theme customization

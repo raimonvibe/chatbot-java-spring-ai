@@ -40,7 +40,7 @@ This plan outlines the development tasks to transform the TjanaBot application i
      - **Free Tier:** 100 questions/month (cost: ~$0.37)
      - **Paid Tier:** $29-49/month (covers ~8,000-13,000 questions)
      - **Enterprise Tier:** $99-199/month (covers worst-case scenarios)
-   - **Context:** One chatbot per account model, costs scale with usage (chat operations)
+   - **Context:** Chatbot limit per account model (Preview mode: 3 temporarily for testing, 1 for production), costs scale with usage (chat operations)
 
 4. **Loading Spinner Library** ✅ **ANSWERED**
    - ✅ **Answer:** **React Spinners** (primary) + **Lottie** (for complex animations)
@@ -433,7 +433,7 @@ For each file considered for deletion/merging:
 **Dependencies:** Task 2 (Rebranding)
 
 #### Objectives
-- Implement one chatbot per account limit
+- Implement chatbot limit per account (Preview mode: 3 chatbots temporarily for testing, will be reduced to 1 for production)
 - Create free tier with preview-only access
 - Implement paywall for full features
 - Remove references to free AI models
@@ -441,12 +441,12 @@ For each file considered for deletion/merging:
 #### Requirements
 
 **Subscription Model:**
-- **One Chatbot Per Account:** Enforce limit at database and service level
+- **Chatbot Limit Per Account:** Enforce limit at database and service level (Preview mode: 3 temporarily for testing, 1 for production)
 - **Cost Management:** Prevent unlimited chatbot creation
 - **No Free Tier:** Only preview mode (rate-limited) + paid subscription
 
 **Preview Mode (No Subscription):**
-- ✅ Create 1 chatbot
+- ✅ Create 3 chatbots (temporary for testing, will be 1 in production)
 - ✅ Rate-limited preview (10 messages/day)
 - ✅ Website size limit: 50 pages max (pre-scan check prevents costs)
 - ✅ Theme customization
@@ -526,7 +526,7 @@ For each file considered for deletion/merging:
        // Check existing chatbots
        long chatbotCount = chatbotRepository.countByOwner(user);
        if (chatbotCount >= 1) {
-           throw new BusinessException("One chatbot per account limit reached");
+           throw new BusinessException("Chatbot limit reached (Preview mode: 3 temporarily for testing)");
        }
        // ... rest of creation logic
    }
@@ -571,7 +571,7 @@ For each file considered for deletion/merging:
        long existingCount = chatbotRepository.countByOwner(user.getUser());
        if (existingCount >= 1) {
            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-               .body(Map.of("error", "One chatbot per account limit reached. Upgrade to create more."));
+               .body(Map.of("error", "Chatbot limit reached. Preview mode allows 3 chatbots (temporary for testing). Upgrade to create more."));
        }
        // ... creation logic
    }
@@ -586,7 +586,7 @@ For each file considered for deletion/merging:
    - **Beautiful Christian-style messaging** for all limit notifications
 
 2. **Chatbot Creation UI**
-   - Show limit message: "You can create 1 chatbot"
+   - Show limit message: "You can create 3 chatbots" (temporary for testing, will be 1 in production)
    - Disable create button if limit reached
    - Show upgrade option if limit reached
    - **Warm, compassionate messages** with relevant Bible verses
@@ -634,7 +634,7 @@ For each file considered for deletion/merging:
    - Update model selection UI
 
 #### Success Criteria
-- ✅ One chatbot limit enforced
+- ✅ Chatbot limit enforced (Preview mode: 3 temporarily for testing, 1 for production)
 - ✅ Free tier has preview-only access
 - ✅ Integration script requires paid tier
 - ✅ No free model references remain

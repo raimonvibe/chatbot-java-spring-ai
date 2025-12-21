@@ -55,7 +55,7 @@ The system now has multiple layers of protection:
 1. **Max pages limit** (50 for preview mode) - prevents scanning large websites
 2. **Scan frequency limit** (1 scan/day for preview mode) - **NOW SECURE** via audit table
 3. **Cost limit** ($5/month for preview mode) - tracked via audit entries
-4. **One chatbot limit** (1 for preview mode) - prevents creating multiple chatbots
+4. **Chatbot limit** (3 for preview mode temporarily for testing, will be 1 in production) - prevents creating too many chatbots
 
 ## Database Migration
 

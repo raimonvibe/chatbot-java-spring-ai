@@ -33,13 +33,13 @@
 **Location**: `ChatbotController.createChatbot()`
 
 **Scenario**:
-1. User has 0 chatbots (preview mode limit: 1)
+1. User has 0 chatbots (preview mode limit: 3 temporarily for testing, will be 1 in production)
 2. Request A checks: count = 0 ✅ (passes)
 3. Request B checks: count = 0 ✅ (passes)
 4. Request A creates chatbot: count = 1
 5. Request B creates chatbot: count = 2 ❌ (exceeds limit!)
 
-**Impact**: Preview mode users can create more than 1 chatbot.
+**Impact**: Preview mode users can create more than 3 chatbots (temporary limit for testing, will be 1 in production).
 
 **Fix Required**: Use database-level unique constraint or pessimistic locking.
 

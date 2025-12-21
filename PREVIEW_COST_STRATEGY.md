@@ -279,7 +279,7 @@ public class WebsiteSizeEstimator {
 ### New Model: Preview-Only (No Free Tier)
 
 **Preview Mode (No Subscription):**
-- ✅ Create 1 chatbot
+- ✅ Create 3 chatbots (temporary for testing, will be 1 in production)
 - ✅ Rate-limited preview (10 messages/day)
 - ✅ Website size limit: 50 pages max
 - ✅ Cost per preview: ~$0.01-0.02
