@@ -2,9 +2,7 @@ package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.dto.ChatbotRequest;
 import com.prayer_chat.chatbot.model.Chatbot;
-import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
-import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.ChatbotService;
@@ -15,7 +13,6 @@ import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
-import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.WebsiteScanAudit;
 import com.prayer_chat.chatbot.util.LogSanitizer;
@@ -47,10 +44,8 @@ public class ChatbotController {
     private final WebsiteAnalysisService websiteAnalysisService;
     private final ConversationExportService conversationExportService;
     private final BibleVerseService bibleVerseService;
-    private final SubscriptionRepository subscriptionRepository;
     private final CostTrackingService costTrackingService;
     private final WebsiteSizeEstimator websiteSizeEstimator;
-    private final WebsiteContentRepository websiteContentRepository;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
 
@@ -61,10 +56,8 @@ public class ChatbotController {
                            WebsiteAnalysisService websiteAnalysisService,
                            ConversationExportService conversationExportService,
                            BibleVerseService bibleVerseService,
-                           SubscriptionRepository subscriptionRepository,
                            CostTrackingService costTrackingService,
                            WebsiteSizeEstimator websiteSizeEstimator,
-                           WebsiteContentRepository websiteContentRepository,
                            WebsiteScanAuditRepository websiteScanAuditRepository,
                            AccessControlService accessControlService) {
         this.chatbotRepository = chatbotRepository;
@@ -73,10 +66,8 @@ public class ChatbotController {
         this.websiteAnalysisService = websiteAnalysisService;
         this.conversationExportService = conversationExportService;
         this.bibleVerseService = bibleVerseService;
-        this.subscriptionRepository = subscriptionRepository;
         this.costTrackingService = costTrackingService;
         this.websiteSizeEstimator = websiteSizeEstimator;
-        this.websiteContentRepository = websiteContentRepository;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
     }
