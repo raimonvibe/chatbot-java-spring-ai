@@ -9,7 +9,7 @@ spring:
   # DATABASE CONFIGURATION
   # =============================================================================
   datasource:
-    url: ${DATABASE_URL:jdbc:h2:mem:chatbotdb}
+    url: ${DATABASE_URL:jdbc:h2:mem:chatbotdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}

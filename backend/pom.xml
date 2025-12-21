@@ -67,6 +67,12 @@
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-jdbc</artifactId>
         </dependency>
+        
+        <!-- Explicit Reactor Netty dependency for OAuth2 client (fixes NoClassDefFoundError) -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+        </dependency>
 
         <!-- Actuator for health checks and metrics -->
         <dependency>
