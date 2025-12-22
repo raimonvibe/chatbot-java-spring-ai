@@ -25,14 +25,17 @@ public class AdminController {
     private final BibleDataLoaderService bibleDataLoaderService;
     private final BibleVerseRepository bibleVerseRepository;
     private final ChristianContentAnalysisService christianContentAnalysisService;
+    private final EmbeddingImporterService embeddingImporterService;
 
     public AdminController(
             BibleDataLoaderService bibleDataLoaderService,
             BibleVerseRepository bibleVerseRepository,
-            ChristianContentAnalysisService christianContentAnalysisService) {
+            ChristianContentAnalysisService christianContentAnalysisService,
+            EmbeddingImporterService embeddingImporterService) {
         this.bibleDataLoaderService = bibleDataLoaderService;
         this.bibleVerseRepository = bibleVerseRepository;
         this.christianContentAnalysisService = christianContentAnalysisService;
+        this.embeddingImporterService = embeddingImporterService;
     }
 
     /**
@@ -167,6 +170,38 @@ public class AdminController {
         } catch (Exception e) {
             logger.error("Error getting embedding progress", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Import embeddings from JSON file (generated in Google Colab)
+     * 
+     * @param filePath Path to the bible_embeddings.json file (relative to application working directory or absolute path)
+     */
+    @PostMapping("/import-embeddings")
+    public ResponseEntity<Map<String, Object>> importEmbeddings(@RequestParam String filePath) {
+        try {
+            if (filePath == null || filePath.trim().isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "filePath parameter is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            logger.info("Admin: Starting embedding import from: {}", filePath);
+            int imported = embeddingImporterService.importEmbeddings(filePath);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Embeddings imported successfully");
+            response.put("importedVerses", imported);
+            response.put("action", "imported");
+            
+            logger.info("Admin: Embedding import completed: {} verses imported", imported);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error importing embeddings", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to import embeddings: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 }
