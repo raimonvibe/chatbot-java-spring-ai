@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.EmbeddingImporterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +17,13 @@ import java.util.Map;
 /**
  * Admin endpoints for Bible data management
  * These endpoints allow manual control over Bible data loading and embedding generation
+ * 
+ * SECURITY: Only available in "local" profile for local development.
+ * In production, these endpoints are completely disabled.
  */
 @RestController
 @RequestMapping("/api/admin/bible")
+@Profile("local")  // Only available in local profile
 public class AdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);

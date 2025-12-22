@@ -76,6 +76,9 @@ public class SecurityConfig {
                 // Protect write operations (POST, PUT, DELETE)
                 .requestMatchers("/api/chatbots/**").authenticated()
                 .requestMatchers("/api/subscription/**").authenticated()
+                // Admin endpoints: Only available in "local" profile
+                // AdminController is disabled in production via @Profile("local")
+                // In production, these endpoints don't exist at all
                 .requestMatchers("/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
                 // Protect Thymeleaf pages (defense-in-depth)
                 // In production, nginx reverse proxy will block these entirely

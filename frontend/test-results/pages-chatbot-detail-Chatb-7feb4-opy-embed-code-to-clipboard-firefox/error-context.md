@@ -6,9 +6,9 @@
     - generic [ref=e4]:
       - generic [ref=e5]:
         - img [ref=e6]
-        - heading "TjanaBot" [level=1] [ref=e8]
+        - heading "Prayer-Chat" [level=1] [ref=e8]
       - paragraph [ref=e9]: Christian AI Chatbots with Biblical Wisdom
-      - paragraph [ref=e10]: Transform your ministry or business website into an intelligent AI assistant rooted in Christian values. Provide a URL and let TjanaBot create a chatbot that shares wisdom with grace.
+      - paragraph [ref=e10]: Transform your ministry or business website into an intelligent AI assistant rooted in Christian values. Provide a URL and let Prayer-Chat create a chatbot that shares wisdom with grace.
       - generic [ref=e11]:
         - button "Get Started" [ref=e12]:
           - img [ref=e13]
