@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -226,6 +227,119 @@ public class ChatbotController {
         } catch (Exception e) {
             logger.error("Error retrieving chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * Simplified onboarding endpoint - creates chatbot from website URL only
+     * Auto-generates name, pre-configures Christian values, and starts analysis
+     */
+    @PostMapping("/onboarding")
+    public ResponseEntity<?> createChatbotFromUrl(@RequestBody Map<String, String> request,
+                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            User user = currentUser.getUser();
+            String websiteUrl = request.get("websiteUrl");
+
+            if (websiteUrl == null || websiteUrl.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Website URL is required"));
+            }
+
+            // Validate URL - add https:// if missing
+            if (!websiteUrl.startsWith("http://") && !websiteUrl.startsWith("https://")) {
+                websiteUrl = "https://" + websiteUrl;
+            }
+
+            // Check if user already has chatbots (onboarding is only for first chatbot)
+            Long currentChatbotCount = chatbotRepository.countByOwner(user.getId());
+            if (currentChatbotCount > 0) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Onboarding endpoint is only for creating your first chatbot. Use /api/chatbots to create additional chatbots."
+                ));
+            }
+
+            // Check if user has active subscription (or is in preview mode)
+            if (!accessControlService.hasActiveSubscription(user) && !accessControlService.isPreviewMode(user)) {
+                logger.warn("User {} attempted onboarding without active subscription or preview mode", LogSanitizer.sanitize(user.getEmail()));
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Active subscription or preview mode required to create chatbots."
+                ));
+            }
+
+            // Auto-generate name from URL
+            String generatedName = generateNameFromUrl(websiteUrl);
+            
+            // Create chatbot with defaults
+            Chatbot chatbot = new Chatbot();
+            chatbot.setName(generatedName);
+            chatbot.setWebsiteUrl(websiteUrl);
+            chatbot.setDescription(""); // Will be filled by website analysis
+            chatbot.setPrimaryLanguage("en");
+            chatbot.setChristianMessagingEnabled(true); // Pre-configured
+            chatbot.setIsActive(true);
+            chatbot.setEmbedCode(String.format("prayer-chat-bot-%d", System.currentTimeMillis()));
+
+            // Use ChatbotService for secure creation
+            Chatbot savedChatbot = chatbotService.createChatbot(chatbot, user);
+            logger.info("Created chatbot via onboarding: {} for user: {}", 
+                LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
+
+            // Start website analysis asynchronously (will also generate description)
+            try {
+                websiteAnalysisService.analyzeWebsite(savedChatbot);
+            } catch (Exception e) {
+                logger.warn("Failed to start website analysis for onboarding chatbot {}: {}", 
+                    savedChatbot.getId(), e.getMessage());
+                // Don't fail the request - analysis can be triggered later
+            }
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
+        } catch (Exception e) {
+            logger.error("Error creating chatbot via onboarding", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to create chatbot: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate chatbot name from website URL
+     * Example: https://www.example.com -> "Example Chatbot"
+     */
+    private String generateNameFromUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            
+            if (host == null || host.isEmpty()) {
+                return "My Chatbot";
+            }
+
+            // Remove www. prefix
+            String domain = host.replaceFirst("^www\\.", "");
+            
+            // Remove common TLDs
+            domain = domain.replaceFirst("\\.(com|org|net|edu|gov|co|io|ai|app|dev)$", "");
+            
+            // Extract main part (before first dot if subdomain)
+            String[] parts = domain.split("\\.");
+            String mainPart = parts.length > 0 ? parts[parts.length - 1] : domain;
+            
+            // Capitalize first letter
+            if (mainPart.isEmpty()) {
+                return "My Chatbot";
+            }
+            
+            String capitalized = mainPart.substring(0, 1).toUpperCase() + 
+                                 (mainPart.length() > 1 ? mainPart.substring(1) : "");
+            
+            return capitalized + " Chatbot";
+        } catch (Exception e) {
+            logger.warn("Failed to generate name from URL: {}, using default", url);
+            return "My Chatbot";
         }
     }
     

@@ -54,6 +54,13 @@ export default function Dashboard() {
       const data = await getAllChatbots();
       setChatbots(data);
       setAuthenticated(true);
+      
+      // If user has no chatbots, redirect to onboarding
+      if (data.length === 0) {
+        router.push('/onboarding');
+        return;
+      }
+      
       // Update subscription status after loading chatbots
       setSubscriptionStatus({
         isPreviewMode: data.length >= 1, // Heuristic: if user has 1 chatbot, likely preview mode

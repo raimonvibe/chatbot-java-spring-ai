@@ -94,8 +94,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
     }
 
     @Test
-    @DisplayName("Should create FREE subscription and redirect to dashboard when user has no subscription")
-    void shouldRedirectToPricing_whenUserHasNoSubscription() throws Exception {
+    @DisplayName("Should create FREE subscription and redirect to onboarding when user has no subscription")
+    void shouldRedirectToOnboarding_whenUserHasNoSubscription() throws Exception {
         // Arrange
         when(authentication.getPrincipal()).thenReturn(customOAuth2User);
         when(subscriptionRepository.findByUserId(TEST_USER_ID))
@@ -113,7 +113,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         verify(subscriptionRepository).findByUserId(TEST_USER_ID);
         verify(subscriptionRepository).save(any(Subscription.class));
         verify(redirectStrategy).sendRedirect(request, response,
-            FRONTEND_URL + "/dashboard?welcome=true");
+            FRONTEND_URL + "/onboarding?welcome=true");
     }
 
     @Test

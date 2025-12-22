@@ -137,6 +137,28 @@ export async function getAllChatbots(): Promise<Chatbot[]> {
   return response.json();
 }
 
+/**
+ * Simplified onboarding - create chatbot from website URL only
+ * Auto-generates name and pre-configures Christian values
+ */
+export async function createChatbotFromUrl(websiteUrl: string): Promise<Chatbot> {
+  const response = await fetch(`${API_BASE_URL}/api/chatbots/onboarding`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ websiteUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to create chatbot' }));
+    throw new Error(error.error || 'Failed to create chatbot');
+  }
+
+  return response.json();
+}
+
 export async function createChatbot(data: {
   name: string;
   description: string;

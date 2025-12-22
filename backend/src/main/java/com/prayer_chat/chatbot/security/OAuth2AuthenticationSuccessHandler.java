@@ -142,8 +142,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 freeSubscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
                 subscriptionRepository.save(freeSubscription);
 
-                logger.info("User {} created with FREE plan, redirecting to dashboard", user.getEmail());
-                String redirectUrl = getFrontendUrl(request) + "/dashboard?welcome=true";
+                logger.info("User {} created with FREE plan, redirecting to onboarding", user.getEmail());
+                String redirectUrl = getFrontendUrl(request) + "/onboarding?welcome=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
             }
@@ -159,6 +159,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             }
 
             // User has active subscription - redirect to dashboard
+            // Dashboard will check for chatbots and redirect to onboarding if needed
             logger.info("User {} logged in successfully with active subscription", user.getEmail());
             String redirectUrl = getFrontendUrl(request) + "/dashboard";
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
