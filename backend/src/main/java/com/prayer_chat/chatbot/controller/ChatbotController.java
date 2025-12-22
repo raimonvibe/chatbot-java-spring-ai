@@ -9,6 +9,8 @@ import com.prayer_chat.chatbot.service.ChatbotService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.BibleVerseService;
+import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
+import com.prayer_chat.chatbot.dto.ChristianContentAnalysis;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.AccessControlService;
@@ -45,6 +47,7 @@ public class ChatbotController {
     private final WebsiteAnalysisService websiteAnalysisService;
     private final ConversationExportService conversationExportService;
     private final BibleVerseService bibleVerseService;
+    private final ChristianContentAnalysisService christianContentAnalysisService;
     private final CostTrackingService costTrackingService;
     private final WebsiteSizeEstimator websiteSizeEstimator;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
@@ -57,6 +60,7 @@ public class ChatbotController {
                            WebsiteAnalysisService websiteAnalysisService,
                            ConversationExportService conversationExportService,
                            BibleVerseService bibleVerseService,
+                           ChristianContentAnalysisService christianContentAnalysisService,
                            CostTrackingService costTrackingService,
                            WebsiteSizeEstimator websiteSizeEstimator,
                            WebsiteScanAuditRepository websiteScanAuditRepository,
@@ -67,6 +71,7 @@ public class ChatbotController {
         this.websiteAnalysisService = websiteAnalysisService;
         this.conversationExportService = conversationExportService;
         this.bibleVerseService = bibleVerseService;
+        this.christianContentAnalysisService = christianContentAnalysisService;
         this.costTrackingService = costTrackingService;
         this.websiteSizeEstimator = websiteSizeEstimator;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
@@ -986,8 +991,62 @@ public class ChatbotController {
     }
 
     /**
-     * CHRISTIAN MESSAGING FEATURE: Suggest Bible verse based on website topic
+     * CHRISTIAN MESSAGING FEATURE: Analyze website content and find relevant Bible verses using AI semantic matching
+     * This replaces the old keyword-based approach
      */
+    @PostMapping("/{id}/analyze-christian-content")
+    public ResponseEntity<ChristianContentAnalysis> analyzeChristianContent(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "20") int maxVerses,
+            @RequestParam(required = false, defaultValue = "0.5") double similarityThreshold,
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
+            // Find relevant verses using AI semantic matching
+            var matches = christianContentAnalysisService.findRelevantVerses(
+                chatbot, maxVerses, similarityThreshold
+            );
+
+            // Get total verse count for context
+            long totalVerses = christianContentAnalysisService.getVerseCount();
+
+            // Build response DTO
+            ChristianContentAnalysis analysis = new ChristianContentAnalysis(
+                chatbot.getId(),
+                chatbot.getWebsiteUrl(),
+                matches,
+                (int) totalVerses
+            );
+
+            logger.info("Analyzed Christian content for chatbot {}: found {} relevant verses", 
+                id, matches.size());
+            return ResponseEntity.ok(analysis);
+
+        } catch (Exception e) {
+            logger.error("Error analyzing Christian content for chatbot {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * LEGACY ENDPOINT: Suggest Bible verse based on website topic (keyword-based)
+     * @deprecated Use /analyze-christian-content instead for AI-powered semantic matching
+     */
+    @Deprecated
     @PostMapping("/{id}/suggest-bible-verse")
     public ResponseEntity<Map<String, String>> suggestBibleVerse(@PathVariable Long id,
                                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
@@ -1010,7 +1069,7 @@ public class ChatbotController {
             // Gather website content for context
             String websiteContent = websiteAnalysisService.getAnalyzedContent(chatbot);
 
-            // Suggest Bible verse
+            // Suggest Bible verse (legacy keyword-based approach)
             String suggestedVerse = bibleVerseService.suggestBibleVerse(
                 chatbot.getWebsiteUrl(),
                 chatbot.getDescription(),
