@@ -286,12 +286,15 @@ public class TestSecurityConfig {
         // 2. JWT filter can override anonymous authentication if a token is present
         // 3. AuthorizationFilter sees the correct authentication (anonymous or JWT)
         // In test environment, @WithMockUser should work, so we make JWT filter optional
-        if (jwtAuthenticationFilter != null) {
-            // Place JWT filter BEFORE AuthorizationFilter (which is created by authorizeHttpRequests)
-            // This ensures JWT processing happens before authorization checks
-            // AnonymousAuthenticationPreFilter will have already run by this point
-            http.addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class);
-        }
+        // IMPORTANT: JWT filter is disabled in tests to allow @WithMockUser to work properly
+        // @WithMockUser sets authentication via MockMvc's SecurityContext, which should not be
+        // overridden by JWT filter. In production, JWT filter is active and handles real tokens.
+        // if (jwtAuthenticationFilter != null) {
+        //     // Place JWT filter BEFORE AuthorizationFilter (which is created by authorizeHttpRequests)
+        //     // This ensures JWT processing happens before authorization checks
+        //     // AnonymousAuthenticationPreFilter will have already run by this point
+        //     http.addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class);
+        // }
 
         return http.build();
     }

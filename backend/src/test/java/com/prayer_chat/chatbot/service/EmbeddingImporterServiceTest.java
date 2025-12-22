@@ -50,8 +50,12 @@ class EmbeddingImporterServiceTest {
         verse.setTranslation("World English Bible");
         bibleVerseRepository.save(verse);
 
-        // Create temporary JSON file with embedding data
-        tempJsonFile = File.createTempFile("test-embeddings", ".json");
+        // Create temporary JSON file with embedding data in working directory
+        // This ensures the file is within the allowed directory for path validation
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        tempJsonFile = new File(dataDir, "test-embeddings-" + System.currentTimeMillis() + ".json");
         String jsonContent = """
             {
               "version": "1.0",
@@ -76,7 +80,9 @@ class EmbeddingImporterServiceTest {
     @Test
     @DisplayName("Should import embeddings from JSON file")
     void shouldImportEmbeddingsFromJsonFile() {
-        int imported = embeddingImporterService.importEmbeddings(tempJsonFile.getAbsolutePath());
+        // Use relative path from working directory
+        String relativePath = "data/" + tempJsonFile.getName();
+        int imported = embeddingImporterService.importEmbeddings(relativePath);
 
         assertThat(imported).isEqualTo(1);
 
@@ -91,7 +97,10 @@ class EmbeddingImporterServiceTest {
     @DisplayName("Should skip verses not found in database")
     void shouldSkipVersesNotFoundInDatabase() throws IOException {
         // Create JSON with verse that doesn't exist in database
-        File tempFile = File.createTempFile("test-embeddings-missing", ".json");
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File tempFile = new File(dataDir, "test-embeddings-missing-" + System.currentTimeMillis() + ".json");
         String jsonContent = """
             {
               "version": "1.0",
@@ -112,7 +121,8 @@ class EmbeddingImporterServiceTest {
             """;
         Files.write(tempFile.toPath(), jsonContent.getBytes());
 
-        int imported = embeddingImporterService.importEmbeddings(tempFile.getAbsolutePath());
+        String relativePath = "data/" + tempFile.getName();
+        int imported = embeddingImporterService.importEmbeddings(relativePath);
 
         assertThat(imported).isEqualTo(0); // No verses imported because verse doesn't exist
     }
@@ -121,7 +131,7 @@ class EmbeddingImporterServiceTest {
     @DisplayName("Should throw exception when file does not exist")
     void shouldThrowExceptionWhenFileDoesNotExist() {
         assertThatThrownBy(() -> 
-            embeddingImporterService.importEmbeddings("/nonexistent/file.json")
+            embeddingImporterService.importEmbeddings("nonexistent/file.json")
         ).isInstanceOf(RuntimeException.class)
          .hasMessageContaining("Failed to import embeddings");
     }
@@ -129,18 +139,25 @@ class EmbeddingImporterServiceTest {
     @Test
     @DisplayName("Should throw exception when JSON format is invalid")
     void shouldThrowExceptionWhenJsonFormatInvalid() throws IOException {
-        File invalidFile = File.createTempFile("test-invalid", ".json");
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File invalidFile = new File(dataDir, "test-invalid-" + System.currentTimeMillis() + ".json");
         Files.write(invalidFile.toPath(), "invalid json".getBytes());
 
+        String relativePath = "data/" + invalidFile.getName();
         assertThatThrownBy(() -> 
-            embeddingImporterService.importEmbeddings(invalidFile.getAbsolutePath())
+            embeddingImporterService.importEmbeddings(relativePath)
         ).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     @DisplayName("Should handle verses without embedding in JSON")
     void shouldHandleVersesWithoutEmbedding() throws IOException {
-        File tempFile = File.createTempFile("test-no-embedding", ".json");
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File tempFile = new File(dataDir, "test-no-embedding-" + System.currentTimeMillis() + ".json");
         String jsonContent = """
             {
               "version": "1.0",
@@ -160,7 +177,8 @@ class EmbeddingImporterServiceTest {
             """;
         Files.write(tempFile.toPath(), jsonContent.getBytes());
 
-        int imported = embeddingImporterService.importEmbeddings(tempFile.getAbsolutePath());
+        String relativePath = "data/" + tempFile.getName();
+        int imported = embeddingImporterService.importEmbeddings(relativePath);
 
         assertThat(imported).isEqualTo(0); // No embedding to import
     }
@@ -169,7 +187,8 @@ class EmbeddingImporterServiceTest {
     @DisplayName("Should update existing embeddings")
     void shouldUpdateExistingEmbeddings() {
         // First import
-        int imported1 = embeddingImporterService.importEmbeddings(tempJsonFile.getAbsolutePath());
+        String relativePath1 = "data/" + tempJsonFile.getName();
+        int imported1 = embeddingImporterService.importEmbeddings(relativePath1);
         assertThat(imported1).isEqualTo(1);
 
         Optional<BibleVerse> verse1 = bibleVerseRepository.findByBookAndChapterAndVerse("Matthew", 1, 1);
@@ -196,10 +215,14 @@ class EmbeddingImporterServiceTest {
                   ]
                 }
                 """;
-            File tempFile2 = File.createTempFile("test-embeddings2", ".json");
+            File workingDir = new File(System.getProperty("user.dir"));
+            File dataDir = new File(workingDir, "data");
+            dataDir.mkdirs();
+            File tempFile2 = new File(dataDir, "test-embeddings2-" + System.currentTimeMillis() + ".json");
             Files.write(tempFile2.toPath(), jsonContent2.getBytes());
 
-            int imported2 = embeddingImporterService.importEmbeddings(tempFile2.getAbsolutePath());
+            String relativePath2 = "data/" + tempFile2.getName();
+            int imported2 = embeddingImporterService.importEmbeddings(relativePath2);
             assertThat(imported2).isEqualTo(1);
 
             Optional<BibleVerse> verse2 = bibleVerseRepository.findByBookAndChapterAndVerse("Matthew", 1, 1);
@@ -216,7 +239,10 @@ class EmbeddingImporterServiceTest {
     @Test
     @DisplayName("Should handle empty verses array")
     void shouldHandleEmptyVersesArray() throws IOException {
-        File tempFile = File.createTempFile("test-empty", ".json");
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File tempFile = new File(dataDir, "test-empty-" + System.currentTimeMillis() + ".json");
         String jsonContent = """
             {
               "version": "1.0",
@@ -227,9 +253,96 @@ class EmbeddingImporterServiceTest {
             """;
         Files.write(tempFile.toPath(), jsonContent.getBytes());
 
-        int imported = embeddingImporterService.importEmbeddings(tempFile.getAbsolutePath());
+        String relativePath = "data/" + tempFile.getName();
+        int imported = embeddingImporterService.importEmbeddings(relativePath);
 
         assertThat(imported).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should reject path traversal attacks")
+    void shouldRejectPathTraversalAttacks() {
+        // Test various path traversal attempts
+        assertThatThrownBy(() -> 
+            embeddingImporterService.importEmbeddings("../../../etc/passwd")
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("Path traversal detected");
+
+        assertThatThrownBy(() -> 
+            embeddingImporterService.importEmbeddings("..\\..\\..\\windows\\system32\\config\\sam")
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("Path traversal detected");
+
+        assertThatThrownBy(() -> 
+            embeddingImporterService.importEmbeddings("data/../../../etc/passwd")
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("Path traversal detected");
+    }
+
+    @Test
+    @DisplayName("Should reject files outside working directory")
+    void shouldRejectFilesOutsideWorkingDirectory() {
+        // Test absolute path outside working directory
+        final String absolutePath;
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+            absolutePath = "C:\\Windows\\System32\\config\\sam";
+        } else {
+            absolutePath = "/etc/passwd";
+        }
+        
+        assertThatThrownBy(() -> 
+            embeddingImporterService.importEmbeddings(absolutePath)
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("File path must be within application directory");
+    }
+
+    @Test
+    @DisplayName("Should reject files without .json extension")
+    void shouldRejectFilesWithoutJsonExtension() throws IOException {
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File nonJsonFile = new File(dataDir, "test-file.txt");
+        Files.write(nonJsonFile.toPath(), "test content".getBytes());
+
+        final String relativePath = "data/" + nonJsonFile.getName();
+        assertThatThrownBy(() -> 
+            embeddingImporterService.importEmbeddings(relativePath)
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("File must have .json extension");
+    }
+
+    @Test
+    @DisplayName("Should accept valid relative paths within working directory")
+    void shouldAcceptValidRelativePaths() throws IOException {
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        dataDir.mkdirs();
+        File validFile = new File(dataDir, "valid-embeddings.json");
+        
+        String jsonContent = """
+            {
+              "version": "1.0",
+              "model": "embed-multilingual-v3.0",
+              "total_verses": 1,
+              "verses": [
+                {
+                  "book": "Matthew",
+                  "chapter": 1,
+                  "verse": 1,
+                  "reference": "Matthew 1:1",
+                  "text": "The book of the genealogy of Jesus Christ",
+                  "translation": "World English Bible",
+                  "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]
+                }
+              ]
+            }
+            """;
+        Files.write(validFile.toPath(), jsonContent.getBytes());
+
+        // Should work with relative path
+        int imported = embeddingImporterService.importEmbeddings("data/valid-embeddings.json");
+        assertThat(imported).isEqualTo(1);
     }
 }
 

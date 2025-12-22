@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,7 +39,7 @@ public class EmbeddingImporterService {
     /**
      * Import embeddings from JSON file generated in Google Colab
      * 
-     * @param jsonFilePath Path to the bible_embeddings.json file
+     * @param jsonFilePath Path to the bible_embeddings.json file (must be within allowed directory)
      * @return Number of verses updated with embeddings
      */
     @Transactional
@@ -45,9 +47,15 @@ public class EmbeddingImporterService {
         try {
             logger.info("Starting embedding import from: {}", jsonFilePath);
             
-            File file = new File(jsonFilePath);
+            // SECURITY: Validate and sanitize file path to prevent path traversal attacks
+            File file = validateAndResolveFilePath(jsonFilePath);
+            
             if (!file.exists()) {
                 throw new RuntimeException("File not found: " + jsonFilePath);
+            }
+            
+            if (!file.isFile()) {
+                throw new RuntimeException("Path is not a file: " + jsonFilePath);
             }
 
             // Parse JSON file
@@ -58,7 +66,6 @@ public class EmbeddingImporterService {
                 throw new RuntimeException("Invalid JSON format: 'verses' array not found");
             }
 
-            int imported = 0;
             int updated = 0;
             int skipped = 0;
             List<BibleVerse> batch = new ArrayList<>();
@@ -125,6 +132,72 @@ public class EmbeddingImporterService {
             logger.error("Error importing embeddings", e);
             throw new RuntimeException("Failed to import embeddings", e);
         }
+    }
+
+    /**
+     * Validate and resolve file path to prevent path traversal attacks.
+     * Only allows files within the application working directory or a specific data directory.
+     * 
+     * @param filePath User-provided file path
+     * @return Validated and resolved File object
+     * @throws RuntimeException if path is invalid or contains path traversal attempts
+     */
+    private File validateAndResolveFilePath(String filePath) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            throw new RuntimeException("File path cannot be null or empty");
+        }
+
+        // Normalize the path to resolve any ".." or "." components
+        Path normalizedPath;
+        try {
+            normalizedPath = Paths.get(filePath).normalize();
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid file path: " + filePath, e);
+        }
+
+        // Check for path traversal attempts (should not contain ".." after normalization)
+        String pathString = normalizedPath.toString();
+        if (pathString.contains("..")) {
+            throw new RuntimeException("Path traversal detected in file path: " + filePath);
+        }
+
+        // Resolve against current working directory or data directory
+        // Allow files in:
+        // 1. Current working directory (for relative paths like "data/bible_embeddings.json")
+        // 2. Absolute paths that are within a reasonable data directory
+        File workingDir = new File(System.getProperty("user.dir"));
+        File dataDir = new File(workingDir, "data");
+        
+        File resolvedFile;
+        if (normalizedPath.isAbsolute()) {
+            // For absolute paths, only allow if they're within working directory or data directory
+            Path workingPath = workingDir.toPath();
+            Path dataPath = dataDir.toPath();
+            
+            if (!normalizedPath.startsWith(workingPath) && !normalizedPath.startsWith(dataPath)) {
+                throw new RuntimeException("File path must be within application directory: " + filePath);
+            }
+            resolvedFile = normalizedPath.toFile();
+        } else {
+            // For relative paths, resolve against working directory
+            resolvedFile = workingDir.toPath().resolve(normalizedPath).normalize().toFile();
+            
+            // Ensure resolved path is still within working directory (prevent escaping)
+            Path resolvedPath = resolvedFile.toPath();
+            Path workingPath = workingDir.toPath();
+            if (!resolvedPath.startsWith(workingPath)) {
+                throw new RuntimeException("Resolved path escapes working directory: " + filePath);
+            }
+        }
+
+        // Additional security: ensure file has .json extension
+        String fileName = resolvedFile.getName().toLowerCase();
+        if (!fileName.endsWith(".json")) {
+            throw new RuntimeException("File must have .json extension: " + filePath);
+        }
+
+        logger.debug("Validated file path: {} -> {}", filePath, resolvedFile.getAbsolutePath());
+        return resolvedFile;
     }
 }
 

@@ -18,12 +18,14 @@ import java.util.Map;
  * Admin endpoints for Bible data management
  * These endpoints allow manual control over Bible data loading and embedding generation
  * 
- * SECURITY: Only available in "local" profile for local development.
- * In production, these endpoints are completely disabled.
+ * SECURITY: Only available in "local" or "test" profiles.
+ * - "local": For local development
+ * - "test": For testing (allows @WithMockUser to work properly)
+ * In production (default profile), these endpoints are completely disabled.
  */
 @RestController
 @RequestMapping("/api/admin/bible")
-@Profile("local")  // Only available in local profile
+@Profile({"local", "test"})  // Available in local and test profiles
 public class AdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);

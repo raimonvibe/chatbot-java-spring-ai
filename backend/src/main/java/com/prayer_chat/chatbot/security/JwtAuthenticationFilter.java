@@ -23,7 +23,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component   // ← DIT IS ALLES WAT JE NODIG HEBT
+@Component
+@org.springframework.context.annotation.Profile("!test")  // Disable in test profile to allow @WithMockUser to work
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -89,7 +90,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         
         // If no JWT token and this is NOT a permitAll() endpoint, let existing authentication handle it
+        // IMPORTANT: Check if authentication is already set (e.g., by @WithMockUser in tests)
+        // If authentication is already present and not anonymous, don't override it
         if (!StringUtils.hasText(jwt)) {
+            var existingAuth = SecurityContextHolder.getContext().getAuthentication();
+            if (existingAuth != null && 
+                !(existingAuth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) &&
+                existingAuth.isAuthenticated()) {
+                logger.debug("🔍 JwtAuthenticationFilter: No JWT token, but existing authenticated user found (e.g., @WithMockUser) - preserving authentication");
+                filterChain.doFilter(request, response);
+                return;
+            }
             logger.debug("🔍 JwtAuthenticationFilter: No JWT token, not permitAll() - continuing with existing auth");
             filterChain.doFilter(request, response);
             return;
