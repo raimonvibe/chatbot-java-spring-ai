@@ -72,6 +72,12 @@ public class MockAiConfiguration {
         EmbeddingResponse mockResponse = mock(EmbeddingResponse.class);
         when(mockResponse.getResults()).thenReturn(Collections.emptyList());
         when(embeddingModel.embedForResponse(anyList())).thenReturn(mockResponse);
+        
+        // Mock embed() method that returns float array (used by ChristianContentAnalysisService)
+        float[] mockEmbedding = new float[1024]; // 1024 dimensions for embed-multilingual-v3.0
+        when(embeddingModel.embed(any(String.class))).thenReturn(mockEmbedding);
+        when(embeddingModel.embed(any(org.springframework.ai.document.Document.class))).thenReturn(mockEmbedding);
+        when(embeddingModel.dimensions()).thenReturn(1024);
 
         return embeddingModel;
     }

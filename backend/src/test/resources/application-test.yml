@@ -63,6 +63,12 @@ pinecone:
   environment: test
   index-name: test-index
 
+# Bible data configuration for tests (disable auto-loading)
+app:
+  bible:
+    auto-load: false
+    auto-generate-embeddings: false
+
 # Actuator configuration for tests
 management:
   endpoints:

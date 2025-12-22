@@ -13,9 +13,12 @@ import org.springframework.stereotype.Component;
 /**
  * Initializes Bible data on application startup if not already loaded
  * This runs automatically when the application starts
+ * 
+ * Disabled in test profile to avoid loading Bible data during tests
  */
 @Component
 @Order(1) // Run early, but after database initialization
+@Profile("!test") // Don't run in test profile
 public class BibleDataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(BibleDataInitializer.class);
