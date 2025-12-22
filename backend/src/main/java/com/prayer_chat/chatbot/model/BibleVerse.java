@@ -38,9 +38,9 @@ public class BibleVerse {
 
     /**
      * Embedding vector for semantic similarity search
-     * Stored as JSON array in database
+     * Stored as JSON array in database (JSONB for PostgreSQL, CLOB for H2)
      */
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     @JdbcTypeCode(SqlTypes.JSON)
     private float[] embedding;
 
