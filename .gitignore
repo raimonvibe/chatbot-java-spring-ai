@@ -67,3 +67,5 @@ build/
 *~
 backend/.env.real
 data/bible_embeddings.json
+backend/data/test-*.json
+backend/data/*.txt
