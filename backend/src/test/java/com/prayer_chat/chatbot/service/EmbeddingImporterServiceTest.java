@@ -263,20 +263,33 @@ class EmbeddingImporterServiceTest {
     @DisplayName("Should reject path traversal attacks")
     void shouldRejectPathTraversalAttacks() {
         // Test various path traversal attempts
+        // The exception is wrapped, so we check the cause message
         assertThatThrownBy(() -> 
             embeddingImporterService.importEmbeddings("../../../etc/passwd")
         ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("Path traversal detected");
+         .hasMessageContaining("Failed to import embeddings")
+         .satisfies(ex -> {
+             assertThat(ex.getCause()).isNotNull();
+             assertThat(ex.getCause().getMessage()).contains("Path traversal detected");
+         });
 
         assertThatThrownBy(() -> 
             embeddingImporterService.importEmbeddings("..\\..\\..\\windows\\system32\\config\\sam")
         ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("Path traversal detected");
+         .hasMessageContaining("Failed to import embeddings")
+         .satisfies(ex -> {
+             assertThat(ex.getCause()).isNotNull();
+             assertThat(ex.getCause().getMessage()).contains("Path traversal detected");
+         });
 
         assertThatThrownBy(() -> 
             embeddingImporterService.importEmbeddings("data/../../../etc/passwd")
         ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("Path traversal detected");
+         .hasMessageContaining("Failed to import embeddings")
+         .satisfies(ex -> {
+             assertThat(ex.getCause()).isNotNull();
+             assertThat(ex.getCause().getMessage()).contains("Path traversal detected");
+         });
     }
 
     @Test
@@ -293,7 +306,11 @@ class EmbeddingImporterServiceTest {
         assertThatThrownBy(() -> 
             embeddingImporterService.importEmbeddings(absolutePath)
         ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("File path must be within application directory");
+         .hasMessageContaining("Failed to import embeddings")
+         .satisfies(ex -> {
+             assertThat(ex.getCause()).isNotNull();
+             assertThat(ex.getCause().getMessage()).contains("File path must be within application directory");
+         });
     }
 
     @Test
@@ -309,7 +326,11 @@ class EmbeddingImporterServiceTest {
         assertThatThrownBy(() -> 
             embeddingImporterService.importEmbeddings(relativePath)
         ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("File must have .json extension");
+         .hasMessageContaining("Failed to import embeddings")
+         .satisfies(ex -> {
+             assertThat(ex.getCause()).isNotNull();
+             assertThat(ex.getCause().getMessage()).contains("File must have .json extension");
+         });
     }
 
     @Test
