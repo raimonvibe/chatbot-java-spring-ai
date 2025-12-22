@@ -21,10 +21,10 @@ export default function OnboardingPage() {
 
   const checkAuthAndChatbots = async () => {
     try {
-      const isAuth = await checkAuth();
-      setAuthenticated(isAuth);
+      const authResult = await checkAuth();
+      setAuthenticated(authResult.authenticated);
       
-      if (isAuth) {
+      if (authResult.authenticated) {
         // Check if user already has chatbots
         const chatbots = await getAllChatbots();
         if (chatbots.length > 0) {
