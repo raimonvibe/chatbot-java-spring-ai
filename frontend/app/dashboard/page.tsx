@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
+import ChristianContentAnalysisComponent from '@/components/ChristianContentAnalysis';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
+  const [showAnalysisForChatbot, setShowAnalysisForChatbot] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: 'Customer Support Bot',
@@ -420,7 +422,29 @@ export default function Dashboard() {
                     </>
                   )}
                 </button>
+                <button
+                  onClick={() => setShowAnalysisForChatbot(
+                    showAnalysisForChatbot === chatbot.id ? null : chatbot.id
+                  )}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg transition-colors font-medium bg-brown-100 text-brown-600 hover:bg-brown-200"
+                >
+                  <Book className="w-4 h-4" />
+                  {showAnalysisForChatbot === chatbot.id ? 'Hide' : 'Show'} Christian Content Analysis
+                </button>
               </div>
+              {showAnalysisForChatbot === chatbot.id && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 border-t border-brown-200 pt-4"
+                >
+                  <ChristianContentAnalysisComponent
+                    chatbotId={chatbot.id}
+                    chatbotName={chatbot.name}
+                  />
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </div>

@@ -21,6 +21,28 @@ export interface Chatbot {
   brandingConfig: string;
 }
 
+export interface VerseMatch {
+  id: number;
+  reference: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  translation: string;
+  similarity: number;
+  similarityPercentage: number;
+}
+
+export interface ChristianContentAnalysis {
+  chatbotId: number;
+  websiteUrl: string;
+  themes?: string[];
+  relevantVerses: VerseMatch[];
+  averageSimilarity: number;
+  totalVersesAnalyzed: number;
+  versesAboveThreshold: number;
+}
+
 // Auto-detect backend URL based on environment
 function getApiBaseUrl(): string {
   // Use explicit environment variable if set
@@ -46,6 +68,31 @@ function getApiBaseUrl(): string {
 }
 
 const API_BASE_URL = getApiBaseUrl();
+
+// Analyze Christian content for a chatbot
+export async function analyzeChristianContent(
+  chatbotId: number,
+  maxVerses: number = 20,
+  similarityThreshold: number = 0.5
+): Promise<ChristianContentAnalysis> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/chatbots/${chatbotId}/analyze-christian-content?maxVerses=${maxVerses}&similarityThreshold=${similarityThreshold}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to analyze Christian content');
+  }
+
+  return response.json();
+}
 
 // Check if user is authenticated
 export async function checkAuth(): Promise<{ authenticated: boolean; user?: any }> {
