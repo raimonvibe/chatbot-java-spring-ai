@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.controller;
 import com.prayer_chat.chatbot.repository.BibleVerseRepository;
 import com.prayer_chat.chatbot.service.BibleDataLoaderService;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
+import com.prayer_chat.chatbot.service.EmbeddingImporterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
