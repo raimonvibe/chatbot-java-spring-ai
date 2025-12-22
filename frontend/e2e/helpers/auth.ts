@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 /**
  * Authentication helper for E2E tests
@@ -15,29 +15,58 @@ export class AuthHelper {
   async loginWithGoogle(email: string = 'test@gmail.com', name: string = 'Test User') {
     // Navigate to login page
     await this.page.goto('/login');
+    await this.page.waitForLoadState('networkidle');
 
-    // Mock the OAuth flow
-    await this.page.route('**/api/auth/google', async (route) => {
+    // Mock the auth/me endpoint to return authenticated user (this is checked by the login page useEffect)
+    await this.page.route('**/api/auth/me', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          token: 'mock_jwt_token',
-          user: {
-            id: 1,
-            email,
-            name,
-            authProvider: 'GOOGLE',
-          },
+          id: 1,
+          email,
+          name,
+          authProvider: 'GOOGLE',
         }),
       });
     });
 
-    // Click the Google login button
-    await this.page.getByRole('button', { name: /sign in with google/i }).click();
+    // Set auth state BEFORE setting up route (avoids race condition)
+    await this.page.evaluate((userData) => {
+      localStorage.setItem('authToken', 'mock_jwt_token');
+      localStorage.setItem('user', JSON.stringify(userData));
+    }, { id: 1, email, name, authProvider: 'GOOGLE' });
 
-    // Wait for redirect to dashboard or home
-    await this.page.waitForURL(/\/(dashboard|home)/);
+    // Intercept navigation to OAuth endpoint
+    // Use a promise to handle navigation properly
+    let navigationPromise: ReturnType<typeof this.page.goto> | null = null;
+    
+    await this.page.route('**/oauth2/authorization/google', async (route) => {
+      // Fulfill the route immediately
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html><body>OAuth intercepted</body></html>',
+      });
+      
+      // Navigate to dashboard - don't await here to avoid blocking
+      navigationPromise = this.page.goto('/dashboard').catch(() => null);
+    });
+
+    // Click the Google login button (button text is "Continue with Google")
+    const googleButton = this.page.getByRole('button', { name: /continue with google|sign in with google|google/i });
+    await expect(googleButton).toBeVisible({ timeout: 10000 });
+    
+    // Click button - this will trigger the OAuth redirect which we intercept
+    await googleButton.click();
+    
+    // Wait for navigation promise if it was created
+    if (navigationPromise) {
+      await navigationPromise;
+    }
+    
+    // Wait for navigation to dashboard or onboarding
+    await this.page.waitForURL(/\/(dashboard|onboarding|home)/, { timeout: 15000 });
   }
 
   /**

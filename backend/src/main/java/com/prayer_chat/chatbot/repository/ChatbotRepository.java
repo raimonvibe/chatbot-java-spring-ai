@@ -60,8 +60,9 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
     
     /**
      * Count chatbots by owner
+     * Uses owner_id column directly for H2 compatibility
      */
-    @Query("SELECT COUNT(c) FROM Chatbot c WHERE c.owner.id = :ownerId")
+    @Query(value = "SELECT COUNT(c) FROM chatbots c WHERE c.owner_id = :ownerId", nativeQuery = true)
     Long countByOwner(@Param("ownerId") Long ownerId);
     
     /**

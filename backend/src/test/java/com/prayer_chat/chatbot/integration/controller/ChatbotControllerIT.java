@@ -480,7 +480,9 @@ class ChatbotControllerIT {
         when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
+        // Mock WebsiteScanAuditRepository (controller uses this, not WebsiteContentRepository)
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10); // Small website
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots/1/analyze")
@@ -510,7 +512,8 @@ class ChatbotControllerIT {
         when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteContentRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        // Mock WebsiteScanAuditRepository (controller uses this, not WebsiteContentRepository)
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(100); // > 50 pages
 
         // Act & Assert

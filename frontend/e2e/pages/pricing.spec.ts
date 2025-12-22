@@ -79,12 +79,21 @@ test.describe('Pricing Page', () => {
     // Click subscribe button
     const subscribeButton = page.getByRole('button', { name: /subscribe|get.*started|upgrade/i }).first();
 
-    if (await subscribeButton.isVisible()) {
+    // Wait for page to be fully loaded
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
+    
+    // Check if subscribe button exists and is visible
+    const buttonCount = await subscribeButton.count();
+    if (buttonCount > 0 && await subscribeButton.isVisible()) {
       await subscribeButton.click();
-      await page.waitForTimeout(500);
+      // Wait for navigation or modal to appear
+      await page.waitForTimeout(1000);
     }
 
-    await expect(page.locator('body')).toBeVisible();
+    // Verify page is still accessible (body might be hidden during transitions)
+    const url = page.url();
+    expect(url).toMatch(/pricing|checkout|stripe/);
   });
 
   test('should redirect to login for unauthenticated user', async ({ page }) => {

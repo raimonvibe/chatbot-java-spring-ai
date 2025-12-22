@@ -61,27 +61,32 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
     /**
      * Count scans today for a chatbot (based on chatbot owner)
      * This counts how many times a chatbot's website was scanned today
+     * Uses native query for H2 and PostgreSQL compatibility
      */
-    @Query("SELECT COUNT(DISTINCT wc.chatbot) FROM WebsiteContent wc " +
-           "WHERE wc.chatbot.owner.id = :userId " +
-           "AND CAST(wc.createdAt AS date) = CURRENT_DATE")
+    @Query(value = "SELECT COUNT(DISTINCT wc.chatbot_id) FROM website_contents wc " +
+           "INNER JOIN chatbots c ON wc.chatbot_id = c.id " +
+           "WHERE c.owner_id = :userId " +
+           "AND CAST(wc.created_at AS DATE) = CURRENT_DATE", nativeQuery = true)
     Long countScansTodayByUserId(@Param("userId") Long userId);
     
     /**
      * Count scans today for a specific chatbot
+     * Uses native query for H2 and PostgreSQL compatibility
      */
-    @Query("SELECT COUNT(DISTINCT CAST(wc.createdAt AS date)) FROM WebsiteContent wc " +
-           "WHERE wc.chatbot = :chatbot " +
-           "AND CAST(wc.createdAt AS date) = CURRENT_DATE")
-    Long countScansTodayByChatbot(@Param("chatbot") Chatbot chatbot);
+    @Query(value = "SELECT COUNT(DISTINCT CAST(wc.created_at AS DATE)) FROM website_contents wc " +
+           "WHERE wc.chatbot_id = :chatbotId " +
+           "AND CAST(wc.created_at AS DATE) = CURRENT_DATE", nativeQuery = true)
+    Long countScansTodayByChatbot(@Param("chatbotId") Long chatbotId);
     
     /**
      * Count website scans by a user after a specific date.
      * A "scan" is represented by a WebsiteContent entry created on a specific date.
      * This counts distinct dates when scans occurred.
+     * Uses native query for H2 and PostgreSQL compatibility
      */
-    @Query("SELECT COUNT(DISTINCT CAST(wc.createdAt AS date)) FROM WebsiteContent wc " +
-           "WHERE wc.chatbot.owner.id = :userId " +
-           "AND wc.createdAt >= :date")
+    @Query(value = "SELECT COUNT(DISTINCT CAST(wc.created_at AS DATE)) FROM website_contents wc " +
+           "INNER JOIN chatbots c ON wc.chatbot_id = c.id " +
+           "WHERE c.owner_id = :userId " +
+           "AND wc.created_at >= :date", nativeQuery = true)
     Long countScansByUserAndDateAfter(@Param("userId") Long userId, @Param("date") java.time.LocalDateTime date);
 }

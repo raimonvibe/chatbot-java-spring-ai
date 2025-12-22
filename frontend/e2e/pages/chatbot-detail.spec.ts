@@ -193,8 +193,13 @@ test.describe('Chatbot Detail Page', () => {
 
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Grant clipboard permissions
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    // Grant clipboard permissions (skip for Firefox which doesn't support these permissions)
+    try {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    } catch (error) {
+      // Firefox doesn't support clipboard-read/write permissions, but clipboard API still works
+      // Continue with test - clipboard API should work without explicit permissions
+    }
 
     await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');

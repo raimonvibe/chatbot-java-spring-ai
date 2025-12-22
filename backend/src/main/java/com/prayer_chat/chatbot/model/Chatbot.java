@@ -87,12 +87,10 @@ public class Chatbot {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
     @JsonIgnore
     @OneToMany(mappedBy = "chatbot", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Conversation> conversations = new ArrayList<>();
 
-    @JsonIgnore
     @OneToMany(mappedBy = "chatbot", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<WebsiteContent> websiteContents = new ArrayList<>();
     
