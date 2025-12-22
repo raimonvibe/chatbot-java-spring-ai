@@ -10,13 +10,19 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.List;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -39,8 +45,18 @@ class AdminControllerTest {
         bibleVerseRepository.deleteAll();
     }
 
+    private Authentication createAdminAuthentication() {
+        List<SimpleGrantedAuthority> authorities = Collections.singletonList(
+            new SimpleGrantedAuthority("ROLE_ADMIN")
+        );
+        return new UsernamePasswordAuthenticationToken(
+            "admin",
+            null,
+            authorities
+        );
+    }
+
     @Test
-    @WithMockUser(username = "admin@example.com", roles = {"ADMIN"})
     @DisplayName("Should get Bible data status")
     void shouldGetBibleDataStatus() throws Exception {
         // Create a test verse
@@ -53,7 +69,8 @@ class AdminControllerTest {
         verse.setTranslation("Test Translation");
         bibleVerseRepository.save(verse);
 
-        mockMvc.perform(get("/api/admin/bible/status"))
+        mockMvc.perform(get("/api/admin/bible/status")
+                .with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.dataLoaded").value(true))
@@ -64,17 +81,16 @@ class AdminControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin@example.com", roles = {"ADMIN"})
     @DisplayName("Should return correct status when no data loaded")
     void shouldReturnCorrectStatusWhenNoDataLoaded() throws Exception {
-        mockMvc.perform(get("/api/admin/bible/status"))
+        mockMvc.perform(get("/api/admin/bible/status")
+                .with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.dataLoaded").value(false))
             .andExpect(jsonPath("$.totalVerses").value(0));
     }
 
     @Test
-    @WithMockUser(username = "admin@example.com", roles = {"ADMIN"})
     @DisplayName("Should get embedding progress")
     void shouldGetEmbeddingProgress() throws Exception {
         // Create verses with and without embeddings
@@ -98,7 +114,8 @@ class AdminControllerTest {
         verseWithoutEmbedding.setTranslation("Test");
         bibleVerseRepository.save(verseWithoutEmbedding);
 
-        mockMvc.perform(get("/api/admin/bible/embedding-progress"))
+        mockMvc.perform(get("/api/admin/bible/embedding-progress")
+                .with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalVerses").value(2))
             .andExpect(jsonPath("$.versesWithEmbeddings").value(1))
@@ -108,7 +125,6 @@ class AdminControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin@example.com", roles = {"ADMIN"})
     @DisplayName("Should return completed true when all verses have embeddings")
     void shouldReturnCompletedTrueWhenAllHaveEmbeddings() throws Exception {
         BibleVerse verse = new BibleVerse();
@@ -122,16 +138,27 @@ class AdminControllerTest {
         verse.setEmbedding(embedding);
         bibleVerseRepository.save(verse);
 
-        mockMvc.perform(get("/api/admin/bible/embedding-progress"))
+        mockMvc.perform(get("/api/admin/bible/embedding-progress")
+                .with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.completed").value(true));
     }
 
     @Test
-    @WithMockUser(username = "user@example.com", roles = {"USER"})
     @DisplayName("Should deny access to non-admin users")
     void shouldDenyAccessToNonAdminUsers() throws Exception {
-        mockMvc.perform(get("/api/admin/bible/status"))
+        // Create authentication with USER role (not ADMIN)
+        List<SimpleGrantedAuthority> authorities = Collections.singletonList(
+            new SimpleGrantedAuthority("ROLE_USER")
+        );
+        Authentication userAuth = new UsernamePasswordAuthenticationToken(
+            "user",
+            null,
+            authorities
+        );
+
+        mockMvc.perform(get("/api/admin/bible/status")
+                .with(authentication(userAuth)))
             .andExpect(status().isForbidden());
     }
 

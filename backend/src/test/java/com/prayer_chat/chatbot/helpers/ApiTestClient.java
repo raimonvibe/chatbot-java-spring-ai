@@ -18,11 +18,14 @@ public class ApiTestClient {
 
     public ApiTestClient(int port) {
         this.baseUrl = "http://localhost:" + port;
+        
         // Configure REST Assured static settings
+        // RestAssured will automatically use Jackson 2.x if available in classpath
         // Important: Don't call reset() as it can break HTTP client initialization
         RestAssured.baseURI = this.baseUrl;
         RestAssured.port = port;
         RestAssured.urlEncodingEnabled = false;
+        
         // Ensure REST Assured is properly initialized
         // This is a workaround for a known issue where HTTP client isn't initialized
         try {

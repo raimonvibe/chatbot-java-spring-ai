@@ -39,6 +39,10 @@ public class CohereEmbeddingModel implements EmbeddingModel {
         // - Only deserialize to specific classes (CohereEmbedResponse) - prevents gadget chain attacks
         // - Disable features that could allow unsafe deserialization
         // - Default ObjectMapper is safe when only deserializing to known classes
+        // Configure ObjectMapper for security:
+        // - Only deserialize to specific classes (CohereEmbedResponse) - prevents gadget chain attacks
+        // - Disable features that could allow unsafe deserialization
+        // - Default ObjectMapper is safe when only deserializing to known classes
         this.objectMapper = new ObjectMapper()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE)

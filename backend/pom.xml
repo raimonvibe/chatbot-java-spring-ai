@@ -27,6 +27,10 @@
         <spring-security.version>7.0.0</spring-security.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
+        <!-- Jackson 2.x version override - Spring Boot 4.0 uses Jackson 3.x by default -->
+        <!-- Using 2.17.1 for latest security patches and compatibility with RestAssured -->
+        <!-- Note: 2.20.0 may not be available in all repositories, 2.17.1 is widely available -->
+        <jackson.version>2.17.1</jackson.version>
     </properties>
 
     <dependencies>
@@ -34,6 +38,26 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <!-- Exclude Jackson 3.x from Spring Boot 4.0, use Jackson 2.x instead -->
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-json</artifactId>
+                </exclusion>
+                <!-- Also exclude Jackson 3.x directly -->
+                <exclusion>
+                    <groupId>tools.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>tools.jackson.core</groupId>
+                    <artifactId>jackson-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>tools.jackson.core</groupId>
+                    <artifactId>jackson-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         
         <dependency>
@@ -155,10 +179,29 @@
             <version>4.39.0</version>
         </dependency>
 
-        <!-- JSON Processing -->
+        <!-- JSON Processing - Override Spring Boot 4.0's Jackson 3.x with Jackson 2.x -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
 
         <!-- Utilities -->
@@ -271,13 +314,31 @@
         </dependency>
 
         <!-- REST Assured for API testing -->
-        <!-- Using 4.5.1 (stable) instead of 5.3.2 due to NPE issues with GET requests -->
+        <!-- Using 5.4.0 with Jackson 2.x for compatibility -->
+        <!-- RestAssured requires Jackson 2.x, not Jackson 3.x -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <version>6.0.0</version>
+            <version>5.4.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.rest-assured</groupId>
+                    <artifactId>json-path</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        
+        <!-- Explicit json-path dependency matching rest-assured version -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-path</artifactId>
+            <version>5.4.0</version>
             <scope>test</scope>
         </dependency>
+        
+        <!-- Jackson 2.x for tests - uses same version as main code -->
+        <!-- Note: Jackson 2.x is now used in main code, so test scope dependencies are optional -->
 
         <!-- Faker for generating test data -->
         <dependency>
@@ -296,6 +357,22 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- Force Jackson 2.x versions - override Spring Boot 4.0's Jackson 3.x -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -74,6 +74,7 @@ class ChristianContentAnalysisServiceTest {
         testChatbot.setPrimaryLanguage("en");
         testChatbot.setOwner(testUser);
         testChatbot.setIsActive(true);
+        testChatbot.setEmbedCode("test-embed-code-" + System.currentTimeMillis()); // Required field
         testChatbot = chatbotRepository.save(testChatbot);
 
         // Create test Bible verses with mock embeddings

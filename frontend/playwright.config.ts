@@ -17,7 +17,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
 
   // Enable parallel execution on CI for faster test runs
-  workers: process.env.CI ? 4 : undefined,
+  // Use fewer workers locally to avoid overwhelming the system
+  workers: process.env.CI ? 4 : 2,
 
   // Maximum number of test failures before stopping
   maxFailures: process.env.CI ? 10 : undefined,

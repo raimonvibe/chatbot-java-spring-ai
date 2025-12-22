@@ -186,7 +186,7 @@ public class AuditExportService {
                 .toList();
 
             return mapper.writeValueAsString(exportLogs);
-        } catch (IOException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new RuntimeException("Failed to convert audit logs to JSON", e);
         }
     }

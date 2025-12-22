@@ -45,19 +45,15 @@ test.describe('Home Page', () => {
   test('should navigate to login when CTA is clicked', async ({ page }) => {
     await page.goto('/');
 
-    // Find and click CTA button
-    const ctaButton = page.getByRole('button', { name: /get started|try free|start free|sign up/i }).first();
+    // Find and click "Get Started" button (navigates to /login)
+    const ctaButton = page.getByRole('button', { name: /get started/i }).first();
+    
+    await expect(ctaButton).toBeVisible({ timeout: 10000 });
+    await ctaButton.click();
 
-    if (await ctaButton.count() > 0) {
-      await ctaButton.click();
-
-      // Wait for navigation
-      await page.waitForLoadState('networkidle');
-
-      // Should navigate to login, pricing, or onboarding
-      const url = page.url();
-      expect(url).toMatch(/login|pricing|dashboard|onboarding/);
-    }
+    // Wait for navigation to login page
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('should display feature showcase section', async ({ page }) => {
@@ -93,16 +89,17 @@ test.describe('Home Page', () => {
   test('should navigate to pricing page from home', async ({ page }) => {
     await page.goto('/');
 
-    // Look for pricing link
-    const pricingLink = page.getByRole('link', { name: /pricing|plans/i }).first();
-
-    if (await pricingLink.count() > 0) {
-      await pricingLink.click();
-      await page.waitForLoadState('networkidle');
-
-      // Should navigate to pricing
-      expect(page.url()).toMatch(/pricing/);
-    }
+    // Look for "View Pricing" link
+    const pricingLink = page.getByRole('link', { name: /view pricing|pricing|plans/i }).first();
+    
+    await expect(pricingLink).toBeVisible({ timeout: 10000 });
+    
+    // Click and wait for navigation
+    await pricingLink.click();
+    
+    // Wait for navigation to pricing page
+    await page.waitForURL(/\/pricing/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/pricing/);
   });
 
   test('should navigate to login page from home', async ({ page }) => {
