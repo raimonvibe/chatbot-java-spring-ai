@@ -257,3 +257,20 @@ logging:
 # =============================================================================
 spring.jmx.enabled: false
 spring.devtools.restart.enabled: false
+
+# =============================================================================
+# BIBLE DATA CONFIGURATION
+# =============================================================================
+app:
+  bible:
+    # Auto-load Bible data on startup if not already loaded
+    auto-load: ${BIBLE_AUTO_LOAD:true}
+    
+    # Auto-generate embeddings for all verses (WARNING: Very expensive and time-consuming!)
+    # Set to false in production and generate embeddings manually via admin endpoint
+    auto-generate-embeddings: ${BIBLE_AUTO_GENERATE_EMBEDDINGS:false}
+    
+    # Paths to Bible data files (relative to classpath or file system)
+    data:
+      old-testament: classpath:data/bible/data/old-testament-data.json
+      new-testament: classpath:data/bible/data/new-testament-data.json
