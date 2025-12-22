@@ -66,3 +66,4 @@ build/
 *.swp
 *~
 backend/.env.real
+data/bible_embeddings.json
