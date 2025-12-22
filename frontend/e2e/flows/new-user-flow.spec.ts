@@ -10,7 +10,7 @@ import { testUsers, testSubscriptions } from '../fixtures/users';
  * Home → Login (OAuth) → Dashboard (welcome) → Pricing → Checkout → Dashboard
  */
 test.describe('New User Flow', () => {
-  test('should complete full onboarding: Home → Google Login → Dashboard', async ({ page }) => {
+  test('should complete full onboarding: Home → Google Login → Onboarding', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -39,11 +39,13 @@ test.describe('New User Flow', () => {
     // Step 3: Complete Google OAuth login
     await authHelper.loginWithGoogle(testUsers.google.email, testUsers.google.name);
 
-    // Step 4: Should redirect to dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
+    // Step 4: Should redirect to onboarding (new users with no chatbots)
+    // Dashboard will redirect to onboarding if no chatbots exist
+    await expect(page).toHaveURL(/\/onboarding/);
 
-    // Step 5: Verify welcome message or dashboard content
+    // Step 5: Verify onboarding page content
     await expect(page.locator('body')).toBeVisible();
+    await expect(page.getByText(/Enter your website URL|Welcome to Prayer-Chat/i)).toBeVisible();
   });
 
   test('should show FREE plan after registration', async ({ page }) => {
@@ -104,7 +106,7 @@ test.describe('New User Flow', () => {
     await expect(page.locator('main, [role="main"]')).toBeVisible();
   });
 
-  test('should complete flow: Register → Dashboard → Create First Chatbot', async ({ page }) => {
+  test('should complete flow: Register → Onboarding → Create First Chatbot', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -119,22 +121,17 @@ test.describe('New User Flow', () => {
     // Step 1: Setup authenticated state (simulating completed registration)
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Step 2: Go to dashboard
+    // Step 2: Go to dashboard (will redirect to onboarding if no chatbots)
     await page.goto('/dashboard');
-    await expect(page).toHaveURL(/\/dashboard/);
+    await page.waitForLoadState('networkidle');
 
-    // Step 3: Look for "Create Chatbot" or "New Chatbot" button
-    const createButton = page.getByRole('button', { name: /create|new.*chatbot|add.*bot/i });
+    // Step 3: Should be redirected to onboarding page
+    await expect(page).toHaveURL(/\/onboarding/);
+    await expect(page.getByText(/Enter your website URL|Welcome to Prayer-Chat/i)).toBeVisible();
 
-    if (await createButton.isVisible()) {
-      await createButton.click();
-
-      // Wait for navigation or modal
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Verify we're still functional (page doesn't crash)
-    await expect(page.locator('body')).toBeVisible();
+    // Step 4: Verify onboarding form is visible
+    const websiteInput = page.getByLabel(/website URL|enter your website/i);
+    await expect(websiteInput).toBeVisible();
   });
 
   test('should handle first-time user with welcome message', async ({ page }) => {

@@ -73,7 +73,7 @@ test.describe('Dashboard Page', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('should show empty state when no chatbots', async ({ page }) => {
+  test('should redirect to onboarding when no chatbots', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -89,8 +89,9 @@ test.describe('Dashboard Page', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Should show some empty state or create prompt
-    await expect(page.locator('main, [role="main"]')).toBeVisible();
+    // Should redirect to onboarding page when no chatbots exist
+    await expect(page).toHaveURL(/\/onboarding/);
+    await expect(page.getByText(/Enter your website URL|Welcome to Prayer-Chat/i)).toBeVisible();
   });
 
   test('should have create chatbot button', async ({ page }) => {

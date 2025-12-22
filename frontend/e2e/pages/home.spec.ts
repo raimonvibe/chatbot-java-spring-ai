@@ -54,9 +54,9 @@ test.describe('Home Page', () => {
       // Wait for navigation
       await page.waitForLoadState('networkidle');
 
-      // Should navigate to login or pricing
+      // Should navigate to login, pricing, or onboarding
       const url = page.url();
-      expect(url).toMatch(/login|pricing|dashboard/);
+      expect(url).toMatch(/login|pricing|dashboard|onboarding/);
     }
   });
 

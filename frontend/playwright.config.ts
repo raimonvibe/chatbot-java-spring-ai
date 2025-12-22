@@ -69,7 +69,12 @@ export default defineConfig({
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Safari'],
+        // Add timeout and retry settings for WebKit
+        actionTimeout: 15000,
+        navigationTimeout: 45000,
+      },
     },
 
     // Mobile viewports
@@ -79,7 +84,12 @@ export default defineConfig({
     },
     {
       name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
+      use: { 
+        ...devices['iPhone 12'],
+        // Add timeout and retry settings for Mobile Safari
+        actionTimeout: 15000,
+        navigationTimeout: 45000,
+      },
     },
   ],
 

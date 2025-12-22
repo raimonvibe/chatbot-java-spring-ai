@@ -27,32 +27,43 @@ test.describe('Create Chatbot Flow', () => {
     // Setup auth
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Step 1: Go to dashboard
+    // Step 1: Go to dashboard (may redirect to onboarding if no chatbots)
     await page.goto('/dashboard');
-    await expect(page).toHaveURL(/\/dashboard/);
+    await page.waitForLoadState('networkidle');
 
-    // Step 2: Click "Create Chatbot" button
-    const createButton = page.getByRole('button', { name: /create|new.*chatbot|add.*bot/i });
-
-    if (await createButton.isVisible()) {
-      await createButton.click();
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Step 3: Fill in chatbot creation form (if form exists)
-    const nameInput = page.getByLabel(/name|chatbot.*name/i);
-    if (await nameInput.isVisible()) {
-      await nameInput.fill(newChatbot.name);
-    }
-
-    const urlInput = page.getByLabel(/website|url|site/i);
-    if (await urlInput.isVisible()) {
+    // Step 2: Check if redirected to onboarding or on dashboard
+    const currentUrl = page.url();
+    if (currentUrl.includes('/onboarding')) {
+      // On onboarding page - use simplified form
+      const urlInput = page.getByLabel(/website URL|enter your website/i);
+      await expect(urlInput).toBeVisible();
       await urlInput.fill(newChatbot.websiteUrl);
-    }
+    } else {
+      // On dashboard - use full form
+      await expect(page).toHaveURL(/\/dashboard/);
+      
+      // Click "Create Chatbot" button
+      const createButton = page.getByRole('button', { name: /create|new.*chatbot|add.*bot/i });
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await page.waitForLoadState('networkidle');
+      }
 
-    const descInput = page.getByLabel(/description|about/i);
-    if (await descInput.isVisible()) {
-      await descInput.fill(newChatbot.description);
+      // Fill in chatbot creation form (if form exists)
+      const nameInput = page.getByLabel(/name|chatbot.*name/i);
+      if (await nameInput.isVisible()) {
+        await nameInput.fill(newChatbot.name);
+      }
+
+      const urlInput = page.getByLabel(/website|url|site/i);
+      if (await urlInput.isVisible()) {
+        await urlInput.fill(newChatbot.websiteUrl);
+      }
+
+      const descInput = page.getByLabel(/description|about/i);
+      if (await descInput.isVisible()) {
+        await descInput.fill(newChatbot.description);
+      }
     }
 
     // Step 4: Submit form
@@ -210,21 +221,38 @@ test.describe('Create Chatbot Flow', () => {
     await authHelper.setupAuthenticatedState(testUsers.local);
 
     await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
 
-    // Click create button
-    const createButton = page.getByRole('button', { name: /create|new.*chatbot/i });
-    if (await createButton.isVisible()) {
-      await createButton.click();
-      await page.waitForLoadState('networkidle');
-
-      // Try to submit without filling fields
+    // Check if redirected to onboarding or on dashboard
+    const currentUrl = page.url();
+    if (currentUrl.includes('/onboarding')) {
+      // On onboarding page - try to submit without URL
       const submitButton = page.getByRole('button', { name: /create|submit|save/i });
       if (await submitButton.isVisible()) {
-        await submitButton.click();
-
-        // Should show validation errors or stay on page
-        await page.waitForTimeout(500);
+        // Button should be disabled or show validation
+        const isDisabled = await submitButton.isDisabled();
+        if (!isDisabled) {
+          await submitButton.click();
+          await page.waitForTimeout(500);
+        }
         await expect(page.locator('body')).toBeVisible();
+      }
+    } else {
+      // On dashboard - click create button
+      const createButton = page.getByRole('button', { name: /create|new.*chatbot/i });
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await page.waitForLoadState('networkidle');
+
+        // Try to submit without filling fields
+        const submitButton = page.getByRole('button', { name: /create|submit|save/i });
+        if (await submitButton.isVisible()) {
+          await submitButton.click();
+
+          // Should show validation errors or stay on page
+          await page.waitForTimeout(500);
+          await expect(page.locator('body')).toBeVisible();
+        }
       }
     }
   });
