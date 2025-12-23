@@ -1,4 +1,3 @@
-# REST Assured GET NPE - Diepgaande Bug Analyse
 
 **Date**: December 23, 2025  
 **Status**: ✅ **Bevestigd als REST Assured Library Bug**
@@ -7,7 +6,8 @@
 
 Na uitgebreide debugging en implementatie van alle aanbevolen fixes, is gebleken dat de `NullPointerException` in GET requests een **fundamentele bug in REST Assured 5.4.0** is, niet een configuratie probleem.
 
-## Bewijs
+## Bewijs# REST Assured GET NPE - Diepgaande Bug Analyse
+
 
 ### 1. Perfecte Request Configuration ✅
 

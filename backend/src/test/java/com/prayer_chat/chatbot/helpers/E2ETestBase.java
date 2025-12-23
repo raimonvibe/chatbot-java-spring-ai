@@ -242,6 +242,9 @@ public abstract class E2ETestBase {
         if (apiClient != null) {
             apiClient.clearAuth();
         }
+        if (webApiClient != null) {
+            webApiClient.clearAuth();
+        }
     }
 
     /**
@@ -494,8 +497,9 @@ public abstract class E2ETestBase {
             throw new IllegalStateException("Token username mismatch. Expected: " + savedUser.getEmail() + ", Got: " + usernameFromToken);
         }
         
-        // Set token in API client
+        // Set token in API clients
         apiClient.withAuth(token);
+        webApiClient.withAuth(token);
         
         return token;
     }
