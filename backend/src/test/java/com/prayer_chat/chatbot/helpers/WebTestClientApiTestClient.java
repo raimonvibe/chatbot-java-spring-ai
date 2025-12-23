@@ -57,7 +57,7 @@ public class WebTestClientApiTestClient {
      * GET request
      */
     public WebTestClient.ResponseSpec get(String path) {
-        WebTestClient.RequestBodySpec request = webTestClient.get()
+        WebTestClient.RequestHeadersSpec<?> request = webTestClient.get()
             .uri(path)
             .accept(MediaType.APPLICATION_JSON);
         
@@ -72,7 +72,7 @@ public class WebTestClientApiTestClient {
      * GET request with query parameters
      */
     public WebTestClient.ResponseSpec get(String path, Map<String, ?> queryParams) {
-        WebTestClient.RequestBodySpec request = webTestClient.get()
+        WebTestClient.RequestHeadersSpec<?> request = webTestClient.get()
             .uri(uriBuilder -> {
                 uriBuilder.path(path);
                 if (queryParams != null) {

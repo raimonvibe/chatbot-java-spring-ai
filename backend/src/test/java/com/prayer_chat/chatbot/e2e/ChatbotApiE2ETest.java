@@ -1,11 +1,14 @@
 package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
-import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
-import static org.hamcrest.Matchers.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -32,8 +35,8 @@ class ChatbotApiE2ETest extends E2ETestBase {
         // Ensure token is still set after subscription creation
         assertNotNull(token, "Token should be generated");
         // Re-set token to ensure it's still there (defensive)
-        apiClient.withAuth(token);
-        String currentToken = apiClient.getAuthToken();
+        webApiClient.withAuth(token);
+        String currentToken = webApiClient.getAuthToken();
         assertNotNull(currentToken, "Token should be set in API client");
         assertEquals(token, currentToken, "Token should match");
         
@@ -43,59 +46,61 @@ class ChatbotApiE2ETest extends E2ETestBase {
 
         // Step 1: CREATE chatbot
         // Ensure token is set right before the request
-        apiClient.withAuth(token);
-        Response createResponse = apiClient.createChatbot(
+        webApiClient.withAuth(token);
+        AtomicReference<Long> chatbotIdRef = new AtomicReference<>();
+        webApiClient.createChatbot(
             "CRUD Test Bot",
             "https://example.com/crud",
             "Testing CRUD operations"
-        );
-
-        createResponse.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("name", equalTo("CRUD Test Bot"))
-            .body("websiteUrl", equalTo("https://example.com/crud"))
-            .body("id", notNullValue());
-
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("CRUD Test Bot")
+            .jsonPath("$.websiteUrl").isEqualTo("https://example.com/crud")
+            .jsonPath("$.id").value(id -> {
+                if (id instanceof Integer) {
+                    chatbotIdRef.set(((Integer) id).longValue());
+                } else if (id instanceof Long) {
+                    chatbotIdRef.set((Long) id);
+                } else if (id instanceof Number) {
+                    chatbotIdRef.set(((Number) id).longValue());
+                }
+            });
+        Long chatbotId = chatbotIdRef.get();
+        assertNotNull(chatbotId, "Chatbot ID should be extracted");
 
         // Step 2: READ chatbot
-        Response readResponse = apiClient.getChatbot(chatbotId);
-        readResponse.then()
-            .statusCode(200)
-            .body("id", equalTo(chatbotId.intValue()))
-            .body("name", equalTo("CRUD Test Bot"))
-            .body("websiteUrl", equalTo("https://example.com/crud"));
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.id").isEqualTo(chatbotId.intValue())
+            .jsonPath("$.name").isEqualTo("CRUD Test Bot")
+            .jsonPath("$.websiteUrl").isEqualTo("https://example.com/crud");
 
         // Step 3: UPDATE chatbot
         // Ensure token is still set before update
-        apiClient.withAuth(token);
-        Response updateResponse = apiClient.put(
-            "/api/chatbots/" + chatbotId,
-            new java.util.HashMap<String, Object>() {{
-                put("name", "Updated CRUD Bot");
-                put("description", "Updated description");
-                put("websiteUrl", "https://example.com/crud"); // Required field
-            }}
-        );
-
-        updateResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        webApiClient.withAuth(token);
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("name", "Updated CRUD Bot");
+        updateBody.put("description", "Updated description");
+        updateBody.put("websiteUrl", "https://example.com/crud"); // Required field
+        
+        webApiClient.put("/api/chatbots/" + chatbotId, updateBody)
+            .expectStatus().is2xxSuccessful();
 
         // Verify update
-        Response verifyUpdate = apiClient.getChatbot(chatbotId);
-        verifyUpdate.then()
-            .statusCode(200)
-            .body("name", equalTo("Updated CRUD Bot"));
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Updated CRUD Bot");
 
         // Step 4: DELETE chatbot
-        Response deleteResponse = apiClient.deleteChatbot(chatbotId);
-        deleteResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().is2xxSuccessful();
 
         // Step 5: Verify deletion
-        Response verifyDelete = apiClient.getChatbot(chatbotId);
-        verifyDelete.then()
-            .statusCode(404);
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isNotFound();
     }
 
     @Test
@@ -103,22 +108,28 @@ class ChatbotApiE2ETest extends E2ETestBase {
     void shouldCreateMultipleChatbotsAndListAll() {
         // Create OAuth2 user and subscription
         String email = "multiple@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         // Create 3 chatbots
-        apiClient.createChatbot("Bot 1", "https://example.com/bot1", "First bot");
-        apiClient.createChatbot("Bot 2", "https://example.com/bot2", "Second bot");
-        apiClient.createChatbot("Bot 3", "https://example.com/bot3", "Third bot");
+        webApiClient.withAuth(token).createChatbot("Bot 1", "https://example.com/bot1", "First bot")
+            .expectStatus().is2xxSuccessful();
+        webApiClient.withAuth(token).createChatbot("Bot 2", "https://example.com/bot2", "Second bot")
+            .expectStatus().is2xxSuccessful();
+        webApiClient.withAuth(token).createChatbot("Bot 3", "https://example.com/bot3", "Third bot")
+            .expectStatus().is2xxSuccessful();
 
         // Get all chatbots
-        Response listResponse = apiClient.getChatbots();
-        listResponse.then()
-            .statusCode(200)
-            .body("size()", equalTo(3))
-            .body("[0].name", notNullValue())
-            .body("[1].name", notNullValue())
-            .body("[2].name", notNullValue());
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .consumeWith(result -> {
+                assertNotNull(result.getResponseBody());
+                assertEquals(3, result.getResponseBody().size());
+                assertNotNull(result.getResponseBody().get(0).get("name"));
+                assertNotNull(result.getResponseBody().get(1).get("name"));
+                assertNotNull(result.getResponseBody().get(2).get("name"));
+            });
     }
 
     @Test
@@ -126,26 +137,35 @@ class ChatbotApiE2ETest extends E2ETestBase {
     void shouldEnforceChatbotOwnership() {
         // User 1 creates chatbot
         String ownerEmail = "owner@example.com";
-        createOAuth2User(ownerEmail);
+        String ownerToken = createOAuth2User(ownerEmail);
         createActiveSubscriptionForUser(ownerEmail);
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(ownerToken).createChatbot(
             "Private Bot",
             "https://example.com/private",
             "Owner's chatbot"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // User 2 tries to access User 1's chatbot
-        apiClient.clearAuth();
         String otherEmail = "other@example.com";
-        createOAuth2User(otherEmail);
+        String otherToken = createOAuth2User(otherEmail);
         createActiveSubscriptionForUser(otherEmail);
-        Response unauthorizedAccess = apiClient.getChatbot(chatbotId);
+        
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(otherToken).getChatbot(chatbotId)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 403 || status == 404, 
+                    "Expected 403 or 404, got: " + status);
+            });
 
         // Should return 403 Forbidden or 404 Not Found
-        int statusCode = unauthorizedAccess.getStatusCode();
+        int statusCode = statusCodeRef.get();
         assertTrue(statusCode == 403 || statusCode == 404,
-            "User should not access another user's chatbot");
+            "User should not access another user's chatbot. Got: " + statusCode);
     }
 
     @Test
@@ -153,26 +173,35 @@ class ChatbotApiE2ETest extends E2ETestBase {
     void shouldPreventUnauthorizedDeletion() {
         // User 1 creates chatbot
         String creatorEmail = "creator@example.com";
-        createOAuth2User(creatorEmail);
+        String creatorToken = createOAuth2User(creatorEmail);
         createActiveSubscriptionForUser(creatorEmail);
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(creatorToken).createChatbot(
             "Protected Bot",
             "https://example.com/protected",
             "Protected chatbot"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // User 2 tries to delete User 1's chatbot
-        apiClient.clearAuth();
         String attackerEmail = "attacker@example.com";
-        createOAuth2User(attackerEmail);
+        String attackerToken = createOAuth2User(attackerEmail);
         createActiveSubscriptionForUser(attackerEmail);
-        Response unauthorizedDelete = apiClient.deleteChatbot(chatbotId);
+        
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(attackerToken).deleteChatbot(chatbotId)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 403 || status == 404, 
+                    "Expected 403 or 404, got: " + status);
+            });
 
         // Should return 403 or 404
-        int statusCode = unauthorizedDelete.getStatusCode();
+        int statusCode = statusCodeRef.get();
         assertTrue(statusCode == 403 || statusCode == 404,
-            "User should not delete another user's chatbot");
+            "User should not delete another user's chatbot. Got: " + statusCode);
     }
 
     @Test
@@ -180,71 +209,65 @@ class ChatbotApiE2ETest extends E2ETestBase {
     void shouldAllowOwnerToUpdateChatbot() {
         // Create OAuth2 user and subscription
         String email = "updater@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
         // Create chatbot
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Original Name",
             "https://example.com/original",
             "Original description"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Update chatbot
-        Response updateResponse = apiClient.put(
-            "/api/chatbots/" + chatbotId,
-            new java.util.HashMap<String, Object>() {{
-                put("name", "New Name");
-                put("description", "New description");
-                put("websiteUrl", "https://example.com/newurl");
-            }}
-        );
-
-        updateResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("name", "New Name");
+        updateBody.put("description", "New description");
+        updateBody.put("websiteUrl", "https://example.com/newurl");
+        
+        webApiClient.withAuth(token).put("/api/chatbots/" + chatbotId, updateBody)
+            .expectStatus().is2xxSuccessful();
 
         // Verify changes
-        Response getResponse = apiClient.getChatbot(chatbotId);
-        getResponse.then()
-            .statusCode(200)
-            .body("name", equalTo("New Name"));
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("New Name");
     }
 
     @Test
     @DisplayName("Get Chatbot: Valid ID Returns Chatbot")
     void shouldReturnChatbotForValidId() {
         String email = "getter@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Get Test Bot",
             "https://example.com/get",
             "Test get operation"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
-        Response getResponse = apiClient.getChatbot(chatbotId);
-        getResponse.then()
-            .statusCode(200)
-            .body("id", equalTo(chatbotId.intValue()))
-            .body("name", equalTo("Get Test Bot"))
-            .body("websiteUrl", equalTo("https://example.com/get"))
-            .body("active", notNullValue());
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.id").isEqualTo(chatbotId.intValue())
+            .jsonPath("$.name").isEqualTo("Get Test Bot")
+            .jsonPath("$.websiteUrl").isEqualTo("https://example.com/get")
+            .jsonPath("$.active").exists();
     }
 
     @Test
     @DisplayName("Get Chatbot: Invalid ID Returns 404")
     void shouldReturn404ForInvalidChatbotId() {
         String email = "invalid@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         Long nonExistentId = 999999L;
-        Response response = apiClient.getChatbot(nonExistentId);
-
-        response.then()
-            .statusCode(404);
+        webApiClient.withAuth(token).getChatbot(nonExistentId)
+            .expectStatus().isNotFound();
     }
 
     @Test
@@ -256,20 +279,26 @@ class ChatbotApiE2ETest extends E2ETestBase {
         
         // Ensure token is set after subscription creation (same pattern as working test)
         assertNotNull(token, "Token should be generated");
-        apiClient.withAuth(token);
-        assertNotNull(apiClient.getAuthToken(), "Token should be set in API client");
+        webApiClient.withAuth(token);
+        assertNotNull(webApiClient.getAuthToken(), "Token should be set in API client");
         
         // Try to create chatbot with missing name using direct POST
         // Note: Using post() directly instead of createChatbot() to test validation
-        Response missingName = apiClient.post("/api/chatbots",
-            new java.util.HashMap<String, Object>() {{
-                put("websiteUrl", "https://example.com/test");
-                put("description", "Missing name");
-                // name is intentionally missing to test validation
-            }}
-        );
+        Map<String, Object> invalidBody = new HashMap<>();
+        invalidBody.put("websiteUrl", "https://example.com/test");
+        invalidBody.put("description", "Missing name");
+        // name is intentionally missing to test validation
+        
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token).post("/api/chatbots", invalidBody)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+            });
 
-        int statusCode = missingName.getStatusCode();
+        int statusCode = statusCodeRef.get();
         // Spring Security checks authentication before @Valid validation
         // If token is invalid/missing, we get 401 before validation can run
         // If token is valid, we should get 400 (validation error)
@@ -279,10 +308,6 @@ class ChatbotApiE2ETest extends E2ETestBase {
             System.out.println("WARNING: Got 401 - authentication issue. Token: " + 
                 (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
         }
-        
-        // Accept 400 (validation error) as expected, 401 indicates auth setup problem
-        missingName.then()
-            .statusCode(anyOf(is(400), is(401)));
         
         // For now, we accept 401 as it indicates the test needs auth fix
         // TODO: Fix authentication to get proper 400 validation error
@@ -294,116 +319,125 @@ class ChatbotApiE2ETest extends E2ETestBase {
     @DisplayName("Create Chatbot: Invalid Website URL")
     void shouldRejectInvalidWebsiteUrl() {
         String email = "urltest@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         // Try with invalid URL
-        Response invalidUrl = apiClient.createChatbot(
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token).createChatbot(
             "Invalid URL Bot",
             "not-a-valid-url",
             "Testing URL validation"
-        );
+        )
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> statusCodeRef.set(result.getStatus().value()));
 
         // Should return 400 Bad Request
-        int statusCode = invalidUrl.getStatusCode();
+        int statusCode = statusCodeRef.get();
         assertTrue(statusCode >= 400 && statusCode < 500,
-            "Should reject invalid URL");
+            "Should reject invalid URL. Got: " + statusCode);
     }
 
     @Test
     @DisplayName("List Chatbots: Empty List for New User")
     void shouldReturnEmptyListForNewUser() {
         String email = "newuser@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        Response response = apiClient.getChatbots();
-        response.then()
-            .statusCode(200)
-            .body("size()", equalTo(0));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .consumeWith(result -> {
+                assertNotNull(result.getResponseBody());
+                assertEquals(0, result.getResponseBody().size());
+            });
     }
 
     @Test
     @DisplayName("List Chatbots: Unauthenticated Request Returns 401/403")
     void shouldBlockUnauthenticatedListRequest() {
-        apiClient.clearAuth();
-
-        Response response = apiClient.getChatbots();
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.getChatbots()
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 401 || status == 403, 
+                    "Expected 401 or 403, got: " + status);
+            });
         
-        // Handle potential null response (e.g., connection timeout)
-        assertNotNull(response, "Response should not be null");
-        int statusCode = response.getStatusCode();
+        int statusCode = statusCodeRef.get();
         assertTrue(statusCode == 401 || statusCode == 403,
-            "Should block unauthenticated request");
+            "Should block unauthenticated request. Got: " + statusCode);
     }
 
     @Test
     @DisplayName("Delete Chatbot: Successful Deletion")
     void shouldDeleteChatbotSuccessfully() {
         String email = "deleter@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "To Delete",
             "https://example.com/delete",
             "Will be deleted"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
-        Response deleteResponse = apiClient.deleteChatbot(chatbotId);
-        deleteResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().is2xxSuccessful();
 
         // Verify deletion
-        Response verifyResponse = apiClient.getChatbot(chatbotId);
-        verifyResponse.then()
-            .statusCode(404);
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isNotFound();
     }
 
     @Test
     @DisplayName("Delete Chatbot: Already Deleted Returns 404")
     void shouldReturn404ForAlreadyDeletedChatbot() {
         String email = "doubledelete@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Double Delete",
             "https://example.com/doubledelete",
             "Test double deletion"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // First deletion
-        apiClient.deleteChatbot(chatbotId);
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().is2xxSuccessful();
 
         // Second deletion attempt
-        Response secondDelete = apiClient.deleteChatbot(chatbotId);
-        secondDelete.then()
-            .statusCode(404);
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().isNotFound();
     }
 
     @Test
     @DisplayName("Chatbot Properties: Verify All Fields Present")
     void shouldReturnAllChatbotFields() {
         String email = "fields@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        Response createResponse = apiClient.createChatbot(
+        webApiClient.withAuth(token).createChatbot(
             "Full Fields Bot",
             "https://example.com/fields",
             "Testing all fields"
-        );
-
-        createResponse.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("id", notNullValue())
-            .body("name", notNullValue())
-            .body("description", notNullValue())
-            .body("websiteUrl", notNullValue())
-            .body("active", notNullValue());
+        )
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.id").exists()
+            .jsonPath("$.name").exists()
+            .jsonPath("$.description").exists()
+            .jsonPath("$.websiteUrl").exists()
+            .jsonPath("$.active").exists();
     }
 
     @Test
@@ -412,19 +446,15 @@ class ChatbotApiE2ETest extends E2ETestBase {
         // Simulate multiple users creating chatbots
         for (int i = 0; i < 3; i++) {
             String email = "concurrent" + i + "@example.com";
-            createOAuth2User(email);
+            String token = createOAuth2User(email);
             createActiveSubscriptionForUser(email);
 
-            Response response = apiClient.createChatbot(
+            webApiClient.withAuth(token).createChatbot(
                 "Concurrent Bot " + i,
                 "https://example.com/concurrent" + i,
                 "Concurrent creation test"
-            );
-
-            response.then()
-                .statusCode(anyOf(is(200), is(201)));
-
-            apiClient.clearAuth();
+            )
+                .expectStatus().is2xxSuccessful();
         }
     }
 
@@ -434,32 +464,35 @@ class ChatbotApiE2ETest extends E2ETestBase {
         String email = "partial@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
-        
-        // Ensure token is set after subscription creation
-        apiClient.withAuth(token);
 
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Original",
             "https://example.com/original",
             "Original description"
-        );
-        Long chatbotId = extractChatbotId(createResponse);
-
-        // Ensure token is still set before PATCH request
-        apiClient.withAuth(token);
+        )
+            .expectStatus().is2xxSuccessful());
         
         // Update only name
-        Response updateResponse = apiClient.patch(
-            "/api/chatbots/" + chatbotId,
-            new java.util.HashMap<String, Object>() {{
-                put("name", "Partially Updated");
-            }}
-        );
+        Map<String, Object> patchBody = new HashMap<>();
+        patchBody.put("name", "Partially Updated");
+        
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token).patch("/api/chatbots/" + chatbotId, patchBody)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
+                statusCodeRef.set(statusValue);
+                // Accept 200/204/404/405/401
+                assertTrue(statusValue == 200 || statusValue == 204 || statusValue == 404 || 
+                    statusValue == 405 || statusValue == 401,
+                    "Expected 200/204/404/405/401, got: " + statusValue);
+            });
 
         // Should succeed (200 or 204) or return 404/405 if PATCH not implemented
         // Note: Controller only has PUT, not PATCH, so 405 Method Not Allowed is expected
         // 401 indicates authentication issue (token not sent correctly)
-        int statusCode = updateResponse.getStatusCode();
+        int statusCode = statusCodeRef.get();
         assertTrue(statusCode == 200 || statusCode == 204 || statusCode == 404 || statusCode == 405 || statusCode == 401,
             "Partial update should succeed (200/204) or return 404/405/401 - got: " + statusCode);
     }
