@@ -1,11 +1,12 @@
 package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
-import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.*;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -31,50 +32,79 @@ class UserJourneyE2ETest extends E2ETestBase {
         assertNotNull(token, "Auth token should be set after OAuth2 login");
 
         // Step 2: Verify user can access protected endpoints
-        Response chatbotsResponse = apiClient.getChatbots();
-        chatbotsResponse.then()
-            .statusCode(200)
-            .body("$", instanceOf(java.util.List.class));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class);
 
         // Step 3: Create a chatbot
         String chatbotName = "Customer Support Bot";
         String websiteUrl = "https://example.com";
 
-        Response createChatbotResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             chatbotName,
             websiteUrl,
             "Helps customers with common questions"
-        );
-
-        createChatbotResponse.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("name", equalTo(chatbotName))
-            .body("websiteUrl", equalTo(websiteUrl))
-            .body("active", notNullValue());
-
-        Long chatbotId = extractChatbotId(createChatbotResponse);
+        )
+            .expectStatus().is2xxSuccessful());
+        
+        // Verify chatbot details
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo(chatbotName)
+            .jsonPath("$.websiteUrl").isEqualTo(websiteUrl)
+            .jsonPath("$.active").exists();
+        
         assertNotNull(chatbotId, "Chatbot ID should be returned");
 
         // Step 4: Send a chat message
-        Response chatResponse = apiClient.sendChatMessage(chatbotId, "Hello, can you help me?");
-
-        // Accept 200/201 (success) or 500 (AI service unavailable)
-        int chatStatusCode = chatResponse.getStatusCode();
-        assertTrue(chatStatusCode == 200 || chatStatusCode == 201 || chatStatusCode == 500,
-            "Should return 200/201 (success) or 500 (AI service unavailable). Got: " + chatStatusCode);
+        Map<String, String> chatBody = Map.of("message", "Hello, can you help me?");
+        AtomicReference<Integer> chatStatusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, chatBody)
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                chatStatusCodeRef.set(status);
+                assertTrue(status == 200 || status == 201 || status == 500,
+                    "Should return 200/201 (success) or 500 (AI service unavailable). Got: " + status);
+            });
         
-        if (chatStatusCode == 200 || chatStatusCode == 201) {
-            chatResponse.then()
-                .body("message", notNullValue())
-                .body("message", not(emptyString()));
+        // Verify message if successful
+        if (chatStatusCodeRef.get() == 200 || chatStatusCodeRef.get() == 201) {
+            webApiClient.withAuth(token).post("/api/chat/" + chatbotId, chatBody)
+                .expectStatus().is2xxSuccessful()
+                .expectBody()
+                .jsonPath("$.message").exists()
+                .jsonPath("$.message").value(msg -> {
+                    assertNotNull(msg, "Message should not be null");
+                    assertFalse(msg.toString().isEmpty(), "Message should not be empty");
+                });
         }
 
         // Step 5: Verify chatbot is in the user's chatbot list
-        Response updatedChatbotsResponse = apiClient.getChatbots();
-        updatedChatbotsResponse.then()
-            .statusCode(200)
-            .body("size()", greaterThanOrEqualTo(1))
-            .body("find { it.id == " + chatbotId + " }.name", equalTo(chatbotName));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .consumeWith(result -> {
+                assertTrue(result.getResponseBody() != null && result.getResponseBody().size() >= 1,
+                    "Should have at least 1 chatbot");
+                // Verify chatbot with matching ID exists
+                boolean found = result.getResponseBody().stream()
+                    .anyMatch(bot -> {
+                        Object id = bot.get("id");
+                        Long idLong = null;
+                        if (id instanceof Integer) {
+                            idLong = ((Integer) id).longValue();
+                        } else if (id instanceof Long) {
+                            idLong = (Long) id;
+                        } else if (id instanceof Number) {
+                            idLong = ((Number) id).longValue();
+                        }
+                        return idLong != null && idLong.equals(chatbotId) && 
+                               chatbotName.equals(bot.get("name"));
+                    });
+                assertTrue(found, "Chatbot with ID " + chatbotId + " and name " + chatbotName + " should be in list");
+            });
     }
 
     @Test
@@ -82,27 +112,48 @@ class UserJourneyE2ETest extends E2ETestBase {
     void shouldCompleteSubscriptionCheckoutJourney() {
         // Step 1: Create OAuth2 user
         String email = "subscription-user@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
 
         // Step 2: Check subscription status (should be FREE by default)
-        Response statusResponse = apiClient.getSubscriptionStatus();
-        statusResponse.then()
-            .statusCode(200)
-            .body("plan", anyOf(equalTo("FREE"), nullValue()));
+        AtomicReference<String> planRef = new AtomicReference<>();
+        webApiClient.withAuth(token).getSubscriptionStatus()
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.plan").value(plan -> {
+                if (plan != null) {
+                    planRef.set(plan.toString());
+                }
+            });
+        
+        String plan = planRef.get();
+        assertTrue(plan == null || plan.equals("FREE"),
+            "Plan should be FREE or null for new user. Got: " + plan);
 
         // Step 3: Create Stripe checkout session for upgrade
         String basicPriceId = "price_basic_monthly";
-        Response checkoutResponse = apiClient.createCheckoutSession(basicPriceId);
-
-        // Accept 200/201 (success) or 500 (Stripe mock issue)
-        int checkoutStatusCode = checkoutResponse.getStatusCode();
-        assertTrue(checkoutStatusCode == 200 || checkoutStatusCode == 201 || checkoutStatusCode == 500,
-            "Should return 200/201 (success) or 500 (Stripe mock issue). Got: " + checkoutStatusCode);
+        AtomicReference<Integer> checkoutStatusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token).createCheckoutSession(basicPriceId)
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                checkoutStatusCodeRef.set(status);
+                assertTrue(status == 200 || status == 201 || status == 500,
+                    "Should return 200/201 (success) or 500 (Stripe mock issue). Got: " + status);
+            });
         
-        if (checkoutStatusCode == 200 || checkoutStatusCode == 201) {
-            checkoutResponse.then()
-                .body("checkoutUrl", notNullValue())
-                .body("checkoutUrl", containsString("checkout"));
+        if (checkoutStatusCodeRef.get() == 200 || checkoutStatusCodeRef.get() == 201) {
+            AtomicReference<String> checkoutUrlRef = new AtomicReference<>();
+            webApiClient.withAuth(token).createCheckoutSession(basicPriceId)
+                .expectStatus().is2xxSuccessful()
+                .expectBody()
+                .jsonPath("$.checkoutUrl").value(url -> {
+                    if (url != null) {
+                        checkoutUrlRef.set(url.toString());
+                    }
+                });
+            String checkoutUrl = checkoutUrlRef.get();
+            assertNotNull(checkoutUrl, "Checkout URL should not be null");
+            assertTrue(checkoutUrl.contains("checkout"), "Checkout URL should contain 'checkout'");
         }
     }
 
@@ -111,71 +162,79 @@ class UserJourneyE2ETest extends E2ETestBase {
     void shouldManageMultipleChatbots() {
         // Step 1: Create OAuth2 user and subscription
         String email = "multi-chatbot-user@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         // Step 2: Create first chatbot
-        Response chatbot1 = apiClient.createChatbot(
+        Long chatbot1Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Sales Assistant",
             "https://example.com/sales",
             "Helps with sales inquiries"
-        );
-        // Handle potential errors (401, 500) that prevent JSON parsing
-        int create1StatusCode = chatbot1.getStatusCode();
-        if (create1StatusCode != 200 && create1StatusCode != 201) {
-            // Chatbot creation failed - skip rest of test
-            assertTrue(create1StatusCode == 401 || create1StatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create1StatusCode);
-            return;
-        }
-        Long chatbot1Id = extractChatbotId(chatbot1);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 3: Create second chatbot
-        Response chatbot2 = apiClient.createChatbot(
+        Long chatbot2Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Support Bot",
             "https://example.com/support",
             "Provides customer support"
-        );
-        int create2StatusCode = chatbot2.getStatusCode();
-        if (create2StatusCode != 200 && create2StatusCode != 201) {
-            assertTrue(create2StatusCode == 401 || create2StatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create2StatusCode);
-            return;
-        }
-        Long chatbot2Id = extractChatbotId(chatbot2);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 4: Create third chatbot
-        Response chatbot3 = apiClient.createChatbot(
+        Long chatbot3Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "FAQ Bot",
             "https://example.com/faq",
             "Answers frequently asked questions"
-        );
-        int create3StatusCode = chatbot3.getStatusCode();
-        if (create3StatusCode != 200 && create3StatusCode != 201) {
-            assertTrue(create3StatusCode == 401 || create3StatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create3StatusCode);
-            return;
-        }
-        Long chatbot3Id = extractChatbotId(chatbot3);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 5: Verify all chatbots exist
-        Response allChatbots = apiClient.getChatbots();
-        allChatbots.then()
-            .statusCode(200)
-            .body("size()", equalTo(3));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .hasSize(3);
 
         // Step 6: Delete second chatbot
-        Response deleteResponse = apiClient.deleteChatbot(chatbot2Id);
-        deleteResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        webApiClient.withAuth(token).deleteChatbot(chatbot2Id)
+            .expectStatus().is2xxSuccessful();
 
         // Step 7: Verify only 2 chatbots remain
-        Response remainingChatbots = apiClient.getChatbots();
-        remainingChatbots.then()
-            .statusCode(200)
-            .body("size()", equalTo(2))
-            .body("find { it.id == " + chatbot1Id + " }", notNullValue())
-            .body("find { it.id == " + chatbot3Id + " }", notNullValue());
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .hasSize(2)
+            .consumeWith(result -> {
+                // Verify chatbot1 and chatbot3 exist
+                boolean hasChatbot1 = result.getResponseBody().stream()
+                    .anyMatch(bot -> {
+                        Object id = bot.get("id");
+                        Long idLong = null;
+                        if (id instanceof Integer) {
+                            idLong = ((Integer) id).longValue();
+                        } else if (id instanceof Long) {
+                            idLong = (Long) id;
+                        } else if (id instanceof Number) {
+                            idLong = ((Number) id).longValue();
+                        }
+                        return idLong != null && idLong.equals(chatbot1Id);
+                    });
+                boolean hasChatbot3 = result.getResponseBody().stream()
+                    .anyMatch(bot -> {
+                        Object id = bot.get("id");
+                        Long idLong = null;
+                        if (id instanceof Integer) {
+                            idLong = ((Integer) id).longValue();
+                        } else if (id instanceof Long) {
+                            idLong = (Long) id;
+                        } else if (id instanceof Number) {
+                            idLong = ((Number) id).longValue();
+                        }
+                        return idLong != null && idLong.equals(chatbot3Id);
+                    });
+                assertTrue(hasChatbot1, "Chatbot 1 should still exist");
+                assertTrue(hasChatbot3, "Chatbot 3 should still exist");
+            });
     }
 
     @Test
@@ -185,72 +244,59 @@ class UserJourneyE2ETest extends E2ETestBase {
         String user1Email = "user1@example.com";
         String user1Token = createOAuth2User(user1Email);
         createActiveSubscriptionForUser(user1Email);
-        // Ensure token is set after subscription creation
-        apiClient.withAuth(user1Token);
 
         // Step 2: Create chatbot for user 1
-        Response user1Chatbot = apiClient.createChatbot(
+        Long user1ChatbotId = extractChatbotId(webApiClient.withAuth(user1Token).createChatbot(
             "User 1 Bot",
             "https://example.com/user1",
             "User 1's chatbot"
-        );
-        // Handle potential errors (401, 500) that prevent JSON parsing
-        int create1StatusCode = user1Chatbot.getStatusCode();
-        if (create1StatusCode != 200 && create1StatusCode != 201) {
-            // Chatbot creation failed - skip rest of test
-            assertTrue(create1StatusCode == 401 || create1StatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create1StatusCode);
-            return;
-        }
-        Long user1ChatbotId = extractChatbotId(user1Chatbot);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 3: Create second OAuth2 user
-        apiClient.clearAuth();
         String user2Email = "user2@example.com";
         String user2Token = createOAuth2User(user2Email);
         createActiveSubscriptionForUser(user2Email);
-        // Ensure token is set after subscription creation
-        apiClient.withAuth(user2Token);
 
         // Step 4: Create chatbot for user 2
-        Response user2Chatbot = apiClient.createChatbot(
+        Long user2ChatbotId = extractChatbotId(webApiClient.withAuth(user2Token).createChatbot(
             "User 2 Bot",
             "https://example.com/user2",
             "User 2's chatbot"
-        );
-        int create2StatusCode = user2Chatbot.getStatusCode();
-        if (create2StatusCode != 200 && create2StatusCode != 201) {
-            assertTrue(create2StatusCode == 401 || create2StatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create2StatusCode);
-            return;
-        }
-        Long user2ChatbotId = extractChatbotId(user2Chatbot);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 5: User 2 should only see their chatbot
-        Response user2Chatbots = apiClient.getChatbots();
-        user2Chatbots.then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].name", equalTo("User 2 Bot"));
+        webApiClient.withAuth(user2Token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .hasSize(1)
+            .consumeWith(result -> {
+                assertEquals("User 2 Bot", result.getResponseBody().get(0).get("name"),
+                    "User 2 should see their own chatbot");
+            });
 
-        // Step 6: Switch back to user 1
-        apiClient.withAuth(user1Token);
+        // Step 6: User 1 should only see their chatbot
+        webApiClient.withAuth(user1Token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .hasSize(1)
+            .consumeWith(result -> {
+                assertEquals("User 1 Bot", result.getResponseBody().get(0).get("name"),
+                    "User 1 should see their own chatbot");
+            });
 
-        // Step 7: User 1 should only see their chatbot
-        Response user1Chatbots = apiClient.getChatbots();
-        user1Chatbots.then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].name", equalTo("User 1 Bot"));
-
-        // Step 8: User 1 should not be able to access user 2's chatbot
-        apiClient.withAuth(user1Token);
-        Response unauthorizedAccess = apiClient.getChatbot(user2ChatbotId);
-
-        // Should return 403 Forbidden or 404 Not Found
-        int statusCode = unauthorizedAccess.getStatusCode();
-        assertTrue(statusCode == 403 || statusCode == 404,
-            "User should not be able to access another user's chatbot");
+        // Step 7: User 1 should not be able to access user 2's chatbot
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(user1Token).getChatbot(user2ChatbotId)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 403 || status == 404,
+                    "User should not be able to access another user's chatbot. Got: " + status);
+            });
     }
 
     @Test
@@ -262,10 +308,7 @@ class UserJourneyE2ETest extends E2ETestBase {
         
         assertNotNull(token1, "First OAuth2 login should generate token");
 
-        // Step 2: Clear auth (simulates logout)
-        apiClient.clearAuth();
-
-        // Small delay to ensure different JWT token (different iat timestamp)
+        // Step 2: Small delay to ensure different JWT token (different iat timestamp)
         try {
             Thread.sleep(1000); // 1 second delay to ensure different timestamp
         } catch (InterruptedException e) {
@@ -280,13 +323,16 @@ class UserJourneyE2ETest extends E2ETestBase {
         assertNotEquals(token1, token2, "Each OAuth2 login should generate unique token");
         
         // Step 5: Verify user can access protected endpoints
-        apiClient.withAuth(token2);
         createActiveSubscriptionForUser(email); // Ensure subscription exists for token2
-        Response chatbotsResponse = apiClient.getChatbots();
-        // Accept 200 (success) or 403 (no subscription) or 401 (auth issue)
-        int statusCode = chatbotsResponse.getStatusCode();
-        assertTrue(statusCode == 200 || statusCode == 403 || statusCode == 401,
-            "Should return 200 (success), 403 (no subscription), or 401 (auth issue). Got: " + statusCode);
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth(token2).getChatbots()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 200 || status == 403 || status == 401,
+                    "Should return 200 (success), 403 (no subscription), or 401 (auth issue). Got: " + status);
+            });
     }
 
     @Test
@@ -296,55 +342,61 @@ class UserJourneyE2ETest extends E2ETestBase {
         String email = "lifecycle-user@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
-        // Ensure token is set after subscription creation
-        apiClient.withAuth(token);
 
         // Step 2: Create chatbot
-        Response createResponse = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Initial Bot Name",
             "https://example.com/initial",
             "Initial description"
-        );
-        // Handle potential errors (401, 500) that prevent JSON parsing
-        int createStatusCode = createResponse.getStatusCode();
-        if (createStatusCode != 200 && createStatusCode != 201) {
-            // Chatbot creation failed - skip rest of test
-            assertTrue(createStatusCode == 401 || createStatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + createStatusCode);
-            return;
-        }
-        Long chatbotId = extractChatbotId(createResponse);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Step 3: Send multiple chat messages (accept 200/201 or 500 for AI service issues)
-        Response msg1 = apiClient.sendChatMessage(chatbotId, "First message");
-        int msg1Status = msg1.getStatusCode();
-        assertTrue(msg1Status == 200 || msg1Status == 201 || msg1Status == 500,
-            "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + msg1Status);
+        Map<String, String> msg1Body = Map.of("message", "First message");
+        AtomicReference<Integer> msg1StatusRef = new AtomicReference<>();
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg1Body)
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                msg1StatusRef.set(status);
+                assertTrue(status == 200 || status == 201 || status == 500,
+                    "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + status);
+            });
         
-        Response msg2 = apiClient.sendChatMessage(chatbotId, "Second message");
-        int msg2Status = msg2.getStatusCode();
-        assertTrue(msg2Status == 200 || msg2Status == 201 || msg2Status == 500,
-            "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + msg2Status);
+        Map<String, String> msg2Body = Map.of("message", "Second message");
+        AtomicReference<Integer> msg2StatusRef = new AtomicReference<>();
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg2Body)
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                msg2StatusRef.set(status);
+                assertTrue(status == 200 || status == 201 || status == 500,
+                    "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + status);
+            });
         
-        Response msg3 = apiClient.sendChatMessage(chatbotId, "Third message");
-        int msg3Status = msg3.getStatusCode();
-        assertTrue(msg3Status == 200 || msg3Status == 201 || msg3Status == 500,
-            "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + msg3Status);
+        Map<String, String> msg3Body = Map.of("message", "Third message");
+        AtomicReference<Integer> msg3StatusRef = new AtomicReference<>();
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg3Body)
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                msg3StatusRef.set(status);
+                assertTrue(status == 200 || status == 201 || status == 500,
+                    "Chat message should return 200/201 (success) or 500 (AI service unavailable). Got: " + status);
+            });
 
         // Step 4: Verify chatbot still exists
-        Response getResponse = apiClient.getChatbot(chatbotId);
-        getResponse.then()
-            .statusCode(200)
-            .body("name", equalTo("Initial Bot Name"));
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Initial Bot Name");
 
         // Step 5: Delete chatbot
-        Response deleteResponse = apiClient.deleteChatbot(chatbotId);
-        deleteResponse.then()
-            .statusCode(anyOf(is(200), is(204)));
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().is2xxSuccessful();
 
         // Step 6: Verify chatbot is deleted
-        Response verifyDeleted = apiClient.getChatbot(chatbotId);
-        verifyDeleted.then()
-            .statusCode(404);
+        webApiClient.withAuth(token).getChatbot(chatbotId)
+            .expectStatus().isNotFound();
     }
 }
