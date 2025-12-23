@@ -19,6 +19,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
+import jakarta.persistence.EntityManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -65,6 +67,12 @@ public abstract class E2ETestBase {
 
     @Autowired
     protected JwtTokenProvider jwtTokenProvider;
+    
+    @Autowired
+    protected EntityManager entityManager;
+    
+    @Autowired
+    protected TransactionTemplate transactionTemplate;
 
 
     /**
@@ -383,27 +391,44 @@ public abstract class E2ETestBase {
             }
         }
         
-        user = userRepository.save(user);
-        
-        // Flush to ensure user is persisted in database before generating token
-        // This is critical for E2E tests where we immediately use the token
-        userRepository.flush();
+        // Save user within a transaction to ensure proper persistence
+        // Use TransactionTemplate to explicitly manage transaction boundaries
+        final User userToSave = user; // Make effectively final for lambda
+        User savedUser = transactionTemplate.execute(status -> {
+            User u = userRepository.save(userToSave);
+            entityManager.flush();
+            entityManager.clear();
+            return u;
+        });
         
         // Small delay to ensure transaction is committed (for Testcontainers/PostgreSQL)
+        // CI environments may need more time for database synchronization
         try {
-            Thread.sleep(100);
+            Thread.sleep(300); // Increased delay for CI environment
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         
-        // Verify user exists before generating token
-        Optional<User> verifyUser = userRepository.findByEmail(user.getEmail());
+        // Verify user exists in a fresh query (simulating what HTTP request would do)
+        Optional<User> verifyUser = userRepository.findByEmail(savedUser.getEmail());
         if (verifyUser.isEmpty()) {
-            throw new IllegalStateException("User was not persisted before token generation");
+            throw new IllegalStateException("User was not persisted before token generation. Email: " + savedUser.getEmail() + ", User ID: " + savedUser.getId());
         }
         
         // Generate JWT token for the user
-        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String token = jwtTokenProvider.generateToken(savedUser.getEmail());
+        
+        // Verify token can be validated immediately
+        boolean isValid = jwtTokenProvider.validateToken(token);
+        if (!isValid) {
+            throw new IllegalStateException("Generated JWT token is invalid. This suggests JWT secret mismatch.");
+        }
+        
+        // Verify username can be extracted from token
+        String usernameFromToken = jwtTokenProvider.getUsernameFromToken(token);
+        if (usernameFromToken == null || !savedUser.getEmail().equals(usernameFromToken)) {
+            throw new IllegalStateException("Token username mismatch. Expected: " + savedUser.getEmail() + ", Got: " + usernameFromToken);
+        }
         
         // Set token in API client
         apiClient.withAuth(token);
