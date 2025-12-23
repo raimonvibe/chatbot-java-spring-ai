@@ -145,9 +145,9 @@ public class ChatbotController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            List<Chatbot> chatbots = chatbotRepository.findAll().stream()
-                .filter(chatbot -> isOwner(user, chatbot))
-                .toList();
+            // Use findByOwnerId to avoid loading all chatbots and filtering in memory
+            // This is more efficient and avoids potential lazy loading issues
+            List<Chatbot> chatbots = chatbotRepository.findByOwnerId(user.getId());
 
             return ResponseEntity.ok(chatbots);
         } catch (Exception e) {
