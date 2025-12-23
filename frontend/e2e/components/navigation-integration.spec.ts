@@ -392,8 +392,11 @@ test.describe('Navigation Integration', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Start navigation
-    const navigation = page.goto('/pricing');
+    // Start navigation (this will be cancelled)
+    const navigation = page.goto('/pricing').catch(() => {
+      // Expected: navigation will be cancelled/aborted
+      // This is normal behavior when starting a new navigation
+    });
 
     // Immediately start another navigation (cancels first)
     await page.goto('/login');
@@ -401,5 +404,10 @@ test.describe('Navigation Integration', () => {
 
     // Should be on login page
     expect(page.url()).toMatch(/login/);
+    
+    // Wait for the cancelled navigation to complete (or fail)
+    await navigation.catch(() => {
+      // Expected: cancelled navigation will fail
+    });
   });
 });
