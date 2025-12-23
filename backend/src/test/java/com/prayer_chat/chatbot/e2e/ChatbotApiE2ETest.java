@@ -34,21 +34,15 @@ class ChatbotApiE2ETest extends E2ETestBase {
         
         // Ensure token is still set after subscription creation
         assertNotNull(token, "Token should be generated");
-        // Re-set token to ensure it's still there (defensive)
-        webApiClient.withAuth(token);
-        String currentToken = webApiClient.getAuthToken();
-        assertNotNull(currentToken, "Token should be set in API client");
-        assertEquals(token, currentToken, "Token should match");
         
         // Verify user exists in database before making request
         var userOpt = userRepository.findByEmail(email);
         assertTrue(userOpt.isPresent(), "User should exist in database before making request");
 
         // Step 1: CREATE chatbot
-        // Ensure token is set right before the request
-        webApiClient.withAuth(token);
+        // Use chained call to ensure token is set for this specific request
         AtomicReference<Long> chatbotIdRef = new AtomicReference<>();
-        webApiClient.createChatbot(
+        webApiClient.withAuth(token).createChatbot(
             "CRUD Test Bot",
             "https://example.com/crud",
             "Testing CRUD operations"
@@ -78,14 +72,12 @@ class ChatbotApiE2ETest extends E2ETestBase {
             .jsonPath("$.websiteUrl").isEqualTo("https://example.com/crud");
 
         // Step 3: UPDATE chatbot
-        // Ensure token is still set before update
-        webApiClient.withAuth(token);
         Map<String, Object> updateBody = new HashMap<>();
         updateBody.put("name", "Updated CRUD Bot");
         updateBody.put("description", "Updated description");
         updateBody.put("websiteUrl", "https://example.com/crud"); // Required field
         
-        webApiClient.put("/api/chatbots/" + chatbotId, updateBody)
+        webApiClient.withAuth(token).put("/api/chatbots/" + chatbotId, updateBody)
             .expectStatus().is2xxSuccessful();
 
         // Verify update
@@ -279,8 +271,6 @@ class ChatbotApiE2ETest extends E2ETestBase {
         
         // Ensure token is set after subscription creation (same pattern as working test)
         assertNotNull(token, "Token should be generated");
-        webApiClient.withAuth(token);
-        assertNotNull(webApiClient.getAuthToken(), "Token should be set in API client");
         
         // Try to create chatbot with missing name using direct POST
         // Note: Using post() directly instead of createChatbot() to test validation
