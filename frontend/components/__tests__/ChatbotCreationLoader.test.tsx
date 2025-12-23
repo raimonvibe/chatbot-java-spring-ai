@@ -1,7 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
-import ChatbotCreationLoader from '../ChatbotCreationLoader';
-
-// Mock lucide-react icons for this test file only
+// Mock lucide-react icons BEFORE importing the component
 jest.mock('lucide-react', () => {
   const React = require('react')
   return {
@@ -12,6 +9,9 @@ jest.mock('lucide-react', () => {
     CheckCircle: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'checkcircle-icon' }),
   }
 })
+
+import { render, waitFor } from '@testing-library/react';
+import ChatbotCreationLoader from '../ChatbotCreationLoader';
 
 describe('ChatbotCreationLoader', () => {
   it('should not render when isVisible is false', () => {
