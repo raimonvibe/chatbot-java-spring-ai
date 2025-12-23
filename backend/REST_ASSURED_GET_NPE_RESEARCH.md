@@ -47,16 +47,29 @@ All solutions were tried but NPE persists:
 - HTTP client initialization differs between GET and POST
 - The issue is in REST Assured library, not our code
 
-## Recommended Solutions
+## Attempted Solutions (All Failed)
 
-### Option 1: Upgrade/Downgrade REST Assured (Recommended)
-```xml
-<!-- Try 5.3.2 (older stable) -->
-<version>5.3.2</version>
+### ✅ Option 1: Upgrade/Downgrade REST Assured - TESTED
+- **5.3.2**: ❌ NPE persists
+- **5.4.0**: ❌ NPE (original version)
+- **5.5.0**: ❌ NPE persists
+- **Conclusion**: Version change does not fix the issue
 
-<!-- Or try 5.5.0 (newer, may have fixes) -->
-<version>5.5.0</version>
-```
+### ✅ Option 2: Use Exact POST Pattern - TESTED
+- Copied exact pattern from `sendStripeWebhook()` (which works)
+- Used `createRequest()` then `.get()` (same as POST uses `.post()`)
+- **Result**: ❌ Still NPE with GET, POST works fine
+- **Conclusion**: The issue is specific to GET HTTP method, not the pattern
+
+### ✅ Option 3: Multiple Request Building Patterns - TESTED
+- Inline request building
+- `RestAssured.given().spec(requestSpec).get()`
+- Full URL approach
+- Relative path approach
+- **Result**: ❌ All patterns fail for GET, work for POST
+- **Conclusion**: This is a REST Assured library bug with GET requests
+
+## Recommended Solutions (Not Yet Tested)
 
 ### Option 2: Use WebTestClient (Best for Spring Boot)
 - Native Spring Boot support
