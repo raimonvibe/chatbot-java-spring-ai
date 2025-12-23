@@ -1,16 +1,23 @@
-// Mock lucide-react icons BEFORE importing the component
-jest.mock('lucide-react', () => {
-  const React = require('react')
-  return {
-    Book: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'book-icon' }),
-    Sparkles: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'sparkles-icon' }),
-    Zap: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'zap-icon' }),
-    Brain: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'brain-icon' }),
-    CheckCircle: (props: any) => React.createElement('svg', { ...props, 'data-testid': 'checkcircle-icon' }),
-  }
-})
-
+import React from 'react';
 import { render, waitFor } from '@testing-library/react';
+
+// Mock lucide-react - must be before component import
+jest.mock('lucide-react', () => {
+  const React = require('react');
+  const MockIcon = (props: any) => React.createElement('svg', {
+    'data-testid': 'mock-icon',
+    ...props
+  });
+  return {
+    Book: MockIcon,
+    Sparkles: MockIcon,
+    Zap: MockIcon,
+    Brain: MockIcon,
+    CheckCircle: MockIcon,
+  };
+});
+
+// Import component after mock
 import ChatbotCreationLoader from '../ChatbotCreationLoader';
 
 describe('ChatbotCreationLoader', () => {
