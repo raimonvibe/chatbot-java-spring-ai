@@ -36,6 +36,14 @@ export default function Dashboard() {
     loadSubscriptionStatus();
   }, []);
 
+  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
+  // This must be before early returns to maintain hook order
+  useEffect(() => {
+    if (!loading && !authenticated) {
+      router.replace('/login');
+    }
+  }, [loading, authenticated, router]);
+
   const loadSubscriptionStatus = async () => {
     try {
       // Determine preview mode based on chatbot count and embed access
@@ -229,13 +237,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
-  useEffect(() => {
-    if (!loading && !authenticated) {
-      router.replace('/login');
-    }
-  }, [loading, authenticated, router]);
 
   if (!authenticated) {
     // Show loading state while redirecting
