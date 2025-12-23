@@ -385,8 +385,22 @@ public abstract class E2ETestBase {
         
         user = userRepository.save(user);
         
-        // Note: In Spring Data JPA, save() already flushes by default in most cases
-        // But we ensure the user is persisted by saving and then generating the token
+        // Flush to ensure user is persisted in database before generating token
+        // This is critical for E2E tests where we immediately use the token
+        userRepository.flush();
+        
+        // Small delay to ensure transaction is committed (for Testcontainers/PostgreSQL)
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Verify user exists before generating token
+        Optional<User> verifyUser = userRepository.findByEmail(user.getEmail());
+        if (verifyUser.isEmpty()) {
+            throw new IllegalStateException("User was not persisted before token generation");
+        }
         
         // Generate JWT token for the user
         String token = jwtTokenProvider.generateToken(user.getEmail());
