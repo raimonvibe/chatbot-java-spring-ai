@@ -102,43 +102,15 @@ public class ApiTestClient {
 
     /**
      * GET request
+     * Uses the exact same pattern as sendStripeWebhook() which works correctly
+     * The key is to use createRequest() and rely on static baseURI/port configuration
      */
     public Response get(String path) {
-        try {
-            // Use createRequest() for consistency with other methods
-            RequestSpecification request = createRequest();
-            if (request == null) {
-                throw new IllegalStateException("Failed to create request specification for GET " + path);
-            }
-            
-            // Use a direct approach similar to sendStripeWebhook which works
-            // Build request specification directly
-            RequestSpecification spec = RestAssured.given()
-                .baseUri(baseUrl)
-                .port(extractPort())
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON);
-            
-            if (authToken != null && !authToken.isEmpty()) {
-                spec.header("Authorization", "Bearer " + authToken);
-            }
-            
-            Response response = spec.get(path);
-            
-            if (response == null) {
-                throw new IllegalStateException("REST Assured returned null response for GET " + path);
-            }
-            return response;
-        } catch (NullPointerException e) {
-            // REST Assured sometimes throws NPE internally - provide better error message
-            throw new IllegalStateException("NullPointerException executing GET request to " + path + 
-                ". This may indicate a REST Assured configuration issue. Base URL: " + baseUrl, e);
-        } catch (Exception e) {
-            // If request fails (e.g., connection error), wrap in IllegalStateException
-            // This provides better error messages than NPE
-            throw new IllegalStateException("Failed to execute GET request to " + path + ": " + 
-                (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()), e);
-        }
+        // Use createRequest() to ensure consistent baseUri/port configuration
+        // This matches the exact pattern used in sendStripeWebhook() which works
+        RequestSpecification request = createRequest();
+        // Use relative path (not full URL) - REST Assured will use static baseURI/port
+        return request.get(path);
     }
 
     /**
