@@ -1671,3 +1671,104 @@ public class CostTrackingService {
 
 **Conclusion:** Keep the current single login page (`/app/login/page.tsx`). It already handles both login and signup seamlessly through Google OAuth. Adding a separate signup page would be redundant and potentially confusing for users.
 
+---
+
+## 🔍 Backend Root URL OAuth2 Redirect Issue
+
+### Current Situation
+**Backend URL:** `https://chatbot-backend-4mp4.onrender.com/`
+
+**Problem:** When users visit the backend root URL directly, they see a Google OAuth2 sign-in page instead of an API endpoint or proper error message.
+
+**Root Cause:**
+- Spring Security configuration requires authentication for root path (`/`)
+- `SecurityConfig.java` line 86: `.requestMatchers("/", "/index", "/chatbots/**", "/analytics", "/settings").authenticated()`
+- When unauthenticated users visit `/`, Spring Security redirects to OAuth2 login
+- This shows Google's sign-in page directly on the backend URL
+
+**Why This Is Problematic:**
+1. **Backend is API-only:** The backend should be a REST API, not a web application with UI
+2. **User Confusion:** Users might think they should log in via the backend URL instead of the frontend
+3. **Security Concern:** Exposing OAuth2 login directly on backend URL could be confusing for security audits
+4. **Architecture Violation:** Frontend should handle all user-facing authentication flows
+5. **SEO/Indexing Issues:** Search engines might index the OAuth2 login page
+
+**Current Behavior:**
+```
+User visits: https://chatbot-backend-4mp4.onrender.com/
+↓
+Spring Security intercepts (requires authentication)
+↓
+Redirects to: /oauth2/authorization/google
+↓
+Shows: Google OAuth2 sign-in page
+```
+
+**Expected Behavior:**
+```
+User visits: https://chatbot-backend-4mp4.onrender.com/
+↓
+Returns: JSON API response or 404/403 error
+OR
+Returns: Simple message "This is an API endpoint. Please use the frontend at [frontend-url]"
+```
+
+### Evaluation: Should This Be Removed?
+
+**Recommendation: ⚠️ YES - This should be fixed, but evaluation needed**
+
+**Arguments FOR removing/fixing:**
+1. ✅ **API Best Practice:** REST APIs should not show OAuth2 login pages
+2. ✅ **Clear Separation:** Backend = API, Frontend = UI
+3. ✅ **Better UX:** Users should only interact with frontend
+4. ✅ **Security:** Reduces attack surface (no OAuth2 UI on backend)
+5. ✅ **Professional:** Makes the architecture cleaner
+
+**Arguments AGAINST (why it might be acceptable):**
+1. ⚠️ **OAuth2 Flow Requirement:** OAuth2 callback needs to be on backend (`/login/oauth2/code/*`)
+2. ⚠️ **Development Convenience:** Developers might want to test OAuth2 directly
+3. ⚠️ **Fallback Option:** If frontend is down, users could still authenticate (not recommended)
+
+**Recommended Solution:**
+1. **Option A: Return JSON Error (Recommended)**
+   - Create a simple controller that returns JSON for root path
+   - Message: `{"message": "This is an API endpoint. Please use the frontend application.", "frontend_url": "https://prayer-chat.com"}`
+   - Status: 403 Forbidden or 404 Not Found
+
+2. **Option B: Redirect to Frontend**
+   - Redirect root path to frontend URL
+   - Simple redirect: `https://prayer-chat.com`
+
+3. **Option C: Keep OAuth2 but Add Warning**
+   - Keep current behavior but add a message explaining this is the API
+   - Not recommended - still confusing
+
+**Implementation Plan:**
+```java
+// Create RootController.java
+@RestController
+public class RootController {
+    
+    @GetMapping("/")
+    public ResponseEntity<Map<String, String>> root() {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "This is the Prayer-Chat API. Please use the frontend application.");
+        response.put("frontend_url", "https://prayer-chat.com");
+        response.put("api_docs", "https://chatbot-backend-4mp4.onrender.com/api/docs");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+}
+```
+
+**Security Config Update:**
+```java
+// In SecurityConfig.java
+.requestMatchers("/").permitAll()  // Allow root path without auth
+```
+
+**Priority:** Medium
+**Estimated Time:** 30 minutes
+**Dependencies:** None
+
+**Decision Needed:** Evaluate if OAuth2 login on backend root URL should be removed. Current recommendation: **YES, remove it** and return a proper API response instead.
+
