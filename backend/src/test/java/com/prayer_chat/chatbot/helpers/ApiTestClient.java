@@ -20,8 +20,8 @@ public class ApiTestClient {
         this.baseUrl = "http://localhost:" + port;
         
         // Configure REST Assured static settings
-        // RestAssured will automatically use Jackson 2.x if available in classpath
-        // Important: Don't call reset() as it can break HTTP client initialization
+        // Note: E2ETestBase.setUp() already calls RestAssured.reset() and sets baseURI/port
+        // We set them again here to ensure consistency (in case ApiTestClient is created outside E2ETestBase)
         RestAssured.baseURI = this.baseUrl;
         RestAssured.port = port;
         RestAssured.urlEncodingEnabled = false;
@@ -61,10 +61,12 @@ public class ApiTestClient {
 
     /**
      * Create a request specification with common setup
-     * Uses static baseURI/port configuration (set in constructor)
+     * FIX 1: Relies on RestAssured.reset() in E2ETestBase to prevent state pollution
+     * FIX 3: Explicitly sets Accept and Content-Type headers
      */
     private RequestSpecification createRequest() {
         // Ensure static config is set (in case it was changed)
+        // Note: E2ETestBase.setUp() already calls RestAssured.reset() and sets baseURI/port
         if (RestAssured.baseURI == null || !RestAssured.baseURI.equals(baseUrl)) {
             RestAssured.baseURI = baseUrl;
         }
@@ -73,7 +75,7 @@ public class ApiTestClient {
         }
         
         // Create request specification using static config
-        // This matches the pattern used in sendStripeWebhook() which works
+        // FIX 3: Explicitly set Accept and Content-Type headers to prevent NPE
         RequestSpecification spec = RestAssured.given()
             .contentType(ContentType.JSON)
             .accept(ContentType.JSON);
@@ -102,17 +104,37 @@ public class ApiTestClient {
 
     /**
      * GET request
-     * Uses EXACT same pattern as sendStripeWebhook() which works perfectly
-     * The key difference: sendStripeWebhook uses createRequest() then .post()
-     * This method uses createRequest() then .get() - should work the same way
+     * FIX: Build request completely fresh without relying on static configuration
+     * This avoids NPE issues with REST Assured's static state
      */
     public Response get(String path) {
-        // Use createRequest() to ensure consistent baseUri/port configuration
-        // This matches the EXACT pattern used in sendStripeWebhook() which works
-        RequestSpecification request = createRequest();
-        // Use relative path (not full URL) - REST Assured will use static baseURI/port
-        // This is exactly how sendStripeWebhook does it with POST
-        return request.get(path);
+        try {
+            // Build full URL to avoid static baseURI/port issues
+            String fullPath = path.startsWith("/") ? path : "/" + path;
+            String fullUrl = baseUrl + fullPath;
+            
+            // Build request specification completely fresh - no static config dependency
+            RequestSpecification spec = RestAssured.given()
+                .baseUri(baseUrl)
+                .port(extractPort())
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON);
+            
+            if (authToken != null && !authToken.isEmpty()) {
+                spec.header("Authorization", "Bearer " + authToken);
+            }
+            
+            // Use full URL instead of relative path to avoid static config issues
+            return spec.get(fullUrl);
+            
+        } catch (NullPointerException e) {
+            // Enhanced error message with context
+            throw new IllegalStateException(
+                "NullPointerException in GET request to " + path + 
+                ". Base URL: " + baseUrl + ", Port: " + extractPort() +
+                ". Full URL: " + baseUrl + path +
+                ". This may indicate REST Assured configuration issue.", e);
+        }
     }
 
     /**

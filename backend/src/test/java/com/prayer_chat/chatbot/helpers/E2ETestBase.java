@@ -189,7 +189,16 @@ public abstract class E2ETestBase {
         // Reset WireMock stubs before each test
         wireMockServer.resetAll();
 
-        // Initialize API client
+        // FIX 1: Reset REST Assured static configuration BEFORE initializing ApiTestClient
+        // This prevents state pollution and ensures clean configuration
+        // Critical for fixing GET request NPE issues
+        io.restassured.RestAssured.reset();
+        io.restassured.RestAssured.baseURI = "http://localhost";
+        io.restassured.RestAssured.port = port;
+        io.restassured.RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+        
+        // Initialize API client AFTER RestAssured reset
+        // ApiTestClient constructor will set baseURI/port again, which is fine
         apiClient = new ApiTestClient(port);
 
         // Set up default mocks
@@ -201,6 +210,12 @@ public abstract class E2ETestBase {
      */
     @AfterEach
     void tearDown() {
+        // FIX 1: Reset REST Assured static configuration after each test
+        // This prevents state pollution between tests
+        io.restassured.RestAssured.reset();
+        io.restassured.RestAssured.requestSpecification = null;
+        io.restassured.RestAssured.responseSpecification = null;
+        
         // Clear API client auth
         if (apiClient != null) {
             apiClient.clearAuth();
