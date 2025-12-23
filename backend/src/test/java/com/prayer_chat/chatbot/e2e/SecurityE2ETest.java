@@ -74,7 +74,7 @@ class SecurityE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + createStatusCode);
             return;
         }
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Send XSS payload in chat
         String xssMessage = "<script>alert('XSS in chat')</script>";
@@ -173,7 +173,7 @@ class SecurityE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + createStatusCode);
             return;
         }
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Clear authentication
         apiClient.clearAuth();
@@ -246,7 +246,7 @@ class SecurityE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/429/500 if auth/rate-limit/service issue. Got: " + createStatusCode);
             return;
         }
-        Long bot1Id = bot1.jsonPath().getLong("id");
+        Long bot1Id = extractChatbotId(bot1);
 
         // User 2 tries to modify User 1's chatbot
         apiClient.clearAuth();

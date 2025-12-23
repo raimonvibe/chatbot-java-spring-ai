@@ -37,11 +37,12 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Run backend tests with parallel execution
-        run: mvn clean test -Dparallel=classes -DthreadCount=4
+      - name: Run backend tests
+        run: mvn clean test
         env:
-          # Add test environment variables here if needed
           SPRING_PROFILES_ACTIVE: test
+          JWT_SECRET: test-secret-key-for-testing-purposes-only-do-not-use-in-production
+          JWT_EXPIRATION: 86400000
 
       - name: Generate test coverage report
         run: mvn jacoco:report

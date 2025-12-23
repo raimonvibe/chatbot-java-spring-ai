@@ -15,6 +15,8 @@ jest.mock('framer-motion', () => {
       input: React.forwardRef((props, ref) => React.createElement('input', { ...filterProps(props), ref })),
       p: React.forwardRef((props, ref) => React.createElement('p', { ...filterProps(props), ref })),
       time: React.forwardRef((props, ref) => React.createElement('time', { ...filterProps(props), ref })),
+      svg: React.forwardRef((props, ref) => React.createElement('svg', { ...filterProps(props), ref })),
+      path: React.forwardRef((props, ref) => React.createElement('path', { ...filterProps(props), ref })),
     },
     AnimatePresence: ({ children }) => children,
   }

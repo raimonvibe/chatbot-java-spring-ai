@@ -52,7 +52,7 @@ class UserJourneyE2ETest extends E2ETestBase {
             .body("websiteUrl", equalTo(websiteUrl))
             .body("active", notNullValue());
 
-        Long chatbotId = createChatbotResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createChatbotResponse);
         assertNotNull(chatbotId, "Chatbot ID should be returned");
 
         // Step 4: Send a chat message
@@ -128,7 +128,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create1StatusCode);
             return;
         }
-        Long chatbot1Id = chatbot1.jsonPath().getLong("id");
+        Long chatbot1Id = extractChatbotId(chatbot1);
 
         // Step 3: Create second chatbot
         Response chatbot2 = apiClient.createChatbot(
@@ -142,7 +142,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create2StatusCode);
             return;
         }
-        Long chatbot2Id = chatbot2.jsonPath().getLong("id");
+        Long chatbot2Id = extractChatbotId(chatbot2);
 
         // Step 4: Create third chatbot
         Response chatbot3 = apiClient.createChatbot(
@@ -156,7 +156,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create3StatusCode);
             return;
         }
-        Long chatbot3Id = chatbot3.jsonPath().getLong("id");
+        Long chatbot3Id = extractChatbotId(chatbot3);
 
         // Step 5: Verify all chatbots exist
         Response allChatbots = apiClient.getChatbots();
@@ -202,7 +202,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create1StatusCode);
             return;
         }
-        Long user1ChatbotId = user1Chatbot.jsonPath().getLong("id");
+        Long user1ChatbotId = extractChatbotId(user1Chatbot);
 
         // Step 3: Create second OAuth2 user
         apiClient.clearAuth();
@@ -224,7 +224,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + create2StatusCode);
             return;
         }
-        Long user2ChatbotId = user2Chatbot.jsonPath().getLong("id");
+        Long user2ChatbotId = extractChatbotId(user2Chatbot);
 
         // Step 5: User 2 should only see their chatbot
         Response user2Chatbots = apiClient.getChatbots();
@@ -313,7 +313,7 @@ class UserJourneyE2ETest extends E2ETestBase {
                 "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + createStatusCode);
             return;
         }
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Step 3: Send multiple chat messages (accept 200/201 or 500 for AI service issues)
         Response msg1 = apiClient.sendChatMessage(chatbotId, "First message");

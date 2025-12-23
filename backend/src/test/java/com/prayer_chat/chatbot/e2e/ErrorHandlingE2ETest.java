@@ -70,7 +70,7 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Test chatbot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Mock Anthropic AI to fail
         wireMockServer.stubFor(post(urlPathMatching("/v1/messages"))
@@ -191,7 +191,7 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Test bot for concurrent modification"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Act: Simulate concurrent updates
         // Update 1: Change name
@@ -274,7 +274,7 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Private bot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Clear auth and create User 2
         apiClient.clearAuth();
@@ -365,7 +365,7 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Test bot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Act: Send message with non-existent session ID
         Response response = apiClient.post("/api/chat/" + chatbotId,
@@ -389,7 +389,7 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Test bot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Act: Send extremely large message (exceeds typical limits)
         String largeMessage = "A".repeat(100000); // 100KB message

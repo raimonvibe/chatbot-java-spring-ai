@@ -50,7 +50,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/chat",
             "Testing chat"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Send chat message
         Response chatResponse = apiClient.sendChatMessage(chatbotId, "Hello, can you help me?");
@@ -79,7 +79,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/conv",
             "Multi-turn chat"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Turn 1
         Response turn1 = apiClient.sendChatMessage(chatbotId, "What is your name?");
@@ -129,7 +129,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/public",
             "Public chatbot"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Clear authentication
         apiClient.clearAuth();
@@ -156,7 +156,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/empty",
             "Testing empty messages"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Clear authentication to test permitAll() - /api/chat/** should work without auth
         apiClient.clearAuth();
@@ -183,7 +183,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/longmsg",
             "Testing long messages"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Create a very long message (3000 characters)
         String longMessage = "a".repeat(3000);
@@ -208,7 +208,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/special",
             "Testing special characters"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Message with special characters (with or without token - /api/chat/** is permitAll())
         String specialMessage = "Hello! @#$%^&*() <script>alert('xss')</script> 你好 مرحبا";
@@ -232,7 +232,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/concurrent-chat",
             "Testing concurrent chats"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Send multiple messages quickly
         for (int i = 0; i < 5; i++) {
@@ -253,7 +253,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/creator",
             "Created by user 1"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // User 2 tries to chat with User 1's chatbot
         String otherEmail = "other-chat@example.com";
@@ -283,7 +283,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/structure",
             "Testing response structure"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         Response response = apiClient.sendChatMessage(chatbotId, "What's the weather?");
 
@@ -306,8 +306,8 @@ class ChatApiE2ETest extends E2ETestBase {
         Response bot1 = apiClient.createChatbot("Bot 1", "https://example.com/bot1", "First");
         Response bot2 = apiClient.createChatbot("Bot 2", "https://example.com/bot2", "Second");
 
-        Long bot1Id = bot1.jsonPath().getLong("id");
-        Long bot2Id = bot2.jsonPath().getLong("id");
+        Long bot1Id = extractChatbotId(bot1);
+        Long bot2Id = extractChatbotId(bot2);
 
         // Chat with bot 1
         Response chat1 = apiClient.sendChatMessage(bot1Id, "Hello Bot 1");
@@ -331,7 +331,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/inactive",
             "Will be deactivated"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Deactivate chatbot (if endpoint exists)
         apiClient.patch("/api/chatbots/" + chatbotId, Map.of("active", false));
@@ -356,7 +356,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/rapid",
             "Testing rapid messages"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Send 10 rapid messages
         for (int i = 0; i < 10; i++) {
@@ -380,7 +380,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/types",
             "Testing message types"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Different types of messages
         String[] messages = {
@@ -409,7 +409,7 @@ class ChatApiE2ETest extends E2ETestBase {
             "https://example.com/history",
             "Testing conversation history"
         );
-        Long chatbotId = createBot.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createBot);
 
         // Send a few messages (with or without token - /api/chat/** is permitAll())
         apiClient.sendChatMessage(chatbotId, "Message 1");

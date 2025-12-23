@@ -33,9 +33,17 @@ class ChatbotApiE2ETest extends E2ETestBase {
         assertNotNull(token, "Token should be generated");
         // Re-set token to ensure it's still there (defensive)
         apiClient.withAuth(token);
-        assertNotNull(apiClient.getAuthToken(), "Token should be set in API client");
+        String currentToken = apiClient.getAuthToken();
+        assertNotNull(currentToken, "Token should be set in API client");
+        assertEquals(token, currentToken, "Token should match");
+        
+        // Verify user exists in database before making request
+        var userOpt = userRepository.findByEmail(email);
+        assertTrue(userOpt.isPresent(), "User should exist in database before making request");
 
         // Step 1: CREATE chatbot
+        // Ensure token is set right before the request
+        apiClient.withAuth(token);
         Response createResponse = apiClient.createChatbot(
             "CRUD Test Bot",
             "https://example.com/crud",
@@ -48,7 +56,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             .body("websiteUrl", equalTo("https://example.com/crud"))
             .body("id", notNullValue());
 
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Step 2: READ chatbot
         Response readResponse = apiClient.getChatbot(chatbotId);
@@ -125,7 +133,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/private",
             "Owner's chatbot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // User 2 tries to access User 1's chatbot
         apiClient.clearAuth();
@@ -152,7 +160,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/protected",
             "Protected chatbot"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // User 2 tries to delete User 1's chatbot
         apiClient.clearAuth();
@@ -180,7 +188,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/original",
             "Original description"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Update chatbot
         Response updateResponse = apiClient.put(
@@ -214,7 +222,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/get",
             "Test get operation"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         Response getResponse = apiClient.getChatbot(chatbotId);
         getResponse.then()
@@ -341,7 +349,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/delete",
             "Will be deleted"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         Response deleteResponse = apiClient.deleteChatbot(chatbotId);
         deleteResponse.then()
@@ -365,7 +373,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/doubledelete",
             "Test double deletion"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // First deletion
         apiClient.deleteChatbot(chatbotId);
@@ -435,7 +443,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
             "https://example.com/original",
             "Original description"
         );
-        Long chatbotId = createResponse.jsonPath().getLong("id");
+        Long chatbotId = extractChatbotId(createResponse);
 
         // Ensure token is still set before PATCH request
         apiClient.withAuth(token);

@@ -341,12 +341,16 @@ test.describe('Dashboard Page', () => {
     await authHelper.setupAuthenticatedState(testUsers.local);
 
     await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
 
-    // Look for logout button
+    // Look for logout button - wait for it to be stable
     const logoutButton = page.getByRole('button', { name: /log.*out|sign.*out/i });
 
-    if (await logoutButton.isVisible()) {
-      await logoutButton.click();
+    if (await logoutButton.isVisible({ timeout: 10000 })) {
+      // Wait for element to be stable before clicking (prevents DOM detachment)
+      await logoutButton.waitFor({ state: 'visible', timeout: 10000 });
+      await page.waitForTimeout(200); // Small delay to ensure stability
+      await logoutButton.click({ timeout: 10000 });
       await page.waitForLoadState('networkidle');
     }
 

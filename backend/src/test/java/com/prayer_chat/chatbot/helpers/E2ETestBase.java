@@ -19,11 +19,11 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import javax.sql.DataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import io.restassured.response.Response;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Optional;
@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Base class for E2E tests.
@@ -199,6 +200,48 @@ public abstract class E2ETestBase {
     }
 
     /**
+     * Safely extract chatbot ID from response
+     * Throws assertion error if ID is null or response is invalid
+     */
+    protected Long extractChatbotId(Response response) {
+        // Verify response is successful
+        int statusCode = response.getStatusCode();
+        String responseBody = response.getBody().asString();
+        
+        assertTrue(statusCode == 200 || statusCode == 201, 
+            "Expected status 200 or 201, got " + statusCode + ". Response: " + responseBody);
+        
+        // Check if response body is empty
+        assertFalse(responseBody == null || responseBody.trim().isEmpty(), 
+            "Response body should not be empty. Status: " + statusCode);
+        
+        // Extract ID - handle both Long and Integer types
+        Object idObj = null;
+        try {
+            idObj = response.jsonPath().get("id");
+        } catch (Exception e) {
+            throw new AssertionError("Failed to extract 'id' from response. Response body: " + responseBody + ". Error: " + e.getMessage());
+        }
+        
+        assertNotNull(idObj, "Chatbot ID should not be null. Response body: " + responseBody);
+        
+        // Convert to Long
+        Long id;
+        if (idObj instanceof Long) {
+            id = (Long) idObj;
+        } else if (idObj instanceof Integer) {
+            id = ((Integer) idObj).longValue();
+        } else if (idObj instanceof Number) {
+            id = ((Number) idObj).longValue();
+        } else {
+            throw new AssertionError("Chatbot ID is not a number. Got: " + idObj.getClass() + ", value: " + idObj + ". Response body: " + responseBody);
+        }
+        
+        assertNotNull(id, "Chatbot ID should not be null after conversion");
+        return id;
+    }
+
+    /**
      * Set up default mocks for external services
      * Can be overridden by subclasses for specific test scenarios
      */
@@ -341,6 +384,9 @@ public abstract class E2ETestBase {
         }
         
         user = userRepository.save(user);
+        
+        // Note: In Spring Data JPA, save() already flushes by default in most cases
+        // But we ensure the user is persisted by saving and then generating the token
         
         // Generate JWT token for the user
         String token = jwtTokenProvider.generateToken(user.getEmail());
