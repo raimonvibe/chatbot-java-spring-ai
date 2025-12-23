@@ -315,6 +315,7 @@
 
         <!-- REST Assured for API testing -->
         <!-- Using 5.4.0 with Jackson 2.x for compatibility -->
+        <!-- Note: GET requests have NPE issue - workaround implemented in ApiTestClient -->
         <!-- RestAssured requires Jackson 2.x, not Jackson 3.x -->
         <dependency>
             <groupId>io.rest-assured</groupId>
