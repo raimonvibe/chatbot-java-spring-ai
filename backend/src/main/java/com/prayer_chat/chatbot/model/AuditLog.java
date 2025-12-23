@@ -183,7 +183,9 @@ public class AuditLog {
         }
 
         public Builder metadata(Map<String, String> metadata) {
-            this.log.metadata.putAll(metadata);
+            if (metadata != null) {
+                this.log.metadata.putAll(metadata);
+            }
             return this;
         }
 
