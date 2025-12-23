@@ -186,6 +186,11 @@ public abstract class E2ETestBase {
      */
     @BeforeEach
     void setUp() {
+        // DEBUG: Verify port is available (not 0 or null)
+        if (port == 0) {
+            throw new IllegalStateException("Port is 0 - Spring Boot context not fully initialized!");
+        }
+        
         // Reset WireMock stubs before each test
         wireMockServer.resetAll();
 
@@ -193,8 +198,11 @@ public abstract class E2ETestBase {
         // This prevents state pollution and ensures clean configuration
         // Critical for fixing GET request NPE issues
         io.restassured.RestAssured.reset();
+        io.restassured.RestAssured.requestSpecification = null;  // Explicit cleanup
+        io.restassured.RestAssured.responseSpecification = null;  // Explicit cleanup
         io.restassured.RestAssured.baseURI = "http://localhost";
         io.restassured.RestAssured.port = port;
+        io.restassured.RestAssured.basePath = "/api";  // Set base path
         io.restassured.RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
         
         // Initialize API client AFTER RestAssured reset

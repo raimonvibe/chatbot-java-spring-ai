@@ -70,6 +70,32 @@
 
 Dit bevestigt dat het probleem **diep in REST Assured zelf** zit, niet in onze configuratie.
 
+### 🔍 Debug Bevindingen
+
+**IsolatedGetTest Resultaten:**
+- ✅ Port is correct geïnjecteerd (32971)
+- ✅ BaseURI is correct gezet
+- ✅ Request wordt correct gebouwd (headers, URL, etc.)
+- ❌ NPE treedt op in REST Assured's interne code: `java.lang.Class.isAssignableFrom(Native Method)`
+
+**Stack Trace Analyse:**
+```
+NPE occurred at: java.base/java.lang.Class.isAssignableFrom(Native Method)
+```
+
+Dit wijst op een **diepe bug in REST Assured's response parser selection logic**, niet in onze configuratie.
+
+**Alle Aanbevolen Fixes Geïmplementeerd:**
+- ✅ `RestAssured.reset()` in @BeforeEach
+- ✅ `RestAssured.requestSpecification = null` in @AfterEach
+- ✅ `RestAssured.responseSpecification = null` in @AfterEach
+- ✅ Explicit Accept headers
+- ✅ Port verification (not 0)
+- ✅ BasePath set
+- ✅ Isolated test (zonder E2ETestBase) - **FAALT OOK**
+
+**Conclusie:** Zelfs met perfecte configuratie en geïsoleerde test faalt GET request met NPE in REST Assured's interne code.
+
 ### Conclusie
 
 Na het implementeren van alle aanbevolen fixes:
