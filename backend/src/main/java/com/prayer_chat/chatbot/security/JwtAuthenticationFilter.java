@@ -121,7 +121,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     // Check if username is valid before loading user details
                     if (StringUtils.hasText(username)) {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        logger.debug("Attempting to load user by username/email: {}", username);
+                        UserDetails userDetails;
+                        try {
+                            userDetails = userDetailsService.loadUserByUsername(username);
+                            logger.debug("User loaded successfully: {}", userDetails != null ? userDetails.getUsername() : "null");
+                        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+                            logger.error("User not found in database for username/email: {}. Error: {}", username, e.getMessage());
+                            throw e;
+                        } catch (Exception e) {
+                            logger.error("Error loading user by username/email: {}. Error: {}", username, e.getMessage(), e);
+                            throw e;
+                        }
                         
                         // Convert UserDetails (User entity) to CustomOAuth2User for controller compatibility
                         // Controllers expect @AuthenticationPrincipal CustomOAuth2User
@@ -167,7 +178,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 logger.debug("No JWT token found in request");
             }
         } catch (Exception ex) {
-            logger.error("Could not set user authentication in security context", ex);
+            logger.error("Could not set user authentication in security context. Exception type: {}, Message: {}", 
+                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+            // Log stack trace for debugging
+            if (logger.isDebugEnabled()) {
+                logger.debug("Full stack trace:", ex);
+            }
         }
 
         filterChain.doFilter(request, response);

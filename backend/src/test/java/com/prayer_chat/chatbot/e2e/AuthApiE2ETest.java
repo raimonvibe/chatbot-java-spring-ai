@@ -93,6 +93,10 @@ class AuthApiE2ETest extends E2ETestBase {
         String validToken = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
+        // Verify user exists in database before making request
+        var userOpt = userRepository.findByEmail(email);
+        assertTrue(userOpt.isPresent(), "User should exist in database before making request. Email: " + email);
+
         // Step 2: Use valid token - should work
         webApiClient.withAuth(validToken).getChatbots()
             .expectStatus().isOk();
