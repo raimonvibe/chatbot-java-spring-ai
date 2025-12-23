@@ -31,6 +31,9 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -95,9 +98,15 @@ public abstract class E2ETestBase {
     protected static WireMockServer wireMockServer;
 
     /**
-     * API test client for making HTTP requests
+     * API test client for making HTTP requests (REST Assured)
      */
     protected ApiTestClient apiClient;
+
+    /**
+     * WebTestClient + wrapper for migration away from REST Assured
+     */
+    protected WebTestClient webTestClient;
+    protected WebTestClientApiTestClient webApiClient;
 
     /**
      * Start PostgreSQL container and WireMock server before all tests
@@ -205,8 +214,13 @@ public abstract class E2ETestBase {
         io.restassured.RestAssured.basePath = "/api";  // Set base path
         io.restassured.RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
         
-        // Initialize API client AFTER RestAssured reset
-        // ApiTestClient constructor will set baseURI/port again, which is fine
+        // Initialize WebTestClient (preferred client going forward)
+        webTestClient = WebTestClient.bindToServer()
+            .baseUrl("http://localhost:" + port)
+            .build();
+        webApiClient = new WebTestClientApiTestClient(webTestClient);
+
+        // Initialize REST Assured client (legacy, for non-migrated tests)
         apiClient = new ApiTestClient(port);
 
         // Set up default mocks
@@ -269,6 +283,33 @@ public abstract class E2ETestBase {
         }
         
         assertNotNull(id, "Chatbot ID should not be null after conversion");
+        return id;
+    }
+
+    /**
+     * Safely extract chatbot ID from WebTestClient response
+     * Usage: Long id = extractChatbotId(webApiClient.createChatbot(...).expectStatus().is2xxSuccessful());
+     */
+    protected Long extractChatbotId(org.springframework.test.web.reactive.server.WebTestClient.ResponseSpec responseSpec) {
+        AtomicReference<Long> idRef = new AtomicReference<>();
+
+        responseSpec
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.id").value(id -> {
+                if (id instanceof Integer) {
+                    idRef.set(((Integer) id).longValue());
+                } else if (id instanceof Long) {
+                    idRef.set((Long) id);
+                } else if (id instanceof Number) {
+                    idRef.set(((Number) id).longValue());
+                } else {
+                    fail("Chatbot ID is not a valid number type: " + (id != null ? id.getClass().getName() : "null"));
+                }
+            });
+
+        Long id = idRef.get();
+        assertNotNull(id, "Chatbot ID should not be null");
         return id;
     }
 

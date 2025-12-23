@@ -9,7 +9,7 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.support.classic.HttpRequestBuilder;
+import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -127,7 +127,7 @@ class IsolatedGetTest {
         try {
             CloseableHttpClient httpClient = HttpClients.createDefault();
             
-            ClassicHttpRequest request = HttpRequestBuilder.get()
+            ClassicHttpRequest request = org.apache.hc.core5.http.io.support.ClassicRequestBuilder.get()
                 .setUri("http://localhost:" + port + "/api/chatbots")
                 .addHeader("Accept", "application/json")
                 .build();
