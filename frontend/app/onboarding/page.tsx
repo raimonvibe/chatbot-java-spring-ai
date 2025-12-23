@@ -74,22 +74,19 @@ export default function OnboardingPage() {
     );
   }
 
+  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
+  useEffect(() => {
+    if (!loading && !authenticated) {
+      router.replace('/login');
+    }
+  }, [loading, authenticated, router]);
+
   if (!authenticated) {
+    // Show loading state while redirecting
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 max-w-md text-center border border-brown-200">
-          <Book className="w-16 h-16 text-brown-600 mx-auto mb-4" strokeWidth={1.5} />
-          <h2 className="text-2xl font-bold text-brown-800 mb-4">Authentication Required</h2>
-          <p className="text-brown-700 mb-6">
-            Please log in with Google to get started.
-          </p>
-          <button
-            onClick={() => router.push('/login')}
-            className="w-full px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all"
-          >
-            Log In with Google
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Book className="w-16 h-16 text-brown-600 animate-pulse mb-4" strokeWidth={1.5} />
+        <div className="text-xl text-brown-700">Redirecting to login...</div>
       </div>
     );
   }
