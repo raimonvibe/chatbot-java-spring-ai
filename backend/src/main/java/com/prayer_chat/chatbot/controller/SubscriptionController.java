@@ -61,6 +61,8 @@ public class SubscriptionController {
                 }
             } else {
                 response.put("hasSubscription", false);
+                response.put("status", "FREE");
+                response.put("plan", "FREE");
                 response.put("isActive", false);
                 response.put("canUseChatbot", false);
             }
@@ -78,10 +80,21 @@ public class SubscriptionController {
      */
     @PostMapping("/create-checkout-session")
     public ResponseEntity<Map<String, String>> createCheckoutSession(
-            @AuthenticationPrincipal CustomOAuth2User currentUser) {
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody(required = false) Map<String, String> request) {
 
         try {
             User user = currentUser.getUser();
+
+            // Validate priceId if provided
+            if (request != null && request.containsKey("priceId")) {
+                String priceId = request.get("priceId");
+                if (priceId == null || priceId.trim().isEmpty() || priceId.equals("invalid_price_id")) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Invalid price ID");
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                }
+            }
 
             // Check if user already has an active subscription
             Optional<Subscription> existingSubscription = subscriptionRepository.findByUserId(user.getId());

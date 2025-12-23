@@ -48,6 +48,7 @@ class AuthApiE2ETest extends E2ETestBase {
             .expectBodyList(Map.class);
 
         // Step 3: Clear auth and try to access protected resource
+        webApiClient.clearAuth(); // Explicitly clear auth token
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.getChatbots()
             .expectStatus().is4xxClientError()

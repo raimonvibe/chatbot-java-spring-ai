@@ -219,7 +219,8 @@ public class ChatbotController {
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
             if (chatbotOpt.isEmpty()) {
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Chatbot not found"));
             }
 
             Chatbot chatbot = chatbotOpt.get();

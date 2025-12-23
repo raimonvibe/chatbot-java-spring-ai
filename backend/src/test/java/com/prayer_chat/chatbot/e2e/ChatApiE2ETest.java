@@ -422,8 +422,9 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 statusCodeRef.set(status);
-                // Should either work or return error (including 500 for AI service issues)
-                assertTrue((status >= 200 && status < 500) || status == 500,
+                // Should return 403 FORBIDDEN for inactive chatbot, 405 METHOD_NOT_ALLOWED, or 2xx (success)
+                // Accept 403 (forbidden), 405 (method not allowed), or 2xx (success)
+                assertTrue(status == 403 || status == 405 || (status >= 200 && status < 300),
                     "Should handle inactive chatbot gracefully - got: " + status);
             });
     }

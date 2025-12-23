@@ -226,6 +226,8 @@ class SecurityE2ETest extends E2ETestBase {
             .expectStatus().is2xxSuccessful());
 
         // Try to access chatbot without authentication
+        // Clear auth token first to ensure unauthenticated request
+        webApiClient.clearAuth();
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.getChatbot(chatbotId)
             .expectStatus().is4xxClientError()
