@@ -354,7 +354,7 @@ class ChatApiE2ETest extends E2ETestBase {
         if (statusCodeRef.get() == 200 || statusCodeRef.get() == 201) {
             webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
                 .expectStatus().is2xxSuccessful()
-                .expectBody(Map.class)
+                .expectBody()
                 .jsonPath("$.message").exists();
         }
     }
@@ -497,19 +497,25 @@ class ChatApiE2ETest extends E2ETestBase {
     @DisplayName("Get Conversation History")
     void shouldRetrieveConversationHistory() {
         String email = "history@example.com";
-        createOAuth2User(email);
+        String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
-        Response createBot = apiClient.createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "History Bot",
             "https://example.com/history",
             "Testing conversation history"
-        );
-        Long chatbotId = extractChatbotId(createBot);
+        )
+            .expectStatus().is2xxSuccessful());
 
         // Send a few messages (with or without token - /api/chat/** is permitAll())
-        apiClient.sendChatMessage(chatbotId, "Message 1");
-        apiClient.sendChatMessage(chatbotId, "Message 2");
-        apiClient.sendChatMessage(chatbotId, "Message 3");
+        Map<String, String> msg1 = Map.of("message", "Message 1");
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg1)
+            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
+        Map<String, String> msg2 = Map.of("message", "Message 2");
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg2)
+            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
+        Map<String, String> msg3 = Map.of("message", "Message 3");
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg3)
+            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
 
         // Try to get conversation history (if endpoint exists)
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
