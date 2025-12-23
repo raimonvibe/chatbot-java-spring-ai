@@ -24,8 +24,10 @@ This plan outlines the development tasks to transform the TjanaBot application i
 ### Critical Questions:
 1. **Production URL Configuration** ✅ **ANSWERED**
    - ✅ **Answer:** `prayer-chat.com` (production domain)
+   - ✅ **Backend URL:** `https://chatbot-backend-4mp4.onrender.com/`
    - ✅ **Action Completed:** Production URL identified
    - **Current Issue:** Scripts point to `localhost:8080` (to be fixed in Task 7.2)
+   - **⚠️ New Issue:** Backend root URL shows OAuth2 login page instead of API response (see "Backend Root URL OAuth2 Redirect Issue" section below for evaluation)
 
 2. **Website Evaluation Display** ✅ **ANSWERED**
    - ✅ **Answer:** Currently NO display of Christian content evaluation exists
