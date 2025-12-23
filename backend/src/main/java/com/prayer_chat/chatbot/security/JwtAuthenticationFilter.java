@@ -24,7 +24,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
-@org.springframework.context.annotation.Profile("!test")  // Disable in test profile to allow @WithMockUser to work
+// Note: Filter is enabled in all profiles, including test.
+// TestSecurityConfig conditionally adds it to the filter chain for E2E tests.
+// For unit tests with @WithMockUser, the filter checks if authentication is already set
+// and will not override it (see line 95-106).
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
