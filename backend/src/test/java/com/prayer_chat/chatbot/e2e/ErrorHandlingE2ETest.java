@@ -120,13 +120,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
             "https://example.com",
             "Test bot for embeddings failure"
         )
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 201 || statusValue == 429 || statusValue == 500,
                     "Should handle embeddings failure appropriately. Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -246,13 +246,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).post("/api/subscription/create-checkout-session", body)
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 504 || statusValue == 408 || statusValue == 500 || statusValue == 400,
                     "Should return timeout-related error code or 400 (validation). Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -290,8 +290,16 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(otherEmail);
 
         // Act: User 2 tries to access User 1's chatbot
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(otherToken).get("/api/chatbots/" + chatbotId)
-            .expectStatus().isIn(HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND);
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 403 || status == 404,
+                    "Expected 403 or 404, got: " + status);
+            });
     }
 
     @Test
@@ -328,13 +336,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).createChatbot("Duplicate Bot", "https://example.com", "Test")
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 201 || statusValue == 409,
                     "Should either allow duplicate or return conflict. Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -351,13 +359,14 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).post("/api/subscription/create-checkout-session", body)
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 400 || statusValue == 404,
                     "Should return bad request or not found for invalid tier. Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -381,13 +390,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, chatBody)
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 200 || statusValue == 404 || statusValue == 500,
                     "Should handle non-existent session gracefully (or 500 if AI service issue). Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -412,13 +421,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, chatBody)
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 400 || statusValue == 413 || statusValue == 500,
                     "Should reject or handle large message appropriately (or 500 if AI service issue). Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 
     @Test
@@ -441,13 +450,13 @@ class ErrorHandlingE2ETest extends E2ETestBase {
         
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.post("/api/auth/oauth2/callback", body)
-            .expectStatus().satisfies(status -> {
-                int statusValue = status.value();
+            .expectBody()
+            .consumeWith(result -> {
+                int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
                 assertTrue(statusValue == 401 || statusValue == 400 || statusValue == 404 || 
                     statusValue == 405 || statusValue == 500,
                     "Should return error for failed OAuth or 404/405 (endpoint doesn't exist). Got: " + statusValue);
-            })
-            .expectBody();
+            });
     }
 }
