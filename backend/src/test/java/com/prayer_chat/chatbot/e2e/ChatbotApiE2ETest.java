@@ -346,6 +346,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
+        // Use withAuth() which returns a new client instance with token set
         webApiClient.withAuth(token).getChatbots()
             .expectStatus().isOk()
             .expectBodyList(Map.class)
