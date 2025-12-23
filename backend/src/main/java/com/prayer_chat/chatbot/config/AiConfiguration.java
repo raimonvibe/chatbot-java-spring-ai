@@ -13,6 +13,8 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -134,11 +136,25 @@ public class AiConfiguration {
 
     /**
      * ObjectMapper bean for JSON processing
-     * Spring Boot should auto-configure this, but we provide a default to ensure it's available
+     * Configured with JavaTimeModule for LocalDateTime serialization support
+     * 
+     * This is needed because:
+     * 1. We use Jackson 2.x (Spring Boot 4.0 defaults to Jackson 3.x)
+     * 2. LocalDateTime fields need JavaTimeModule to serialize properly
+     * 3. Without this, GET /api/chatbots will fail with serialization errors
      */
     @Bean
     @Primary
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        
+        // Register JSR310 module for Java 8 Date/Time API (LocalDateTime, etc.)
+        mapper.registerModule(new JavaTimeModule());
+        
+        // Disable timestamps (use ISO-8601 strings instead)
+        // This makes dates readable: "2025-12-23T18:38:08" instead of [2025, 12, 23, 18, 38, 8]
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
+        return mapper;
     }
 }
