@@ -19,6 +19,14 @@ export default function OnboardingPage() {
     checkAuthAndChatbots();
   }, []);
 
+  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
+  // This must be before early returns to maintain hook order
+  useEffect(() => {
+    if (!loading && !authenticated) {
+      router.replace('/login');
+    }
+  }, [loading, authenticated, router]);
+
   const checkAuthAndChatbots = async () => {
     try {
       const authResult = await checkAuth();
@@ -73,13 +81,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
-  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
-  useEffect(() => {
-    if (!loading && !authenticated) {
-      router.replace('/login');
-    }
-  }, [loading, authenticated, router]);
 
   if (!authenticated) {
     // Show loading state while redirecting
