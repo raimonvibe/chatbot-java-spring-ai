@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -124,8 +125,10 @@ public class ChatbotController {
     
     /**
      * Get all chatbots owned by the current user
+     * @Transactional ensures Hibernate session stays open during JSON serialization
      */
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<List<Chatbot>> getAllChatbots(
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
@@ -200,8 +203,10 @@ public class ChatbotController {
 
     /**
      * Get chatbot by ID
+     * @Transactional ensures Hibernate session stays open during JSON serialization
      */
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getChatbot(@PathVariable Long id,
                                               @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
