@@ -410,23 +410,28 @@ class ChatApiE2ETest extends E2ETestBase {
         )
             .expectStatus().is2xxSuccessful());
 
-        // Deactivate chatbot (if endpoint exists)
-        webApiClient.withAuth(token).patch("/api/chatbots/" + chatbotId, Map.of("active", false))
+        // Deactivate chatbot using PUT (PATCH is not supported, so use PUT with full chatbot object)
+        Map<String, Object> chatbotUpdate = new java.util.HashMap<>();
+        chatbotUpdate.put("name", "Inactive Bot");
+        chatbotUpdate.put("websiteUrl", "https://example.com/inactive");
+        chatbotUpdate.put("description", "Will be deactivated");
+        chatbotUpdate.put("isActive", false);
+        webApiClient.withAuth(token).put("/api/chatbots/" + chatbotId, chatbotUpdate)
             .expectStatus().is2xxSuccessful();
 
         // Try to chat with inactive chatbot
         Map<String, String> msg = Map.of("message", "Are you there?");
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
-        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                // Should return 403 FORBIDDEN for inactive chatbot, 405 METHOD_NOT_ALLOWED, or 2xx (success)
-                // Accept 403 (forbidden), 405 (method not allowed), or 2xx (success)
-                assertTrue(status == 403 || status == 405 || (status >= 200 && status < 300),
-                    "Should handle inactive chatbot gracefully - got: " + status);
-            });
+        // Use returnResult() to avoid implicit status validation - allows any status code
+        org.springframework.test.web.reactive.server.ExchangeResult result = webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
+            .returnResult();
+        
+        int status = result.getStatus().value();
+        statusCodeRef.set(status);
+        // Should return 403 FORBIDDEN for inactive chatbot, or 2xx (success)
+        // Accept 403 (forbidden) or 2xx (success)
+        assertTrue(status == 403 || (status >= 200 && status < 300),
+            "Should handle inactive chatbot gracefully - got: " + status);
     }
 
     @Test
