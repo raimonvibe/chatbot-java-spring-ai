@@ -24,10 +24,18 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Isolated GET request test to debug REST Assured NPE issue
  * This test runs without E2ETestBase to isolate the problem
+ * 
+ * NOTE: These tests are disabled because:
+ * 1. We have confirmed the REST Assured GET NPE is a library bug
+ * 2. We have migrated all E2E tests to WebTestClient
+ * 3. These tests were only for debugging purposes
+ * 
+ * If you need to debug REST Assured issues in the future, re-enable these tests.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@DisplayName("Isolated GET Test - Debug REST Assured NPE")
+@DisplayName("Isolated GET Test - Debug REST Assured NPE (DISABLED)")
+@org.junit.jupiter.api.Disabled("REST Assured GET NPE confirmed as library bug. All tests migrated to WebTestClient.")
 class IsolatedGetTest {
 
     @LocalServerPort
