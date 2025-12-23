@@ -131,36 +131,36 @@ export default function ChristianContentAnalysisComponent({
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-brown-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-brown-800">{analysis.versesAboveThreshold}</div>
+                <div className="text-2xl font-bold text-brown-800">{analysis.versesAboveThreshold || 0}</div>
                 <div className="text-xs text-brown-600 mt-1">Relevant Verses</div>
               </div>
               <div className="bg-gold-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gold-800">
-                  {(analysis.averageSimilarity * 100).toFixed(0)}%
+                  {((analysis.averageSimilarity || 0) * 100).toFixed(0)}%
                 </div>
                 <div className="text-xs text-gold-600 mt-1">Avg Similarity</div>
               </div>
               <div className="bg-brown-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-brown-800">{analysis.totalVersesAnalyzed.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-brown-800">{(analysis.totalVersesAnalyzed || 0).toLocaleString()}</div>
                 <div className="text-xs text-brown-600 mt-1">Verses Analyzed</div>
               </div>
               <div className="bg-gold-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gold-800">
-                  {analysis.relevantVerses.length > 0 ? '✓' : '—'}
+                  {(analysis.relevantVerses?.length || 0) > 0 ? '✓' : '—'}
                 </div>
                 <div className="text-xs text-gold-600 mt-1">Matches Found</div>
               </div>
             </div>
 
             {/* Relevant Verses */}
-            {analysis.relevantVerses.length > 0 ? (
+            {(analysis.relevantVerses?.length || 0) > 0 ? (
               <div className="space-y-3">
                 <h4 className="text-lg font-semibold text-brown-800 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
                   Top Matching Verses
                 </h4>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {analysis.relevantVerses.map((verse, index) => (
+                  {(analysis.relevantVerses || []).map((verse, index) => (
                     <VerseCard key={verse.id} verse={verse} rank={index + 1} />
                   ))}
                 </div>
