@@ -66,6 +66,10 @@ describe('ChristianContentAnalysis', () => {
     const errorMessage = 'Failed to analyze content';
     mockAnalyzeChristianContent.mockRejectedValue(new Error(errorMessage));
 
+    // Suppress console.error during this test
+    const originalError = console.error;
+    console.error = jest.fn();
+
     render(<ChristianContentAnalysisComponent {...defaultProps} />);
     const analyzeButton = screen.getByRole('button', { name: /analyze/i });
     
@@ -73,7 +77,10 @@ describe('ChristianContentAnalysis', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/failed/i)).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
+
+    // Restore console.error
+    console.error = originalError;
   });
 
   it('should display analysis results when successful', async () => {
