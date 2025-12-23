@@ -2,11 +2,12 @@ package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
 import com.prayer_chat.chatbot.model.User;
-import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.*;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -47,7 +48,7 @@ class SampleE2ETest extends E2ETestBase {
 
         // Assert: Token should be generated
         assertNotNull(token, "JWT token should be generated for OAuth2 user");
-        assertNotNull(apiClient.getAuthToken(), "Auth token should be set in API client");
+        assertNotNull(webApiClient.withAuth(token).getAuthToken(), "Auth token should be set in API client");
         
         // Verify user was created in database
         var userOpt = userRepository.findByEmail(email);
@@ -83,7 +84,7 @@ class SampleE2ETest extends E2ETestBase {
         // Assert: New token should be generated
         assertNotNull(secondToken, "Second login should generate new token");
         assertNotEquals(firstToken, secondToken, "Each login should generate unique token");
-        assertNotNull(apiClient.getAuthToken(), "Auth token should be set after OAuth2 login");
+        assertNotNull(webApiClient.withAuth(secondToken).getAuthToken(), "Auth token should be set after OAuth2 login");
     }
 
     @Test
@@ -95,23 +96,20 @@ class SampleE2ETest extends E2ETestBase {
         
         // Verify token is set
         assertNotNull(token, "JWT token should be generated");
-        assertNotNull(apiClient.getAuthToken(), "API client should have auth token");
 
         // Create active subscription for user (required for chatbot creation)
         createActiveSubscriptionForUser(email);
 
         // Act: Create chatbot
-        Response createResponse = apiClient.createChatbot(
+        webApiClient.withAuth(token).createChatbot(
             "Customer Support Bot",
             "https://example.com",
             "Helps customers with common questions"
-        );
-
-        // Assert: Chatbot creation should succeed
-        createResponse.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("name", equalTo("Customer Support Bot"))
-            .body("websiteUrl", equalTo("https://example.com"));
+        )
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Customer Support Bot")
+            .jsonPath("$.websiteUrl").isEqualTo("https://example.com");
     }
 
     @Test
@@ -127,30 +125,26 @@ class SampleE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(email);
 
         // Step 2: Create first chatbot (use example.com which is a valid domain)
-        Response createBot1 = apiClient.createChatbot(
+        webApiClient.withAuth(token).createChatbot(
             "Sales Assistant",
             "https://example.com/sales",
             "Assists with sales inquiries"
-        );
-
-        createBot1.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("name", equalTo("Sales Assistant"));
+        )
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Sales Assistant");
 
         // Step 3: Create second chatbot (use example.com which is a valid domain)
-        Response createBot2 = apiClient.createChatbot(
+        webApiClient.withAuth(token).createChatbot(
             "Support Bot",
             "https://example.com/support",
             "Provides customer support"
-        );
-
-        createBot2.then()
-            .statusCode(anyOf(is(200), is(201)))
-            .body("name", equalTo("Support Bot"));
+        )
+            .expectStatus().is2xxSuccessful()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Support Bot");
 
         // Step 4: Get all chatbots
-        assertNotNull(apiClient, "API client should be initialized");
-        
         // Small delay to ensure database transactions are committed
         try {
             Thread.sleep(100);
@@ -158,32 +152,29 @@ class SampleE2ETest extends E2ETestBase {
             Thread.currentThread().interrupt();
         }
         
-        Response getBotsResponse = apiClient.getChatbots();
-        
-        assertNotNull(getBotsResponse, "Response should not be null");
-        // Check status code first
-        int statusCode = getBotsResponse.getStatusCode();
-        assertEquals(200, statusCode, "Expected status 200 but got " + statusCode);
-        
-        // Then check body
-        getBotsResponse.then()
-            .body("size()", greaterThanOrEqualTo(2));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .consumeWith(result -> {
+                assertTrue(result.getResponseBody() != null && result.getResponseBody().size() >= 2,
+                    "Should have at least 2 chatbots");
+            });
     }
 
     @Test
     @DisplayName("Should handle authentication failure")
     void shouldHandleAuthenticationFailure() {
         // Act: Try to access protected endpoint without auth
-        assertNotNull(apiClient, "API client should be initialized");
-        apiClient.clearAuth();
-        Response response = apiClient.getChatbots();
-
-        // Assert: Should return 401 or 403
-        assertNotNull(response, "Response should not be null");
-        // Use getStatusCode() instead of statusCode() to avoid potential issues
-        int statusCode = response.getStatusCode();
-        assertTrue(statusCode == 401 || statusCode == 403,
-            "Should return 401 or 403 for unauthenticated request, but got: " + statusCode);
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.getChatbots()
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 401 || status == 403,
+                    "Should return 401 or 403 for unauthenticated request, but got: " + status);
+            });
     }
 
     @Test
