@@ -1634,3 +1634,40 @@ public class CostTrackingService {
 - ✅ **No compilation errors**
 - ✅ **Production-ready:** All fixes deployed to GitHub
 
+---
+
+## 🔍 Signup Page Analysis
+
+### Current Authentication Strategy
+- ✅ **Google OAuth Only:** App uses exclusively Google OAuth2 for authentication
+- ✅ **Automatic Account Creation:** Google OAuth automatically creates new user accounts via `CustomOAuth2UserService`
+- ✅ **Single Login Page:** `/login` page handles both login and signup via "Continue with Google" button
+- ✅ **No Email/Password:** Email/password authentication was removed (as noted in `AuthController.java`)
+
+### Do We Need a Separate Signup Page?
+
+**Recommendation: ❌ NO - Separate signup page is NOT needed**
+
+**Reasons:**
+1. **Google OAuth is both login and signup:** When a new user clicks "Continue with Google", Google OAuth automatically:
+   - Creates a new account if email doesn't exist (via `CustomOAuth2UserService.processOAuth2User()`)
+   - Logs in existing user if email exists
+   - No distinction needed between login and signup
+
+2. **Better UX:** Single "Continue with Google" button is simpler and more intuitive than having separate "Sign Up" and "Log In" options
+
+3. **Current Implementation Works:** The login page already functions as both:
+   - New users: Click "Continue with Google" → Account created automatically → Redirected to onboarding
+   - Existing users: Click "Continue with Google" → Logged in automatically → Redirected to dashboard
+
+4. **Industry Standard:** Many modern apps (e.g., Medium, Notion, Linear) use single OAuth button for both login and signup
+
+5. **No Email/Password Option:** Since email/password authentication was removed, there's no need for a traditional signup form with email/password fields
+
+6. **Security Benefits:** Google OAuth provides:
+   - Email verification (Google requires verified emails)
+   - Better security than password-based auth
+   - Reduced attack surface (no password storage/hashing)
+
+**Conclusion:** Keep the current single login page (`/app/login/page.tsx`). It already handles both login and signup seamlessly through Google OAuth. Adding a separate signup page would be redundant and potentially confusing for users.
+
