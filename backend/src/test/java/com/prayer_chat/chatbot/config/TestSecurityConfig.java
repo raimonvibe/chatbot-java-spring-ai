@@ -285,16 +285,19 @@ public class TestSecurityConfig {
         // 1. AnonymousAuthenticationPreFilter sets anonymous authentication first for permitAll() endpoints
         // 2. JWT filter can override anonymous authentication if a token is present
         // 3. AuthorizationFilter sees the correct authentication (anonymous or JWT)
-        // In test environment, @WithMockUser should work, so we make JWT filter optional
-        // IMPORTANT: JWT filter is disabled in tests to allow @WithMockUser to work properly
-        // @WithMockUser sets authentication via MockMvc's SecurityContext, which should not be
-        // overridden by JWT filter. In production, JWT filter is active and handles real tokens.
-        // if (jwtAuthenticationFilter != null) {
-        //     // Place JWT filter BEFORE AuthorizationFilter (which is created by authorizeHttpRequests)
-        //     // This ensures JWT processing happens before authorization checks
-        //     // AnonymousAuthenticationPreFilter will have already run by this point
-        //     http.addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class);
-        // }
+        // 
+        // IMPORTANT: JWT filter is enabled for E2E tests to test real JWT authentication.
+        // For unit tests with @WithMockUser, the JWT filter will check if authentication is already set
+        // and will not override it (see JwtAuthenticationFilter.java line 95-106).
+        if (jwtAuthenticationFilter != null) {
+            // Place JWT filter BEFORE AuthorizationFilter (which is created by authorizeHttpRequests)
+            // This ensures JWT processing happens before authorization checks
+            // AnonymousAuthenticationPreFilter will have already run by this point
+            logger.debug("Adding JwtAuthenticationFilter before AuthorizationFilter for E2E tests");
+            http.addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class);
+        } else {
+            logger.warn("JwtAuthenticationFilter is null - JWT authentication will not work in E2E tests");
+        }
 
         return http.build();
     }
