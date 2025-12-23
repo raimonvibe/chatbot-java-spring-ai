@@ -1,11 +1,12 @@
 package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
-import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -14,7 +15,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
-import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -37,24 +37,27 @@ class AuthApiE2ETest extends E2ETestBase {
         String token = createOAuth2User(email);
         
         assertNotNull(token, "Token should be set after OAuth2 login");
-        assertNotNull(apiClient.getAuthToken(), "Token should be set in API client");
+        assertNotNull(webApiClient.withAuth(token).getAuthToken(), "Token should be set in API client");
 
         // Create active subscription for user (required for chatbot access)
         createActiveSubscriptionForUser(email);
 
         // Step 2: Access protected resource with auth token
-        Response protectedResponse = apiClient.getChatbots();
-        protectedResponse.then()
-            .statusCode(200)
-            .body("$", instanceOf(java.util.List.class));
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class);
 
         // Step 3: Clear auth and try to access protected resource
-        apiClient.clearAuth();
-        Response unauthorizedResponse = apiClient.getChatbots();
-
-        int statusCode = unauthorizedResponse.getStatusCode();
-        assertTrue(statusCode == 401 || statusCode == 403,
-            "Should return 401 or 403 without auth token");
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.getChatbots()
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 401 || status == 403,
+                    "Should return 401 or 403 without auth token. Got: " + status);
+            });
     }
 
     @Test
@@ -91,31 +94,34 @@ class AuthApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(email);
 
         // Step 2: Use valid token - should work
-        Response validResponse = apiClient.getChatbots();
-        validResponse.then()
-            .statusCode(200);
+        webApiClient.withAuth(validToken).getChatbots()
+            .expectStatus().isOk();
 
         // Step 3: Use invalid token - should fail
-        apiClient.withAuth("invalid.jwt.token");
-        Response invalidResponse = apiClient.getChatbots();
-
-        int statusCode = invalidResponse.getStatusCode();
-        assertTrue(statusCode == 401 || statusCode == 403,
-            "Should return 401 or 403 with invalid token");
+        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+        webApiClient.withAuth("invalid.jwt.token").getChatbots()
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                statusCodeRef.set(status);
+                assertTrue(status == 401 || status == 403,
+                    "Should return 401 or 403 with invalid token. Got: " + status);
+            });
 
         // Step 4: Use malformed token - should fail
-        apiClient.withAuth("not-even-a-jwt");
-        Response malformedResponse = apiClient.getChatbots();
-
-        statusCode = malformedResponse.getStatusCode();
-        assertTrue(statusCode == 401 || statusCode == 403,
-            "Should return 401 or 403 with malformed token");
+        webApiClient.withAuth("not-even-a-jwt").getChatbots()
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                assertTrue(status == 401 || status == 403,
+                    "Should return 401 or 403 with malformed token. Got: " + status);
+            });
 
         // Step 5: Restore valid token - should work again
-        apiClient.withAuth(validToken);
-        Response restoredResponse = apiClient.getChatbots();
-        restoredResponse.then()
-            .statusCode(200);
+        webApiClient.withAuth(validToken).getChatbots()
+            .expectStatus().isOk();
     }
 
     @Test
@@ -152,7 +158,6 @@ class AuthApiE2ETest extends E2ETestBase {
         };
 
         for (String validEmail : validEmails) {
-            apiClient.clearAuth();
             String token = createOAuth2User(validEmail);
             assertNotNull(token, "Should create OAuth2 user with valid email: " + validEmail);
         }
@@ -183,7 +188,6 @@ class AuthApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(email);
 
         // Step 2: Clear auth and create new session (simulates re-login)
-        apiClient.clearAuth();
         // Small delay to ensure different JWT token (different iat timestamp)
         try {
             Thread.sleep(1000); // 1 second delay to ensure different timestamp
@@ -196,13 +200,11 @@ class AuthApiE2ETest extends E2ETestBase {
         assertNotEquals(token1, token2, "Each OAuth2 login should generate a new token");
         
         // Step 4: Both tokens should work
-        apiClient.withAuth(token1);
-        Response response1 = apiClient.getChatbots();
-        response1.then().statusCode(200);
+        webApiClient.withAuth(token1).getChatbots()
+            .expectStatus().isOk();
 
-        apiClient.withAuth(token2);
-        Response response2 = apiClient.getChatbots();
-        response2.then().statusCode(200);
+        webApiClient.withAuth(token2).getChatbots()
+            .expectStatus().isOk();
     }
 
     @Test
@@ -214,7 +216,6 @@ class AuthApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(email);
 
         // Step 2: Create second session (simulates re-login via OAuth2)
-        apiClient.clearAuth();
         // Small delay to ensure different JWT token (different iat timestamp)
         try {
             Thread.sleep(1000); // 1 second delay to ensure different timestamp
@@ -227,13 +228,11 @@ class AuthApiE2ETest extends E2ETestBase {
         assertNotEquals(token1, token2, "Each OAuth2 login should generate a new token");
 
         // Step 4: Both tokens should work
-        apiClient.withAuth(token1);
-        Response response1 = apiClient.getChatbots();
-        response1.then().statusCode(200);
+        webApiClient.withAuth(token1).getChatbots()
+            .expectStatus().isOk();
 
-        apiClient.withAuth(token2);
-        Response response2 = apiClient.getChatbots();
-        response2.then().statusCode(200);
+        webApiClient.withAuth(token2).getChatbots()
+            .expectStatus().isOk();
     }
 
     @Test
@@ -245,9 +244,8 @@ class AuthApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(email);
 
         // Verify OAuth2 user is created with GOOGLE provider
-        apiClient.withAuth(token);
-        Response userResponse = apiClient.getChatbots();
-        userResponse.then().statusCode(200);
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk();
 
         // Verify user has GOOGLE auth provider
         var userOpt = userRepository.findByEmail(email);
@@ -266,10 +264,8 @@ class AuthApiE2ETest extends E2ETestBase {
 
         // Step 2: Make multiple requests with same token
         for (int i = 0; i < 5; i++) {
-            apiClient.withAuth(token);
-            Response response = apiClient.getChatbots();
-            response.then()
-                .statusCode(200);
+            webApiClient.withAuth(token).getChatbots()
+                .expectStatus().isOk();
         }
     }
 
@@ -285,12 +281,12 @@ class AuthApiE2ETest extends E2ETestBase {
         assertNotNull(token, "Token should be generated");
 
         // Verify user data via /api/auth/me endpoint
-        Response meResponse = apiClient.get("/api/auth/me");
-        meResponse.then()
-            .statusCode(200)
-            .body("email", equalTo(email))
-            .body("username", equalTo(email)) // OAuth2 users use email as username
-            .body("id", notNullValue())
-            .body("authProvider", equalTo("GOOGLE"));
+        webApiClient.withAuth(token).get("/api/auth/me")
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.email").isEqualTo(email)
+            .jsonPath("$.username").isEqualTo(email) // OAuth2 users use email as username
+            .jsonPath("$.id").exists()
+            .jsonPath("$.authProvider").isEqualTo("GOOGLE");
     }
 }
