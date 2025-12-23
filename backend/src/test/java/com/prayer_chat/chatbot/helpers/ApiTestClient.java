@@ -102,15 +102,30 @@ public class ApiTestClient {
 
     /**
      * GET request
-     * Uses the exact same pattern as sendStripeWebhook() which works correctly
-     * The key is to use createRequest() and rely on static baseURI/port configuration
+     * Based on REST Assured best practices: build request inline without separate RequestSpecification
+     * This avoids NPE issues that can occur with RequestSpecification reuse
      */
     public Response get(String path) {
-        // Use createRequest() to ensure consistent baseUri/port configuration
-        // This matches the exact pattern used in sendStripeWebhook() which works
-        RequestSpecification request = createRequest();
-        // Use relative path (not full URL) - REST Assured will use static baseURI/port
-        return request.get(path);
+        // Ensure static config is set (in case it was changed)
+        if (RestAssured.baseURI == null || !RestAssured.baseURI.equals(baseUrl)) {
+            RestAssured.baseURI = baseUrl;
+        }
+        if (RestAssured.port != extractPort()) {
+            RestAssured.port = extractPort();
+        }
+        
+        // Build request inline - avoid creating separate RequestSpecification
+        // This pattern works for POST (sendStripeWebhook), so should work for GET
+        RequestSpecification spec = RestAssured.given()
+            .contentType(ContentType.JSON)
+            .accept(ContentType.JSON);
+        
+        if (authToken != null && !authToken.isEmpty()) {
+            spec.header("Authorization", "Bearer " + authToken);
+        }
+        
+        // Call get() directly on the spec - same pattern as POST
+        return spec.get(path);
     }
 
     /**

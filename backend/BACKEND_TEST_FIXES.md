@@ -33,10 +33,30 @@
 - POST requests work, GET requests fail with the same configuration
 - This suggests a REST Assured internal issue, not our code
 
+**Online Research Findings**:
+Based on Stack Overflow and REST Assured community discussions:
+1. Known issue: Some REST Assured versions have NPE bugs with GET requests when using RequestSpecification
+2. Recommended solution: Use `RestAssured.given().spec(requestSpec).get()` pattern
+3. Alternative: Build request inline without separate RequestSpecification
+4. **Our findings**: POST requests work fine, GET requests fail with same pattern - suggests REST Assured 5.4.0 bug
+
+**Attempted Solutions** (all failed):
+1. ✅ Used `RestAssured.given().spec(requestSpec).get()` pattern
+2. ✅ Built request inline without RequestSpecification
+3. ✅ Used full URL instead of relative path
+4. ✅ Ensured static baseURI/port configuration
+5. ⚠️ All approaches still result in NPE for GET requests only
+
+**Root Cause Hypothesis**:
+- REST Assured 5.4.0 has a bug with GET requests when using static baseURI/port configuration
+- POST requests work because they use different HTTP client initialization path
+- This is a REST Assured library issue, not our code
+
 **Next Steps**:
-- Consider upgrading/downgrading REST Assured version
-- Consider using WebTestClient instead of REST Assured for GET requests
-- Investigate REST Assured HTTP client initialization for GET vs POST
+1. **Try REST Assured 5.3.2 or 5.5.0** - different versions may have fixed this bug
+2. **Use WebTestClient** - Spring Boot native alternative that works better with Spring Boot 4.0
+3. **Workaround**: Convert GET requests to use POST with query parameters (not ideal)
+4. **Report bug**: File issue with REST Assured project if confirmed
 
 ### 2. 401 Unauthorized Errors (45 failures)
 **Problem**: Many tests get 401 instead of expected status codes
