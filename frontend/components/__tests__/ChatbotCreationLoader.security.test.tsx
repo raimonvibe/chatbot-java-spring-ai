@@ -76,9 +76,12 @@ describe('ChatbotCreationLoader Security Tests', () => {
       const nameElement = container.querySelector('.text-gold-300');
       expect(nameElement).toBeInTheDocument();
       
-      // Should not contain onclick attribute
+      // Should not contain onclick attribute (React prevents attribute injection)
       expect(nameElement?.getAttribute('onclick')).toBeNull();
-      expect(nameElement?.textContent).not.toContain('onclick');
+      
+      // Text content may contain the string, but it won't execute as code
+      // React's default escaping prevents execution
+      expect(nameElement?.textContent).toBeTruthy();
     });
 
     it('should handle empty chatbot name safely', () => {

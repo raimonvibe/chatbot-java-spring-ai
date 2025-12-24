@@ -141,7 +141,7 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
                 animate={{ opacity: 1 }}
                 className="text-xl text-gold-300 mb-8 font-semibold"
               >
-                &quot;{chatbotName.replace(/[<>]/g, '')}&quot;
+                &quot;{chatbotName.replace(/[<>"']/g, '')}&quot;
               </motion.p>
             )}
 
