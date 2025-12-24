@@ -842,10 +842,15 @@ public class ChatbotController {
     
     /**
      * Generate embed code for chatbot
+     * Security: baseUrl comes from configuration, not user input, so SSRF protection is at config level
      */
     private String generateEmbedCode(Chatbot chatbot) {
         // Ensure baseUrl doesn't end with slash
         String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        
+        // Security: Sanitize baseUrl to prevent XSS in embed code
+        // Replace any potentially dangerous characters
+        cleanBaseUrl = cleanBaseUrl.replace("'", "\\'").replace("\"", "\\\"");
         
         return String.format("""
             <div id="prayer-chat-chatbot-%d" data-chatbot-id="%d"></div>
