@@ -41,7 +41,7 @@ import static org.mockito.Mockito.*;
  * and prevent SSRF, XSS, and other security vulnerabilities.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = org.mockito.junit.jupiter.MockitoSettings.Strictness.LENIENT)
+@MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 @DisplayName("ChatbotController URL Security Tests")
 class ChatbotControllerUrlSecurityTest {
 
