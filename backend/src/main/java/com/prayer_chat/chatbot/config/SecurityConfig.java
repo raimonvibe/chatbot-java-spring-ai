@@ -65,6 +65,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook", "/login/**", "/oauth2/**"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/").permitAll() // Root path returns JSON API info (RootController)
                 .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
                 .requestMatchers("/api/auth/me").authenticated() // Only /me endpoint requires auth
                 .requestMatchers("/login/**", "/oauth2/**").permitAll() // OAuth2 endpoints
@@ -80,10 +81,11 @@ public class SecurityConfig {
                 // AdminController is disabled in production via @Profile("local")
                 // In production, these endpoints don't exist at all
                 .requestMatchers("/api/admin/**", "/api/analytics/**").hasRole("ADMIN")
-                // Protect Thymeleaf pages (defense-in-depth)
+                // Root path is handled by RootController (returns JSON API response)
+                // Protect other Thymeleaf pages (defense-in-depth)
                 // In production, nginx reverse proxy will block these entirely
                 // In development, they require authentication for access
-                .requestMatchers("/", "/index", "/chatbots/**", "/analytics", "/settings").authenticated()
+                .requestMatchers("/index", "/chatbots/**", "/analytics", "/settings").authenticated()
                 .anyRequest().authenticated()
             );
         

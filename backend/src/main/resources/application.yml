@@ -62,6 +62,13 @@ spring:
     timeout: 4h  # 4 hours session timeout (industry standard for SaaS applications)
   
   # =============================================================================
+  # APPLICATION CONFIGURATION
+  # =============================================================================
+app:
+  base-url: ${APP_BASE_URL:https://chatbot-backend-4mp4.onrender.com}
+  frontend-url: ${FRONTEND_URL:https://prayer-chat.com}
+
+  # =============================================================================
   # OAUTH2 CONFIGURATION (Conditional - only if GOOGLE_CLIENT_ID is set)
   # =============================================================================
   # OAuth2 is configured manually in SecurityConfig only when GOOGLE_CLIENT_ID is present
