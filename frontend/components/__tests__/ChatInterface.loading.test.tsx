@@ -12,7 +12,7 @@ jest.mock('react-spinners', () => ({
 // Mock API functions
 jest.mock('@/lib/api', () => ({
   sendMessage: jest.fn(),
-  getQuickReplies: jest.fn(),
+  getQuickReplies: jest.fn().mockResolvedValue([]),
 }));
 
 // Mock Message component
