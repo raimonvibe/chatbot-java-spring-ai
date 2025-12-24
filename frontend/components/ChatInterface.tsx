@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Message from './Message';
 import { sendMessage, getQuickReplies, type Message as MessageType } from '@/lib/api';
 import { Send, Book } from 'lucide-react';
+import { DotLoader } from 'react-spinners';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<MessageType[]>([
@@ -116,7 +117,7 @@ export default function ChatInterface() {
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
+        {/* Loading indicator with react-spinners */}
         {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -125,23 +126,11 @@ export default function ChatInterface() {
             className="flex justify-start mb-4"
           >
             <div className="bg-brown-100 rounded-2xl px-4 py-3 shadow-md border border-brown-300">
-              <div className="flex space-x-2">
-                <motion.div
-                  className="w-2 h-2 bg-brown-600 rounded-full"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                />
-                <motion.div
-                  className="w-2 h-2 bg-brown-600 rounded-full"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.div
-                  className="w-2 h-2 bg-brown-600 rounded-full"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                />
-              </div>
+              <DotLoader 
+                color="#8b4513" 
+                size={40} 
+                speedMultiplier={0.8}
+              />
             </div>
           </motion.div>
         )}
