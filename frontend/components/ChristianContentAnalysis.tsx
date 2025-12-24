@@ -162,7 +162,7 @@ export default function ChristianContentAnalysisComponent({
                 </h4>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {(analysis.relevantVerses || []).map((verse, index) => (
-                    <VerseCard key={verse.id} verse={verse} rank={index + 1} />
+                    <VerseCard key={verse.id || `verse-${index}`} verse={verse} rank={index + 1} />
                   ))}
                 </div>
               </div>
