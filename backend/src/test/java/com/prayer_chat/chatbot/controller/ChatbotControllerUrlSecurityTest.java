@@ -114,9 +114,10 @@ class ChatbotControllerUrlSecurityTest {
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
+        // Mock access control - user has access to integration script
         when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(true);
         when(accessControlService.isPreviewMode(any(User.class))).thenReturn(false);
-        when(accessControlService.canAccessIntegrationScript(testUser)).thenReturn(true);
+        when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(true);
     }
 
     @Test
@@ -125,8 +126,6 @@ class ChatbotControllerUrlSecurityTest {
         // Arrange - malicious baseUrl with script injection attempt
         String maliciousBaseUrl = "https://example.com'</script><script>alert('XSS')</script>";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", maliciousBaseUrl);
-        
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -154,7 +153,6 @@ class ChatbotControllerUrlSecurityTest {
         String baseUrlWithSlash = "https://chatbot-backend-4mp4.onrender.com/";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrlWithSlash);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -179,7 +177,6 @@ class ChatbotControllerUrlSecurityTest {
         String productionUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", productionUrl);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -201,7 +198,6 @@ class ChatbotControllerUrlSecurityTest {
         String javascriptUrl = "javascript:alert('XSS')";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", javascriptUrl);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -225,7 +221,6 @@ class ChatbotControllerUrlSecurityTest {
         String baseUrlWithSpecialChars = "https://example.com/path'with\"quotes";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrlWithSpecialChars);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -246,7 +241,6 @@ class ChatbotControllerUrlSecurityTest {
         String baseUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrl);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -267,7 +261,6 @@ class ChatbotControllerUrlSecurityTest {
         String httpsUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", httpsUrl);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
@@ -288,7 +281,6 @@ class ChatbotControllerUrlSecurityTest {
         String baseUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrl);
         
-        when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
