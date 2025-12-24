@@ -133,7 +133,7 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               Creating Your Chatbot
             </motion.h2>
 
-            {/* Chatbot name */}
+            {/* Chatbot name - sanitized to prevent XSS */}
             {chatbotName && (
               <motion.p
                 key={`name-${chatbotName}`}
@@ -141,7 +141,7 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
                 animate={{ opacity: 1 }}
                 className="text-xl text-gold-300 mb-8 font-semibold"
               >
-                "{chatbotName}"
+                &quot;{chatbotName.replace(/[<>]/g, '')}&quot;
               </motion.p>
             )}
 
