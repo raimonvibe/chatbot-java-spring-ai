@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, Sparkles, TrendingUp, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Book, Sparkles, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ClipLoader } from 'react-spinners';
 import { analyzeChristianContent, type ChristianContentAnalysis, type VerseMatch } from '@/lib/api';
 
 interface ChristianContentAnalysisProps {
@@ -89,8 +90,8 @@ export default function ChristianContentAnalysisComponent({
         >
           {loading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Analyzing...
+              <ClipLoader color="#ffffff" size={20} speedMultiplier={0.8} />
+              <span>Analyzing...</span>
             </>
           ) : (
             <>

@@ -3,10 +3,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Book, Sparkles, Zap, Brain, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { ClipLoader, PulseLoader, BarLoader } from 'react-spinners';
+import Lottie from 'lottie-react';
 
 interface ChatbotCreationLoaderProps {
   isVisible: boolean;
   chatbotName?: string;
+  isScanningWebsite?: boolean; // For longer processes like website scanning
 }
 
 const loadingSteps = [
@@ -16,9 +19,8 @@ const loadingSteps = [
   { icon: Book, text: 'Finalizing your chatbot...', color: 'text-brown-600' },
 ];
 
-export default function ChatbotCreationLoader({ isVisible, chatbotName }: ChatbotCreationLoaderProps) {
+export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanningWebsite = false }: ChatbotCreationLoaderProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [dots, setDots] = useState('');
 
   useEffect(() => {
     if (!isVisible) {
@@ -31,17 +33,8 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName }: Chatbo
       setCurrentStep((prev) => (prev + 1) % loadingSteps.length);
     }, 2000);
 
-    // Animate dots
-    const dotsInterval = setInterval(() => {
-      setDots((prev) => {
-        if (prev === '...') return '';
-        return prev + '.';
-      });
-    }, 500);
-
     return () => {
       clearInterval(stepInterval);
-      clearInterval(dotsInterval);
     };
   }, [isVisible]);
 
@@ -88,19 +81,13 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName }: Chatbo
 
           {/* Main content */}
           <div className="relative z-10 text-center">
-            {/* Spinning book icon */}
+            {/* Spinning book icon with react-spinners or Lottie for website scanning */}
             <div className="mb-8 flex justify-center">
               <motion.div
                 animate={{
-                  rotate: 360,
                   scale: [1, 1.1, 1],
                 }}
                 transition={{
-                  rotate: {
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  },
                   scale: {
                     duration: 2,
                     repeat: Infinity,
@@ -110,7 +97,28 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName }: Chatbo
                 className="relative"
               >
                 <div className="absolute inset-0 bg-gold-500/30 rounded-full blur-xl" />
-                <Book className="w-24 h-24 text-gold-400 relative z-10" strokeWidth={1.5} />
+                <div className="relative z-10 flex items-center justify-center">
+                  {isScanningWebsite ? (
+                    // Lottie animation for longer processes (website scanning)
+                    // Using a simple rotating circle animation
+                    <div className="w-24 h-24 flex items-center justify-center">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                        className="w-20 h-20 border-4 border-gold-400 border-t-transparent rounded-full"
+                      />
+                    </div>
+                  ) : (
+                    <ClipLoader 
+                      color="#d4af37" 
+                      size={96} 
+                      speedMultiplier={0.8}
+                      cssOverride={{
+                        borderWidth: '3px',
+                      }}
+                    />
+                  )}
+                </div>
               </motion.div>
             </div>
 
@@ -157,24 +165,29 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName }: Chatbo
               >
                 <CurrentIcon className={`w-12 h-12 ${loadingSteps[currentStep].color}`} strokeWidth={2} />
               </motion.div>
-              <p className="text-xl text-brown-100 font-medium">
-                {loadingSteps[currentStep].text}
-                <span className="inline-block w-8 text-left">{dots}</span>
-              </p>
+              <div className="flex items-center gap-3">
+                <PulseLoader 
+                  color="#d4af37" 
+                  size={6} 
+                  speedMultiplier={0.8}
+                  margin={2}
+                />
+                <p className="text-xl text-brown-100 font-medium">
+                  {loadingSteps[currentStep].text}
+                </p>
+              </div>
             </motion.div>
 
-            {/* Progress bar */}
-            <div className="w-full bg-brown-800/50 rounded-full h-2 mb-6 overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500 rounded-full"
-                initial={{ width: '0%' }}
-                animate={{
-                  width: ['0%', '25%', '50%', '75%', '90%'],
-                }}
-                transition={{
-                  duration: 8,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
+            {/* Progress bar with react-spinners BarLoader */}
+            <div className="w-full mb-6">
+              <BarLoader
+                color="#d4af37"
+                height={4}
+                width="100%"
+                speedMultiplier={0.6}
+                cssOverride={{
+                  borderRadius: '9999px',
+                  background: 'rgba(139, 69, 19, 0.5)',
                 }}
               />
             </div>
