@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import ChristianContentAnalysisComponent from '@/components/ChristianContentAnalysis';
+import PaywallModal from '@/components/PaywallModal';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
+  const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
   const [showAnalysisForChatbot, setShowAnalysisForChatbot] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
@@ -119,6 +121,7 @@ export default function Dashboard() {
       // Check if it's a payment required error
       if (error.message && error.message.includes('Upgrade')) {
         setUpgradeMessage(error.message);
+        setPaywallFeature('integration-script');
         setShowUpgradeModal(true);
       } else {
         alert(error.message || 'Failed to get embed code. Please try again.');
@@ -152,6 +155,7 @@ export default function Dashboard() {
       // Check if it's a limit reached error
       if (error.message && (error.message.includes('limit') || error.message.includes('Upgrade'))) {
         setUpgradeMessage(error.message || 'One chatbot per account limit reached. Upgrade to create more.');
+        setPaywallFeature('chatbot-limit');
         setShowUpgradeModal(true);
       } else {
         // Show error message without alert popup
@@ -502,52 +506,13 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {showUpgradeModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={() => setShowUpgradeModal(false)}
-          >
-            <div
-              className="bg-gradient-to-br from-brown-50 to-gold-50 rounded-2xl p-8 max-w-lg w-full border-2 border-gold-300 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-gold-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Crown className="w-8 h-8 text-gold-700" />
-                </div>
-                <h3 className="text-2xl font-bold text-brown-800 mb-2">
-                  Your website is a beautiful testament to your mission!
-                </h3>
-                <p className="text-brown-700 mb-4">
-                  {upgradeMessage || 'We\'d love to help you share your message more widely!'}
-                </p>
-                <div className="bg-brown-100 border-l-4 border-gold-600 p-4 rounded-lg mb-6 text-left">
-                  <p className="text-sm text-brown-800 italic">
-                    "For I know the plans I have for you," declares the Lord, "plans to prosper you 
-                    and not to harm you, plans to give you hope and a future." - Jeremiah 29:11
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <Link
-                  href="/pricing"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2 font-semibold"
-                >
-                  <Crown className="w-5 h-5" />
-                  Upgrade to Share Your Message
-                </Link>
-                <button
-                  onClick={() => setShowUpgradeModal(false)}
-                  className="px-6 py-3 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors font-medium"
-                >
-                  Maybe Later
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        <PaywallModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          title={upgradeMessage ? undefined : undefined}
+          message={upgradeMessage || undefined}
+          feature={paywallFeature}
+        />
       </div>
     </main>
   );
