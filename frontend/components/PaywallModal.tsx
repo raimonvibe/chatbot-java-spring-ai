@@ -92,6 +92,11 @@ export default function PaywallModal({
   const verse = bibleVerse || defaultBibleVerses[feature];
 
   const handleUpgrade = async () => {
+    // Prevent multiple simultaneous requests
+    if (loading) {
+      return;
+    }
+    
     setLoading(true);
     try {
       // Call backend to create Stripe checkout session
@@ -110,7 +115,28 @@ export default function PaywallModal({
       }
 
       const { url } = await response.json();
-      // Redirect to Stripe checkout
+      
+      // Security: Validate URL is from Stripe before redirecting
+      if (!url || typeof url !== 'string') {
+        throw new Error('Invalid checkout URL received');
+      }
+      
+      // Validate URL is from Stripe domain (prevent open redirect vulnerability)
+      try {
+        const urlObj = new URL(url);
+        const allowedDomains = [
+          'checkout.stripe.com',
+          'checkout.stripe.dev', // For test mode
+        ];
+        
+        if (!allowedDomains.includes(urlObj.hostname)) {
+          throw new Error('Invalid checkout URL domain');
+        }
+      } catch (urlError) {
+        throw new Error('Invalid checkout URL format');
+      }
+      
+      // Redirect to Stripe checkout (validated)
       window.location.href = url;
     } catch (error: any) {
       console.error('Error creating checkout session:', error);
@@ -169,10 +195,10 @@ export default function PaywallModal({
                 <Book className="w-5 h-5 text-gold-700 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm text-brown-800 italic leading-relaxed mb-2">
-                    &quot;{verse.text}&quot;
+                    &quot;{verse.text.replace(/[<>]/g, '')}&quot;
                   </p>
                   <p className="text-xs text-brown-600 font-semibold">
-                    — {verse.reference}
+                    — {verse.reference.replace(/[<>]/g, '')}
                   </p>
                 </div>
               </div>
