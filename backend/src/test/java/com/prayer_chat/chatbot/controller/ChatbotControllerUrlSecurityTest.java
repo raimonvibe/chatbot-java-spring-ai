@@ -113,9 +113,12 @@ class ChatbotControllerUrlSecurityTest {
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
         // Mock access control - user has access to integration script
-        when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(true);
-        when(accessControlService.isPreviewMode(any(User.class))).thenReturn(false);
-        when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(true);
+        lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(false);
+        lenient().when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(true);
+        
+        // Mock chatbot repository for all tests
+        lenient().when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
     }
 
     @Test
