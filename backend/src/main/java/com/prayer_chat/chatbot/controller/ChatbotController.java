@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,6 +54,9 @@ public class ChatbotController {
     private final WebsiteSizeEstimator websiteSizeEstimator;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
+
+    @Value("${app.base-url:https://chatbot-backend-4mp4.onrender.com}")
+    private String baseUrl;
 
     @Autowired
     public ChatbotController(ChatbotRepository chatbotRepository,
@@ -840,24 +844,27 @@ public class ChatbotController {
      * Generate embed code for chatbot
      */
     private String generateEmbedCode(Chatbot chatbot) {
+        // Ensure baseUrl doesn't end with slash
+        String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        
         return String.format("""
             <div id="prayer-chat-chatbot-%d" data-chatbot-id="%d"></div>
             <script>
                 (function() {
                     var script = document.createElement('script');
-                    script.src = 'http://localhost:8080/js/chatbot-widget.js';
+                    script.src = '%s/js/chatbot-widget.js';
                     script.async = true;
                     script.onload = function() {
                         PrayerChat.init({
                             chatbotId: %d,
-                            apiUrl: 'http://localhost:8080/api',
+                            apiUrl: '%s/api',
                             theme: 'default'
                         });
                     };
                     document.head.appendChild(script);
                 })();
             </script>
-            """, chatbot.getId(), chatbot.getId(), chatbot.getId());
+            """, chatbot.getId(), chatbot.getId(), cleanBaseUrl, chatbot.getId(), cleanBaseUrl);
     }
 
     // ============================================================================

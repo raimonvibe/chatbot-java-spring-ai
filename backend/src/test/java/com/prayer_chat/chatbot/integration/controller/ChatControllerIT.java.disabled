@@ -169,7 +169,7 @@ class ChatControllerIT {
         request1.setSessionId(sessionId);
 
         ChatResponse response1 = new ChatResponse();
-        response1.setMessage("I'm TjanaBot, your AI assistant!");
+        response1.setMessage("I'm Prayer-Chat, your AI assistant!");
         response1.setSessionId(sessionId);
 
         ChatRequest request2 = new ChatRequest();

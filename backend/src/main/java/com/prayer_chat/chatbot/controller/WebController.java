@@ -17,9 +17,9 @@ import java.util.Optional;
 
 /**
  * Web Controller for serving HTML pages
+ * Note: Root path (/) is handled by RootController (returns JSON API info)
  */
 @Controller
-@RequestMapping("/")
 public class WebController {
     
     private final ChatbotRepository chatbotRepository;
@@ -37,8 +37,9 @@ public class WebController {
     
     /**
      * Home page - Dashboard
+     * Note: Root path (/) is handled by RootController
      */
-    @GetMapping
+    @GetMapping("/index")
     public String home(Model model) {
         List<Chatbot> chatbots = chatbotRepository.findAll();
         model.addAttribute("chatbots", chatbots);
