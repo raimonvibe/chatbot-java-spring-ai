@@ -7,16 +7,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WebsiteSizeEstimator Tests")
 class WebsiteSizeEstimatorTest {
 
+    @Mock
+    private UrlValidationService urlValidationService;
+
     @InjectMocks
     private WebsiteSizeEstimator websiteSizeEstimator;
+
+    @BeforeEach
+    void setUp() {
+        // Default: allow all URLs for testing (unless test specifies otherwise)
+        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
+    }
 
     @Test
     @DisplayName("Should return conservative estimate when estimation fails")

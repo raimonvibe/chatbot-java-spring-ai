@@ -86,7 +86,7 @@ describe('API Module', () => {
   describe('getChatbot', () => {
     it('should fetch a chatbot by ID', async () => {
       const mockChatbot: Chatbot = {
-        chatbotId: 1,
+        id: 1,
         name: 'Test Bot',
         description: 'A test chatbot',
         primaryLanguage: 'en',
@@ -171,7 +171,7 @@ describe('API Module', () => {
     it('should fetch all chatbots', async () => {
       const mockChatbots: Chatbot[] = [
         {
-          chatbotId: 1,
+          id: 1,
           name: 'Bot 1',
           description: 'First bot',
           primaryLanguage: 'en',
@@ -179,7 +179,7 @@ describe('API Module', () => {
           brandingConfig: '{}',
         },
         {
-          chatbotId: 2,
+          id: 2,
           name: 'Bot 2',
           description: 'Second bot',
           primaryLanguage: 'es',
@@ -222,7 +222,7 @@ describe('API Module', () => {
       }
 
       const mockCreatedChatbot: Chatbot = {
-        chatbotId: 3,
+        id: 3,
         name: newChatbotData.name,
         description: newChatbotData.description,
         primaryLanguage: 'en',
@@ -252,6 +252,8 @@ describe('API Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({ error: 'Failed to create chatbot' }),
       } as Response)
 
       await expect(
