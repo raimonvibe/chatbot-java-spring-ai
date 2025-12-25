@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -44,9 +45,15 @@ public class RateLimitingService {
     /**
      * Check if user can send a message (rate limit check)
      * 
+     * SECURITY NOTE: This method is not transactional. For high-concurrency scenarios,
+     * consider adding pessimistic locking or using a distributed rate limiter (e.g., Redis).
+     * Current implementation may allow slight overage under race conditions, but prevents
+     * significant abuse.
+     * 
      * @param user The user attempting to send a message
      * @return RateLimitResult with allowed status and details
      */
+    @Transactional(readOnly = true)
     public RateLimitResult checkMessageLimit(User user) {
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
         int messageLimit = isPreviewMode ? PREVIEW_MESSAGE_LIMIT : PAID_MESSAGE_LIMIT;
@@ -76,9 +83,15 @@ public class RateLimitingService {
     /**
      * Check if user can scan a website (rate limit check)
      * 
+     * SECURITY NOTE: This method is not transactional. For high-concurrency scenarios,
+     * consider adding pessimistic locking or using a distributed rate limiter (e.g., Redis).
+     * Current implementation may allow slight overage under race conditions, but prevents
+     * significant abuse.
+     * 
      * @param user The user attempting to scan a website
      * @return RateLimitResult with allowed status and details
      */
+    @Transactional(readOnly = true)
     public RateLimitResult checkScanLimit(User user) {
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
         int scanLimit = isPreviewMode ? PREVIEW_SCAN_LIMIT : PAID_SCAN_LIMIT;
