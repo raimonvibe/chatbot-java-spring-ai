@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Book, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { createChatbotFromUrl, getAllChatbots, checkAuth } from '@/lib/api';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
+import PaywallModal from '@/components/PaywallModal';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function OnboardingPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState('');
+  const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
 
   useEffect(() => {
     checkAuthAndChatbots();
@@ -68,6 +72,25 @@ export default function OnboardingPage() {
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Error creating chatbot:', err);
+      
+      // Check if it's a payment required error (402) - website size limit
+      if (err.status === 402 || err.upgradeRequired) {
+        setUpgradeMessage(err.message || 'Website too large for preview mode. Upgrade to continue.');
+        setPaywallFeature('general');
+        setShowUpgradeModal(true);
+        setCreating(false);
+        return;
+      }
+      
+      // Check if it's a limit reached error
+      if (err.message && (err.message.includes('limit') || err.message.includes('Upgrade'))) {
+        setUpgradeMessage(err.message || 'One chatbot per account limit reached. Upgrade to create more.');
+        setPaywallFeature('chatbot-limit');
+        setShowUpgradeModal(true);
+        setCreating(false);
+        return;
+      }
+      
       setError(err.message || 'Failed to create chatbot. Please try again.');
       setCreating(false);
     }
@@ -95,6 +118,13 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-brown-50 via-gold-50/30 to-brown-50">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
+      <PaywallModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title="Upgrade to Scan Larger Websites"
+        message={upgradeMessage}
+        feature={paywallFeature}
+      />
       
       <motion.div
         initial={{ opacity: 0, y: 20 }}

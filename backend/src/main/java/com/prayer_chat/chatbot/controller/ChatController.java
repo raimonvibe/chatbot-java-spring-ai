@@ -2,17 +2,17 @@ package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.dto.ChatRequest;
 import com.prayer_chat.chatbot.model.Chatbot;
+import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
+import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -33,11 +33,15 @@ public class ChatController {
     
     private final AiChatbotService aiChatbotService;
     private final ChatbotRepository chatbotRepository;
+    private final RateLimitingService rateLimitingService;
     
     @Autowired
-    public ChatController(AiChatbotService aiChatbotService, ChatbotRepository chatbotRepository) {
+    public ChatController(AiChatbotService aiChatbotService, 
+                         ChatbotRepository chatbotRepository,
+                         RateLimitingService rateLimitingService) {
         this.aiChatbotService = aiChatbotService;
         this.chatbotRepository = chatbotRepository;
+        this.rateLimitingService = rateLimitingService;
     }
     
     /**
@@ -50,6 +54,33 @@ public class ChatController {
             HttpServletRequest httpRequest) {
 
         try {
+            // Get chatbot and verify it exists
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(chatbotId);
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of(
+                    "error", "Chatbot not found"
+                ));
+            }
+            
+            Chatbot chatbot = chatbotOpt.get();
+            
+            // Check rate limit if chatbot has an owner
+            if (chatbot.getOwner() != null) {
+                User owner = chatbot.getOwner();
+                RateLimitingService.RateLimitResult rateLimitResult = rateLimitingService.checkMessageLimit(owner);
+                
+                if (!rateLimitResult.isAllowed()) {
+                    logger.warn("User {} attempted to send message but rate limit reached (current: {}, limit: {})", 
+                        owner.getId(), rateLimitResult.getCurrent(), rateLimitResult.getLimit());
+                    return ResponseEntity.status(429).body(Map.of(
+                        "error", rateLimitResult.getErrorMessage(),
+                        "current", rateLimitResult.getCurrent(),
+                        "limit", rateLimitResult.getLimit(),
+                        "upgradeRequired", rateLimitResult.isPreviewMode()
+                    ));
+                }
+            }
+            
             // Extract and validate request data
             String message = request.getMessage();
             String sessionId = request.getSessionId();

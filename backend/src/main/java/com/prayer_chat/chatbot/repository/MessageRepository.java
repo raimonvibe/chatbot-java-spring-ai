@@ -71,4 +71,30 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
      */
     @Query("SELECT AVG(m.responseTimeMs) FROM Message m WHERE m.conversation = :conversation AND m.isUserMessage = false AND m.responseTimeMs > 0")
     Double getAverageResponseTimeByConversation(@Param("conversation") Conversation conversation);
+    
+    /**
+     * Count user messages sent today by a chatbot owner
+     * Counts distinct user messages (isUserMessage = true) created today
+     * for all conversations belonging to chatbots owned by the user
+     */
+    @Query(value = "SELECT COUNT(m.id) FROM messages m " +
+           "INNER JOIN conversations c ON m.conversation_id = c.id " +
+           "INNER JOIN chatbots cb ON c.chatbot_id = cb.id " +
+           "WHERE cb.owner_id = :userId " +
+           "AND m.is_user_message = true " +
+           "AND CAST(m.created_at AS DATE) = CURRENT_DATE", nativeQuery = true)
+    Long countUserMessagesTodayByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Count user messages sent in the last 24 hours by a chatbot owner
+     * Counts distinct user messages (isUserMessage = true) created in the last 24 hours
+     * for all conversations belonging to chatbots owned by the user
+     */
+    @Query(value = "SELECT COUNT(m.id) FROM messages m " +
+           "INNER JOIN conversations c ON m.conversation_id = c.id " +
+           "INNER JOIN chatbots cb ON c.chatbot_id = cb.id " +
+           "WHERE cb.owner_id = :userId " +
+           "AND m.is_user_message = true " +
+           "AND m.created_at >= :since", nativeQuery = true)
+    Long countUserMessagesByUserIdSince(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
 }
