@@ -71,14 +71,26 @@ SELECT COUNT(*) FROM bible_verses;
    # Use a file transfer method (see below)
    ```
 
-3. **Transfer file using base64 (for small chunks) or use a cloud storage:**
+3. **Transfer file using cloud storage (Recommended):**
    
-   **Better approach:** Upload to cloud storage first, then download:
+   **Best approach:** Upload to cloud storage first, then download:
    ```bash
-   # Upload to Google Drive, Dropbox, or S3
-   # Then download in Render Shell:
-   curl -L "https://your-cloud-storage-url/bible_embeddings.json" -o data/bible_embeddings.json
+   # In Render Shell, download from cloud storage:
+   mkdir -p data
+   cd data
+   
+   # Option A: Google Drive (vervang FILE_ID)
+   curl -L "https://drive.google.com/uc?export=download&id=FILE_ID" -o bible_embeddings.json
+   
+   # Option B: Direct download link (Dropbox, WeTransfer, etc.)
+   curl -L "https://your-cloud-storage-url/bible_embeddings.json" -o bible_embeddings.json
+   
+   # Verify download
+   ls -lh bible_embeddings.json
+   # Should show ~662M
    ```
+   
+   **See [UPLOAD_EMBEDDINGS_STAP_VOOR_STAP.md](./UPLOAD_EMBEDDINGS_STAP_VOOR_STAP.md) for detailed upload instructions.**
 
 ### Option C: Use Cloud Storage (Best for Large Files)
 
