@@ -138,11 +138,12 @@ scp data/bible_embeddings.json render@your-service.onrender.com:/opt/render/proj
    mkdir -p data
    cd data
    
-   # Download (vervang FILE_ID)
-   curl -L "https://drive.google.com/uc?export=download&id=JE_FILE_ID" -o bible_embeddings.json
+   # Download (vervang FILE_ID met je Google Drive bestand ID)
+   curl -L "https://drive.google.com/uc?export=download&id=FILE_ID" -o bible_embeddings.json
    
-   # Verifieer
+   # Verifieer download
    ls -lh bible_embeddings.json
+   # Moet ~662M tonen
    ```
 
 4. **Import:**
