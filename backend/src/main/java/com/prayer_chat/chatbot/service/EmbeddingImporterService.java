@@ -165,17 +165,22 @@ public class EmbeddingImporterService {
         // Allow files in:
         // 1. Current working directory (for relative paths like "data/bible_embeddings.json")
         // 2. Absolute paths that are within a reasonable data directory
+        // 3. /tmp/data/ directory (for Render deployments where files are uploaded to /tmp)
         File workingDir = new File(System.getProperty("user.dir"));
         File dataDir = new File(workingDir, "data");
+        File tmpDataDir = new File("/tmp/data");
         
         File resolvedFile;
         if (normalizedPath.isAbsolute()) {
-            // For absolute paths, only allow if they're within working directory or data directory
+            // For absolute paths, only allow if they're within working directory, data directory, or /tmp/data
             Path workingPath = workingDir.toPath();
             Path dataPath = dataDir.toPath();
+            Path tmpDataPath = tmpDataDir.toPath();
             
-            if (!normalizedPath.startsWith(workingPath) && !normalizedPath.startsWith(dataPath)) {
-                throw new RuntimeException("File path must be within application directory: " + filePath);
+            if (!normalizedPath.startsWith(workingPath) && 
+                !normalizedPath.startsWith(dataPath) && 
+                !normalizedPath.startsWith(tmpDataPath)) {
+                throw new RuntimeException("File path must be within application directory, data directory, or /tmp/data: " + filePath);
             }
             resolvedFile = normalizedPath.toFile();
         } else {
