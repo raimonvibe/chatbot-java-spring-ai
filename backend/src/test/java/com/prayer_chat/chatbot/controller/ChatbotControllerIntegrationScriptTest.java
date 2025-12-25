@@ -13,6 +13,7 @@ import com.prayer_chat.chatbot.service.BibleVerseService;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
