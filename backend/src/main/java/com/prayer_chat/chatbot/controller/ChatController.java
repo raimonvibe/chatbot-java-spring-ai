@@ -64,7 +64,17 @@ public class ChatController {
             
             Chatbot chatbot = chatbotOpt.get();
             
-            // Check rate limit if chatbot has an owner
+            // SECURITY: Check if chatbot is active
+            if (!chatbot.getIsActive()) {
+                logger.warn("Attempted to send message to inactive chatbot: {}", chatbotId);
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Chatbot is not active"
+                ));
+            }
+            
+            // SECURITY: Check rate limit if chatbot has an owner
+            // Note: Rate limiting is per chatbot owner, not per end-user sending messages
+            // This prevents abuse by chatbot owners, not by end-users
             if (chatbot.getOwner() != null) {
                 User owner = chatbot.getOwner();
                 RateLimitingService.RateLimitResult rateLimitResult = rateLimitingService.checkMessageLimit(owner);
