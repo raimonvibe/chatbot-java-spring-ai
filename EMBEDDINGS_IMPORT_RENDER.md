@@ -173,8 +173,11 @@ Expected response:
 ## Step 5: Clean Up
 
 1. **Remove local profile** (security):
-   - Remove `SPRING_PROFILES_ACTIVE=local` from environment variables
-   - Or set it back to `prod`
+   - Go to **Render Dashboard** → **Backend Service** → **Environment** tab
+   - Find `SPRING_PROFILES_ACTIVE` environment variable
+   - Click **Delete** or remove it
+   - Render will automatically restart the service
+   - Admin endpoints will be disabled again
 
 2. **Delete file from Render** (optional, saves disk space):
    ```bash
