@@ -6,6 +6,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -25,13 +26,28 @@ public class WebsiteSizeEstimator {
     private static final int TIMEOUT_MS = 5000; // 5 seconds timeout for estimation
     private static final String USER_AGENT = "PrayerChatCrawler/1.0 (+https://prayer-chat.com/bot)";
     
+    private final UrlValidationService urlValidationService;
+    
+    @Autowired
+    public WebsiteSizeEstimator(UrlValidationService urlValidationService) {
+        this.urlValidationService = urlValidationService;
+    }
+    
     /**
      * Estimate website size using multiple methods (zero-cost when possible)
+     * 
+     * SECURITY: Validates URL for SSRF protection before estimation
      * 
      * @param websiteUrl The website URL to estimate
      * @return Estimated number of pages, or -1 if estimation failed
      */
     public int estimateSize(String websiteUrl) {
+        // SECURITY: Validate URL before any network operations (SSRF protection)
+        if (!urlValidationService.isValidAndSafe(websiteUrl)) {
+            logger.warn("Blocked unsafe URL in size estimation: {}", websiteUrl);
+            return -1; // Return failure for unsafe URLs
+        }
+        
         try {
             // Method 1: Try sitemap.xml (most accurate, zero cost)
             int sitemapCount = estimateFromSitemap(websiteUrl);

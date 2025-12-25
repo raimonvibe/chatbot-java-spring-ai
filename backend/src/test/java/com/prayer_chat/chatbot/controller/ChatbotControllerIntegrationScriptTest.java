@@ -80,6 +80,9 @@ class ChatbotControllerIntegrationScriptTest {
     private AccessControlService accessControlService;
 
     @Mock
+    private RateLimitingService rateLimitingService;
+
+    @Mock
     private CustomOAuth2User customOAuth2User;
 
     @InjectMocks
@@ -112,7 +115,8 @@ class ChatbotControllerIntegrationScriptTest {
             costTrackingService,
             websiteSizeEstimator,
             websiteScanAuditRepository,
-            accessControlService
+            accessControlService,
+            rateLimitingService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);

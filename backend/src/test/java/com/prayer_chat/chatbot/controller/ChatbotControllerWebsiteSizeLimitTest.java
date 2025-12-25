@@ -15,6 +15,7 @@ import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,6 +69,9 @@ class ChatbotControllerWebsiteSizeLimitTest {
 
     @Mock
     private WebsiteSizeEstimator websiteSizeEstimator;
+
+    @Mock
+    private UrlValidationService urlValidationService;
 
     @Mock
     private WebsiteScanAuditRepository websiteScanAuditRepository;
