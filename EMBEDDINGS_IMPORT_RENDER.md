@@ -58,8 +58,9 @@ SELECT COUNT(*) FROM bible_verses;
 ### Option B: Using Render File System (Temporary)
 
 1. **Enable local profile temporarily:**
-   - In Render dashboard, go to Environment variables
-   - Add: `SPRING_PROFILES_ACTIVE=local`
+   - In Render dashboard, go to your **Backend Service** (not database)
+   - Go to **Environment** tab
+   - Add environment variable: `SPRING_PROFILES_ACTIVE=local`
    - This enables admin endpoints
 
 2. **Upload via Render Shell:**
@@ -104,8 +105,13 @@ SELECT COUNT(*) FROM bible_verses;
 ### Method 1: Using Admin Endpoint (Temporary Local Profile)
 
 1. **Temporarily enable local profile:**
-   - In Render dashboard, go to Environment variables
-   - Add: `SPRING_PROFILES_ACTIVE=local`
+   - Go to **Render Dashboard** → Select your **Backend Service** (⚠️ NOT the database service!)
+   - Click on **"Environment"** tab (in the backend service settings)
+   - Click **"Add Environment Variable"**
+   - Key: `SPRING_PROFILES_ACTIVE`
+   - Value: `local`
+   - Click **"Save Changes"**
+   - Render will automatically restart the backend service
    - **Important:** This enables admin endpoints - remove after import!
 
 2. **Redeploy/Restart** your service (Render will restart automatically)
