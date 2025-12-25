@@ -22,7 +22,10 @@ import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -79,6 +82,9 @@ class DeleteRecreateAttackPreventionTest {
     @Mock
     private AccessControlService accessControlService;
 
+    @Mock
+    private RateLimitingService rateLimitingService;
+
     @InjectMocks
     private ChatbotController chatbotController;
 
@@ -112,6 +118,12 @@ class DeleteRecreateAttackPreventionTest {
         // Mock cost tracking
         lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
         lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        
+        // Mock rate limiting - allow scans by default
+        RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
+            true, 1, 0, true, "scan"
+        );
+        lenient().when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
     }
 
     @Test
@@ -125,12 +137,16 @@ class DeleteRecreateAttackPreventionTest {
 
         setupPreviewModeMocks();
         
-        // First scan (before delete)
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
+        // First scan (before delete) - allow scan
+        RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
+            true, 1, 0, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
         lenient().when(accessControlService.canAccessIntegrationScript(any(User.class))).thenReturn(false);
+        lenient().when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class)))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // First scan succeeds
         ResponseEntity<?> firstScan = chatbotController.analyzeWebsite(
@@ -152,19 +168,20 @@ class DeleteRecreateAttackPreventionTest {
         when(chatbotRepository.findById(2L)).thenReturn(Optional.of(newChatbot));
         
         // Second scan attempt - should be blocked because audit entry still exists
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(1L); // Scan from today still exists!
+        RateLimitingService.RateLimitResult blockedResult = new RateLimitingService.RateLimitResult(
+            false, 1, 1, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(blockedResult);
 
         ResponseEntity<?> secondScan = chatbotController.analyzeWebsite(
             2L, customOAuth2User
         );
 
-        // Assert - second scan should be BLOCKED
-        assertThat(secondScan.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        // Assert - second scan should be BLOCKED (402 Payment Required)
+        assertThat(secondScan.getStatusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED);
         
-        // Verify audit repository was checked (proving we use audit, not WebsiteContent)
-        verify(websiteScanAuditRepository, atLeast(2)).countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class));
+        // Verify rate limiting service was checked (which internally uses audit repository)
+        verify(rateLimitingService, atLeast(2)).checkScanLimit(any(User.class));
         
         // Verify second scan was NOT started
         verify(websiteAnalysisService, times(1)).analyzeWebsite(any(Chatbot.class)); // Only first scan
@@ -174,23 +191,21 @@ class DeleteRecreateAttackPreventionTest {
     @DisplayName("SECURITY: Should use audit table, not WebsiteContent, for scan frequency check")
     void shouldUseAuditTableNotWebsiteContent() {
         // Arrange
-        lenient().when(costTrackingService.isPreviewMode(any(User.class))).thenReturn(true);
-        lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
-        lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(false);
-        lenient().when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
-        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
-        lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        setupPreviewModeMocks();
         
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
+        RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
+            true, 1, 0, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        lenient().when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class)))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act
         chatbotController.analyzeWebsite(1L, customOAuth2User);
 
-        // Assert - verify we use audit repository, NOT websiteContentRepository
-        verify(websiteScanAuditRepository, atLeastOnce()).countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class));
+        // Assert - verify we use rate limiting service (which internally uses audit repository)
+        verify(rateLimitingService, atLeastOnce()).checkScanLimit(any(User.class));
         
         // Verify we do NOT use the old WebsiteContent method
         verify(websiteContentRepository, never()).countScansByUserAndDateAfter(
@@ -203,9 +218,13 @@ class DeleteRecreateAttackPreventionTest {
         // Arrange
         setupPreviewModeMocks();
         
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
+        RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
+            true, 1, 0, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        lenient().when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class)))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act - scan website
         chatbotController.analyzeWebsite(1L, customOAuth2User);
@@ -236,8 +255,10 @@ class DeleteRecreateAttackPreventionTest {
         // Arrange - user already scanned today
         setupPreviewModeMocks();
         
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(1L);
+        RateLimitingService.RateLimitResult blockedResult = new RateLimitingService.RateLimitResult(
+            false, 1, 1, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(blockedResult);
         
         Chatbot differentChatbot = TestDataBuilder.createTestChatbot(previewUser);
         differentChatbot.setId(999L);
@@ -248,8 +269,8 @@ class DeleteRecreateAttackPreventionTest {
         // Act
         ResponseEntity<?> response = chatbotController.analyzeWebsite(999L, customOAuth2User);
 
-        // Assert - should be blocked
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        // Assert - should be blocked (402 Payment Required)
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED);
         
         // Verify scan was NOT started
         verify(websiteAnalysisService, never()).analyzeWebsite(any(Chatbot.class));
@@ -264,10 +285,13 @@ class DeleteRecreateAttackPreventionTest {
         // Arrange - scan from yesterday (should be allowed)
         setupPreviewModeMocks();
         
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
-            eq(previewUser.getId()), any(LocalDateTime.class))).thenReturn(0L); // No scans in last 24 hours
-        
+        RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
+            true, 1, 0, true, "scan"
+        );
+        when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        lenient().when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class)))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act
         ResponseEntity<?> response = chatbotController.analyzeWebsite(1L, customOAuth2User);
