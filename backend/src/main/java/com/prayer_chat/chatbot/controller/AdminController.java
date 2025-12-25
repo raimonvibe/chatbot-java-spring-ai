@@ -1,9 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
-import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.BibleVerseRepository;
-import com.prayer_chat.chatbot.repository.UserRepository;
-import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.BibleDataLoaderService;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.EmbeddingImporterService;
@@ -12,8 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -41,19 +36,16 @@ public class AdminController {
     private final BibleVerseRepository bibleVerseRepository;
     private final ChristianContentAnalysisService christianContentAnalysisService;
     private final EmbeddingImporterService embeddingImporterService;
-    private final UserRepository userRepository;
 
     public AdminController(
             BibleDataLoaderService bibleDataLoaderService,
             BibleVerseRepository bibleVerseRepository,
             ChristianContentAnalysisService christianContentAnalysisService,
-            EmbeddingImporterService embeddingImporterService,
-            UserRepository userRepository) {
+            EmbeddingImporterService embeddingImporterService) {
         this.bibleDataLoaderService = bibleDataLoaderService;
         this.bibleVerseRepository = bibleVerseRepository;
         this.christianContentAnalysisService = christianContentAnalysisService;
         this.embeddingImporterService = embeddingImporterService;
-        this.userRepository = userRepository;
     }
 
     /**
@@ -218,69 +210,15 @@ public class AdminController {
         } catch (Exception e) {
             logger.error("Error importing embeddings", e);
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Failed to import embeddings: " + e.getMessage());
+            String errorMessage = e.getMessage();
+            if (e.getCause() != null) {
+                errorMessage += " (Cause: " + e.getCause().getMessage() + ")";
+            }
+            error.put("error", "Failed to import embeddings: " + errorMessage);
+            error.put("exception", e.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
-    /**
-     * TEMPORARY: Add ADMIN role to current user
-     * SECURITY: Only available in "local" profile, only adds role to current authenticated user
-     * 
-     * ADDITIONAL SECURITY: Requires ADMIN_GRANT_SECRET environment variable to match
-     * This prevents unauthorized users from granting themselves ADMIN even if profile is active.
-     * 
-     * Remove this endpoint after adding ADMIN role!
-     */
-    @PostMapping("/add-admin-role")
-    @Transactional
-    public ResponseEntity<Map<String, Object>> addAdminRoleToCurrentUser(
-            @AuthenticationPrincipal CustomOAuth2User oAuth2User,
-            @RequestParam(required = false) String secret) {
-        try {
-            if (oAuth2User == null) {
-                Map<String, Object> error = new HashMap<>();
-                error.put("error", "Not authenticated");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-            }
-
-            // Additional security: Require secret token if configured
-            String requiredSecret = System.getenv("ADMIN_GRANT_SECRET");
-            if (requiredSecret != null && !requiredSecret.trim().isEmpty()) {
-                if (secret == null || !secret.equals(requiredSecret)) {
-                    logger.warn("Unauthorized attempt to grant ADMIN role to: {}", oAuth2User.getUser().getEmail());
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("error", "Invalid secret");
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
-                }
-            }
-
-            User user = oAuth2User.getUser();
-            if (user.getRoles().contains("ADMIN")) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "User already has ADMIN role");
-                response.put("email", user.getEmail());
-                response.put("roles", user.getRoles());
-                return ResponseEntity.ok(response);
-            }
-
-            // Add ADMIN role
-            user.getRoles().add("ADMIN");
-            userRepository.save(user);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "ADMIN role added successfully");
-            response.put("email", user.getEmail());
-            response.put("roles", user.getRoles());
-            
-            logger.warn("⚠️ SECURITY: Added ADMIN role to user: {} (temporary endpoint used)", user.getEmail());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error adding ADMIN role", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "Failed to add ADMIN role: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
-    }
 }
 
