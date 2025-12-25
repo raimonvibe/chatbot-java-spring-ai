@@ -21,7 +21,9 @@ import java.util.Map;
  * SECURITY: Only available in "local" or "test" profiles.
  * - "local": For local development
  * - "test": For testing (allows @WithMockUser to work properly)
- * In production (default profile), these endpoints are completely disabled.
+ * 
+ * For production imports: Temporarily set SPRING_PROFILES_ACTIVE=local in Render,
+ * perform the import, then remove the profile setting for security.
  */
 @RestController
 @RequestMapping("/api/admin/bible")

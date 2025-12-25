@@ -151,14 +151,31 @@ Response:
 }
 ```
 
+## Importing Pre-Generated Embeddings (Recommended)
+
+If you have a pre-generated `bible_embeddings.json` file (e.g., from Google Colab), you can import it instead of generating embeddings via API. This is **much faster and cheaper**!
+
+See **[EMBEDDINGS_IMPORT_RENDER.md](./EMBEDDINGS_IMPORT_RENDER.md)** for detailed instructions on uploading and importing the 662MB embeddings file on Render.
+
+**Quick Summary:**
+1. Upload `bible_embeddings.json` to Render (via cloud storage or Render Shell)
+2. Temporarily enable import: Set `APP_BIBLE_ALLOW_IMPORT=true` in Render environment variables
+3. Call import endpoint: `POST /api/admin/bible/import-embeddings?filePath=data/bible_embeddings.json`
+4. Verify import: `GET /api/admin/bible/status`
+5. **Important:** Disable `APP_BIBLE_ALLOW_IMPORT` after import for security!
+
 ## Admin Endpoints
 
-All admin endpoints require ADMIN role:
+All admin endpoints require ADMIN role and are available when:
+- Running with `local` or `test` profile, OR
+- `APP_BIBLE_ALLOW_IMPORT=true` is set (for production imports)
 
+Endpoints:
 - `GET /api/admin/bible/status` - Check Bible data and embedding status
 - `POST /api/admin/bible/load-data` - Manually load Bible data
-- `POST /api/admin/bible/generate-embeddings` - Generate embeddings for all verses
+- `POST /api/admin/bible/generate-embeddings` - Generate embeddings for all verses (expensive!)
 - `GET /api/admin/bible/embedding-progress` - Check embedding generation progress
+- `POST /api/admin/bible/import-embeddings?filePath=...` - Import embeddings from JSON file
 
 ## Troubleshooting
 
