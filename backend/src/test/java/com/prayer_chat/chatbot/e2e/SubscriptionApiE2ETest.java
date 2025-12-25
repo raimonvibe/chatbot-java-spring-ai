@@ -314,12 +314,13 @@ class SubscriptionApiE2ETest extends E2ETestBase {
             String email = "concurrent" + i + "@example.com";
             String token = createOAuth2User(email);
 
-            AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
+            // Use expectStatus() to ensure the request completes and wait for response
             webApiClient.withAuth(token).createCheckoutSession("price_basic_monthly")
+                .expectStatus()
+                .isOk()
                 .expectBody()
                 .consumeWith(result -> {
                     int status = result.getStatus().value();
-                    statusCodeRef.set(status);
                     assertTrue(status == 200 || status == 201 || status == 500,
                         "Should accept 200/201 (success) or 500 (Stripe mock issues). Got: " + status);
                 });
