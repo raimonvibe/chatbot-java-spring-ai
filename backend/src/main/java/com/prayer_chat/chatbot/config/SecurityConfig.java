@@ -77,6 +77,10 @@ public class SecurityConfig {
                 // Protect write operations (POST, PUT, DELETE)
                 .requestMatchers("/api/chatbots/**").authenticated()
                 .requestMatchers("/api/subscription/**").authenticated()
+                // TEMPORARY: Allow /add-admin-role for authenticated users (not just admins)
+                // This endpoint allows users to grant themselves ADMIN role
+                // Remove this exception after adding ADMIN role!
+                .requestMatchers("/api/admin/bible/add-admin-role").authenticated()
                 // Admin endpoints: Only available in "local" profile
                 // AdminController is disabled in production via @Profile("local")
                 // In production, these endpoints don't exist at all
