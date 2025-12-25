@@ -226,17 +226,33 @@ public class AdminController {
     /**
      * TEMPORARY: Add ADMIN role to current user
      * SECURITY: Only available in "local" profile, only adds role to current authenticated user
+     * 
+     * ADDITIONAL SECURITY: Requires ADMIN_GRANT_SECRET environment variable to match
+     * This prevents unauthorized users from granting themselves ADMIN even if profile is active.
+     * 
      * Remove this endpoint after adding ADMIN role!
      */
     @PostMapping("/add-admin-role")
     @Transactional
     public ResponseEntity<Map<String, Object>> addAdminRoleToCurrentUser(
-            @AuthenticationPrincipal CustomOAuth2User oAuth2User) {
+            @AuthenticationPrincipal CustomOAuth2User oAuth2User,
+            @RequestParam(required = false) String secret) {
         try {
             if (oAuth2User == null) {
                 Map<String, Object> error = new HashMap<>();
                 error.put("error", "Not authenticated");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+
+            // Additional security: Require secret token if configured
+            String requiredSecret = System.getenv("ADMIN_GRANT_SECRET");
+            if (requiredSecret != null && !requiredSecret.trim().isEmpty()) {
+                if (secret == null || !secret.equals(requiredSecret)) {
+                    logger.warn("Unauthorized attempt to grant ADMIN role to: {}", oAuth2User.getUser().getEmail());
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("error", "Invalid secret");
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                }
             }
 
             User user = oAuth2User.getUser();
@@ -257,7 +273,7 @@ public class AdminController {
             response.put("email", user.getEmail());
             response.put("roles", user.getRoles());
             
-            logger.info("Admin: Added ADMIN role to user: {}", user.getEmail());
+            logger.warn("⚠️ SECURITY: Added ADMIN role to user: {} (temporary endpoint used)", user.getEmail());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error adding ADMIN role", e);
