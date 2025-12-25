@@ -2,7 +2,6 @@
 
 ## Latest Commit Details
 - **Commit:** (check git log)
-- **Author:** Stefan <robertjanstefan@gmail.com> ✅
 - **Message:** Test: Trigger workflow with small change
 - **Branch:** main
 - **Push:** Successfully pushed to origin/main
