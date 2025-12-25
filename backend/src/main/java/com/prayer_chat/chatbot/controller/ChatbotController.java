@@ -14,6 +14,7 @@ import com.prayer_chat.chatbot.dto.ChristianContentAnalysis;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.AccessControlService;
+import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.WebsiteScanAudit;
@@ -54,6 +55,7 @@ public class ChatbotController {
     private final WebsiteSizeEstimator websiteSizeEstimator;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
+    private final RateLimitingService rateLimitingService;
 
     @Value("${app.base-url:https://chatbot-backend-4mp4.onrender.com}")
     private String baseUrl;
@@ -69,7 +71,8 @@ public class ChatbotController {
                            CostTrackingService costTrackingService,
                            WebsiteSizeEstimator websiteSizeEstimator,
                            WebsiteScanAuditRepository websiteScanAuditRepository,
-                           AccessControlService accessControlService) {
+                           AccessControlService accessControlService,
+                           RateLimitingService rateLimitingService) {
         this.chatbotRepository = chatbotRepository;
         this.chatbotService = chatbotService;
         this.aiChatbotService = aiChatbotService;
@@ -81,6 +84,7 @@ public class ChatbotController {
         this.websiteSizeEstimator = websiteSizeEstimator;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
+        this.rateLimitingService = rateLimitingService;
     }
 
     // ============================================================================
@@ -285,6 +289,25 @@ public class ChatbotController {
                 ));
             }
 
+            // Check website size limit BEFORE creating chatbot (prevents costs for large sites)
+            boolean isPreviewMode = accessControlService.isPreviewMode(user);
+            if (isPreviewMode) {
+                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
+                int maxPagesForPreview = 50;
+                
+                if (estimatedPages > maxPagesForPreview) {
+                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {} for preview mode)", 
+                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForPreview);
+                    return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+                        "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Upgrade to scan larger websites.",
+                        "estimatedPages", estimatedPages,
+                        "maxPages", maxPagesForPreview,
+                        "upgradeRequired", true,
+                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more than 50 pages."
+                    ));
+                }
+            }
+
             // Auto-generate name from URL
             String generatedName = generateNameFromUrl(websiteUrl);
             
@@ -379,6 +402,31 @@ public class ChatbotController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "error", "Active subscription or preview mode required to create chatbots."
                 ));
+            }
+
+            // Check website size limit BEFORE creating chatbot (prevents costs for large sites)
+            boolean isPreviewMode = accessControlService.isPreviewMode(user);
+            if (isPreviewMode && request.getWebsiteUrl() != null && !request.getWebsiteUrl().trim().isEmpty()) {
+                String websiteUrl = request.getWebsiteUrl();
+                // Validate URL - add https:// if missing
+                if (!websiteUrl.startsWith("http://") && !websiteUrl.startsWith("https://")) {
+                    websiteUrl = "https://" + websiteUrl;
+                }
+                
+                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
+                int maxPagesForPreview = 50;
+                
+                if (estimatedPages > maxPagesForPreview) {
+                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {} for preview mode)", 
+                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForPreview);
+                    return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+                        "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Upgrade to scan larger websites.",
+                        "estimatedPages", estimatedPages,
+                        "maxPages", maxPagesForPreview,
+                        "upgradeRequired", true,
+                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more than 50 pages."
+                    ));
+                }
             }
 
             // Enforce chatbot limit for preview mode (3 chatbots max - temporary for testing)
@@ -623,24 +671,22 @@ public class ChatbotController {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
             }
             
-            // Check if user is in preview mode
-            boolean isPreviewMode = costTrackingService.isPreviewMode(user);
-            
-            // 1. Check scan frequency limit (1 scan/day for preview mode)
+            // 1. Check scan frequency limit
             // SECURITY: Use WebsiteScanAudit instead of WebsiteContent to prevent abuse via chatbot deletion
-            if (isPreviewMode) {
-                java.time.LocalDateTime oneDayAgo = java.time.LocalDateTime.now().minusDays(1);
-                Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
-                if (scansInLastDay != null && scansInLastDay >= 1) {
-                    logger.warn("User {} attempted to scan website but daily limit reached (preview mode: 1 scan/day)", 
-                        LogSanitizer.sanitize(user.getEmail()));
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                        "error", "Daily scan limit reached. Preview mode allows 1 scan per day. Upgrade to continue.",
-                        "limit", "1 scan per day",
-                        "upgradeRequired", true
-                    ));
-                }
+            RateLimitingService.RateLimitResult scanLimitResult = rateLimitingService.checkScanLimit(user);
+            if (!scanLimitResult.isAllowed()) {
+                logger.warn("User {} attempted to scan website but daily limit reached (current: {}, limit: {}, preview: {})", 
+                    LogSanitizer.sanitize(user.getEmail()), scanLimitResult.getCurrent(), scanLimitResult.getLimit(), scanLimitResult.isPreviewMode());
+                return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+                    "error", scanLimitResult.getErrorMessage(),
+                    "current", scanLimitResult.getCurrent(),
+                    "limit", scanLimitResult.getLimit(),
+                    "upgradeRequired", scanLimitResult.isPreviewMode()
+                ));
             }
+            
+            // Check if user is in preview mode (for other checks)
+            boolean isPreviewMode = costTrackingService.isPreviewMode(user);
             
             // 2. Estimate website size BEFORE scanning (prevents costs for large sites)
             int estimatedPages = websiteSizeEstimator.estimateSize(chatbot.getWebsiteUrl());

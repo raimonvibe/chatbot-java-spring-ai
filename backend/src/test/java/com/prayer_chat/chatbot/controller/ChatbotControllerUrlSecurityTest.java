@@ -14,6 +14,7 @@ import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.service.RateLimitingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,6 +78,9 @@ class ChatbotControllerUrlSecurityTest {
     private AccessControlService accessControlService;
 
     @Mock
+    private RateLimitingService rateLimitingService;
+
+    @Mock
     private CustomOAuth2User customOAuth2User;
 
     private ChatbotController chatbotController;
@@ -108,7 +112,8 @@ class ChatbotControllerUrlSecurityTest {
             costTrackingService,
             websiteSizeEstimator,
             websiteScanAuditRepository,
-            accessControlService
+            accessControlService,
+            rateLimitingService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);

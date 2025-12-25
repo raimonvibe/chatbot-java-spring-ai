@@ -152,6 +152,14 @@ export default function Dashboard() {
       console.error('Error creating chatbot:', error);
       setCreating(false); // Hide loader on error
       
+      // Check if it's a payment required error (402) - website size limit
+      if (error.status === 402 || error.upgradeRequired) {
+        setUpgradeMessage(error.message || 'Website too large for preview mode. Upgrade to continue.');
+        setPaywallFeature('general');
+        setShowUpgradeModal(true);
+        return;
+      }
+      
       // Check if it's a limit reached error
       if (error.message && (error.message.includes('limit') || error.message.includes('Upgrade'))) {
         setUpgradeMessage(error.message || 'One chatbot per account limit reached. Upgrade to create more.');

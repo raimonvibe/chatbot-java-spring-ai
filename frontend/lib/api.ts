@@ -199,8 +199,20 @@ export async function createChatbotFromUrl(websiteUrl: string): Promise<Chatbot>
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Failed to create chatbot' }));
-    throw new Error(error.error || 'Failed to create chatbot');
+    // Handle 402 Payment Required (website size limit)
+    if (response.status === 402) {
+      const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
+      const error = new Error(errorData.error || 'Website too large for preview mode. Upgrade to continue.');
+      (error as any).status = 402;
+      (error as any).upgradeRequired = true;
+      (error as any).estimatedPages = errorData.estimatedPages;
+      (error as any).maxPages = errorData.maxPages;
+      throw error;
+    }
+    
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -222,7 +234,20 @@ export async function createChatbot(data: {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create chatbot');
+    // Handle 402 Payment Required (website size limit)
+    if (response.status === 402) {
+      const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
+      const error = new Error(errorData.error || 'Website too large for preview mode. Upgrade to continue.');
+      (error as any).status = 402;
+      (error as any).upgradeRequired = true;
+      (error as any).estimatedPages = errorData.estimatedPages;
+      (error as any).maxPages = errorData.maxPages;
+      throw error;
+    }
+    
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
