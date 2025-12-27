@@ -3,21 +3,24 @@ package com.prayer_chat.chatbot.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.UserRepository;
-import com.prayer_chat.chatbot.security.CustomOAuth2UserService;
 import com.prayer_chat.chatbot.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
+import com.prayer_chat.chatbot.config.MockAiConfiguration;
+import com.prayer_chat.chatbot.config.TestSecurityConfig;
+import com.prayer_chat.chatbot.config.TestJacksonConfiguration;
+import com.prayer_chat.chatbot.controller.AuthController;
 
 import java.util.*;
 
@@ -33,12 +36,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import({MockAiConfiguration.class, TestSecurityConfig.class, TestJacksonConfiguration.class})
 @TestPropertySource(properties = {
         "GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com",
         "GOOGLE_CLIENT_SECRET=test-client-secret",
         "JWT_SECRET=test-jwt-secret-key-minimum-32-characters-long-for-security",
         "cors.allowed-origins=http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com"
 })
+@DisplayName("AuthController OAuth2 Integration Tests")
 class AuthControllerOAuth2IntegrationTest {
 
     @Autowired
@@ -47,17 +52,16 @@ class AuthControllerOAuth2IntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
-    private RestTemplate restTemplate;
-
     @Autowired
-    private CustomOAuth2UserService customOAuth2UserService;
+    private AuthController authController;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
     private UserRepository userRepository;
+
+    private RestTemplate mockRestTemplate;
 
     private String validCode;
     private String validRedirectUri;
@@ -68,6 +72,10 @@ class AuthControllerOAuth2IntegrationTest {
     void setUp() {
         // Clean up test data
         userRepository.deleteAll();
+
+        // Mock RestTemplate and inject it into AuthController using reflection
+        mockRestTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(authController, "restTemplate", mockRestTemplate);
 
         // Valid test data
         validCode = "4/0AeanS1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -93,10 +101,10 @@ class AuthControllerOAuth2IntegrationTest {
     @DisplayName("Should create new user on first OAuth login")
     void shouldCreateNewUserOnFirstLogin() throws Exception {
         // Arrange
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
@@ -132,10 +140,10 @@ class AuthControllerOAuth2IntegrationTest {
         existingUser.getRoles().add("USER");
         userRepository.save(existingUser);
 
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
@@ -168,10 +176,10 @@ class AuthControllerOAuth2IntegrationTest {
         existingUser.getRoles().add("USER");
         userRepository.save(existingUser);
 
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
@@ -195,10 +203,10 @@ class AuthControllerOAuth2IntegrationTest {
     @DisplayName("Should generate valid JWT token")
     void shouldGenerateValidJwtToken() throws Exception {
         // Arrange
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
@@ -229,10 +237,10 @@ class AuthControllerOAuth2IntegrationTest {
     @DisplayName("Should handle production redirect URI with HTTPS")
     void shouldHandleProductionRedirectUri() throws Exception {
         // Arrange
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
@@ -252,10 +260,10 @@ class AuthControllerOAuth2IntegrationTest {
     @DisplayName("Should handle www subdomain redirect URI")
     void shouldHandleWwwSubdomainRedirectUri() throws Exception {
         // Arrange
-        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+        when(mockRestTemplate.postForEntity(anyString(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockTokenResponse));
 
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+        when(mockRestTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok(mockUserInfo));
 
         Map<String, String> request = Map.of(
