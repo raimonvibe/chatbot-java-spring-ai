@@ -69,20 +69,36 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Helper function to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Get JWT token from localStorage if available
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  
+  return headers;
+}
+
 // Analyze Christian content for a chatbot
 export async function analyzeChristianContent(
   chatbotId: number,
   maxVerses: number = 20,
   similarityThreshold: number = 0.5
 ): Promise<ChristianContentAnalysis> {
+  const headers = getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/chatbots/${chatbotId}/analyze-christian-content?maxVerses=${maxVerses}&similarityThreshold=${similarityThreshold}`,
     {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     }
   );
 
@@ -97,9 +113,11 @@ export async function analyzeChristianContent(
 // Check if user is authenticated
 export async function checkAuth(): Promise<{ authenticated: boolean; user?: any }> {
   try {
+    const headers = getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       method: 'GET',
       credentials: 'include',
+      headers,
     });
 
     if (response.ok) {
@@ -118,12 +136,11 @@ export async function sendMessage(
   sessionId?: string,
   language: string = 'en'
 ): Promise<ChatResponse> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chat/${chatbotId}`, {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       message,
       sessionId,
@@ -141,8 +158,10 @@ export async function sendMessage(
 }
 
 export async function getChatbot(chatbotId: number): Promise<Chatbot> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -154,8 +173,10 @@ export async function getChatbot(chatbotId: number): Promise<Chatbot> {
 
 export async function getQuickReplies(chatbotId: number): Promise<string[]> {
   try {
+    const headers = getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/quick-replies`, {
       credentials: 'include',
+      headers,
     });
 
     if (!response.ok) {
@@ -171,8 +192,10 @@ export async function getQuickReplies(chatbotId: number): Promise<string[]> {
 }
 
 export async function getAllChatbots(): Promise<Chatbot[]> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -189,12 +212,11 @@ export async function getAllChatbots(): Promise<Chatbot[]> {
  * Auto-generates name and pre-configures Christian values
  */
 export async function createChatbotFromUrl(websiteUrl: string): Promise<Chatbot> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/onboarding`, {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ websiteUrl }),
   });
 
@@ -224,12 +246,11 @@ export async function createChatbot(data: {
   websiteUrl: string;
   primaryLanguage?: string;
 }): Promise<Chatbot> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(data),
   });
 
@@ -254,12 +275,11 @@ export async function createChatbot(data: {
 }
 
 export async function analyzeWebsite(chatbotId: number, websiteUrl: string): Promise<any> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analyze`, {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ websiteUrl }),
   });
 
@@ -311,8 +331,10 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
 }
 
 export async function getEmbedCode(chatbotId: number): Promise<string> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/embed`, {
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -352,9 +374,11 @@ export async function getEmbedCode(chatbotId: number): Promise<string> {
 }
 
 export async function deleteChatbot(chatbotId: number): Promise<void> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
     method: 'DELETE',
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -369,9 +393,11 @@ export async function deleteChatbot(chatbotId: number): Promise<void> {
 }
 
 export async function deleteAllChatbots(): Promise<{ message: string; deletedCount: number }> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
     method: 'DELETE',
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -382,9 +408,11 @@ export async function deleteAllChatbots(): Promise<{ message: string; deletedCou
 }
 
 export async function logout(): Promise<{ message: string; googleLogoutUrl?: string }> {
+  const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
     method: 'POST',
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
