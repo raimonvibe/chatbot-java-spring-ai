@@ -121,9 +121,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user = new User();
                 user.setUsername(email);
                 user.setEmail(email);
-                if (name != null && !name.isEmpty()) {
-                    user.setName(name);
-                }
+                // Note: User model doesn't have a name field, only username and email
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setEnabled(true);
