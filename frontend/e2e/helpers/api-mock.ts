@@ -26,14 +26,62 @@ export class ApiMock {
       },
     } = options;
 
-    // Mock login endpoint
-    await this.page.route('**/api/auth/login', async (route) => {
+    // Mock /api/auth/me endpoint (used by checkAuth)
+    await this.page.route('**/api/auth/me', async (route) => {
+      const authHeader = route.request().headers()['authorization'];
+      // Login page calls /api/auth/me without Authorization header to check if already authenticated
+      // If no header, return 401 (not authenticated) to stay on login page
+      // If header present with token, return user (authenticated)
+      // Check for valid JWT format (3 parts) or mock signature
+      if (authHeader && (authHeader.includes('mock_signature') || authHeader.includes('eyJ'))) {
+        // Return user data directly (checkAuth wraps this)
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(user),
+        });
+      } else {
+        // No auth header or invalid token - not authenticated
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Unauthorized' }),
+        });
+      }
+    });
+
+    // Mock hybrid OAuth callback endpoint
+    await this.page.route('**/api/auth/oauth2/callback', async (route) => {
       if (loginSuccess) {
+        // Use valid JWT format for token
+        const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            token: 'mock_jwt_token',
+            token: mockToken,
+            user,
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'OAuth authentication failed' }),
+        });
+      }
+    });
+
+    // Mock login endpoint
+    await this.page.route('**/api/auth/login', async (route) => {
+      if (loginSuccess) {
+        // Use valid JWT format for token
+        const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            token: mockToken,
             user,
           }),
         });
@@ -49,11 +97,13 @@ export class ApiMock {
     // Mock register endpoint
     await this.page.route('**/api/auth/register', async (route) => {
       if (registerSuccess) {
+        // Use valid JWT format for token
+        const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            token: 'mock_jwt_token',
+            token: mockToken,
             user,
           }),
         });
@@ -73,6 +123,18 @@ export class ApiMock {
   async mockChatbotEndpoints(chatbots: any[] = []) {
     // Mock get all chatbots
     await this.page.route('**/api/chatbots', async (route) => {
+      const authHeader = route.request().headers()['authorization'];
+      // Check if request has valid auth token (format: "Bearer <jwt_token>")
+      // Accept tokens with mock_signature or valid JWT format (eyJ...)
+      if (!authHeader || (!authHeader.includes('mock_signature') && !authHeader.includes('eyJ'))) {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Unauthorized' }),
+        });
+        return;
+      }
+
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,

@@ -33,46 +33,36 @@ test.describe('Login Page', () => {
   test('should complete Google OAuth login flow', async ({ page }) => {
     const apiMock = new ApiMock(page);
 
-    // Mock auth endpoints
+    // Mock auth endpoints including /api/auth/me and /api/auth/oauth2/callback
     await apiMock.mockAuthEndpoints({
       loginSuccess: true,
       user: testUsers.google,
     });
 
+    // Mock chatbot endpoints (empty array for onboarding redirect)
+    await apiMock.mockChatbotEndpoints([]);
+
     // Go to login page
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    // Set up auth state to simulate successful OAuth
-    await page.evaluate((userData) => {
-      localStorage.setItem('authToken', 'mock_jwt_token');
-      localStorage.setItem('user', JSON.stringify(userData));
-    }, testUsers.google);
-
-    // Mock the OAuth endpoint to prevent actual navigation
-    await page.route('**/oauth2/authorization/google', async (route) => {
-      // Just fulfill without redirecting - we'll navigate manually
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/html',
-        body: '<html><body>OAuth redirect intercepted</body></html>',
-      });
-    });
-
-    // Click the Google login button
+    // Verify Google login button exists and is clickable
     const googleButton = page.getByRole('button', { name: /continue with google|google/i });
     await expect(googleButton).toBeVisible({ timeout: 10000 });
     
-    // Click button - in real flow this would redirect to OAuth, but we've mocked it
-    // Instead, manually navigate to dashboard to simulate successful OAuth
-    await Promise.all([
-      page.goto('/dashboard'),
-      googleButton.click().catch(() => {}), // Ignore navigation error from mocked OAuth
-    ]);
-
-    // Should be on dashboard or onboarding
-    await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 10000 });
+    // Since window.location.href navigation can't be easily intercepted in Playwright,
+    // we'll directly test the OAuth callback flow by navigating to the callback page
+    // This simulates what happens after Google redirects back to our app with the code
+    await page.goto('/auth/callback?code=mock_oauth_code');
+    
+    // Wait for callback to process (calls /api/auth/oauth2/callback) and redirect to dashboard/onboarding
+    await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 15000 });
     await expect(page.locator('body')).toBeVisible();
+    
+    // Verify we're authenticated by checking localStorage
+    const token = await page.evaluate(() => localStorage.getItem('authToken'));
+    expect(token).toBeTruthy();
+    expect(token).toContain('mock_signature'); // Valid JWT format
   });
 
   test('should handle OAuth authentication success', async ({ page }) => {
@@ -84,7 +74,7 @@ test.describe('Login Page', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          token: 'mock_jwt_token',
+          token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature',
           user: testUsers.google,
         }),
       });

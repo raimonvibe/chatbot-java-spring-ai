@@ -32,10 +32,12 @@ export class AuthHelper {
     });
 
     // Set auth state BEFORE setting up route (avoids race condition)
-    await this.page.evaluate((userData) => {
-      localStorage.setItem('authToken', 'mock_jwt_token');
+    // Use valid JWT format (3 parts) to pass validation
+    const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
+    await this.page.evaluate((userData, token) => {
+      localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(userData));
-    }, { id: 1, email, name, authProvider: 'GOOGLE' });
+    }, { id: 1, email, name, authProvider: 'GOOGLE' }, mockToken);
 
     // Intercept navigation to OAuth endpoint
     // Use a promise to handle navigation properly
@@ -114,8 +116,9 @@ export class AuthHelper {
   /**
    * Set authentication token in local storage
    * Useful for bypassing the login flow in tests
+   * Uses a valid JWT format (3 parts separated by dots) to pass validation
    */
-  async setAuthToken(token: string = 'mock_jwt_token') {
+  async setAuthToken(token: string = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature') {
     await this.page.goto('/');
     await this.page.evaluate((authToken) => {
       localStorage.setItem('authToken', authToken);
@@ -174,8 +177,9 @@ export class AuthHelper {
   }) {
     await this.page.goto('/');
 
-    // Set auth token
-    await this.setAuthToken('mock_jwt_token');
+    // Set auth token (use valid JWT format to pass validation)
+    // Format: header.payload.signature
+    await this.setAuthToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature');
 
     // Set user data
     await this.page.evaluate((userData) => {

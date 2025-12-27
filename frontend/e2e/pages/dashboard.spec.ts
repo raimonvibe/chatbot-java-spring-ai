@@ -77,6 +77,7 @@ test.describe('Dashboard Page', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
+    // Mock all endpoints with empty chatbots array
     await apiMock.mockAllEndpoints({
       user: testUsers.local,
       subscriptionPlan: 'FREE',
@@ -84,22 +85,47 @@ test.describe('Dashboard Page', () => {
       chatbots: [],
     });
 
+    // Set up authenticated state (sets token in localStorage)
     await authHelper.setupAuthenticatedState(testUsers.local);
 
+    // Verify token is set before navigating
+    const token = await page.evaluate(() => localStorage.getItem('authToken'));
+    console.log('[TEST] Token in localStorage before navigation:', token ? 'present' : 'missing');
+    
+    // Verify user data is set
+    const userData = await page.evaluate(() => localStorage.getItem('user'));
+    console.log('[TEST] User data in localStorage:', userData ? 'present' : 'missing');
+
     // Navigate to dashboard - it should redirect to onboarding when no chatbots
+    console.log('[TEST] Navigating to dashboard...');
+    
+    // Set up console logging to see what getAuthHeaders is doing
+    await page.addInitScript(() => {
+      // Override console.log to see what's happening
+      const originalLog = console.log;
+      console.log = (...args) => {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('authToken')) {
+          originalLog('[BROWSER]', ...args);
+        }
+        originalLog(...args);
+      };
+    });
+    
     await page.goto('/dashboard');
     
+    // Check token again after navigation
+    const tokenAfterNav = await page.evaluate(() => localStorage.getItem('authToken'));
+    console.log('[TEST] Token in localStorage after navigation:', tokenAfterNav ? 'present' : 'missing');
+    
     // Wait for redirect to onboarding (happens after chatbots are loaded)
+    // The dashboard checks getAllChatbots() which returns empty array, then redirects
     await page.waitForURL(/\/onboarding/, { timeout: 15000 });
     await expect(page).toHaveURL(/\/onboarding/);
     
     // Wait for onboarding page to fully load
     await page.waitForLoadState('networkidle');
     
-    // Check for key onboarding elements - wait for them to be visible
-    // The page should have either the heading or the form input
-    // Use a more flexible approach - just verify we're on the onboarding URL
-    // and that the page has loaded (body is visible)
+    // Verify we're on onboarding page
     await expect(page.locator('body')).toBeVisible();
     
     // Try to find onboarding-specific elements with a reasonable timeout
