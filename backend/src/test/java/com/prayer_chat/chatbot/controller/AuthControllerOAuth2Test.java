@@ -11,6 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -33,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Security and functionality tests for hybrid OAuth2 callback endpoint
  */
 @ExtendWith(MockitoExtension.class)
-@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.junit.jupiter.MockitoSettings.Strictness.LENIENT)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("AuthController OAuth2 Security Tests")
 class AuthControllerOAuth2Test {
 
@@ -297,13 +299,15 @@ class AuthControllerOAuth2Test {
         errorResponse.put("error", "invalid_grant");
         errorResponse.put("error_description", "Bad Request");
         
-        org.springframework.http.ResponseEntity<Map<String, Object>> errorEntity = 
-                org.springframework.http.ResponseEntity
-                .status(org.springframework.http.HttpStatus.BAD_REQUEST)
+        ResponseEntity<Map<String, Object>> errorEntity = 
+                ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(errorResponse);
         
+        @SuppressWarnings("unchecked")
+        ResponseEntity<Map> rawResponse = (ResponseEntity<Map>) (ResponseEntity<?>) errorEntity;
         when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
-                .thenReturn(errorEntity);
+                .thenReturn(rawResponse);
 
         Map<String, String> request = Map.of(
                 "code", validCode,
@@ -350,13 +354,15 @@ class AuthControllerOAuth2Test {
         errorResponse.put("error", "invalid_client");
         errorResponse.put("error_description", "Bad Request");
         
-        org.springframework.http.ResponseEntity<Map<String, Object>> errorEntity = 
-                org.springframework.http.ResponseEntity
-                .status(org.springframework.http.HttpStatus.BAD_REQUEST)
+        ResponseEntity<Map<String, Object>> errorEntity = 
+                ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(errorResponse);
         
+        @SuppressWarnings("unchecked")
+        ResponseEntity<Map> rawResponse = (ResponseEntity<Map>) (ResponseEntity<?>) errorEntity;
         when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
-                .thenReturn(errorEntity);
+                .thenReturn(rawResponse);
 
         Map<String, String> request = Map.of(
                 "code", validCode,
