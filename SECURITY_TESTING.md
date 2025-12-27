@@ -12,13 +12,38 @@ The JWT tokens, bearer tokens, and passwords detected by GitGuardian are **inten
 
 #### 1. JWT Tokens in Tests
 
-**Location:** `backend/src/test/java/com/tjanabot/chatbot/util/LogSanitizerTest.java`
+**Location:** 
+- `backend/src/test/java/com/tjanabot/chatbot/util/LogSanitizerTest.java`
+- `frontend/e2e/helpers/auth.ts`
+- `frontend/e2e/helpers/api-mock.ts`
 
-```java
-String input = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0...";
+**Test Token:**
+```typescript
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature'
 ```
 
-**Purpose:** This is a publicly known example JWT from [jwt.io](https://jwt.io) used to test that our LogSanitizer correctly redacts JWT tokens from logs.
+**Purpose:** 
+- This is a **test JWT token** used in E2E tests to simulate authentication
+- The signature part contains `mock_signature` which clearly indicates it's a test token
+- Used to verify that JWT validation works correctly in the frontend
+- Used to test that our LogSanitizer correctly redacts JWT tokens from logs
+
+**Decoded content:**
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+{
+  "sub": "test@example.com"
+}
+```
+
+**Why it's safe:** 
+- The token signature is `mock_signature` - clearly a test value
+- Only used in test files (`e2e/helpers/`)
+- Never used in production code
+- Cannot be used to authenticate with any real system
 
 **Decoded content:**
 ```json
