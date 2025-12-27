@@ -21,6 +21,7 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -271,8 +272,18 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
-            // Security: Don't leak sensitive error details
-            logger.error("OAuth2 callback failed: {}", e.getMessage());
+            // Check if it's an invalid_grant error (expired/used code)
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && errorMessage.contains("expired or already used")) {
+                logger.warn("OAuth2 callback: Authorization code expired or already used - user should retry login");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of(
+                            "error", "Authorization code expired",
+                            "message", "The authorization code has expired or was already used. Please try logging in again."
+                        ));
+            }
+            // Security: Don't leak sensitive error details for other errors
+            logger.error("OAuth2 callback failed: {}", errorMessage);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication failed"));
         } catch (Exception e) {
@@ -355,14 +366,54 @@ public class AuthController {
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
-        @SuppressWarnings("unchecked")
-        ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate.postForEntity(tokenUrl, request, Map.class);
+        try {
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> response = (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate.postForEntity(tokenUrl, request, Map.class);
 
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            throw new RuntimeException("Failed to exchange code for token: " + response.getStatusCode());
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                // Check for specific OAuth errors
+                Map<String, Object> errorBody = response.getBody();
+                if (errorBody != null && errorBody.containsKey("error")) {
+                    String error = (String) errorBody.get("error");
+                    String errorDescription = errorBody.containsKey("error_description") 
+                        ? (String) errorBody.get("error_description") 
+                        : "Unknown error";
+                    
+                    logger.error("OAuth2 token exchange failed: {} - {}", error, errorDescription);
+                    
+                    // Provide more specific error messages
+                    if ("invalid_grant".equals(error)) {
+                        throw new RuntimeException("Authorization code expired or already used. Please try logging in again.");
+                    } else if ("invalid_client".equals(error)) {
+                        throw new RuntimeException("OAuth client configuration error");
+                    } else if ("redirect_uri_mismatch".equals(error)) {
+                        throw new RuntimeException("Redirect URI mismatch. Please contact support.");
+                    } else {
+                        throw new RuntimeException("OAuth authentication failed: " + error);
+                    }
+                }
+                throw new RuntimeException("Failed to exchange code for token: " + response.getStatusCode());
+            }
+
+            if (response.getBody() == null) {
+                throw new RuntimeException("Empty response from OAuth token endpoint");
+            }
+
+            return response.getBody();
+        } catch (RestClientException e) {
+            // Check if the error response contains invalid_grant
+            // RestClientException might wrap an HTTP error response
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && errorMessage.contains("invalid_grant")) {
+                logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"", 
+                    e.getClass().getSimpleName(), tokenUrl, errorMessage);
+                throw new RuntimeException("Authorization code expired or already used. Please try logging in again.");
+            }
+            // Log the full error for debugging
+            logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"", 
+                e.getClass().getSimpleName(), tokenUrl, errorMessage);
+            throw new RuntimeException("Failed to exchange authorization code: " + errorMessage, e);
         }
-
-        return response.getBody();
     }
 
     /**

@@ -78,7 +78,11 @@ function AuthCallbackContent() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP ${response.status}`);
+          // Handle specific OAuth errors
+          if (errorData.error === 'Authorization code expired' || errorData.message?.includes('expired')) {
+            throw new Error('Your login session expired. Please try logging in again.');
+          }
+          throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
         }
 
         const data = await response.json();
