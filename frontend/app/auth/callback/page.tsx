@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
@@ -31,7 +31,7 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -173,6 +173,38 @@ export default function AuthCallback() {
         </motion.div>
       </div>
     </main>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <main className="relative min-h-screen overflow-hidden flex items-center justify-center">
+        <div className="relative z-10 w-full max-w-md p-8">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-brown-200"
+          >
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <Book className="w-12 h-12 text-brown-700" strokeWidth={1.5} />
+              <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
+                Prayer-Chat
+              </h1>
+            </div>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brown-700 mx-auto mb-4"></div>
+              <h2 className="text-2xl font-semibold text-brown-800 mb-2">
+                Loading...
+              </h2>
+            </div>
+          </motion.div>
+        </div>
+      </main>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
 
