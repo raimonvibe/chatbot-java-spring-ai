@@ -19,6 +19,7 @@ paths-ignore:
   - frontend/**/*.test.tsx
   - frontend/**/*.spec.ts
   - frontend/**/*.spec.tsx
+  - frontend/e2e/**
   - frontend/jest.setup.js
   - frontend/jest.config.js
 
@@ -34,8 +35,11 @@ paths-ignore:
 
 # Specific patterns to ignore (test tokens that are publicly known examples)
 matches-ignore:
-  - name: JWT test tokens
+  - name: JWT test tokens (backend)
     match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+
+  - name: JWT test tokens with mock_signature (frontend E2E tests)
+    match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0\.mock_signature
 
   - name: Example passwords in tests
     match: password.*test
