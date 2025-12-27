@@ -69,7 +69,13 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Helper function to get auth headers
+/**
+ * Helper function to get auth headers with JWT token
+ * Security measures:
+ * - Validates token format (JWT tokens have 3 parts separated by dots)
+ * - Sanitizes token to prevent header injection
+ * - Handles edge cases (null, empty, malformed tokens)
+ */
 function getAuthHeaders(): HeadersInit {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -77,9 +83,42 @@ function getAuthHeaders(): HeadersInit {
   
   // Get JWT token from localStorage if available
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // Security: Validate token exists and is not empty
+      if (token && token.trim().length > 0) {
+        // Security: Basic JWT format validation (3 parts separated by dots)
+        // JWT format: header.payload.signature
+        const tokenParts = token.trim().split('.');
+        
+        // Security: JWT must have exactly 3 parts
+        if (tokenParts.length === 3) {
+          // Security: Sanitize token - remove any newlines or control characters
+          // that could be used for header injection attacks
+          const sanitizedToken = token.trim().replace(/[\r\n\t]/g, '');
+          
+          // Security: Additional validation - ensure no suspicious characters
+          // JWT tokens are base64url encoded, so they should only contain
+          // alphanumeric, dots, hyphens, underscores, and equals signs (for padding)
+          if (/^[A-Za-z0-9._=-]+$/.test(sanitizedToken)) {
+            headers['Authorization'] = `Bearer ${sanitizedToken}`;
+          } else {
+            // Invalid token format - log error but don't expose token
+            console.warn('Invalid token format detected');
+            // Clear potentially malicious token
+            localStorage.removeItem('authToken');
+          }
+        } else {
+          // Invalid JWT format - clear it
+          console.warn('Malformed JWT token detected');
+          localStorage.removeItem('authToken');
+        }
+      }
+    } catch (error) {
+      // Security: Handle localStorage errors gracefully (e.g., in private browsing)
+      // Don't expose error details
+      console.warn('Error accessing localStorage for auth token');
     }
   }
   
