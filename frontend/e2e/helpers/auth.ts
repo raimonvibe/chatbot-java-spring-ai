@@ -34,10 +34,10 @@ export class AuthHelper {
     // Set auth state BEFORE setting up route (avoids race condition)
     // Use valid JWT format (3 parts) to pass validation
     const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
-    await this.page.evaluate((userData: { id: number; email: string; name: string; authProvider: string }, token: string) => {
+    await this.page.evaluate(({ userData, token }: { userData: { id: number; email: string; name: string; authProvider: string }; token: string }) => {
       localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(userData));
-    }, { id: 1, email, name, authProvider: 'GOOGLE' }, mockToken);
+    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' }, token: mockToken });
 
     // Intercept navigation to OAuth endpoint
     // Use a promise to handle navigation properly
