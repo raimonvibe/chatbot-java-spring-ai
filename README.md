@@ -1,6 +1,6 @@
 # 🙏 Prayer-Chat AI Chatbot System
 
-![Prayer-Chat AI Logo](prayer-chat.png)
+![Prayer-Chat AI Logo](prayer-chat1.png)
 
 An open-source AI-powered chatbot platform built with Java Spring AI that analyzes websites and creates intelligent conversational agents automatically. Built using modern RAG (Retrieval Augmented Generation) architecture with Spring AI, Anthropic Claude 3 Haiku, and vector embeddings.
 
