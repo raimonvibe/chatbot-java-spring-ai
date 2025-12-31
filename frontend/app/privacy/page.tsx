@@ -1,3 +1,21 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Privacy Notice - Prayer-Chat',
+  description: 'Learn how Prayer-Chat protects your privacy and handles your data in compliance with GDPR regulations.',
+  openGraph: {
+    title: 'Privacy Notice - Prayer-Chat',
+    description: 'Learn how Prayer-Chat protects your privacy and handles your data in compliance with GDPR regulations.',
+    url: 'https://prayer-chat.com/privacy',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Notice - Prayer-Chat',
+    description: 'Learn how Prayer-Chat protects your privacy and handles your data in compliance with GDPR regulations.',
+  },
+};
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
