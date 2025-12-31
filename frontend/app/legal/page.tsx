@@ -1,3 +1,21 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Legal Notice & Terms of Service - Prayer-Chat',
+  description: 'Read the terms of service and legal information for using Prayer-Chat Christian AI chatbot platform.',
+  openGraph: {
+    title: 'Legal Notice & Terms of Service - Prayer-Chat',
+    description: 'Read the terms of service and legal information for using Prayer-Chat Christian AI chatbot platform.',
+    url: 'https://prayer-chat.com/legal',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Legal Notice & Terms of Service - Prayer-Chat',
+    description: 'Read the terms of service and legal information for using Prayer-Chat Christian AI chatbot platform.',
+  },
+};
+
 export default function LegalPage() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
