@@ -49,13 +49,22 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             Environment environment) {
         this.embeddingImporterService = embeddingImporterService;
         this.environment = environment;
+        // Use System.out for maximum visibility
+        System.out.println("=".repeat(60));
+        System.out.println("✅ EmbeddingImportRunner CONSTRUCTOR CALLED - Component created!");
+        System.out.println("✅ Profile: import-embeddings is active");
+        System.out.println("=".repeat(60));
         logger.info("✅ EmbeddingImportRunner initialized (profile: import-embeddings)");
     }
 
     @Override
     public void run(String... args) throws Exception {
+        System.out.println("=".repeat(60));
+        System.out.println("🔍 EmbeddingImportRunner.run() CALLED!");
+        System.out.println("=".repeat(60));
         logger.info("🔍 EmbeddingImportRunner.run() called");
         String filePath = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
+        System.out.println("🔍 IMPORT_EMBEDDINGS_FILE value: " + (filePath != null ? filePath : "null"));
         logger.info("🔍 IMPORT_EMBEDDINGS_FILE value: {}", filePath != null ? filePath : "null");
         
         if (filePath == null || filePath.trim().isEmpty()) {
