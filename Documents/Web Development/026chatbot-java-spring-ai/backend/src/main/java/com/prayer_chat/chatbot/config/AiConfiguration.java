@@ -37,6 +37,13 @@ import org.springframework.context.annotation.Profile;
 public class AiConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AiConfiguration.class);
+    
+    // Debug: Log when configuration is being processed
+    public AiConfiguration() {
+        System.out.println("=".repeat(60));
+        System.out.println("🔧 AiConfiguration constructor called");
+        System.out.println("=".repeat(60));
+    }
 
     @Value("${spring.ai.anthropic.api-key:${ANTHROPIC_API_KEY:}}")
     private String anthropicApiKey;
@@ -163,13 +170,17 @@ public class AiConfiguration {
      * This is a workaround to ensure the component is created even if component scanning has issues
      */
     @Bean
-    @Profile("import-embeddings")
+    @org.springframework.context.annotation.Profile("import-embeddings")
     public EmbeddingImportRunner embeddingImportRunner(
             EmbeddingImporterService embeddingImporterService,
             org.springframework.core.env.Environment environment) {
         System.out.println("=".repeat(60));
-        System.out.println("🔧 Creating EmbeddingImportRunner bean explicitly in AiConfiguration");
+        System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
+        System.out.println("🔧 Profile check: import-embeddings should be active");
         System.out.println("=".repeat(60));
-        return new EmbeddingImportRunner(embeddingImporterService, environment);
+        logger.info("Creating EmbeddingImportRunner bean");
+        EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment);
+        System.out.println("✅ EmbeddingImportRunner bean created successfully");
+        return runner;
     }
 }
