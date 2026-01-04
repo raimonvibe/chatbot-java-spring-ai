@@ -4,10 +4,8 @@ import com.prayer_chat.chatbot.service.EmbeddingImporterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -34,9 +32,8 @@ import java.nio.file.Paths;
  * Note: Use relative path like "data/bible_embeddings.json" for persistence across restarts.
  * The runner will wait up to 5 minutes (10 retries × 30 seconds) for the file to appear.
  */
-@Component
+// @Component removed - created as @Bean in AiConfiguration instead
 @Order(2) // Run after BibleDataInitializer (@Order(1))
-@Profile("import-embeddings")
 public class EmbeddingImportRunner implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbeddingImportRunner.class);
