@@ -167,20 +167,30 @@ public class AiConfiguration {
 
     /**
      * Explicitly create EmbeddingImportRunner bean to ensure it's loaded
-     * This is a workaround to ensure the component is created even if component scanning has issues
+     * Uses @ConditionalOnProperty to check for IMPORT_EMBEDDINGS_FILE instead of @Profile
      */
     @Bean
-    @org.springframework.context.annotation.Profile("import-embeddings")
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "IMPORT_EMBEDDINGS_FILE",
+        havingValue = ".+",
+        matchIfMissing = false
+    )
     public EmbeddingImportRunner embeddingImportRunner(
             EmbeddingImporterService embeddingImporterService,
             org.springframework.core.env.Environment environment) {
         System.out.println("=".repeat(60));
         System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
-        System.out.println("🔧 Profile check: import-embeddings should be active");
+        System.out.println("🔧 IMPORT_EMBEDDINGS_FILE property found - creating bean");
         System.out.println("=".repeat(60));
         logger.info("Creating EmbeddingImportRunner bean");
-        EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment);
-        System.out.println("✅ EmbeddingImportRunner bean created successfully");
-        return runner;
+        try {
+            EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment);
+            System.out.println("✅ EmbeddingImportRunner bean created successfully");
+            return runner;
+        } catch (Exception e) {
+            System.out.println("❌ Error creating EmbeddingImportRunner: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 }
