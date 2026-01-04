@@ -167,21 +167,23 @@ public class AiConfiguration {
 
     /**
      * Explicitly create EmbeddingImportRunner bean to ensure it's loaded
-     * Uses @ConditionalOnProperty to check for IMPORT_EMBEDDINGS_FILE instead of @Profile
+     * Always create it - let the runner itself check if IMPORT_EMBEDDINGS_FILE is set
      */
     @Bean
-    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-        name = "IMPORT_EMBEDDINGS_FILE",
-        havingValue = ".+",
-        matchIfMissing = false
-    )
     public EmbeddingImportRunner embeddingImportRunner(
             EmbeddingImporterService embeddingImporterService,
             org.springframework.core.env.Environment environment) {
         System.out.println("=".repeat(60));
         System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
-        System.out.println("🔧 IMPORT_EMBEDDINGS_FILE property found - creating bean");
+        System.out.println("🔧 Creating EmbeddingImportRunner bean (will check env var in run method)");
+        
+        // Debug: Check environment variable
+        String envVar = System.getenv("IMPORT_EMBEDDINGS_FILE");
+        String prop = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
+        System.out.println("🔍 System.getenv('IMPORT_EMBEDDINGS_FILE'): " + (envVar != null ? envVar : "null"));
+        System.out.println("🔍 environment.getProperty('IMPORT_EMBEDDINGS_FILE'): " + (prop != null ? prop : "null"));
         System.out.println("=".repeat(60));
+        
         logger.info("Creating EmbeddingImportRunner bean");
         try {
             EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment);
