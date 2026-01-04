@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +35,7 @@ import java.nio.file.Paths;
  * The runner will wait up to 5 minutes (10 retries × 30 seconds) for the file to appear.
  */
 @Component
+@Order(2) // Run after BibleDataInitializer (@Order(1))
 @Profile("import-embeddings")
 public class EmbeddingImportRunner implements CommandLineRunner {
 
