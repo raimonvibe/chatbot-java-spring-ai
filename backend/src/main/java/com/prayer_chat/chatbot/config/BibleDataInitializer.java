@@ -34,6 +34,9 @@ public class BibleDataInitializer implements CommandLineRunner {
     @Value("${app.bible.auto-generate-embeddings:false}")
     private boolean autoGenerateEmbeddings;
 
+    @Value("${FORCE_RELOAD_BIBLE_DATA:false}")
+    private boolean forceReload;
+
     public BibleDataInitializer(
             BibleDataLoaderService bibleDataLoaderService,
             BibleVerseRepository bibleVerseRepository,
@@ -45,13 +48,23 @@ public class BibleDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        if (!autoLoad) {
+        // Check if force reload is requested
+        if (forceReload) {
+            logger.warn("⚠️  FORCE_RELOAD_BIBLE_DATA is set to true!");
+            logger.warn("⚠️  Deleting all existing Bible verses and reloading...");
+            long deletedCount = bibleVerseRepository.count();
+            bibleVerseRepository.deleteAll();
+            logger.info("✅ Deleted {} existing Bible verses", deletedCount);
+            logger.info("🔄 Reloading Bible data (only New Testament will be loaded if load-old-testament=false)...");
+        }
+
+        if (!autoLoad && !forceReload) {
             logger.info("Bible data auto-loading is disabled (app.bible.auto-load=false)");
             return;
         }
 
         logger.info("Checking if Bible data needs to be loaded...");
-        
+
         // Check if data is already loaded
         long verseCount = bibleVerseRepository.count();
         
