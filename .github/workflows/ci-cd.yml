@@ -54,7 +54,8 @@ jobs:
         with:
           name: backend-test-results
           path: backend/target/surefire-reports/
-          retention-days: 7
+          retention-days: 3
+          compression-level: 9
 
       - name: Upload coverage report
         if: failure()  # Only upload on failure to save storage
@@ -62,7 +63,8 @@ jobs:
         with:
           name: backend-coverage-report
           path: backend/target/site/jacoco/
-          retention-days: 7
+          retention-days: 3
+          compression-level: 9
 
       - name: Check coverage thresholds
         run: |
@@ -102,7 +104,8 @@ jobs:
         with:
           name: frontend-coverage-report
           path: frontend/coverage/
-          retention-days: 7
+          retention-days: 3
+          compression-level: 9
 
       - name: Build frontend
         run: npm run build
@@ -157,7 +160,8 @@ jobs:
         with:
           name: playwright-report
           path: frontend/playwright-report/
-          retention-days: 7
+          retention-days: 3
+          compression-level: 9
 
       - name: Upload Playwright test results
         if: failure()  # Only upload on failure to save storage
@@ -165,7 +169,8 @@ jobs:
         with:
           name: playwright-results
           path: frontend/test-results/
-          retention-days: 7
+          retention-days: 3
+          compression-level: 9
 
   # Security Scanning
   security-scan:
@@ -227,7 +232,8 @@ jobs:
         with:
           name: backend-jar
           path: backend/target/*.jar
-          retention-days: 7  # Reduced from 30 to save storage
+          retention-days: 1  # Keep for 1 day only to minimize storage usage
+          compression-level: 9  # Maximum compression
 
   # Docker Build (optional - uncomment if using Docker)
   # docker-build:
