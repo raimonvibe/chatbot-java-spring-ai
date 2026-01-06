@@ -74,6 +74,14 @@ public class Chatbot {
     @Column(nullable = false)
     private Boolean christianMessagingEnabled = true; // Enable Christian values in responses
 
+    /**
+     * Enable "What Jesus Would Say" feature
+     * When enabled, chatbot responses will be inspired by Jesus's direct teachings
+     * from the Gospels (Matthew, Mark, Luke, John)
+     */
+    @Column(name = "jesus_teachings_enabled", nullable = false)
+    private Boolean jesusTeachingsEnabled = false;
+
     @Column(nullable = false)
     private Boolean isActive = true;
 
@@ -278,5 +286,13 @@ public class Chatbot {
 
     public void setChristianMessagingEnabled(Boolean christianMessagingEnabled) {
         this.christianMessagingEnabled = christianMessagingEnabled;
+    }
+
+    public Boolean getJesusTeachingsEnabled() {
+        return jesusTeachingsEnabled;
+    }
+
+    public void setJesusTeachingsEnabled(Boolean jesusTeachingsEnabled) {
+        this.jesusTeachingsEnabled = jesusTeachingsEnabled;
     }
 }

@@ -62,5 +62,13 @@ public interface BibleVerseRepository extends JpaRepository<BibleVerse, Long> {
     @Modifying
     @Query(value = "DELETE FROM bible_verse", nativeQuery = true)
     void deleteAllVerses();
+
+    /**
+     * Find all Bible verses that are direct teachings from Jesus (with embeddings)
+     * Used for "What Jesus Would Say" feature
+     * Returns verses where speaker = 'Jesus' and embedding is not null
+     */
+    @Query("SELECT v FROM BibleVerse v WHERE v.speaker = 'Jesus' AND v.embedding IS NOT NULL")
+    List<BibleVerse> findJesusTeachingsWithEmbeddings();
 }
 
