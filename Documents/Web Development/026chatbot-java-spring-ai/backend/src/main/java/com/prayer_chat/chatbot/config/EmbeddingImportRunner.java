@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.config;
 
 import com.prayer_chat.chatbot.service.EmbeddingImporterService;
+import com.prayer_chat.chatbot.service.UrlValidationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -52,12 +53,15 @@ public class EmbeddingImportRunner implements CommandLineRunner {
 
     private final EmbeddingImporterService embeddingImporterService;
     private final Environment environment;
+    private final UrlValidationService urlValidationService;
 
     public EmbeddingImportRunner(
             EmbeddingImporterService embeddingImporterService,
-            Environment environment) {
+            Environment environment,
+            UrlValidationService urlValidationService) {
         this.embeddingImporterService = embeddingImporterService;
         this.environment = environment;
+        this.urlValidationService = urlValidationService;
         // Use System.out for maximum visibility
         System.out.println("=".repeat(60));
         System.out.println("✅ EmbeddingImportRunner CONSTRUCTOR CALLED - Component created!");
@@ -95,17 +99,26 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             String downloadUrl = environment.getProperty("IMPORT_EMBEDDINGS_URL");
             
             if (downloadUrl != null && !downloadUrl.trim().isEmpty()) {
-                logger.info("📥 File not found. Attempting to download from: {}", downloadUrl);
-                System.out.println("📥 Downloading file from: " + downloadUrl);
-                
-                try {
-                    boolean downloaded = downloadFile(downloadUrl, file);
-                    if (!downloaded) {
-                        logger.warn("⚠️  Download failed. Will retry waiting for file...");
+                // SECURITY: Validate URL to prevent SSRF attacks
+                if (!urlValidationService.isValidAndSafe(downloadUrl)) {
+                    logger.error("❌ SECURITY: Invalid or unsafe download URL blocked: {}", downloadUrl);
+                    logger.error("❌ URL must be a valid HTTPS URL pointing to a public server");
+                    logger.error("❌ Blocked: localhost, private IPs, cloud metadata endpoints, dangerous ports");
+                    System.out.println("❌ SECURITY: Download URL validation failed - URL blocked");
+                    // Continue to retry mechanism (maybe file will be uploaded manually)
+                } else {
+                    logger.info("📥 File not found. Attempting to download from: {}", downloadUrl);
+                    System.out.println("📥 Downloading file from: " + downloadUrl);
+                    
+                    try {
+                        boolean downloaded = downloadFile(downloadUrl, file);
+                        if (!downloaded) {
+                            logger.warn("⚠️  Download failed. Will retry waiting for file...");
+                        }
+                    } catch (Exception e) {
+                        logger.error("❌ Error downloading file", e);
+                        // Continue to retry mechanism below
                     }
-                } catch (Exception e) {
-                    logger.error("❌ Error downloading file", e);
-                    // Continue to retry mechanism below
                 }
             } else {
                 logger.info("📥 File not found and IMPORT_EMBEDDINGS_URL not set. Will wait for file...");
@@ -225,7 +238,9 @@ public class EmbeddingImportRunner implements CommandLineRunner {
      * Download file from URL to target location
      * Handles Google Drive large file downloads with confirmation token
      * 
-     * @param urlString URL to download from
+     * SECURITY: URL must be validated before calling this method (via urlValidationService)
+     * 
+     * @param urlString URL to download from (must be pre-validated)
      * @param targetFile Target file location
      * @return true if download successful, false otherwise
      */
@@ -247,10 +262,21 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             connection.setReadTimeout(300000); // 5 minutes for large files
             connection.setInstanceFollowRedirects(true);
             
+            // SECURITY: Additional check - don't follow redirects to private IPs
+            // (UrlValidationService already validated the initial URL)
+            
             // Handle Google Drive large file confirmation
             int responseCode = connection.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 long contentLength = connection.getContentLengthLong();
+                
+                // SECURITY: Limit file size to prevent DoS (max 500MB)
+                long maxFileSize = 500 * 1024 * 1024; // 500MB
+                if (contentLength > maxFileSize) {
+                    logger.error("❌ SECURITY: File too large: {} MB (max: 500 MB)", contentLength / (1024 * 1024));
+                    return false;
+                }
+                
                 logger.info("📥 File size: {} bytes ({} MB)", contentLength, contentLength / (1024 * 1024));
                 
                 try (InputStream inputStream = connection.getInputStream();

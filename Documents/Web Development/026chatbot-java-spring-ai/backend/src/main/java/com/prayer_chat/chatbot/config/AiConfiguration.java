@@ -171,8 +171,9 @@ public class AiConfiguration {
      */
     @Bean
     public EmbeddingImportRunner embeddingImportRunner(
-            EmbeddingImporterService embeddingImporterService,
-            org.springframework.core.env.Environment environment) {
+            com.prayer_chat.chatbot.service.EmbeddingImporterService embeddingImporterService,
+            org.springframework.core.env.Environment environment,
+            com.prayer_chat.chatbot.service.UrlValidationService urlValidationService) {
         System.out.println("=".repeat(60));
         System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
         System.out.println("🔧 Creating EmbeddingImportRunner bean (will check env var in run method)");
@@ -186,7 +187,7 @@ public class AiConfiguration {
         
         logger.info("Creating EmbeddingImportRunner bean");
         try {
-            EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment);
+            EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment, urlValidationService);
             System.out.println("✅ EmbeddingImportRunner bean created successfully");
             return runner;
         } catch (Exception e) {
