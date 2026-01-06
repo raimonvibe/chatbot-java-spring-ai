@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
+import com.prayer_chat.chatbot.service.JesusTeachingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -48,6 +49,7 @@ public class AiChatbotService {
     private final WebsiteContentRepository websiteContentRepository;
     private final BibleVerseRepository bibleVerseRepository;
     private final WebhookService webhookService; // NEW FEATURE
+    private final JesusTeachingsService jesusTeachingsService; // NEW FEATURE: Jesus Teachings
 
     @Value("${app.chatbot.max-conversation-history:10}")
     private int maxConversationHistory;
@@ -59,7 +61,8 @@ public class AiChatbotService {
     public AiChatbotService(ChatClient chatClient, VectorStore vectorStore, EmbeddingModel embeddingModel,
                            ChatbotRepository chatbotRepository, ConversationRepository conversationRepository,
                            MessageRepository messageRepository, WebsiteContentRepository websiteContentRepository,
-                           BibleVerseRepository bibleVerseRepository, WebhookService webhookService) {
+                           BibleVerseRepository bibleVerseRepository, WebhookService webhookService,
+                           JesusTeachingsService jesusTeachingsService) {
         this.chatClient = chatClient;
         this.vectorStore = vectorStore;
         this.embeddingModel = embeddingModel;
@@ -69,6 +72,7 @@ public class AiChatbotService {
         this.websiteContentRepository = websiteContentRepository;
         this.bibleVerseRepository = bibleVerseRepository;
         this.webhookService = webhookService; // NEW FEATURE
+        this.jesusTeachingsService = jesusTeachingsService; // NEW FEATURE: Jesus Teachings
     }
     
     /**
@@ -169,8 +173,18 @@ public class AiChatbotService {
             relevantVerse = findRelevantBibleVerse(userMessage, relevantDocs, isFirstMessage);
         }
 
+        // NEW: Find Jesus's teachings if enabled
+        String jesusTeachingContext = null;
+        if (chatbot.getJesusTeachingsEnabled() != null && chatbot.getJesusTeachingsEnabled()) {
+            String websiteContent = buildWebsiteContext(relevantDocs);
+            jesusTeachingContext = jesusTeachingsService.buildJesusTeachingContext(
+                    websiteContent,
+                    userMessage
+            );
+        }
+
         // Create system prompt with context
-        String systemPrompt = buildSystemPrompt(chatbot, relevantDocs, userLanguage, relevantVerse, isFirstMessage);
+        String systemPrompt = buildSystemPrompt(chatbot, relevantDocs, userLanguage, relevantVerse, jesusTeachingContext, isFirstMessage);
 
         // Add Christian greeting instruction for first message
         if (isFirstMessage && chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
@@ -361,8 +375,28 @@ public class AiChatbotService {
     /**
      * Build system prompt with context and dynamic Bible verse
      */
+    /**
+     * Build website context string from documents
+     */
+    private String buildWebsiteContext(List<Document> relevantDocs) {
+        if (relevantDocs == null || relevantDocs.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder context = new StringBuilder();
+        for (Document doc : relevantDocs) {
+            String docText = doc.getText();
+            // Limit each doc to 500 chars to avoid token limits
+            if (docText.length() > 500) {
+                docText = docText.substring(0, 500) + "...";
+            }
+            context.append(docText).append(" ");
+        }
+        return context.toString().trim();
+    }
+
     private String buildSystemPrompt(Chatbot chatbot, List<Document> relevantDocs, String userLanguage,
-                                     BibleVerse relevantVerse, boolean isFirstMessage) {
+                                     BibleVerse relevantVerse, String jesusTeachingContext, boolean isFirstMessage) {
         StringBuilder prompt = new StringBuilder();
 
         // Base system prompt
@@ -395,6 +429,27 @@ public class AiChatbotService {
 
             // Add footer instruction for Christian blessing
             prompt.append("\nIMPORTANT: End each response with a brief Christian blessing or encouragement (e.g., 'God bless you!', 'May you be blessed!', 'Grace and peace to you!').\n");
+        }
+
+        // NEW: Add Jesus's teachings section if enabled
+        if (jesusTeachingContext != null && !jesusTeachingContext.trim().isEmpty()) {
+            prompt.append("\n").append("=".repeat(50)).append("\n");
+            prompt.append("📖 WHAT JESUS WOULD SAY:\n");
+            prompt.append(jesusTeachingContext).append("\n");
+            prompt.append("=".repeat(50)).append("\n");
+
+            prompt.append("\nInstructions for using Jesus's teachings:\n");
+            prompt.append("- Draw inspiration from the teachings above\n");
+            prompt.append("- Explain how Jesus's wisdom applies to this situation\n");
+            prompt.append("- Use conversational language (not preachy)\n");
+            prompt.append("- Connect the teachings to the specific question or context\n");
+            prompt.append("- Be authentic and respectful\n");
+
+            if (isFirstMessage) {
+                prompt.append("- For the first message, include a brief 'Jesus's Perspective' on this business/website\n");
+            } else {
+                prompt.append("- Only include Jesus's perspective if it naturally fits the question\n");
+            }
         }
 
         // Add custom prompt if configured

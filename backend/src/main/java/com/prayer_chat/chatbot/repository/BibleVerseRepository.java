@@ -70,5 +70,10 @@ public interface BibleVerseRepository extends JpaRepository<BibleVerse, Long> {
      */
     @Query("SELECT v FROM BibleVerse v WHERE v.speaker = 'Jesus' AND v.embedding IS NOT NULL")
     List<BibleVerse> findJesusTeachingsWithEmbeddings();
+
+    /**
+     * Count verses by speaker
+     */
+    long countBySpeaker(String speaker);
 }
 
