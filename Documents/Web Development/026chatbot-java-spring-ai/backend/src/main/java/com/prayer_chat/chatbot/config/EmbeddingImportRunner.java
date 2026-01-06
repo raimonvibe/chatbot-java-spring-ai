@@ -8,6 +8,10 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -15,22 +19,30 @@ import java.nio.file.Paths;
  * One-time runner to import embeddings from JSON file
  * 
  * Features:
+ * - Automatically downloads file from URL if not found (set IMPORT_EMBEDDINGS_URL)
  * - Automatically retries if file is not found immediately (waits up to 5 minutes by default)
  * - Gracefully handles missing files (doesn't fail service startup)
  * - Supports both relative and absolute file paths
  * 
- * Usage:
- * 1. Upload the embeddings file to the server (via Render Shell or other method)
- * 2. Set environment variable: IMPORT_EMBEDDINGS_FILE=data/bible_embeddings.json (or full path)
+ * Usage (Option 1 - Auto-download from URL - RECOMMENDED):
+ * 1. Set environment variables:
+ *    - IMPORT_EMBEDDINGS_FILE=/tmp/data/bible_embeddings.json (target location)
+ *    - IMPORT_EMBEDDINGS_URL=https://drive.usercontent.google.com/download?id=FILE_ID&export=download&confirm=t
+ *    - SPRING_PROFILES_ACTIVE=local,import-embeddings
+ * 2. Restart service - file will be downloaded automatically and imported
+ * 3. Remove environment variables after import completes
+ * 
+ * Usage (Option 2 - Manual upload):
+ * 1. Upload the embeddings file to the server (via Render Shell)
+ * 2. Set environment variable: IMPORT_EMBEDDINGS_FILE=/tmp/data/bible_embeddings.json
  * 3. Optionally configure retries:
  *    - IMPORT_EMBEDDINGS_MAX_RETRIES=10 (default: 10 attempts)
  *    - IMPORT_EMBEDDINGS_RETRY_DELAY_MS=30000 (default: 30 seconds between retries)
  * 4. Set profile: SPRING_PROFILES_ACTIVE=local,import-embeddings
- * 5. Restart service - import will run automatically (waits for file if needed)
+ * 5. Restart service - import will run automatically
  * 6. Remove environment variables after import completes
  * 
- * Note: Use relative path like "data/bible_embeddings.json" for persistence across restarts.
- * The runner will wait up to 5 minutes (10 retries × 30 seconds) for the file to appear.
+ * Note: On Render, /tmp gets cleared on restarts. Use IMPORT_EMBEDDINGS_URL for automatic download.
  */
 // @Component removed - created as @Bean in AiConfiguration instead
 @Order(2) // Run after BibleDataInitializer (@Order(1))
@@ -78,6 +90,28 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         // Resolve file path (handle relative paths)
         File file = resolveFilePath(filePath);
         
+        // Check if file exists, if not try to download it
+        if (!file.exists() || file.length() == 0) {
+            String downloadUrl = environment.getProperty("IMPORT_EMBEDDINGS_URL");
+            
+            if (downloadUrl != null && !downloadUrl.trim().isEmpty()) {
+                logger.info("📥 File not found. Attempting to download from: {}", downloadUrl);
+                System.out.println("📥 Downloading file from: " + downloadUrl);
+                
+                try {
+                    boolean downloaded = downloadFile(downloadUrl, file);
+                    if (!downloaded) {
+                        logger.warn("⚠️  Download failed. Will retry waiting for file...");
+                    }
+                } catch (Exception e) {
+                    logger.error("❌ Error downloading file", e);
+                    // Continue to retry mechanism below
+                }
+            } else {
+                logger.info("📥 File not found and IMPORT_EMBEDDINGS_URL not set. Will wait for file...");
+            }
+        }
+        
         // Retry mechanism: wait for file if it's not found immediately
         int maxRetries = Integer.parseInt(environment.getProperty("IMPORT_EMBEDDINGS_MAX_RETRIES", "10"));
         long retryDelayMs = Long.parseLong(environment.getProperty("IMPORT_EMBEDDINGS_RETRY_DELAY_MS", "30000")); // 30 seconds default
@@ -87,9 +121,10 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         if (foundFile == null) {
             logger.warn("=".repeat(60));
             logger.warn("⚠️  File not found after {} retries: {}", maxRetries, file.getAbsolutePath());
-            logger.warn("⚠️  Please upload the file to this location:");
-            logger.warn("⚠️    {}", file.getAbsolutePath());
-            logger.warn("⚠️  Then manually restart the service to retry the import.");
+            logger.warn("⚠️  Options:");
+            logger.warn("⚠️    1. Set IMPORT_EMBEDDINGS_URL to auto-download on startup");
+            logger.warn("⚠️    2. Upload the file manually to: {}", file.getAbsolutePath());
+            logger.warn("⚠️    3. Then manually restart the service");
             logger.warn("⚠️  The service will continue running normally.");
             logger.warn("=".repeat(60));
             return; // Exit gracefully, don't fail startup
@@ -184,6 +219,81 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         }
         
         return null; // File not found after all retries
+    }
+
+    /**
+     * Download file from URL to target location
+     * Handles Google Drive large file downloads with confirmation token
+     * 
+     * @param urlString URL to download from
+     * @param targetFile Target file location
+     * @return true if download successful, false otherwise
+     */
+    private boolean downloadFile(String urlString, File targetFile) {
+        try {
+            // Ensure parent directory exists
+            File parentDir = targetFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+
+            logger.info("📥 Starting download to: {}", targetFile.getAbsolutePath());
+            System.out.println("📥 Downloading " + urlString + " to " + targetFile.getAbsolutePath());
+
+            URL url = new URL(urlString);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(30000); // 30 seconds
+            connection.setReadTimeout(300000); // 5 minutes for large files
+            connection.setInstanceFollowRedirects(true);
+            
+            // Handle Google Drive large file confirmation
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                long contentLength = connection.getContentLengthLong();
+                logger.info("📥 File size: {} bytes ({} MB)", contentLength, contentLength / (1024 * 1024));
+                
+                try (InputStream inputStream = connection.getInputStream();
+                     FileOutputStream outputStream = new FileOutputStream(targetFile)) {
+                    
+                    byte[] buffer = new byte[8192];
+                    long totalBytesRead = 0;
+                    int bytesRead;
+                    
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
+                        
+                        // Log progress every 10MB
+                        if (totalBytesRead % (10 * 1024 * 1024) == 0) {
+                            long percent = contentLength > 0 ? (totalBytesRead * 100 / contentLength) : 0;
+                            logger.info("📥 Download progress: {} MB / {} MB ({}%)", 
+                                totalBytesRead / (1024 * 1024), 
+                                contentLength / (1024 * 1024),
+                                percent);
+                        }
+                    }
+                    
+                    outputStream.flush();
+                }
+                
+                long fileSize = targetFile.length();
+                logger.info("✅ Download complete: {} bytes ({} MB)", fileSize, fileSize / (1024 * 1024));
+                System.out.println("✅ Download complete: " + (fileSize / (1024 * 1024)) + " MB");
+                return true;
+            } else {
+                logger.error("❌ Download failed. HTTP response code: {}", responseCode);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ Error downloading file from {}: {}", urlString, e.getMessage(), e);
+            // Delete partial file if it exists
+            if (targetFile.exists()) {
+                targetFile.delete();
+            }
+            return false;
+        }
     }
 }
 
