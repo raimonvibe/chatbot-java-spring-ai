@@ -30,7 +30,7 @@
         <!-- Jackson 2.x version override - Spring Boot 4.0 uses Jackson 3.x by default -->
         <!-- Using 2.17.1 for latest security patches and compatibility with RestAssured -->
         <!-- Note: 2.17.1 is widely available and stable -->
-        <jackson.version>2.17.1</jackson.version>
+        <jackson.version>2.20</jackson.version>
     </properties>
 
     <dependencies>
