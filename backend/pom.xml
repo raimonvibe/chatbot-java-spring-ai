@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.5</version>
+        <version>3.3.4</version>
         <relativePath/>
     </parent>
 
@@ -24,10 +24,10 @@
         <!-- Explicit version overrides for security patches -->
         <tomcat.version>11.0.14</tomcat.version>
         <postgresql.version>42.7.8</postgresql.version>
-        <spring-security.version>6.3.5</spring-security.version>
+        <spring-security.version>6.3.4</spring-security.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
-        <!-- Jackson version - Spring Boot 3.3.5 uses Jackson 2.x by default -->
+        <!-- Jackson version - Spring Boot 3.3.4 uses Jackson 2.x by default -->
         <!-- Using 2.17.1 for latest security patches and compatibility with RestAssured -->
         <jackson.version>2.17.1</jackson.version>
     </properties>
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <!-- Spring Boot 3.3.5 uses Jackson 2.x by default, no exclusions needed -->
+            <!-- Spring Boot 3.3.4 uses Jackson 2.x by default, no exclusions needed -->
         </dependency>
         
         <dependency>
@@ -159,7 +159,7 @@
             <version>4.39.0</version>
         </dependency>
 
-        <!-- JSON Processing - Spring Boot 3.3.5 uses Jackson 2.x by default -->
+        <!-- JSON Processing - Spring Boot 3.3.4 uses Jackson 2.x by default -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -229,10 +229,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Spring Boot 3.3.5 test dependencies are included in spring-boot-starter-test -->
+        <!-- Spring Boot 3.3.4 test dependencies are included in spring-boot-starter-test -->
 
         <!-- Mockito for mocking (inline version for Java 17+) -->
-        <!-- Spring Boot 3.3.5 manages Mockito version -->
+        <!-- Spring Boot 3.3.4 manages Mockito version -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
@@ -327,7 +327,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Jackson 2.x versions - Spring Boot 3.3.5 uses Jackson 2.x by default -->
+            <!-- Jackson 2.x versions - Spring Boot 3.3.4 uses Jackson 2.x by default -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
@@ -476,6 +476,19 @@
     </build>
 
     <repositories>
+        <!-- Maven Central (primary) -->
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <!-- Spring Milestones (for release candidates) -->
         <repository>
             <id>spring-milestones</id>
             <name>Spring Milestones</name>
@@ -484,6 +497,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+        <!-- Spring Snapshots (for development) -->
         <repository>
             <id>spring-snapshots</id>
             <name>Spring Snapshots</name>
