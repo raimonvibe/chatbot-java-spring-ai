@@ -45,27 +45,45 @@ All code changes are **SAFE and SECURE**:
 
 ## 🚀 Instructions for Tomorrow in Render
 
+### ✨ NEW: Automatic Download Feature!
+The runner now **automatically downloads** the file from a URL if it's not found! No more manual uploads needed.
+
 ### Current Status:
 - ✅ Code is committed and pushed to GitHub
 - ✅ Environment variables are set:
-  - `SPRING_PROFILES_ACTIVE` = `local,import-embeddings`
+  - `SPRING_PROFILES_ACTIVE` = `production` (or `local,import-embeddings` for import)
   - `IMPORT_EMBEDDINGS_FILE` = `/tmp/data/bible_embeddings.json`
-- ⚠️ File needs to be uploaded: `/tmp/data/bible_embeddings.json` (169MB)
-- ⚠️ Runner is not executing yet (needs debugging)
+- ⚠️ **NEW:** Add `IMPORT_EMBEDDINGS_URL` for automatic download
 
-### Step-by-Step Instructions:
+### Step-by-Step Instructions (RECOMMENDED - Auto-download):
 
-#### Step 1: Wait for Latest Deployment
-- The latest code with debug logging should auto-deploy
-- Check Render Dashboard → Backend Service → Logs
-- Look for these messages:
-  ```
-  🔧 @Bean method embeddingImportRunner() CALLED!
-  ✅ EmbeddingImportRunner CONSTRUCTOR CALLED
-  🔍 EmbeddingImportRunner.run() CALLED!
-  ```
+#### Step 1: Set Environment Variables for Auto-Download
+1. Go to Render Dashboard → Backend Service → Environment tab
+2. Add/update these variables:
+   - `IMPORT_EMBEDDINGS_FILE` = `/tmp/data/bible_embeddings.json`
+   - `IMPORT_EMBEDDINGS_URL` = `https://drive.usercontent.google.com/download?id=1NA-n65-sW-bCWZiAjunmEVzQMlbnf16d&export=download&confirm=t`
+   - `SPRING_PROFILES_ACTIVE` = `local,import-embeddings` (temporarily, for import)
+3. Save (service will restart)
 
-#### Step 2: If You See the Debug Messages Above
+#### Step 2: Watch the Logs
+After deployment, you should see:
+```
+🔧 @Bean method embeddingImportRunner() CALLED!
+✅ EmbeddingImportRunner CONSTRUCTOR CALLED
+🔍 EmbeddingImportRunner.run() CALLED!
+📥 File not found. Attempting to download from: [URL]
+📥 Downloading file from: [URL]
+📥 Download progress: X MB / Y MB (Z%)
+✅ Download complete: 169 MB
+✅ File found: /tmp/data/bible_embeddings.json (169M bytes)
+🚀 Starting automatic embedding import...
+✅ Embedding import completed successfully!
+```
+
+**The file will be downloaded automatically on startup!** No manual upload needed.
+
+#### Step 3: Alternative - Manual Upload (if auto-download doesn't work)
+If you prefer manual upload or auto-download fails:
 1. **Upload the file via Render Shell:**
    ```bash
    mkdir -p /tmp/data
@@ -78,7 +96,7 @@ All code changes are **SAFE and SECURE**:
 
 3. **Or manually restart** the service after uploading for immediate import
 
-#### Step 3: If You DON'T See the Debug Messages
+#### Step 4: If You DON'T See the Debug Messages
 The bean isn't being created. Check:
 1. Is `AiConfiguration` being loaded? (Look for other beans from that class)
 2. Are there any errors in the logs?
