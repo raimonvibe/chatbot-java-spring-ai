@@ -109,6 +109,8 @@ class ChatbotControllerUrlSecurityTest {
             conversationExportService,
             bibleVerseService,
             christianContentAnalysisService,
+            mock(com.prayer_chat.chatbot.service.JesusTeachingsService.class),
+            mock(com.prayer_chat.chatbot.service.JesusVersesTaggingService.class),
             costTrackingService,
             websiteSizeEstimator,
             websiteScanAuditRepository,

@@ -424,7 +424,7 @@ class ChatApiE2ETest extends E2ETestBase {
         AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         // Use returnResult() to avoid implicit status validation - allows any status code
         org.springframework.test.web.reactive.server.ExchangeResult result = webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
-            .returnResult();
+            .returnResult(Map.class);
         
         int status = result.getStatus().value();
         statusCodeRef.set(status);

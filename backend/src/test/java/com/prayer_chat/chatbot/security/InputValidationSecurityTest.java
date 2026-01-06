@@ -18,13 +18,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
@@ -49,22 +49,22 @@ class InputValidationSecurityTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @MockBean
     private UserRepository userRepository;
 
-    @MockitoBean
+    @MockBean
     private ChatbotRepository chatbotRepository;
 
-    @MockitoBean
+    @MockBean
     private PasswordEncoder passwordEncoder;
 
-    @MockitoBean
+    @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockitoBean
+    @MockBean
     private AuditService auditService;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.repository.SubscriptionRepository subscriptionRepository;
 
     private User testUser;

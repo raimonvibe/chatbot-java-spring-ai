@@ -3,7 +3,7 @@ package com.prayer_chat.chatbot.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
@@ -20,8 +20,7 @@ import java.util.Map;
  * 
  * Solution: This processor runs early and sets the property directly from the environment variable.
  * 
- * Note: In Spring Boot 4.0, EnvironmentPostProcessor moved from org.springframework.boot.env
- * to org.springframework.boot package. This has been updated accordingly.
+ * Note: In Spring Boot 3.3.5, EnvironmentPostProcessor is in org.springframework.boot.env package.
  */
 public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
