@@ -204,11 +204,14 @@ app:
   bible:
     # Auto-load Bible data on startup if not already loaded
     auto-load: ${BIBLE_AUTO_LOAD:true}
-    
+
+    # Load Old Testament verses (set to false to only use New Testament)
+    load-old-testament: ${BIBLE_LOAD_OLD_TESTAMENT:false}
+
     # Auto-generate embeddings for all verses (WARNING: Very expensive and time-consuming!)
     # Set to false in production and generate embeddings manually via admin endpoint
     auto-generate-embeddings: ${BIBLE_AUTO_GENERATE_EMBEDDINGS:false}
-    
+
     # Paths to Bible data files (relative to classpath or file system)
     data:
       old-testament: classpath:data/bible/data/old-testament-data.json

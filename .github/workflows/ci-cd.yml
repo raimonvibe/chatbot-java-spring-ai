@@ -49,20 +49,22 @@ jobs:
         continue-on-error: true
 
       - name: Upload test results
-        if: always()
+        if: failure()  # Only upload on failure to save storage
         uses: actions/upload-artifact@v6
         with:
           name: backend-test-results
           path: backend/target/surefire-reports/
-          retention-days: 30
+          retention-days: 3
+          compression-level: 9
 
       - name: Upload coverage report
-        if: always()
+        if: failure()  # Only upload on failure to save storage
         uses: actions/upload-artifact@v6
         with:
           name: backend-coverage-report
           path: backend/target/site/jacoco/
-          retention-days: 30
+          retention-days: 3
+          compression-level: 9
 
       - name: Check coverage thresholds
         run: |
@@ -97,22 +99,25 @@ jobs:
         run: npm run test:ci
 
       - name: Upload coverage report
-        if: always()
+        if: failure()  # Only upload on failure to save storage
         uses: actions/upload-artifact@v6
         with:
           name: frontend-coverage-report
           path: frontend/coverage/
-          retention-days: 30
+          retention-days: 3
+          compression-level: 9
 
       - name: Build frontend
         run: npm run build
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: frontend-build
-          path: frontend/.next/
-          retention-days: 7
+      # Skip uploading build artifacts - not needed for CI, only for deployment
+      # Uncomment if you need build artifacts for deployment
+      # - name: Upload build artifacts
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: frontend-build
+      #     path: frontend/.next/
+      #     retention-days: 3
 
   # E2E Tests with Playwright
   e2e-test:
@@ -150,20 +155,22 @@ jobs:
         continue-on-error: true
 
       - name: Upload Playwright report
-        if: always()
+        if: failure()  # Only upload on failure to save storage
         uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: frontend/playwright-report/
-          retention-days: 30
+          retention-days: 3
+          compression-level: 9
 
       - name: Upload Playwright test results
-        if: always()
+        if: failure()  # Only upload on failure to save storage
         uses: actions/upload-artifact@v6
         with:
           name: playwright-results
           path: frontend/test-results/
-          retention-days: 30
+          retention-days: 3
+          compression-level: 9
 
   # Security Scanning
   security-scan:
@@ -225,7 +232,8 @@ jobs:
         with:
           name: backend-jar
           path: backend/target/*.jar
-          retention-days: 30
+          retention-days: 1  # Keep for 1 day only to minimize storage usage
+          compression-level: 9  # Maximum compression
 
   # Docker Build (optional - uncomment if using Docker)
   # docker-build:

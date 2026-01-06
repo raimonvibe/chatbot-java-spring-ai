@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prayer_chat.chatbot.model.BibleVerse;
 import com.prayer_chat.chatbot.repository.BibleVerseRepository;
@@ -38,87 +39,149 @@ public class EmbeddingImporterService {
 
     /**
      * Import embeddings from JSON file generated in Google Colab
-     * 
+     * Uses STREAMING parsing to minimize memory usage (critical for low-memory environments like Render)
+     *
      * @param jsonFilePath Path to the bible_embeddings.json file (must be within allowed directory)
      * @return Number of verses updated with embeddings
      */
     @Transactional
     public int importEmbeddings(String jsonFilePath) {
         try {
-            logger.info("Starting embedding import from: {}", jsonFilePath);
-            
+            logger.info("Starting STREAMING embedding import from: {}", jsonFilePath);
+            logger.info("⚡ Using streaming parser to minimize memory usage");
+
             // SECURITY: Validate and sanitize file path to prevent path traversal attacks
             File file = validateAndResolveFilePath(jsonFilePath);
-            
+
             if (!file.exists()) {
                 throw new RuntimeException("File not found: " + jsonFilePath);
             }
-            
+
             if (!file.isFile()) {
                 throw new RuntimeException("Path is not a file: " + jsonFilePath);
-            }
-
-            // Parse JSON file
-            JsonNode root = objectMapper.readTree(new FileInputStream(file));
-            JsonNode verses = root.get("verses");
-            
-            if (verses == null || !verses.isArray()) {
-                throw new RuntimeException("Invalid JSON format: 'verses' array not found");
             }
 
             int updated = 0;
             int skipped = 0;
             List<BibleVerse> batch = new ArrayList<>();
 
-            logger.info("Processing {} verses from JSON file...", verses.size());
+            // Use smaller batch size to reduce memory pressure
+            final int BATCH_SIZE = 100; // Reduced from 1000
 
-            for (JsonNode verseNode : verses) {
-                String book = verseNode.get("book").asText();
-                int chapter = verseNode.get("chapter").asInt();
-                int verse = verseNode.get("verse").asInt();
-                
-                // Find existing verse
-                var verseOpt = bibleVerseRepository.findByBookAndChapterAndVerse(book, chapter, verse);
-                
-                if (verseOpt.isEmpty()) {
-                    skipped++;
-                    if (skipped <= 10) { // Only log first 10
-                        logger.warn("Verse not found in database: {} {}:{}", book, chapter, verse);
+            // Stream the JSON file instead of loading it entirely into memory
+            try (FileInputStream fis = new FileInputStream(file);
+                 JsonParser parser = objectMapper.getFactory().createParser(fis)) {
+
+                // Expect: { "verses": [ ... ] }
+                if (parser.nextToken() != JsonToken.START_OBJECT) {
+                    throw new RuntimeException("Invalid JSON: Expected object at root");
+                }
+
+                // Find "verses" field
+                boolean foundVerses = false;
+                while (parser.nextToken() != JsonToken.END_OBJECT) {
+                    String fieldName = parser.getCurrentName();
+                    if ("verses".equals(fieldName)) {
+                        foundVerses = true;
+                        parser.nextToken(); // Move to START_ARRAY
+                        if (parser.currentToken() != JsonToken.START_ARRAY) {
+                            throw new RuntimeException("Invalid JSON: 'verses' should be an array");
+                        }
+                        break;
                     }
-                    continue;
+                    parser.skipChildren();
                 }
 
-                BibleVerse bibleVerse = verseOpt.get();
-                
-                // Parse embedding array
-                JsonNode embeddingNode = verseNode.get("embedding");
-                if (embeddingNode == null || !embeddingNode.isArray()) {
-                    skipped++;
-                    continue;
+                if (!foundVerses) {
+                    throw new RuntimeException("Invalid JSON format: 'verses' array not found");
                 }
 
-                // Convert to float array
-                float[] embedding = new float[embeddingNode.size()];
-                for (int i = 0; i < embeddingNode.size(); i++) {
-                    embedding[i] = (float) embeddingNode.get(i).asDouble();
+                logger.info("📖 Starting to process verses (streaming mode)...");
+
+                // Process each verse object in the array ONE AT A TIME
+                while (parser.nextToken() != JsonToken.END_ARRAY) {
+                    if (parser.currentToken() != JsonToken.START_OBJECT) {
+                        continue;
+                    }
+
+                    // Parse one verse object
+                    String book = null;
+                    Integer chapter = null;
+                    Integer verse = null;
+                    float[] embedding = null;
+
+                    while (parser.nextToken() != JsonToken.END_OBJECT) {
+                        String field = parser.getCurrentName();
+                        parser.nextToken();
+
+                        switch (field) {
+                            case "book":
+                                book = parser.getValueAsString();
+                                break;
+                            case "chapter":
+                                chapter = parser.getIntValue();
+                                break;
+                            case "verse":
+                                verse = parser.getIntValue();
+                                break;
+                            case "embedding":
+                                if (parser.currentToken() == JsonToken.START_ARRAY) {
+                                    List<Float> embList = new ArrayList<>();
+                                    while (parser.nextToken() != JsonToken.END_ARRAY) {
+                                        embList.add((float) parser.getDoubleValue());
+                                    }
+                                    embedding = new float[embList.size()];
+                                    for (int i = 0; i < embList.size(); i++) {
+                                        embedding[i] = embList.get(i);
+                                    }
+                                }
+                                break;
+                            default:
+                                parser.skipChildren();
+                        }
+                    }
+
+                    // Validate we got all required fields
+                    if (book == null || chapter == null || verse == null || embedding == null) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Find existing verse in database
+                    var verseOpt = bibleVerseRepository.findByBookAndChapterAndVerse(book, chapter, verse);
+
+                    if (verseOpt.isEmpty()) {
+                        skipped++;
+                        if (skipped <= 10) {
+                            logger.warn("Verse not found in database: {} {}:{}", book, chapter, verse);
+                        }
+                        continue;
+                    }
+
+                    BibleVerse bibleVerse = verseOpt.get();
+                    bibleVerse.setEmbedding(embedding);
+                    batch.add(bibleVerse);
+                    updated++;
+
+                    // Batch save and clear memory frequently
+                    if (batch.size() >= BATCH_SIZE) {
+                        bibleVerseRepository.saveAll(batch);
+                        batch.clear();
+
+                        // Log progress every 500 verses
+                        if (updated % 500 == 0) {
+                            logger.info("📊 Progress: {} verses imported", updated);
+                            // Suggest garbage collection to free memory
+                            System.gc();
+                        }
+                    }
                 }
 
-                // Update verse with embedding
-                bibleVerse.setEmbedding(embedding);
-                batch.add(bibleVerse);
-                updated++;
-
-                // Batch save every 1000 verses
-                if (batch.size() >= 1000) {
+                // Save remaining verses
+                if (!batch.isEmpty()) {
                     bibleVerseRepository.saveAll(batch);
-                    logger.info("Imported batch: {}/{} verses", updated, verses.size());
                     batch.clear();
                 }
-            }
-
-            // Save remaining verses
-            if (!batch.isEmpty()) {
-                bibleVerseRepository.saveAll(batch);
             }
 
             logger.info("✅ Embedding import completed:");

@@ -1,9 +1,10 @@
 """
 Generate Bible verse embeddings using Cohere API in Google Colab
 This script is free to run in Colab and can be faster than generating in Java
+Currently configured to process New Testament only
 
 Usage in Google Colab:
-1. Upload this script and the Bible JSON files to Colab
+1. Upload this script and the New Testament JSON file to Colab
 2. Install dependencies: !pip install cohere pandas tqdm
 3. Set your COHERE_API_KEY
 4. Run the script
@@ -52,30 +53,31 @@ def parse_verse_from_chapter_content(book_name: str, chapter_number: int, conten
     return verses
 
 def load_bible_data() -> List[Dict]:
-    """Load all Bible verses from JSON files"""
+    """Load all Bible verses from JSON files (New Testament only)"""
     all_verses = []
     
-    for file_path in [OLD_TESTAMENT_PATH, NEW_TESTAMENT_PATH]:
-        if not os.path.exists(file_path):
-            print(f"⚠️  Warning: {file_path} not found. Please upload it to Colab.")
-            continue
-            
-        print(f"📖 Loading {file_path}...")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+    # Only load New Testament
+    file_path = NEW_TESTAMENT_PATH
+    if not os.path.exists(file_path):
+        print(f"⚠️  Warning: {file_path} not found. Please upload it to Colab.")
+        return all_verses
         
-        books = data.get('books', [])
-        for book in books:
-            book_name = book.get('name')
-            chapters = book.get('chapters', [])
-            
-            for chapter in chapters:
-                chapter_number = int(chapter.get('number'))
-                content = chapter.get('content', '')
-                verses = parse_verse_from_chapter_content(book_name, chapter_number, content)
-                all_verses.extend(verses)
+    print(f"📖 Loading {file_path} (New Testament only)...")
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    books = data.get('books', [])
+    for book in books:
+        book_name = book.get('name')
+        chapters = book.get('chapters', [])
         
-        print(f"✅ Loaded {len(all_verses)} verses from {file_path}")
+        for chapter in chapters:
+            chapter_number = int(chapter.get('number'))
+            content = chapter.get('content', '')
+            verses = parse_verse_from_chapter_content(book_name, chapter_number, content)
+            all_verses.extend(verses)
+    
+    print(f"✅ Loaded {len(all_verses)} verses from {file_path}")
     
     return all_verses
 

@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.service;
 
 import com.prayer_chat.chatbot.model.*;
+import com.prayer_chat.chatbot.repository.BibleVerseRepository;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
@@ -45,6 +46,7 @@ public class AiChatbotService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final WebsiteContentRepository websiteContentRepository;
+    private final BibleVerseRepository bibleVerseRepository;
     private final WebhookService webhookService; // NEW FEATURE
 
     @Value("${app.chatbot.max-conversation-history:10}")
@@ -57,7 +59,7 @@ public class AiChatbotService {
     public AiChatbotService(ChatClient chatClient, VectorStore vectorStore, EmbeddingModel embeddingModel,
                            ChatbotRepository chatbotRepository, ConversationRepository conversationRepository,
                            MessageRepository messageRepository, WebsiteContentRepository websiteContentRepository,
-                           WebhookService webhookService) {
+                           BibleVerseRepository bibleVerseRepository, WebhookService webhookService) {
         this.chatClient = chatClient;
         this.vectorStore = vectorStore;
         this.embeddingModel = embeddingModel;
@@ -65,6 +67,7 @@ public class AiChatbotService {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.websiteContentRepository = websiteContentRepository;
+        this.bibleVerseRepository = bibleVerseRepository;
         this.webhookService = webhookService; // NEW FEATURE
     }
     
@@ -160,8 +163,14 @@ public class AiChatbotService {
         // Check if this is the first message (for Christian greeting)
         boolean isFirstMessage = recentMessages.isEmpty();
 
+        // Find relevant Bible verse if Christian messaging is enabled
+        BibleVerse relevantVerse = null;
+        if (chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
+            relevantVerse = findRelevantBibleVerse(userMessage, relevantDocs, isFirstMessage);
+        }
+
         // Create system prompt with context
-        String systemPrompt = buildSystemPrompt(chatbot, relevantDocs, userLanguage);
+        String systemPrompt = buildSystemPrompt(chatbot, relevantDocs, userLanguage, relevantVerse, isFirstMessage);
 
         // Add Christian greeting instruction for first message
         if (isFirstMessage && chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
@@ -235,11 +244,125 @@ public class AiChatbotService {
             .sorted(Comparator.comparing(com.prayer_chat.chatbot.model.Message::getCreatedAt))
             .collect(Collectors.toList());
     }
-    
+
     /**
-     * Build system prompt with context
+     * Find relevant Bible verse for the current conversation context
+     * Uses smart threshold logic:
+     * - First message: Always find a verse (threshold 0.5)
+     * - Other messages: Only if highly relevant (try 0.7, fallback to 0.5)
+     *
+     * @param userMessage The user's question
+     * @param websiteDocs Relevant website content documents
+     * @param isFirstMessage Whether this is the first message in the conversation
+     * @return BibleVerse if relevant one found, null otherwise
      */
-    private String buildSystemPrompt(Chatbot chatbot, List<Document> relevantDocs, String userLanguage) {
+    private BibleVerse findRelevantBibleVerse(String userMessage, List<Document> websiteDocs, boolean isFirstMessage) {
+        try {
+            // Build search context: combine user message + website content
+            StringBuilder context = new StringBuilder();
+            context.append("User question: ").append(userMessage).append("\n");
+
+            if (!websiteDocs.isEmpty()) {
+                context.append("Website context: ");
+                for (Document doc : websiteDocs) {
+                    // Limit each doc to 500 chars to avoid token limits
+                    String docText = doc.getText();
+                    if (docText.length() > 500) {
+                        docText = docText.substring(0, 500);
+                    }
+                    context.append(docText).append(" ");
+                }
+            }
+
+            // Limit total context to 2000 chars
+            String searchQuery = context.toString();
+            if (searchQuery.length() > 2000) {
+                searchQuery = searchQuery.substring(0, 2000);
+            }
+
+            // Generate embedding for the query
+            float[] queryEmbedding = embeddingModel.embed(searchQuery);
+
+            // Get all Bible verses with embeddings
+            List<BibleVerse> verses = bibleVerseRepository.findVersesWithEmbeddings();
+
+            if (verses.isEmpty()) {
+                logger.warn("No Bible verses with embeddings found in database");
+                return null;
+            }
+
+            // Calculate similarity for each verse and find best match
+            BibleVerse bestMatch = null;
+            double bestSimilarity = 0.0;
+
+            for (BibleVerse verse : verses) {
+                double similarity = cosineSimilarity(queryEmbedding, verse.getEmbedding());
+                if (similarity > bestSimilarity) {
+                    bestSimilarity = similarity;
+                    bestMatch = verse;
+                }
+            }
+
+            // Smart threshold logic
+            if (isFirstMessage) {
+                // First message: Use verse if similarity >= 0.5 (moderately relevant)
+                if (bestSimilarity >= 0.5) {
+                    logger.info("Found Bible verse for first message: {} (similarity: {:.2f})",
+                        bestMatch.getReference(), bestSimilarity);
+                    return bestMatch;
+                }
+            } else {
+                // Subsequent messages: Use verse only if highly or moderately relevant
+                if (bestSimilarity >= 0.7) {
+                    logger.info("Found highly relevant Bible verse: {} (similarity: {:.2f})",
+                        bestMatch.getReference(), bestSimilarity);
+                    return bestMatch;
+                } else if (bestSimilarity >= 0.5) {
+                    logger.info("Found moderately relevant Bible verse: {} (similarity: {:.2f})",
+                        bestMatch.getReference(), bestSimilarity);
+                    return bestMatch;
+                }
+            }
+
+            logger.debug("No sufficiently relevant Bible verse found (best similarity: {:.2f})", bestSimilarity);
+            return null;
+
+        } catch (Exception e) {
+            logger.error("Error finding relevant Bible verse", e);
+            return null;
+        }
+    }
+
+    /**
+     * Calculate cosine similarity between two embedding vectors
+     */
+    private double cosineSimilarity(float[] vec1, float[] vec2) {
+        if (vec1.length != vec2.length) {
+            throw new IllegalArgumentException("Vectors must have the same length");
+        }
+
+        double dotProduct = 0.0;
+        double norm1 = 0.0;
+        double norm2 = 0.0;
+
+        for (int i = 0; i < vec1.length; i++) {
+            dotProduct += vec1[i] * vec2[i];
+            norm1 += vec1[i] * vec1[i];
+            norm2 += vec2[i] * vec2[i];
+        }
+
+        if (norm1 == 0.0 || norm2 == 0.0) {
+            return 0.0;
+        }
+
+        return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    }
+
+    /**
+     * Build system prompt with context and dynamic Bible verse
+     */
+    private String buildSystemPrompt(Chatbot chatbot, List<Document> relevantDocs, String userLanguage,
+                                     BibleVerse relevantVerse, boolean isFirstMessage) {
         StringBuilder prompt = new StringBuilder();
 
         // Base system prompt
@@ -256,9 +379,18 @@ public class AiChatbotService {
             prompt.append("- Be respectful, patient, and understanding in all communications\n");
             prompt.append("- Seek to help and bless those you interact with\n");
 
-            // Add Bible verse if configured
-            if (chatbot.getBibleVerse() != null && !chatbot.getBibleVerse().trim().isEmpty()) {
-                prompt.append("\nGuiding Scripture: ").append(chatbot.getBibleVerse()).append("\n");
+            // Add dynamically selected Bible verse (if found and relevant)
+            if (relevantVerse != null) {
+                prompt.append("\n📖 Relevant Scripture for this conversation:\n");
+                prompt.append(relevantVerse.getReference()).append(" - \"").append(relevantVerse.getText()).append("\"\n");
+                prompt.append("\nInstructions for using this verse:\n");
+                if (isFirstMessage) {
+                    prompt.append("- This is the first message. Naturally incorporate this verse into your introduction if it relates to the business's mission or values.\n");
+                } else {
+                    prompt.append("- Only mention this verse if it's truly relevant to the user's question.\n");
+                    prompt.append("- When citing the verse, briefly explain how it connects to what the user is asking about.\n");
+                    prompt.append("- Don't force it - if it doesn't fit naturally, don't include it.\n");
+                }
             }
 
             // Add footer instruction for Christian blessing

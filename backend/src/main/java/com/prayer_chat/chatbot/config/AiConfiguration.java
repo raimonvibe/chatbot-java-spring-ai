@@ -37,6 +37,13 @@ import org.springframework.context.annotation.Profile;
 public class AiConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AiConfiguration.class);
+    
+    // Debug: Log when configuration is being processed
+    public AiConfiguration() {
+        System.out.println("=".repeat(60));
+        System.out.println("🔧 AiConfiguration constructor called");
+        System.out.println("=".repeat(60));
+    }
 
     @Value("${spring.ai.anthropic.api-key:${ANTHROPIC_API_KEY:}}")
     private String anthropicApiKey;
@@ -156,5 +163,37 @@ public class AiConfiguration {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
         return mapper;
+    }
+
+    /**
+     * Explicitly create EmbeddingImportRunner bean to ensure it's loaded
+     * Always create it - let the runner itself check if IMPORT_EMBEDDINGS_FILE is set
+     */
+    @Bean
+    public EmbeddingImportRunner embeddingImportRunner(
+            com.prayer_chat.chatbot.service.EmbeddingImporterService embeddingImporterService,
+            org.springframework.core.env.Environment environment,
+            com.prayer_chat.chatbot.service.UrlValidationService urlValidationService) {
+        System.out.println("=".repeat(60));
+        System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
+        System.out.println("🔧 Creating EmbeddingImportRunner bean (will check env var in run method)");
+        
+        // Debug: Check environment variable
+        String envVar = System.getenv("IMPORT_EMBEDDINGS_FILE");
+        String prop = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
+        System.out.println("🔍 System.getenv('IMPORT_EMBEDDINGS_FILE'): " + (envVar != null ? envVar : "null"));
+        System.out.println("🔍 environment.getProperty('IMPORT_EMBEDDINGS_FILE'): " + (prop != null ? prop : "null"));
+        System.out.println("=".repeat(60));
+        
+        logger.info("Creating EmbeddingImportRunner bean");
+        try {
+            EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment, urlValidationService);
+            System.out.println("✅ EmbeddingImportRunner bean created successfully");
+            return runner;
+        } catch (Exception e) {
+            System.out.println("❌ Error creating EmbeddingImportRunner: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 }
