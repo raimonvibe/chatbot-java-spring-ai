@@ -9,6 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.11</version>
+        <!-- Spring Boot 3.2.11 - stable release for reliable CI/CD builds -->
         <relativePath/>
     </parent>
 
