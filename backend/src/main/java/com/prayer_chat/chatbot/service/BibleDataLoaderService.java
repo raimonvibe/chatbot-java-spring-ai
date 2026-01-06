@@ -40,6 +40,9 @@ public class BibleDataLoaderService {
     @Value("${app.bible.auto-load:false}")
     private boolean autoLoad;
 
+    @Value("${app.bible.load-old-testament:false}")
+    private boolean loadOldTestament;
+
     public BibleDataLoaderService(
             BibleVerseRepository bibleVerseRepository,
             ResourceLoader resourceLoader,
@@ -59,15 +62,19 @@ public class BibleDataLoaderService {
         int totalVerses = 0;
 
         try {
-            // Load Old Testament
-            Resource oldTestamentResource = resourceLoader.getResource(oldTestamentPath);
-            if (oldTestamentResource.exists()) {
-                logger.info("Loading Old Testament from: {}", oldTestamentPath);
-                int oldTestamentVerses = loadTestament(oldTestamentResource.getInputStream());
-                totalVerses += oldTestamentVerses;
-                logger.info("Loaded {} verses from Old Testament", oldTestamentVerses);
+            // Load Old Testament (only if enabled)
+            if (loadOldTestament) {
+                Resource oldTestamentResource = resourceLoader.getResource(oldTestamentPath);
+                if (oldTestamentResource.exists()) {
+                    logger.info("Loading Old Testament from: {}", oldTestamentPath);
+                    int oldTestamentVerses = loadTestament(oldTestamentResource.getInputStream());
+                    totalVerses += oldTestamentVerses;
+                    logger.info("Loaded {} verses from Old Testament", oldTestamentVerses);
+                } else {
+                    logger.warn("Old Testament file not found at: {}", oldTestamentPath);
+                }
             } else {
-                logger.warn("Old Testament file not found at: {}", oldTestamentPath);
+                logger.info("Old Testament loading is disabled (app.bible.load-old-testament=false)");
             }
 
             // Load New Testament

@@ -43,7 +43,7 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Value("${cors.allowed-origins:http://localhost:3000, https://chatbot-java-spring-ai.vercel.app}")
+    @Value("${cors.allowed-origins:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com,https://chatbot-java-spring-ai.vercel.app}")
     private String allowedOrigins;
 
     @Autowired private RateLimitingFilter rateLimitingFilter;
@@ -206,13 +206,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
+        // Trim spaces from origins when splitting
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .toList());
+        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
+        // Register for all paths to ensure CORS headers are always present
+        source.registerCorsConfiguration("/**", config);
+
+        logger.info("CORS configured with allowed origins: {}", config.getAllowedOrigins());
         return source;
     }
 
