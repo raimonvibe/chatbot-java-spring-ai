@@ -1,0 +1,17 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow authenticated/private pages
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /onboarding
+Disallow: /onboarding/
+Disallow: /auth/
+Disallow: /chatbot/
+
+# Disallow API routes
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://prayer-chat.com/sitemap.xml
