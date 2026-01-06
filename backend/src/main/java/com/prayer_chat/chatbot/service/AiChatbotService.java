@@ -281,11 +281,7 @@ public class AiChatbotService {
             }
 
             // Generate embedding for the query
-            List<Float> embeddingList = embeddingModel.embed(searchQuery);
-            float[] queryEmbedding = new float[embeddingList.size()];
-            for (int i = 0; i < embeddingList.size(); i++) {
-                queryEmbedding[i] = embeddingList.get(i);
-            }
+            float[] queryEmbedding = embeddingModel.embed(searchQuery);
 
             // Get all Bible verses with embeddings
             List<BibleVerse> verses = bibleVerseRepository.findVersesWithEmbeddings();
