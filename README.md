@@ -1,4 +1,4 @@
-# 🙏 Prayer-Chat AI Chatbot System
+# 🙏 Prayer-Chat AI Chatbot Generator
 
 ![Prayer-Chat AI Logo](prayer-chat1.png)
 
