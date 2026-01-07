@@ -3,7 +3,6 @@ package com.prayer_chat.chatbot.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -78,8 +77,11 @@ public class Chatbot {
      * Enable "What Jesus Would Say" feature
      * When enabled, chatbot responses will be inspired by Jesus's direct teachings
      * from the Gospels (Matthew, Mark, Luke, John)
+     * 
+     * Note: Column is nullable to allow migration of existing NULL values.
+     * Migration runner will set NULL values to false on startup.
      */
-    @Column(name = "jesus_teachings_enabled", nullable = false)
+    @Column(name = "jesus_teachings_enabled", nullable = true)
     private Boolean jesusTeachingsEnabled = false;
 
     @Column(nullable = false)
@@ -289,7 +291,8 @@ public class Chatbot {
     }
 
     public Boolean getJesusTeachingsEnabled() {
-        return jesusTeachingsEnabled;
+        // Return false if null (for backward compatibility with existing rows)
+        return jesusTeachingsEnabled != null ? jesusTeachingsEnabled : false;
     }
 
     public void setJesusTeachingsEnabled(Boolean jesusTeachingsEnabled) {

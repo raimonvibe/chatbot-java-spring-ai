@@ -128,6 +128,12 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
+        <!-- Spring Retry - Required by Spring AI -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
         <!-- HTTP client for Cohere API -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
