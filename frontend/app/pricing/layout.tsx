@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Pricing Plans - Prayer-Chat',
   description: 'Choose the perfect plan for your Christian AI chatbot. Start with a free trial or upgrade to Pro for unlimited chatbots and messages.',
+  alternates: {
+    canonical: 'https://prayer-chat.com/pricing',
+  },
   openGraph: {
     title: 'Pricing Plans - Prayer-Chat',
     description: 'Choose the perfect plan for your Christian AI chatbot. Start with a free trial or upgrade to Pro for unlimited chatbots and messages.',

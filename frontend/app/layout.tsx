@@ -15,6 +15,9 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
   },
   metadataBase: new URL('https://prayer-chat.com'),
+  alternates: {
+    canonical: 'https://prayer-chat.com',
+  },
   openGraph: {
     title: "Prayer-Chat - Christian AI Chatbot Platform",
     description: "Create AI-powered chatbots infused with Christian values and biblical wisdom for your ministry or business",

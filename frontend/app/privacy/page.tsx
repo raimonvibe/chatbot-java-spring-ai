@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Privacy Notice - Prayer-Chat',
   description: 'Learn how Prayer-Chat protects your privacy and handles your data in compliance with GDPR regulations.',
+  alternates: {
+    canonical: 'https://prayer-chat.com/privacy',
+  },
   openGraph: {
     title: 'Privacy Notice - Prayer-Chat',
     description: 'Learn how Prayer-Chat protects your privacy and handles your data in compliance with GDPR regulations.',

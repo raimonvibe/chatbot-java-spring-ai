@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Legal Notice & Terms of Service - Prayer-Chat',
   description: 'Read the terms of service and legal information for using Prayer-Chat Christian AI chatbot platform.',
+  alternates: {
+    canonical: 'https://prayer-chat.com/legal',
+  },
   openGraph: {
     title: 'Legal Notice & Terms of Service - Prayer-Chat',
     description: 'Read the terms of service and legal information for using Prayer-Chat Christian AI chatbot platform.',
