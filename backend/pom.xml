@@ -343,6 +343,12 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Spring Retry - Ensure version consistency -->
+            <dependency>
+                <groupId>org.springframework.retry</groupId>
+                <artifactId>spring-retry</artifactId>
+                <version>2.0.12</version>
+            </dependency>
             <!-- Jackson 2.x versions - Spring Boot 3.2.11 uses Jackson 2.x by default -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -367,6 +373,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Ensure all dependencies are included in the fat JAR -->
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
             </plugin>
 
             <!-- Maven Surefire Plugin for unit tests -->
