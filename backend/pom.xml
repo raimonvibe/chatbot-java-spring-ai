@@ -23,7 +23,8 @@
         <java.version>17</java.version>
         <spring-ai.version>2.0.0-M1</spring-ai.version>
         <!-- Explicit version overrides for security patches -->
-        <tomcat.version>11.0.14</tomcat.version>
+        <!-- Tomcat version managed by Spring Boot 3.2.11 (uses Tomcat 10.1.x) -->
+        <!-- Removing explicit override to avoid incompatibility with Spring Boot autoconfigure -->
         <postgresql.version>42.7.8</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
