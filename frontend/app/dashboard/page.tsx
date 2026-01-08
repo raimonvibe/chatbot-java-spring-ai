@@ -263,7 +263,7 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen p-8">
-      <ChatbotCreationLoader isVisible={creating} chatbotName={formData.name} />
+      <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
