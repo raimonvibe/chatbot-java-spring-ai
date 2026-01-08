@@ -65,6 +65,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook", "/login/**", "/oauth2/**"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                // Allow all OPTIONS requests for CORS preflight (industry standard, secure)
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/").permitAll() // Root path returns JSON API info (RootController)
                 .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
                 .requestMatchers("/api/auth/me").authenticated() // Only /me endpoint requires auth
