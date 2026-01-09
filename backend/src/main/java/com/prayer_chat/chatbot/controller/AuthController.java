@@ -64,6 +64,7 @@ public class AuthController {
      * Get current user info
      * Returns information about the currently authenticated user (via OAuth2)
      */
+    @CrossOrigin(origins = {"https://prayer-chat.com", "https://www.prayer-chat.com", "http://localhost:3000", "https://chatbot-java-spring-ai.vercel.app"}, allowCredentials = "true")
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal CustomOAuth2User oAuth2User) {
         if (oAuth2User == null) {
@@ -168,13 +169,14 @@ public class AuthController {
      * Hybrid OAuth2 callback endpoint
      * Exchanges authorization code for tokens and creates user session
      * This endpoint is called by the frontend after Google redirects back with the authorization code
-     * 
+     *
      * Security measures:
      * - Input validation (code length, format)
      * - Redirect URI validation (prevent open redirect attacks)
      * - Error message sanitization (don't leak sensitive info)
      * - Rate limiting (handled by RateLimitingFilter)
      */
+    @CrossOrigin(origins = {"https://prayer-chat.com", "https://www.prayer-chat.com", "http://localhost:3000", "https://chatbot-java-spring-ai.vercel.app"}, allowCredentials = "true")
     @PostMapping("/oauth2/callback")
     public ResponseEntity<?> handleOAuth2Callback(
             @RequestBody Map<String, String> request,
