@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
@@ -36,8 +36,14 @@ function AuthCallbackContent() {
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
+    // Prevent multiple executions (React Strict Mode, re-renders, etc.)
+    if (hasProcessed.current) {
+      return;
+    }
+    hasProcessed.current = true;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
@@ -118,7 +124,7 @@ function AuthCallbackContent() {
     };
 
     exchangeCode();
-  }, [searchParams, router, errorMessage]);
+  }, [searchParams, router]);  // Removed errorMessage to prevent re-execution loop
 
   return (
     <main className="relative min-h-screen overflow-hidden flex items-center justify-center">

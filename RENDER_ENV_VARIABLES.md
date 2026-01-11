@@ -52,8 +52,13 @@ DATABASE_PASSWORD=<password>
 ### 🌐 Server Configuration
 ```
 PORT=10000
-CORS_ALLOWED_ORIGINS=https://jouw-domein.com,https://*.vercel.app
+CORS_ALLOWED_ORIGINS=https://prayer-chat.com,https://www.prayer-chat.com,http://localhost:3000,https://chatbot-java-spring-ai.vercel.app,https://*.vercel.app
+APP_BASE_URL=https://chatbot-backend-4mp4.onrender.com
+FRONTEND_URL=https://prayer-chat.com
 ```
+
+**CRITICAL FOR OAUTH:** Ensure `CORS_ALLOWED_ORIGINS` includes all frontend domains where users will log in.
+The backend CORS configuration reads this environment variable dynamically.
 
 ### 📊 Optional Configuration
 ```
