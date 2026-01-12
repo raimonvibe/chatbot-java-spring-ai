@@ -40,7 +40,8 @@ spring:
         dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.H2Dialect}
         format_sql: false
         jdbc:
-          batch_size: 20
+          batch_size: 50  # Optimized for memory: increased from 20 to reduce memory usage during bulk inserts
+          batch_versioned_data: true  # Enable batch updates for versioned entities
         order_inserts: true
         order_updates: true
     open-in-view: false

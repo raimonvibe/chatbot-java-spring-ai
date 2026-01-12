@@ -65,6 +65,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook", "/login/**", "/oauth2/**"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                // Allow all OPTIONS requests for CORS preflight (industry standard, secure)
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/").permitAll() // Root path returns JSON API info (RootController)
                 .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
                 .requestMatchers("/api/auth/me").authenticated() // Only /me endpoint requires auth
@@ -206,8 +208,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Trim spaces from origins when splitting
-        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+        // Use setAllowedOriginPatterns instead of setAllowedOrigins to support wildcards like https://*.vercel.app
+        config.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .toList());
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
@@ -219,7 +221,7 @@ public class SecurityConfig {
         // Register for all paths to ensure CORS headers are always present
         source.registerCorsConfiguration("/**", config);
 
-        logger.info("CORS configured with allowed origins: {}", config.getAllowedOrigins());
+        logger.info("CORS configured with allowed origin patterns: {}", config.getAllowedOriginPatterns());
         return source;
     }
 

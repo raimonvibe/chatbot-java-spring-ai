@@ -62,7 +62,7 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
      * Count chatbots by owner
      * Uses owner_id column directly for H2 compatibility
      */
-    @Query(value = "SELECT COUNT(c) FROM chatbots c WHERE c.owner_id = :ownerId", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM chatbots c WHERE c.owner_id = :ownerId", nativeQuery = true)
     Long countByOwner(@Param("ownerId") Long ownerId);
     
     /**
@@ -80,4 +80,13 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
     @Transactional
     @Query(value = "ALTER TABLE chatbots ALTER COLUMN id RESTART WITH 1", nativeQuery = true)
     void resetSequenceH2();
+    
+    /**
+     * Update NULL values in jesus_teachings_enabled column to false
+     * This fixes existing rows that were created before the column was added
+     */
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE chatbots SET jesus_teachings_enabled = false WHERE jesus_teachings_enabled IS NULL", nativeQuery = true)
+    int updateNullJesusTeachingsEnabled();
 }

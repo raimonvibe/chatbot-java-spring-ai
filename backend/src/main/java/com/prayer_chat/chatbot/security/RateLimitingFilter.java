@@ -44,6 +44,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        // Skip rate limiting for OPTIONS requests (CORS preflight)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String key = getClientIdentifier(request);
         String path = request.getRequestURI();
 
@@ -56,6 +62,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } else {
             logger.warn("Rate limit exceeded for client: {} on path: {}", key, path);
+
+            // Add CORS headers before sending error response
+            String origin = request.getHeader("Origin");
+            if (origin != null) {
+                response.setHeader("Access-Control-Allow-Origin", origin);
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+                response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
+                response.setHeader("Access-Control-Allow-Headers", "*");
+            }
+
             response.setStatus(429); // Too Many Requests
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"Too many requests. Please try again later.\"}");

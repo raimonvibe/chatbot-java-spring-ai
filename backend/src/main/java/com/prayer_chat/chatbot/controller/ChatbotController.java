@@ -11,6 +11,9 @@ import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.BibleVerseService;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.dto.ChristianContentAnalysis;
+import com.prayer_chat.chatbot.service.JesusTeachingsService;
+import com.prayer_chat.chatbot.service.JesusVersesTaggingService;
+import com.prayer_chat.chatbot.dto.JesusTeaching;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.AccessControlService;
@@ -51,6 +54,8 @@ public class ChatbotController {
     private final ConversationExportService conversationExportService;
     private final BibleVerseService bibleVerseService;
     private final ChristianContentAnalysisService christianContentAnalysisService;
+    private final JesusTeachingsService jesusTeachingsService;
+    private final JesusVersesTaggingService jesusVersesTaggingService;
     private final CostTrackingService costTrackingService;
     private final WebsiteSizeEstimator websiteSizeEstimator;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
@@ -68,6 +73,8 @@ public class ChatbotController {
                            ConversationExportService conversationExportService,
                            BibleVerseService bibleVerseService,
                            ChristianContentAnalysisService christianContentAnalysisService,
+                           JesusTeachingsService jesusTeachingsService,
+                           JesusVersesTaggingService jesusVersesTaggingService,
                            CostTrackingService costTrackingService,
                            WebsiteSizeEstimator websiteSizeEstimator,
                            WebsiteScanAuditRepository websiteScanAuditRepository,
@@ -80,6 +87,8 @@ public class ChatbotController {
         this.conversationExportService = conversationExportService;
         this.bibleVerseService = bibleVerseService;
         this.christianContentAnalysisService = christianContentAnalysisService;
+        this.jesusTeachingsService = jesusTeachingsService;
+        this.jesusVersesTaggingService = jesusVersesTaggingService;
         this.costTrackingService = costTrackingService;
         this.websiteSizeEstimator = websiteSizeEstimator;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
@@ -534,6 +543,7 @@ public class ChatbotController {
             // CHRISTIAN MESSAGING FEATURES
             chatbot.setBibleVerse(chatbotDetails.getBibleVerse());
             chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
+            chatbot.setJesusTeachingsEnabled(chatbotDetails.getJesusTeachingsEnabled()); // NEW: Jesus Teachings feature
 
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
             logger.info("Updated chatbot: {}", LogSanitizer.sanitize(updatedChatbot.getName()));
@@ -1102,6 +1112,68 @@ public class ChatbotController {
 
         } catch (Exception e) {
             logger.error("Error analyzing Christian content for chatbot {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Preview Jesus's teachings relevant to the chatbot's website
+     * Shows what teachings would be used if "What Jesus Would Say" feature is enabled
+     */
+    @PostMapping("/{id}/preview-jesus-teachings")
+    public ResponseEntity<Map<String, Object>> previewJesusTeachings(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "5") int maxTeachings,
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Chatbot chatbot = chatbotOpt.get();
+
+            // Verify access
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
+            // Get website content for context
+            String websiteContent = websiteAnalysisService.getAnalyzedContent(chatbot);
+            if (websiteContent == null || websiteContent.trim().isEmpty()) {
+                websiteContent = chatbot.getDescription() != null ? chatbot.getDescription() : "";
+            }
+
+            // Find relevant Jesus teachings
+            List<JesusTeaching> teachings = jesusTeachingsService.findRelevantTeachings(
+                    websiteContent, maxTeachings, 0.4); // Lower threshold for preview
+
+            // Get total count of Jesus verses
+            long totalJesusVerses = jesusVersesTaggingService.getJesusVersesCount();
+
+            // Build response
+            Map<String, Object> response = Map.of(
+                    "chatbotId", id.toString(),
+                    "websiteUrl", chatbot.getWebsiteUrl() != null ? chatbot.getWebsiteUrl() : "",
+                    "topTeachings", teachings.stream()
+                            .map(t -> Map.of(
+                                    "reference", t.getReference(),
+                                    "text", t.getText(),
+                                    "similarity", String.format("%.2f", t.getSimilarity())
+                            ))
+                            .toList(),
+                    "totalJesusVerses", totalJesusVerses
+            );
+
+            logger.info("Previewed Jesus teachings for chatbot {}: found {} teachings", 
+                    id, teachings.size());
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error previewing Jesus teachings for chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

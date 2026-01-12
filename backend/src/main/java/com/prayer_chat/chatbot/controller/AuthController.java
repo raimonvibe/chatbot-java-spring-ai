@@ -63,6 +63,9 @@ public class AuthController {
     /**
      * Get current user info
      * Returns information about the currently authenticated user (via OAuth2)
+     *
+     * Note: CORS is handled globally by SecurityConfig.corsConfigurationSource()
+     * which reads from CORS_ALLOWED_ORIGINS environment variable.
      */
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal CustomOAuth2User oAuth2User) {
@@ -168,12 +171,15 @@ public class AuthController {
      * Hybrid OAuth2 callback endpoint
      * Exchanges authorization code for tokens and creates user session
      * This endpoint is called by the frontend after Google redirects back with the authorization code
-     * 
+     *
      * Security measures:
      * - Input validation (code length, format)
      * - Redirect URI validation (prevent open redirect attacks)
      * - Error message sanitization (don't leak sensitive info)
      * - Rate limiting (handled by RateLimitingFilter)
+     *
+     * Note: CORS is handled globally by SecurityConfig.corsConfigurationSource()
+     * which reads from CORS_ALLOWED_ORIGINS environment variable.
      */
     @PostMapping("/oauth2/callback")
     public ResponseEntity<?> handleOAuth2Callback(

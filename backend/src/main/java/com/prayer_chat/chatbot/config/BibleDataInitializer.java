@@ -53,8 +53,9 @@ public class BibleDataInitializer implements CommandLineRunner {
             logger.warn("⚠️  FORCE_RELOAD_BIBLE_DATA is set to true!");
             logger.warn("⚠️  Deleting all existing Bible verses and reloading...");
             long deletedCount = bibleVerseRepository.count();
-            bibleVerseRepository.deleteAll();
-            logger.info("✅ Deleted {} existing Bible verses", deletedCount);
+            // Use optimized native query delete to avoid loading all entities into memory
+            bibleVerseRepository.deleteAllVerses();
+            logger.info("✅ Deleted {} existing Bible verses (using optimized native query)", deletedCount);
             logger.info("🔄 Reloading Bible data (only New Testament will be loaded if load-old-testament=false)...");
         }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbot, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
@@ -24,12 +24,7 @@ export default function Dashboard() {
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
   const [showAnalysisForChatbot, setShowAnalysisForChatbot] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: 'Customer Support Bot',
-    description: 'AI assistant to help customers with common questions and support',
-    websiteUrl: 'https://example.com',
-    primaryLanguage: 'en',
-  });
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -134,19 +129,25 @@ export default function Dashboard() {
     setCreating(true);
 
     try {
-      const newChatbot = await createChatbot(formData);
-      
+      if (!websiteUrl.trim()) {
+        alert('Please enter a website URL');
+        setCreating(false);
+        return;
+      }
+
+      const newChatbot = await createChatbotFromUrl(websiteUrl.trim());
+
       // Keep loader visible for a moment to show completion
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       setChatbots([...chatbots, newChatbot]);
-      setFormData({ name: '', description: '', websiteUrl: '', primaryLanguage: 'en' });
+      setWebsiteUrl('');
       setShowCreateForm(false);
       setCreating(false); // Hide loader only after successful creation
 
       // Auto-analyze website if URL provided (after loader is hidden)
-      if (formData.websiteUrl) {
-        handleAnalyzeWebsite(newChatbot.id, formData.websiteUrl);
+      if (websiteUrl.trim()) {
+        handleAnalyzeWebsite(newChatbot.id, websiteUrl.trim());
       }
     } catch (error: any) {
       console.error('Error creating chatbot:', error);
@@ -262,7 +263,7 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen p-8">
-      <ChatbotCreationLoader isVisible={creating} chatbotName={formData.name} />
+      <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
@@ -328,50 +329,33 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <form onSubmit={handleCreateChatbot} className="space-y-4">
+            <form onSubmit={handleCreateChatbot} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2 text-brown-800">Name</label>
+                <label htmlFor="websiteUrl" className="block text-sm font-medium mb-2 text-brown-800">
+                  Enter your website URL
+                </label>
                 <input
+                  id="websiteUrl"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="example.com or https://example.com"
+                  className="w-full px-4 py-3 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900 text-lg"
+                  disabled={creating}
                   required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-brown-800">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
-                  rows={3}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-brown-800">Website URL</label>
-                <input
-                  type="url"
-                  value={formData.websiteUrl}
-                  onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
-                  placeholder="https://example.com"
-                  className="w-full px-4 py-2 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900"
-                  required
-                />
-                <p className="text-sm text-brown-600 mt-1">
-                  The chatbot will analyze and learn from this website
+                <p className="text-sm text-brown-600 mt-2">
+                  We'll analyze your website and create a chatbot that understands your content.
+                  Christian values are pre-configured by default.
                 </p>
               </div>
 
               <button
                 type="submit"
-                disabled={creating}
+                disabled={creating || !websiteUrl.trim()}
                 className="w-full px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                <CheckCircle className="w-5 h-5" /> Create Chatbot
+                <CheckCircle className="w-5 h-5" /> Create My Chatbot
               </button>
             </form>
           </motion.div>

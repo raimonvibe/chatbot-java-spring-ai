@@ -8,7 +8,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
+        <version>3.4.5</version>
+        <!-- Spring Boot 3.4.5 - required for Spring AI 1.0.0 GA (stable) -->
         <relativePath/>
     </parent>
 
@@ -20,16 +21,15 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-ai.version>2.0.0-M1</spring-ai.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
         <!-- Explicit version overrides for security patches -->
-        <tomcat.version>11.0.14</tomcat.version>
+        <!-- Tomcat version managed by Spring Boot 3.2.11 (uses Tomcat 10.1.x) -->
+        <!-- Removing explicit override to avoid incompatibility with Spring Boot autoconfigure -->
         <postgresql.version>42.7.8</postgresql.version>
-        <spring-security.version>7.0.0</spring-security.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
-        <!-- Jackson 2.x version override - Spring Boot 4.0 uses Jackson 3.x by default -->
+        <!-- Jackson version - Spring Boot 3.2.11 uses Jackson 2.x by default -->
         <!-- Using 2.17.1 for latest security patches and compatibility with RestAssured -->
-        <!-- Note: 2.17.1 is widely available and stable -->
         <jackson.version>2.17.1</jackson.version>
     </properties>
 
@@ -38,26 +38,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <exclusions>
-                <!-- Exclude Jackson 3.x from Spring Boot 4.0, use Jackson 2.x instead -->
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-json</artifactId>
-                </exclusion>
-                <!-- Also exclude Jackson 3.x directly -->
-                <exclusion>
-                    <groupId>tools.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>tools.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>tools.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
-                </exclusion>
-            </exclusions>
+            <!-- Spring Boot 3.2.11 uses Jackson 2.x by default, no exclusions needed -->
         </dependency>
         
         <dependency>
@@ -147,6 +128,13 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
+        <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support -->
+        <!-- spring-retry is automatically managed by Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- HTTP client for Cohere API -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -179,7 +167,7 @@
             <version>4.39.0</version>
         </dependency>
 
-        <!-- JSON Processing - Override Spring Boot 4.0's Jackson 3.x with Jackson 2.x -->
+        <!-- JSON Processing - Spring Boot 3.2.11 uses Jackson 2.x by default -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -249,22 +237,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Spring Boot 4.0 modularized test dependencies -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-data-jpa-test</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <!-- Spring Boot 3.2.11 test dependencies are included in spring-boot-starter-test -->
 
         <!-- Mockito for mocking (inline version for Java 17+) -->
-        <!-- Note: Spring Boot 4.0.0 includes security fixes for Reactor Netty -->
-        <!-- Using 5.2.0 for now - Spring Boot 4.0.0 milestone may have different managed version -->
+        <!-- Spring Boot 3.2.11 manages Mockito version -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
@@ -359,7 +335,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Force Jackson 2.x versions - override Spring Boot 4.0's Jackson 3.x -->
+            <!-- Jackson 2.x versions - Spring Boot 3.4.5 uses Jackson 2.x by default -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
@@ -383,6 +359,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Ensure all dependencies are included in the fat JAR -->
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
             </plugin>
 
             <!-- Maven Surefire Plugin for unit tests -->
@@ -508,6 +488,19 @@
     </build>
 
     <repositories>
+        <!-- Maven Central (primary) -->
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <!-- Spring Milestones (for release candidates) -->
         <repository>
             <id>spring-milestones</id>
             <name>Spring Milestones</name>
@@ -516,13 +509,16 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+        <!-- Spring Snapshots (disabled - only use stable releases) -->
+        <!--
         <repository>
             <id>spring-snapshots</id>
             <name>Spring Snapshots</name>
             <url>https://repo.spring.io/snapshot</url>
             <snapshots>
-                <enabled>true</enabled>
+                <enabled>false</enabled>
             </snapshots>
         </repository>
+        -->
     </repositories>
 </project>

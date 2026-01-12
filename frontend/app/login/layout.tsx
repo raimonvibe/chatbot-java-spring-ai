@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Login - Prayer-Chat',
   description: 'Sign in to Prayer-Chat to create and manage your Christian AI chatbots with biblical wisdom.',
+  alternates: {
+    canonical: 'https://prayer-chat.com/login',
+  },
   openGraph: {
     title: 'Login - Prayer-Chat',
     description: 'Sign in to Prayer-Chat to create and manage your Christian AI chatbots with biblical wisdom.',

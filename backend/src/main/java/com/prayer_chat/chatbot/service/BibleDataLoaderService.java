@@ -140,8 +140,8 @@ public class BibleDataLoaderService {
 
                 totalVerses += chapterVerses.size();
 
-                // Batch save every 1000 verses to avoid memory issues
-                if (versesToSave.size() >= 1000) {
+                // Batch save every 500 verses to reduce memory usage (optimized from 1000)
+                if (versesToSave.size() >= 500) {
                     bibleVerseRepository.saveAll(versesToSave);
                     logger.debug("Saved batch of {} verses", versesToSave.size());
                     versesToSave.clear();

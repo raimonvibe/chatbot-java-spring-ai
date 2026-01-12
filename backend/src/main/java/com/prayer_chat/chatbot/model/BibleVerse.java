@@ -47,6 +47,13 @@ public class BibleVerse {
     @Column(name = "embedding_dimensions")
     private Integer embeddingDimensions; // Usually 1024 for Cohere embed-multilingual-v3.0
 
+    /**
+     * Speaker of the verse (for filtering Jesus's direct teachings)
+     * Values: "Jesus", "Apostle", "Narrator", "Other", null (not yet tagged)
+     */
+    @Column(length = 50)
+    private String speaker;
+
     public BibleVerse() {
     }
 
@@ -133,6 +140,21 @@ public class BibleVerse {
 
     public void setEmbeddingDimensions(Integer embeddingDimensions) {
         this.embeddingDimensions = embeddingDimensions;
+    }
+
+    public String getSpeaker() {
+        return speaker;
+    }
+
+    public void setSpeaker(String speaker) {
+        this.speaker = speaker;
+    }
+
+    /**
+     * Check if this verse is a direct teaching from Jesus
+     */
+    public boolean isJesusTeaching() {
+        return "Jesus".equalsIgnoreCase(speaker);
     }
 
     @Override
