@@ -161,6 +161,16 @@ public class AiChatbotService {
         // Retrieve relevant context from vector store
         List<Document> relevantDocs = retrieveRelevantContext(chatbot, userMessage);
 
+        // DEBUG: Log what we retrieved
+        logger.info("🔍 DEBUG - Retrieved {} documents from vector store for chatbot {}",
+            relevantDocs.size(), chatbot.getId());
+        if (!relevantDocs.isEmpty()) {
+            logger.info("🔍 DEBUG - First document preview: {}",
+                relevantDocs.get(0).getText().substring(0, Math.min(200, relevantDocs.get(0).getText().length())));
+        } else {
+            logger.warn("⚠️ WARNING - No documents retrieved! Vector store may be empty for chatbot {}", chatbot.getId());
+        }
+
         // Build conversation history
         List<com.prayer_chat.chatbot.model.Message> recentMessages = getRecentMessages(conversation);
 
@@ -189,6 +199,19 @@ public class AiChatbotService {
         // Add Christian greeting instruction for first message
         if (isFirstMessage && chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
             systemPrompt += "\nIMPORTANT: This is the first message. Start your response with a warm Christian greeting (e.g., 'Welcome! God's blessings to you!', 'Greetings in Christ!', 'Peace be with you!').\n";
+        }
+
+        // DEBUG: Log the full system prompt
+        logger.info("🔍 DEBUG - System prompt length: {} characters", systemPrompt.length());
+        logger.info("🔍 DEBUG - System prompt preview (first 500 chars):\n{}",
+            systemPrompt.substring(0, Math.min(500, systemPrompt.length())));
+        if (systemPrompt.contains("WEBSITE INFORMATION:")) {
+            int websiteInfoStart = systemPrompt.indexOf("WEBSITE INFORMATION:");
+            int websiteInfoEnd = Math.min(websiteInfoStart + 800, systemPrompt.length());
+            logger.info("🔍 DEBUG - Website information section:\n{}",
+                systemPrompt.substring(websiteInfoStart, websiteInfoEnd));
+        } else {
+            logger.warn("⚠️ WARNING - System prompt does NOT contain 'WEBSITE INFORMATION:' section!");
         }
 
         // Build messages for the chat
