@@ -256,10 +256,12 @@ public class AiChatbotService {
     private List<Document> retrieveRelevantContext(Chatbot chatbot, String userMessage) {
         try {
             // Build search request with metadata filtering for this specific chatbot
-            SearchRequest searchRequest = SearchRequest.query(userMessage)
-                .withTopK(20)  // Get more results before filtering
-                .withSimilarityThreshold(0.3)  // Minimum relevance threshold
-                .withFilterExpression(String.format("chatbotId == '%s'", chatbot.getId().toString()));
+            SearchRequest searchRequest = SearchRequest.builder()
+                .query(userMessage)
+                .topK(20)  // Get more results before filtering
+                .similarityThreshold(0.3)  // Minimum relevance threshold
+                .filterExpression(String.format("chatbotId == '%s'", chatbot.getId().toString()))
+                .build();
 
             // Search for relevant documents using Spring AI SearchRequest
             List<Document> documents = vectorStore.similaritySearch(searchRequest);

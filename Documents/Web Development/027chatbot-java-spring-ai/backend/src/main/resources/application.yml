@@ -20,10 +20,10 @@ spring:
   # DATABASE CONFIGURATION
   # =============================================================================
   datasource:
-    url: ${DATABASE_URL:jdbc:h2:mem:chatbotdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
-    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
-    username: ${DATABASE_USERNAME:sa}
-    password: ${DATABASE_PASSWORD:}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/chatbot_db}
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -37,7 +37,7 @@ spring:
     show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
-        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.H2Dialect}
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
         format_sql: false
         jdbc:
           batch_size: 50  # Optimized for memory: increased from 20 to reduce memory usage during bulk inserts
@@ -92,9 +92,6 @@ spring:
   # SPRING AI CONFIGURATION
   # =============================================================================
   ai:
-    # Disable auto-configuration for vector stores (we configure manually)
-    vectorstore:
-      enabled: false
     # Anthropic Claude for conversational AI
     # ANTHROPIC_API_KEY can be set via:
     # 1. Environment variable (system env or .env file via spring-dotenv)

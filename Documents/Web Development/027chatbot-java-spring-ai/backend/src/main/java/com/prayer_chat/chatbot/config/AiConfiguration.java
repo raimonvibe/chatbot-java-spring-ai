@@ -8,7 +8,7 @@ import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.vectorstore.PgVectorStore;
+import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -44,6 +44,9 @@ public class AiConfiguration {
     public AiConfiguration() {
         System.out.println("=".repeat(60));
         System.out.println("🔧 AiConfiguration constructor called");
+        System.out.println("🔧 Thread: " + Thread.currentThread().getName());
+        System.out.println("🔧 ClassLoader: " + this.getClass().getClassLoader());
+        System.out.println("🔧 Timestamp: " + java.time.LocalDateTime.now());
         System.out.println("=".repeat(60));
         logger.info("AiConfiguration loaded - will create beans");
     }
@@ -142,9 +145,27 @@ public class AiConfiguration {
     @Bean
     @Primary
     public EmbeddingModel embeddingModel() {
-        logger.info("🔧 Creating Cohere EmbeddingModel (model: {})", embeddingModel);
-        logger.info("🔧 API Key configured: {}", cohereApiKey != null && !cohereApiKey.isEmpty() ? "Yes" : "No");
-        return new CohereEmbeddingModel(cohereApiKey, embeddingModel);
+        try {
+            logger.info("🔧 ========================================");
+            logger.info("🔧 STARTING embeddingModel() @Bean method");
+            logger.info("🔧 ========================================");
+            logger.info("🔧 Creating Cohere EmbeddingModel (model: {})", embeddingModel);
+            logger.info("🔧 Cohere API Key: {}", cohereApiKey != null && !cohereApiKey.isEmpty() ? "Present (length: " + cohereApiKey.length() + ")" : "NULL");
+            logger.info("🔧 Embedding Model: {}", embeddingModel);
+
+            CohereEmbeddingModel model = new CohereEmbeddingModel(cohereApiKey, embeddingModel);
+
+            logger.info("✅ CohereEmbeddingModel created successfully!");
+            logger.info("🔧 ========================================");
+            return model;
+        } catch (Exception e) {
+            logger.error("❌ ========================================");
+            logger.error("❌ FAILED to create EmbeddingModel");
+            logger.error("❌ Exception type: {}", e.getClass().getName());
+            logger.error("❌ Exception message: {}", e.getMessage());
+            logger.error("❌ ========================================", e);
+            throw new RuntimeException("EmbeddingModel creation failed: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -161,19 +182,34 @@ public class AiConfiguration {
     @Bean(name = "vectorStore")
     @Primary
     public VectorStore vectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel) {
-        logger.info("🔧 ====================================");
-        logger.info("🔧 Creating MANUAL PgVectorStore bean");
-        logger.info("🔧 Cohere embedding model: {}", embeddingModel);
-        logger.info("🔧 JdbcTemplate: {}", jdbcTemplate != null ? "Available" : "NULL");
-        logger.info("🔧 Initializing pgvector with 1024 dimensions");
-        logger.info("🔧 ====================================");
+        try {
+            logger.info("🔧 ========================================");
+            logger.info("🔧 STARTING vectorStore() @Bean method");
+            logger.info("🔧 ========================================");
+            logger.info("🔧 Creating MANUAL PgVectorStore bean");
+            logger.info("🔧 EmbeddingModel: {}", embeddingModel != null ? embeddingModel.getClass().getName() : "NULL");
+            logger.info("🔧 JdbcTemplate: {}", jdbcTemplate != null ? "Available" : "NULL");
+            logger.info("🔧 Initializing pgvector with 1024 dimensions");
+            logger.info("🔧 Schema initialization: true");
 
-        PgVectorStore vectorStore = new PgVectorStore.Builder(jdbcTemplate, embeddingModel)
-                .initializeSchema(true)  // Auto-create vector_store table if not exists
-                .build();
+            PgVectorStore vectorStore = PgVectorStore.builder(jdbcTemplate, embeddingModel)
+                    .dimensions(1024)  // Cohere embed-multilingual-v3.0 uses 1024 dimensions
+                    .initializeSchema(true)  // Auto-create vector_store table if not exists
+                    .build();
 
-        logger.info("✅ PgVectorStore created successfully!");
-        return vectorStore;
+            logger.info("✅ PgVectorStore created successfully!");
+            logger.info("🔧 ========================================");
+            return vectorStore;
+        } catch (Exception e) {
+            logger.error("❌ ========================================");
+            logger.error("❌ FAILED to create VectorStore");
+            logger.error("❌ Exception type: {}", e.getClass().getName());
+            logger.error("❌ Exception message: {}", e.getMessage());
+            logger.error("❌ Stack trace:");
+            e.printStackTrace();
+            logger.error("❌ ========================================");
+            throw new RuntimeException("VectorStore creation failed: " + e.getMessage(), e);
+        }
     }
 
     /**
