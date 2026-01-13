@@ -344,7 +344,8 @@ SELECT COUNT(*) FROM vector_store;
 
 ```powershell
 # Connect to database
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" "postgresql://ai_chatbot_db_z4h0_user:wsaMAZiTWb8Zyb8JFJrMtCXgdAXyg0dg@dpg-d50ioun5r7bs739fm860-a.oregon-postgres.render.com/ai_chatbot_db_z4h0?sslmode=require"
+# Use environment variable: $env:DATABASE_URL
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" $env:DATABASE_URL
 
 # Check tables
 \dt

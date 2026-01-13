@@ -125,7 +125,10 @@ Render's PostgreSQL instances **already have pgvector installed**! 🎉
 
 2. **Connect via Shell** (or use a SQL client):
    ```sql
-   CREATE EXTENSION IF NOT EXISTS vector;
+
+
+
+
    ```
 
 3. **Update Environment Variables** on your Web Service:
