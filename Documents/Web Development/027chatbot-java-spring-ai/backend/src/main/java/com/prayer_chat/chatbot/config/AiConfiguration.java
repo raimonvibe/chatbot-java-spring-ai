@@ -145,8 +145,10 @@ public class AiConfiguration {
      * @return PgVectorStore instance configured for persistent vector storage
      */
     @Bean
+    @Primary
     public VectorStore vectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel) {
-        logger.info("Creating PgVectorStore with Cohere embeddings (model: {})", embeddingModel);
+        logger.info("🔧 Creating PgVectorStore with Cohere embeddings (model: {})", embeddingModel);
+        logger.info("🔧 Initializing pgvector with 1024 dimensions for persistent vector storage");
         return new PgVectorStore.Builder(jdbcTemplate, embeddingModel)
                 .initializeSchema(true)  // Auto-create vector_store table if not exists
                 .build();
