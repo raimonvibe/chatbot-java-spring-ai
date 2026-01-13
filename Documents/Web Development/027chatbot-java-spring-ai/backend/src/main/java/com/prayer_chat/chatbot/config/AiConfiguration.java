@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.annotation.PostConstruct;
 
 /**
  * Configuration for AI services
@@ -38,12 +39,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class AiConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AiConfiguration.class);
-    
+
     // Debug: Log when configuration is being processed
     public AiConfiguration() {
         System.out.println("=".repeat(60));
         System.out.println("🔧 AiConfiguration constructor called");
         System.out.println("=".repeat(60));
+        logger.info("AiConfiguration loaded - will create beans");
     }
 
     @Value("${spring.ai.anthropic.api-key:${ANTHROPIC_API_KEY:}}")
@@ -54,6 +56,15 @@ public class AiConfiguration {
 
     @Value("${app.embedding.model:embed-multilingual-v3.0}")
     private String embeddingModel;
+
+    @PostConstruct
+    public void logConfiguration() {
+        logger.info("📋 AiConfiguration @PostConstruct called");
+        logger.info("📋 Anthropic API Key present: {}", anthropicApiKey != null && !anthropicApiKey.isEmpty());
+        logger.info("📋 Cohere API Key present: {}", cohereApiKey != null && !cohereApiKey.isEmpty());
+        logger.info("📋 Embedding model: {}", embeddingModel);
+        logger.info("📋 All @Bean methods should be invoked after this...");
+    }
 
     /**
      * ChatModel bean - Spring AI will auto-configure this if spring.ai.anthropic.api-key is set.

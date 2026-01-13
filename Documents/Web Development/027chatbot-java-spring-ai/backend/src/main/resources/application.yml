@@ -92,6 +92,9 @@ spring:
   # SPRING AI CONFIGURATION
   # =============================================================================
   ai:
+    # Disable auto-configuration for vector stores (we configure manually)
+    vectorstore:
+      enabled: false
     # Anthropic Claude for conversational AI
     # ANTHROPIC_API_KEY can be set via:
     # 1. Environment variable (system env or .env file via spring-dotenv)
