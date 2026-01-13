@@ -129,7 +129,10 @@ public class AiConfiguration {
      * Cohere EmbeddingModel bean
      */
     @Bean
+    @Primary
     public EmbeddingModel embeddingModel() {
+        logger.info("🔧 Creating Cohere EmbeddingModel (model: {})", embeddingModel);
+        logger.info("🔧 API Key configured: {}", cohereApiKey != null && !cohereApiKey.isEmpty() ? "Yes" : "No");
         return new CohereEmbeddingModel(cohereApiKey, embeddingModel);
     }
 
@@ -144,14 +147,22 @@ public class AiConfiguration {
      * @param embeddingModel Cohere embedding model for generating embeddings
      * @return PgVectorStore instance configured for persistent vector storage
      */
-    @Bean
+    @Bean(name = "vectorStore")
     @Primary
     public VectorStore vectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel) {
-        logger.info("🔧 Creating PgVectorStore with Cohere embeddings (model: {})", embeddingModel);
-        logger.info("🔧 Initializing pgvector with 1024 dimensions for persistent vector storage");
-        return new PgVectorStore.Builder(jdbcTemplate, embeddingModel)
+        logger.info("🔧 ====================================");
+        logger.info("🔧 Creating MANUAL PgVectorStore bean");
+        logger.info("🔧 Cohere embedding model: {}", embeddingModel);
+        logger.info("🔧 JdbcTemplate: {}", jdbcTemplate != null ? "Available" : "NULL");
+        logger.info("🔧 Initializing pgvector with 1024 dimensions");
+        logger.info("🔧 ====================================");
+
+        PgVectorStore vectorStore = new PgVectorStore.Builder(jdbcTemplate, embeddingModel)
                 .initializeSchema(true)  // Auto-create vector_store table if not exists
                 .build();
+
+        logger.info("✅ PgVectorStore created successfully!");
+        return vectorStore;
     }
 
     /**
