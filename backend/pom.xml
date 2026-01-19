@@ -164,7 +164,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.39.0</version>
+            <version>4.40.0</version>
         </dependency>
 
         <!-- JSON Processing - Spring Boot 3.2.11 uses Jackson 2.x by default -->
