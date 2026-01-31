@@ -130,9 +130,11 @@
 
         <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support -->
         <!-- spring-retry is automatically managed by Spring Boot -->
+        <!-- Explicit version needed for Maven dependency:go-offline in Docker builds -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+            <version>4.0.2</version>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
