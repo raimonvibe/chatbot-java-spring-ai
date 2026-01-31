@@ -8,8 +8,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.1</version>
-        <!-- Spring Boot 4.0.1 - required for Spring AI 1.0.0 GA (stable) -->
+        <version>3.3.5</version>
+        <!-- Spring Boot 3.3.5 - stable version compatible with Spring AI 1.1.2 -->
         <relativePath/>
     </parent>
 

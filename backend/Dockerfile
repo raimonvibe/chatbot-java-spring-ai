@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Copy pom.xml and download dependencies (cached layer)
 COPY backend/pom.xml ./pom.xml
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:resolve-plugins dependency:go-offline -B
 
 # Copy source code and build
 COPY backend/src ./src
