@@ -8,8 +8,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
-        <!-- Spring Boot 4.0.0 - stable release that was working -->
+        <version>3.2.11</version>
+        <!-- Spring Boot 3.2.11 - stable version that was working when spring-boot-starter-aop was added -->
         <relativePath/>
     </parent>
 
