@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Copy pom.xml and download dependencies (cached layer)
 COPY backend/pom.xml ./pom.xml
-RUN mvn dependency:go-offline -B
+# First resolve dependencies (including parent POM), then go offline
+RUN mvn dependency:resolve -B && mvn dependency:go-offline -B
 
 # Copy source code and build
 COPY backend/src ./src
