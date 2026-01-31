@@ -7,8 +7,9 @@ WORKDIR /app
 
 # Copy pom.xml and download dependencies (cached layer)
 COPY backend/pom.xml ./pom.xml
-# First resolve dependencies (including parent POM), then go offline
-RUN mvn dependency:resolve -B && mvn dependency:go-offline -B
+# Validate and resolve dependencies (parent POM will be resolved first)
+# Skip go-offline as it has issues with parent POM resolution - Docker has network access anyway
+RUN mvn validate dependency:resolve -B
 
 # Copy source code and build
 COPY backend/src ./src
