@@ -30,7 +30,7 @@
         <netty.version>4.2.9.Final</netty.version>
         <!-- Jackson version - Spring Boot 4.0.1 uses Jackson 3.x by default -->
         <!-- Override to Jackson 2.17.1 for compatibility with RestAssured and Spring Boot 4.0 -->
-        <jackson.version>2.17.1</jackson.version>
+        <jackson.version>2.21</jackson.version>
     </properties>
 
     <dependencies>
