@@ -131,10 +131,10 @@
         </dependency>
 
         <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support -->
-        <!-- Version managed by Spring Boot parent POM -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+            <version>${project.parent.version}</version>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
