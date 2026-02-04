@@ -8,8 +8,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
-        <!-- Spring Boot 4.0.2 - stable version that was working when spring-boot-starter-aop was added -->
+        <version>3.3.13</version>
+        <!-- Spring Boot 3.3.x: on Maven Central everywhere; 4.0.2 can be missing on some mirrors/Docker builds -->
         <relativePath/>
     </parent>
 
@@ -28,9 +28,6 @@
         <postgresql.version>42.7.8</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
-        <!-- Jackson version - Spring Boot 4.0.1 uses Jackson 3.x by default -->
-        <!-- Override to Jackson 2.17.1 for compatibility with RestAssured and Spring Boot 4.0 -->
-        <jackson.version>2.21</jackson.version>
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
         <dependency-check.skip>true</dependency-check.skip>
     </properties>
@@ -130,11 +127,10 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
-        <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support -->
+        <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support (version from parent) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
-            <version>${project.parent.version}</version>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
@@ -169,30 +165,7 @@
             <version>4.40.0</version>
         </dependency>
 
-        <!-- JSON Processing - Override Spring Boot 4.0's Jackson 3.x with Jackson 2.x -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
+        <!-- Jackson 2.x from Spring Boot 3.3.x parent (RestAssured and export compatible) -->
 
         <!-- Utilities -->
         <dependency>
@@ -336,22 +309,6 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <!-- Jackson 2.x versions - Override Spring Boot 4.0's Jackson 3.x -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>${jackson.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
