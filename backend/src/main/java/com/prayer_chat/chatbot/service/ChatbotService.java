@@ -1,9 +1,11 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.model.AuditLog;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.util.XssSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,9 @@ public class ChatbotService {
     private ChatbotRepository chatbotRepository;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private UrlValidationService urlValidationService;
 
     @Autowired
@@ -45,27 +50,52 @@ public class ChatbotService {
      */
     @Transactional
     public Chatbot createChatbot(Chatbot chatbot, User user) {
+        return doCreateChatbot(chatbot, user);
+    }
+
+    /**
+     * Create a new chatbot while enforcing a per-user limit under pessimistic lock.
+     * Prevents race conditions where concurrent requests could exceed the chatbot quota.
+     *
+     * @param chatbot the chatbot to create
+     * @param user the owner of the chatbot
+     * @param maxAllowed maximum number of chatbots allowed for this user (e.g. from AccessControlService)
+     * @return the created chatbot
+     * @throws ChatbotLimitReachedException if the user has already reached maxAllowed chatbots
+     * @throws IllegalArgumentException if validation fails
+     */
+    @Transactional
+    public Chatbot createChatbotEnforcingLimit(Chatbot chatbot, User user, int maxAllowed) {
+        // Lock user row to serialize concurrent creation attempts for this user
+        User lockedUser = userRepository.findByIdWithLock(user.getId())
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + user.getId()));
+
+        long currentCount = chatbotRepository.countByOwner(lockedUser.getId());
+        if (currentCount >= maxAllowed) {
+            throw new ChatbotLimitReachedException(maxAllowed, currentCount);
+        }
+
+        return doCreateChatbot(chatbot, lockedUser);
+    }
+
+    /**
+     * Internal create: validation, sanitization, save, audit. No locking.
+     */
+    private Chatbot doCreateChatbot(Chatbot chatbot, User user) {
         logger.debug("Creating chatbot for user: {}", user.getId());
 
-        // Validate required fields
         validateRequiredFields(chatbot);
 
-        // Validate URL
         if (!urlValidationService.isValid(chatbot.getWebsiteUrl())) {
             logger.warn("Invalid or unsafe website URL: {}", chatbot.getWebsiteUrl());
             throw new IllegalArgumentException("Invalid or unsafe website URL");
         }
 
-        // Sanitize user input to prevent XSS
         sanitizeChatbotFields(chatbot);
-
-        // Set the owner
         chatbot.setOwner(user);
 
-        // Save the chatbot
         Chatbot savedChatbot = chatbotRepository.save(chatbot);
 
-        // Log the creation
         auditService.log(
             AuditLog.EventType.CHATBOT_CREATED,
             AuditLog.Severity.INFO,

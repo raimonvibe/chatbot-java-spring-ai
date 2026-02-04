@@ -31,6 +31,8 @@
         <!-- Jackson version - Spring Boot 4.0.1 uses Jackson 3.x by default -->
         <!-- Override to Jackson 2.17.1 for compatibility with RestAssured and Spring Boot 4.0 -->
         <jackson.version>2.21</jackson.version>
+        <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
+        <dependency-check.skip>true</dependency-check.skip>
     </properties>
 
     <dependencies>
@@ -129,7 +131,6 @@
         </dependency>
 
         <!-- Spring AOP - Required by Spring Retry for @Retryable annotation support -->
-        <!-- spring-retry is automatically managed by Spring Boot -->
         <!-- Version managed by Spring Boot parent POM -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -439,6 +440,30 @@
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- OWASP Dependency Check - run with: mvn dependency-check:check -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>11.0.0</version>
+                <configuration>
+                    <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JUNIT</format>
+                    </formats>
+                    <skip>${dependency-check.skip}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>dependency-check</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

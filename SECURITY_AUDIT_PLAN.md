@@ -376,12 +376,9 @@ config.setAllowedHeaders(Arrays.asList(
 ### 🟢 LOW Priority
 
 #### 6. API Key Rotation
-**Current:** No rotation mechanism
+**Current:** Rotation procedure documented.
 
-**Recommendation:**
-- Document rotation procedure
-- Add API key versioning (future)
-- Set up alerts for key expiration
+**Implemented:** See **API_KEY_ROTATION.md** for step-by-step rotation of JWT, Stripe, Google OAuth, AI API keys, and optional security webhook. Key versioning and expiration alerts remain future work.
 
 **Priority:** 🟢 **LOW** - Nice to have  
 **Effort:** 2 hours  
@@ -389,28 +386,25 @@ config.setAllowedHeaders(Arrays.asList(
 
 ---
 
-#### 7. Security Event Alerting
-**Current:** Events logged but not alerted
+#### 7. Security Event Alerting ✅ IMPLEMENTED
+**Current:** **Done** – `SecurityAlertService` raises alerts for security events.
 
-**Recommendation:**
-- Set up alerts for:
-  - Failed authentication attempts (5+ in 30 min)
-  - Rate limit violations
-  - Payment failures
-  - Security exceptions
+**Implemented (Phase 2.3):**
+- **SecurityAlertService** – Async alerts; logs at ERROR and optionally sends to configurable webhook (`SECURITY_ALERT_WEBHOOK_URL` / `app.security.alert-webhook-url`)
+- **Wired into:** FraudDetectionService (failed login spike, fraud risk, payment failure patterns), RateLimitingFilter (rate limit exceeded), StripeWebhookController (`invoice.payment_failed`)
+- Alerts: FAILED_LOGIN_SPIKE, RATE_LIMIT_VIOLATION, PAYMENT_FAILURE, FRAUD_RISK, SECURITY_EXCEPTION
 
-**Priority:** 🟢 **LOW** - Monitoring improvement  
-**Effort:** 4 hours  
-**Risk:** Low - Detection vs prevention
+**Priority:** 🟢 **LOW** – Monitoring improvement  
+**Status:** ✅ **Complete**
 
 ---
 
 #### 8. Penetration Testing
-**Current:** No external security testing
+**Current:** OWASP ZAP baseline scan automated in CI (see Phase 3.2 below).
 
 **Recommendation:**
-- Schedule annual penetration test
-- Use OWASP ZAP for automated scanning
+- Schedule annual penetration test (external)
+- Use OWASP ZAP for automated scanning ✅ workflow added (`.github/workflows/owasp-zap-baseline.yml`; refs: ZAP 2.16 Jan 2025, zaproxy/action-baseline v0.15.0 Oct 2025)
 - Consider bug bounty program (future)
 
 **Priority:** 🟢 **LOW** - Long-term  
@@ -509,31 +503,31 @@ config.setAllowedHeaders(Arrays.asList(
 ### Phase 3: Long-term Enhancements (Future) - Ongoing
 
 #### 3.1 API Key Rotation
-- Document rotation procedure
-- Add key versioning system
-- Set up expiration alerts
+- [x] Document rotation procedure (**API_KEY_ROTATION.md**)
+- [ ] Add key versioning system
+- [ ] Set up expiration alerts
 
 #### 3.2 Penetration Testing
-- Schedule annual external security audit
-- Set up OWASP ZAP automated scanning
-- Consider bug bounty program
+- [ ] Schedule annual external security audit
+- [x] Set up OWASP ZAP automated scanning (`.github/workflows/owasp-zap-baseline.yml`; weekly + manual with target URL; refs 2025: ZAP 2.16, zaproxy/action-baseline v0.15.0)
+- [ ] Consider bug bounty program
 
 #### 3.3 Security Training
-- Team security awareness training
-- Secure coding guidelines
-- Incident response procedures
+- [ ] Team security awareness training
+- [x] Secure coding guidelines (**SECURE_CODING_GUIDELINES.md**)
+- [x] Incident response procedures (**INCIDENT_RESPONSE.md**)
 
 ---
 
 ## 🔍 Security Testing Checklist
 
 ### Automated Testing
-- [ ] SQL injection tests (existing ✅)
-- [ ] XSS injection tests (existing ✅)
-- [ ] Input validation tests (existing ✅)
-- [ ] **NEW:** Race condition tests (concurrent requests)
-- [ ] **NEW:** Dependency vulnerability scan
-- [ ] **NEW:** OWASP ZAP automated scan
+- [x] SQL injection tests (existing)
+- [x] XSS injection tests (existing)
+- [x] Input validation tests (existing)
+- [x] Race condition tests (concurrent requests) — `CostTrackingConcurrentSecurityIT`, `ChatbotCreationConcurrentSecurityIT`
+- [x] Dependency vulnerability scan — OWASP dependency-check + `.github/workflows/dependency-check.yml`
+- [x] OWASP ZAP automated scan — `.github/workflows/owasp-zap-baseline.yml`
 
 ### Manual Testing
 - [ ] Authentication flow testing
@@ -600,6 +594,8 @@ config.setAllowedHeaders(Arrays.asList(
 
 ## 🚨 Incident Response Plan
 
+Full procedures (steps, containment, contacts): **INCIDENT_RESPONSE.md**.
+
 ### Security Incident Severity Levels
 
 **CRITICAL:**
@@ -643,42 +639,51 @@ config.setAllowedHeaders(Arrays.asList(
 ## ✅ Security Checklist for Production Deployment
 
 ### Before Going Live
-- [ ] Fix all CRITICAL vulnerabilities (race conditions)
-- [ ] Run dependency vulnerability scan
+- [x] Fix all CRITICAL vulnerabilities (race conditions)
+- [x] Run dependency vulnerability scan
 - [ ] Review all environment variables
 - [ ] Test authentication flows end-to-end
 - [ ] Verify authorization on all endpoints
 - [ ] Test rate limiting effectiveness
 - [ ] Verify security headers are present
 - [ ] Review audit logs configuration
-- [ ] Set up security monitoring/alerts
-- [ ] Document incident response procedures
+- [x] Set up security monitoring/alerts (SecurityAlertService + optional webhook)
+- [x] Document incident response procedures (INCIDENT_RESPONSE.md)
 
 ---
 
 ## 📊 Progress Tracking
 
 ### Phase 1: Critical Fixes
-- [ ] Fix cost tracking race condition
-- [ ] Fix chatbot creation race condition
-- [ ] Add concurrent security tests
+- [x] Fix cost tracking race condition (implemented: `UserRepository.findByIdWithLock`, `CostTrackingService` uses it)
+- [x] Fix chatbot creation race condition (implemented: `ChatbotService.createChatbotEnforcingLimit` with user lock)
+- [x] Add concurrent security tests (`CostTrackingConcurrentSecurityIT`, `ChatbotCreationConcurrentSecurityIT`)
 
 ### Phase 2: Medium Priority
-- [ ] Improve CORS configuration
-- [ ] Add dependency scanning
-- [ ] Set up security alerts
+- [x] Improve CORS configuration (explicit allowed headers in `SecurityConfig`)
+- [x] Add dependency scanning (OWASP dependency-check-maven plugin + `.github/workflows/dependency-check.yml` weekly; Dependabot already in `.github/dependabot.yml`)
+- [x] Set up security alerts (`SecurityAlertService` + webhook; wired to fraud, rate limit, payment failure)
 
 ### Phase 3: Long-term
-- [ ] API key rotation system
-- [ ] Penetration testing
-- [ ] Security training
+- [x] API key rotation procedure documented (API_KEY_ROTATION.md)
+- [x] OWASP ZAP baseline scan workflow (weekly + workflow_dispatch; 2025 refs)
+- [x] Secure coding guidelines (SECURE_CODING_GUIDELINES.md); incident response (INCIDENT_RESPONSE.md)
+- [ ] Key versioning; annual external pentest; team security training
+
+---
+
+### References (2025/2026)
+
+- **ZAP 2.16.0** (Jan 2025): https://www.zaproxy.org/blog/2025-01-10-zap-2-16-0/ — Java 17+, baseline scan in Docker.
+- **ZAP Baseline Scan (Docker):** https://www.zaproxy.org/docs/docker/baseline-scan/
+- **zaproxy/action-baseline** v0.15.0 (Oct 2025): https://github.com/zaproxy/action-baseline — Node 24, stable image `ghcr.io/zaproxy/zaproxy:stable`.
 
 ---
 
 **Last Updated:** 2025-01-06  
 **Next Review:** After Phase 1 completion  
 **Owner:** Development Team  
-**Status:** 🔴 **Action Required - Critical Fixes Needed**
+**Status:** 🟢 **Phase 1 & Phase 2 Complete** – Race conditions fixed, CORS hardened, concurrent security ITs added, OWASP dependency-check, security event alerting (SecurityAlertService + optional webhook).
 
 ---
 

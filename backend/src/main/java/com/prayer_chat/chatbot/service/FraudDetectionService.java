@@ -40,6 +40,9 @@ public class FraudDetectionService {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
+    @Autowired
+    private SecurityAlertService securityAlertService;
+
     /**
      * Analyze user activity for fraud indicators
      */
@@ -69,6 +72,17 @@ public class FraudDetectionService {
         result.riskScore = riskScore;
         result.riskLevel = calculateRiskLevel(riskScore);
 
+        // Phase 2.3: raise security alert when risk is high
+        if (result.riskLevel == RiskLevel.HIGH || result.riskLevel == RiskLevel.CRITICAL) {
+            StringBuilder reason = new StringBuilder();
+            if (tooManyFailedLogins) reason.append("Failed login spike. ");
+            if (tooManyPaymentFailures) reason.append("Payment failures. ");
+            securityAlertService.alertFraudRisk(userId, reason.toString().trim(), riskScore);
+        }
+        if (tooManyFailedLogins) {
+            securityAlertService.alertFailedLoginSpike(userId, MAX_FAILED_LOGINS, FAILED_LOGIN_WINDOW_MINUTES);
+        }
+
         return result;
     }
 
@@ -85,6 +99,10 @@ public class FraudDetectionService {
         if (hasPaymentFailures) {
             logger.warn("Suspicious payment pattern detected for user: {}",
                 LogSanitizer.sanitize(user.getEmail()));
+
+            securityAlertService.alertPaymentFailure(
+                String.format("User has %d+ payment failures in %d days", MAX_PAYMENT_FAILURES, PAYMENT_FAILURE_WINDOW_DAYS),
+                user.getId(), null);
 
             // Log the suspicious activity
             auditService.log(

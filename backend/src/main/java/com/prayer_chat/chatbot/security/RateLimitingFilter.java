@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.security;
 
+import com.prayer_chat.chatbot.service.SecurityAlertService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -33,6 +35,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(RateLimitingFilter.class);
 
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
+
+    @Autowired(required = false)
+    private SecurityAlertService securityAlertService;
 
     // Rate limits per minute
     private static final int CHAT_LIMIT = 20; // Chat endpoints: 20 requests per minute
@@ -62,6 +67,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } else {
             logger.warn("Rate limit exceeded for client: {} on path: {}", key, path);
+            if (securityAlertService != null) {
+                securityAlertService.alertRateLimitViolation(key, path);
+            }
 
             // Add CORS headers before sending error response
             String origin = request.getHeader("Origin");

@@ -5,6 +5,7 @@ import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
 import com.stripe.net.Webhook;
+import com.prayer_chat.chatbot.service.SecurityAlertService;
 import com.prayer_chat.chatbot.service.StripeService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
@@ -29,6 +30,9 @@ public class StripeWebhookController {
 
     @Autowired
     private StripeService stripeService;
+
+    @Autowired
+    private SecurityAlertService securityAlertService;
 
     /**
      * Handle Stripe webhook events
@@ -92,6 +96,7 @@ public class StripeWebhookController {
                     // TODO: Update when Stripe SDK API for accessing subscription from invoice is clarified
                     // com.stripe.model.Invoice failedInvoice = (com.stripe.model.Invoice) stripeObject;
                     logger.warn("Invoice payment failed - handled via subscription events");
+                    securityAlertService.alertPaymentFailure("Stripe invoice.payment_failed", null, event.getId());
                     break;
 
                 default:

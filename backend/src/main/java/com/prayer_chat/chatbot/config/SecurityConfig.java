@@ -213,7 +213,16 @@ public class SecurityConfig {
             .map(String::trim)
             .toList());
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
-        config.setAllowedHeaders(Arrays.asList("*"));
+        // Explicit headers only (defense-in-depth; avoids allowing arbitrary custom headers)
+        config.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

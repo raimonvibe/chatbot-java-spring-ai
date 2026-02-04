@@ -69,6 +69,12 @@ LOG_LEVEL=INFO
 H2_CONSOLE_ENABLED=false
 ```
 
+### 🔔 Security alerting (optional)
+```
+SECURITY_ALERT_WEBHOOK_URL=<slack-or-pagerduty-webhook-url>
+```
+When set, security events (failed login spikes, rate limit violations, payment failures, fraud risk) are sent to this webhook in addition to ERROR logging. Leave unset to only log.
+
 ## Mapping: .env → Render Environment Variables
 
 | .env Variable | Render Environment Variable | application.yml Reference |

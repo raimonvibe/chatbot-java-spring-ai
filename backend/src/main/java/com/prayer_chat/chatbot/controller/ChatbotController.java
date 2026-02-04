@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.dto.ChatbotRequest;
+import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
@@ -330,8 +331,8 @@ public class ChatbotController {
             chatbot.setIsActive(true);
             chatbot.setEmbedCode(String.format("prayer-chat-bot-%d", System.currentTimeMillis()));
 
-            // Use ChatbotService for secure creation
-            Chatbot savedChatbot = chatbotService.createChatbot(chatbot, user);
+            // Create with lock so onboarding is only for first chatbot (max 1)
+            Chatbot savedChatbot = chatbotService.createChatbotEnforcingLimit(chatbot, user, 1);
             logger.info("Created chatbot via onboarding: {} for user: {}", 
                 LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
 
@@ -345,6 +346,10 @@ public class ChatbotController {
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
+        } catch (ChatbotLimitReachedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "Onboarding endpoint is only for creating your first chatbot. Use /api/chatbots to create additional chatbots."
+            ));
         } catch (Exception e) {
             logger.error("Error creating chatbot via onboarding", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -438,39 +443,6 @@ public class ChatbotController {
                 }
             }
 
-            // Enforce chatbot limit for preview mode (3 chatbots max - temporary for testing)
-            // Use synchronized check-and-create pattern to prevent race conditions
-            Long currentChatbotCount = chatbotRepository.countByOwner(user.getId());
-            if (!accessControlService.canCreateChatbot(user, currentChatbotCount)) {
-                int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
-                logger.warn("User {} attempted to create chatbot but limit reached (current: {}, max: {})", 
-                    LogSanitizer.sanitize(user.getEmail()), currentChatbotCount, maxAllowed);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Chatbot limit reached. Preview mode allows " + maxAllowed + " chatbots. Upgrade to create more.",
-                    "currentCount", currentChatbotCount,
-                    "maxAllowed", maxAllowed,
-                    "upgradeRequired", true
-                ));
-            }
-            
-            // Double-check after acquiring lock (defense in depth)
-            // This prevents race condition where two requests both pass the initial check
-            if (isPreviewMode(user)) {
-                // Re-check count right before creation to catch any concurrent creations
-                Long finalCount = chatbotRepository.countByOwner(user.getId());
-                int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
-                if (finalCount >= maxAllowed) {
-                    logger.warn("User {} attempted to create chatbot but limit reached (race condition detected, count: {})", 
-                        LogSanitizer.sanitize(user.getEmail()), finalCount);
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                        "error", "Chatbot limit reached. Preview mode allows " + maxAllowed + " chatbots. Upgrade to create more.",
-                        "currentCount", finalCount,
-                        "maxAllowed", maxAllowed,
-                        "upgradeRequired", true
-                    ));
-                }
-            }
-
             // Convert DTO to entity
             Chatbot chatbot = new Chatbot();
             chatbot.setName(request.getName());
@@ -497,10 +469,20 @@ public class ChatbotController {
             // Generate unique embed code
             chatbot.setEmbedCode(String.format("prayer-chat-bot-%d", System.currentTimeMillis()));
 
-            // Use ChatbotService for secure creation with validation, sanitization, and audit logging
-            Chatbot savedChatbot = chatbotService.createChatbot(chatbot, user);
+            // Create with pessimistic lock to prevent race condition on chatbot limit
+            int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
+            Chatbot savedChatbot = chatbotService.createChatbotEnforcingLimit(chatbot, user, maxAllowed);
             logger.info("Created new chatbot: {} for user: {}", LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
+        } catch (ChatbotLimitReachedException e) {
+            logger.warn("User attempted to create chatbot but limit reached (current: {}, max: {})",
+                e.getCurrentCount(), e.getMaxAllowed());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "Chatbot limit reached. Preview mode allows " + e.getMaxAllowed() + " chatbots. Upgrade to create more.",
+                "currentCount", e.getCurrentCount(),
+                "maxAllowed", e.getMaxAllowed(),
+                "upgradeRequired", true
+            ));
         } catch (Exception e) {
             logger.error("Error creating chatbot", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
