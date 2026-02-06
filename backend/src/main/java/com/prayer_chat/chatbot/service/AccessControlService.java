@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -62,37 +63,32 @@ public class AccessControlService {
         return canAccess;
     }
     
+    private Subscription.SubscriptionPlan planFor(User user) {
+        Optional<Subscription> sub = subscriptionRepository.findByUserId(user.getId());
+        if (sub.isEmpty() || !sub.get().isActive()) return Subscription.SubscriptionPlan.FREE;
+        return sub.get().getPlan();
+    }
+
     /**
-     * Check if user can create more chatbots
-     * Preview mode: 3 chatbots max (temporary for testing)
-     * Paid mode: unlimited (or based on subscription plan)
+     * Get the effective subscription plan for the user (for limit lookups).
+     */
+    public Subscription.SubscriptionPlan getSubscriptionPlan(User user) {
+        return planFor(user);
+    }
+
+    /**
+     * Check if user can create more chatbots (plan-based limit).
      */
     public boolean canCreateChatbot(User user, long currentChatbotCount) {
-        if (isPreviewMode(user)) {
-            // Preview mode: max 3 chatbots (temporary for testing)
-            return currentChatbotCount < 3;
-        } else {
-            // Paid mode: unlimited (or could be based on subscription plan)
-            return true;
-        }
+        int max = PlanLimits.maxChatbots(planFor(user));
+        return currentChatbotCount < max;
     }
-    
+
     /**
-     * Get maximum chatbots allowed for user
+     * Get maximum chatbots allowed for user (plan-based).
      */
     public int getMaxChatbotsAllowed(User user) {
-        if (isPreviewMode(user)) {
-            return 3; // Preview mode: 3 chatbots (temporary for testing)
-        } else {
-            // Paid mode: unlimited (or based on subscription plan)
-            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
-            if (subscriptionOpt.isPresent()) {
-                // Could be based on subscription plan in the future
-                // For now, paid users get unlimited
-                return Integer.MAX_VALUE;
-            }
-            return 3; // Default to 3 if no subscription found (temporary for testing)
-        }
+        return PlanLimits.maxChatbots(planFor(user));
     }
     
     /**

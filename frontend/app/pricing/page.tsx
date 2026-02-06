@@ -112,11 +112,11 @@ function PricingContent() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-brown-700">100 Messages/month</span>
+                <span className="text-brown-700">10 messages/day</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-brown-700">Basic website analysis</span>
+                <span className="text-brown-700">1 website scan/month (up to 50 pages)</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -145,15 +145,15 @@ function PricingContent() {
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-brown-800 font-medium">Unlimited Chatbots</span>
+                <span className="text-brown-800 font-medium">10 Chatbots</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-brown-800 font-medium">Unlimited Messages</span>
+                <span className="text-brown-800 font-medium">500 messages/day</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <span className="text-brown-800 font-medium">Advanced website analysis</span>
+                <span className="text-brown-800 font-medium">20 website scans/month (up to 2,000 pages/scan)</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />

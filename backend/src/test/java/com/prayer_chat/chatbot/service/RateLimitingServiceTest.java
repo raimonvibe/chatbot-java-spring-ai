@@ -1,7 +1,9 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.MessageRepository;
+import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +37,9 @@ class RateLimitingServiceTest {
     @Mock
     private AccessControlService accessControlService;
 
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
+
     @InjectMocks
     private RateLimitingService rateLimitingService;
 
@@ -54,14 +60,12 @@ class RateLimitingServiceTest {
     @Test
     @DisplayName("Should allow preview user to send message within limit")
     void shouldAllowPreviewUserWithinMessageLimit() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(5L); // 5 messages today
+        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(5L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkMessageLimit(previewUser);
 
-        // Assert
         assertTrue(result.isAllowed());
         assertEquals(10, result.getLimit());
         assertEquals(5, result.getCurrent());
@@ -72,11 +76,10 @@ class RateLimitingServiceTest {
     @Test
     @DisplayName("Should block preview user when message limit reached")
     void shouldBlockPreviewUserWhenMessageLimitReached() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(10L); // 10 messages today (at limit)
+        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(10L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkMessageLimit(previewUser);
 
         // Assert
@@ -88,18 +91,19 @@ class RateLimitingServiceTest {
     }
 
     @Test
-    @DisplayName("Should allow paid user unlimited messages")
-    void shouldAllowPaidUserUnlimitedMessages() {
-        // Arrange
+    @DisplayName("Should allow paid user messages within plan limit (ENTERPRISE = 2000/day)")
+    void shouldAllowPaidUserMessagesWithinPlanLimit() {
+        Subscription ent = new Subscription();
+        ent.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        ent.setPlan(Subscription.SubscriptionPlan.ENTERPRISE);
+        when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(ent));
         when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(1000L); // 1000 messages today
+        when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(1000L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkMessageLimit(paidUser);
 
-        // Assert
         assertTrue(result.isAllowed());
-        assertEquals(Integer.MAX_VALUE, result.getLimit());
+        assertEquals(2000, result.getLimit());
         assertEquals(1000, result.getCurrent());
         assertFalse(result.isPreviewMode());
     }
@@ -107,12 +111,11 @@ class RateLimitingServiceTest {
     @Test
     @DisplayName("Should allow preview user to scan within limit")
     void shouldAllowPreviewUserWithinScanLimit() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class)))
-            .thenReturn(0L); // 0 scans in last day
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
+        when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(previewUser);
 
         // Assert
@@ -126,12 +129,11 @@ class RateLimitingServiceTest {
     @Test
     @DisplayName("Should block preview user when scan limit reached")
     void shouldBlockPreviewUserWhenScanLimitReached() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class)))
-            .thenReturn(1L); // 1 scan in last day (at limit)
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(1L);
+        when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(1L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(previewUser);
 
         // Assert
@@ -143,17 +145,18 @@ class RateLimitingServiceTest {
     }
 
     @Test
-    @DisplayName("Should allow paid user up to 10 scans per day")
+    @DisplayName("Should allow paid user (PRO) up to 10 scans per day within monthly quota")
     void shouldAllowPaidUserUpTo10ScansPerDay() {
-        // Arrange
+        Subscription pro = new Subscription();
+        pro.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        pro.setPlan(Subscription.SubscriptionPlan.PRO);
+        when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class)))
-            .thenReturn(5L); // 5 scans in last day
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(5L);
+        when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(5L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(paidUser);
 
-        // Assert
         assertTrue(result.isAllowed());
         assertEquals(10, result.getLimit());
         assertEquals(5, result.getCurrent());
@@ -161,28 +164,29 @@ class RateLimitingServiceTest {
     }
 
     @Test
-    @DisplayName("Should block paid user when scan limit reached (10 scans)")
+    @DisplayName("Should block paid user when daily scan limit reached (PRO = 10/day)")
     void shouldBlockPaidUserWhenScanLimitReached() {
-        // Arrange
+        Subscription pro = new Subscription();
+        pro.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        pro.setPlan(Subscription.SubscriptionPlan.PRO);
+        when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class)))
-            .thenReturn(10L); // 10 scans in last day (at limit)
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(10L);
+        when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(10L);
 
-        // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(paidUser);
 
-        // Assert
         assertFalse(result.isAllowed());
         assertEquals(10, result.getLimit());
         assertEquals(10, result.getCurrent());
         assertFalse(result.isPreviewMode());
-        assertTrue(result.getErrorMessage().contains("Daily scan limit reached"));
+        assertTrue(result.getErrorMessage().contains("scan limit"));
     }
 
     @Test
     @DisplayName("Should handle null message count gracefully")
     void shouldHandleNullMessageCount() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
         when(messageRepository.countUserMessagesTodayByUserId(anyLong())).thenReturn(null);
 
@@ -197,10 +201,10 @@ class RateLimitingServiceTest {
     @Test
     @DisplayName("Should handle null scan count gracefully")
     void shouldHandleNullScanCount() {
-        // Arrange
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class)))
-            .thenReturn(null);
+        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(null);
+        when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
 
         // Act
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(previewUser);
@@ -211,50 +215,40 @@ class RateLimitingServiceTest {
     }
 
     @Test
-    @DisplayName("Should return correct max messages per day for preview user")
+    @DisplayName("Should return correct max messages per day for FREE plan (10)")
     void shouldReturnCorrectMaxMessagesForPreviewUser() {
-        // Arrange
-        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        // Act
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         int maxMessages = rateLimitingService.getMaxMessagesPerDay(previewUser);
-
-        // Assert
         assertEquals(10, maxMessages);
     }
 
     @Test
-    @DisplayName("Should return correct max messages per day for paid user")
+    @DisplayName("Should return correct max messages per day for PRO plan (500)")
     void shouldReturnCorrectMaxMessagesForPaidUser() {
-        // Arrange
-        when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        // Act
+        Subscription pro = new Subscription();
+        pro.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        pro.setPlan(Subscription.SubscriptionPlan.PRO);
+        when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         int maxMessages = rateLimitingService.getMaxMessagesPerDay(paidUser);
-
-        // Assert
-        assertEquals(Integer.MAX_VALUE, maxMessages);
+        assertEquals(500, maxMessages);
     }
 
     @Test
-    @DisplayName("Should return correct max scans per day for preview user")
+    @DisplayName("Should return correct max scans per day for FREE plan (1)")
     void shouldReturnCorrectMaxScansForPreviewUser() {
-        // Arrange
-        when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        // Act
+        when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         int maxScans = rateLimitingService.getMaxScansPerDay(previewUser);
-
-        // Assert
         assertEquals(1, maxScans);
     }
 
     @Test
-    @DisplayName("Should return correct max scans per day for paid user")
+    @DisplayName("Should return correct max scans per day for PRO plan (10)")
     void shouldReturnCorrectMaxScansForPaidUser() {
-        // Arrange
-        when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        // Act
+        Subscription pro = new Subscription();
+        pro.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        pro.setPlan(Subscription.SubscriptionPlan.PRO);
+        when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         int maxScans = rateLimitingService.getMaxScansPerDay(paidUser);
-
-        // Assert
         assertEquals(10, maxScans);
     }
 }

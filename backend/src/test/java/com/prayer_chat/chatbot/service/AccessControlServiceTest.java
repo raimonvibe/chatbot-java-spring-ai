@@ -143,95 +143,58 @@ class AccessControlServiceTest {
     }
 
     @Test
-    @DisplayName("Should allow chatbot creation for preview mode users with 0 chatbots")
+    @DisplayName("Should allow chatbot creation for FREE plan when under limit (0 chatbots)")
     void shouldAllowChatbotCreationForPreviewModeWithZeroChatbots() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
-
-        // Act
-        boolean canCreate = accessControlService.canCreateChatbot(testUser, 0);
-
-        // Assert
-        assertThat(canCreate).isTrue();
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.empty());
+        assertThat(accessControlService.canCreateChatbot(testUser, 0)).isTrue();
     }
 
     @Test
-    @DisplayName("Should allow chatbot creation for preview mode users with 1 chatbot")
-    void shouldAllowChatbotCreationForPreviewModeWithOneChatbot() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
-
-        // Act
-        boolean canCreate = accessControlService.canCreateChatbot(testUser, 1);
-
-        // Assert
-        assertThat(canCreate).isTrue();
+    @DisplayName("Should deny chatbot creation for FREE plan when at limit (1 chatbot)")
+    void shouldDenyChatbotCreationForFreePlanWhenAtLimit() {
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.empty());
+        assertThat(accessControlService.canCreateChatbot(testUser, 1)).isFalse();
     }
 
     @Test
-    @DisplayName("Should allow chatbot creation for preview mode users with 2 chatbots")
+    @DisplayName("Should deny chatbot creation for FREE plan when over limit (2 chatbots)")
     void shouldAllowChatbotCreationForPreviewModeWithTwoChatbots() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
-
-        // Act
-        boolean canCreate = accessControlService.canCreateChatbot(testUser, 2);
-
-        // Assert
-        assertThat(canCreate).isTrue();
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.empty());
+        assertThat(accessControlService.canCreateChatbot(testUser, 2)).isFalse();
     }
 
     @Test
-    @DisplayName("Should deny chatbot creation for preview mode users with 3 chatbots")
+    @DisplayName("Should deny chatbot creation for FREE plan when over limit (3 chatbots)")
     void shouldDenyChatbotCreationForPreviewModeWithThreeChatbots() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
-
-        // Act
-        boolean canCreate = accessControlService.canCreateChatbot(testUser, 3);
-
-        // Assert
-        assertThat(canCreate).isFalse();
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.empty());
+        assertThat(accessControlService.canCreateChatbot(testUser, 3)).isFalse();
     }
 
     @Test
-    @DisplayName("Should allow chatbot creation for paid users regardless of count")
+    @DisplayName("Should allow chatbot creation for paid users when under plan limit (BASIC = 3)")
     void shouldAllowChatbotCreationForPaidUsers() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(false);
-
-        // Act
-        boolean canCreate = accessControlService.canCreateChatbot(testUser, 5);
-
-        // Assert
-        assertThat(canCreate).isTrue();
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(activePaidSubscription));
+        assertThat(accessControlService.canCreateChatbot(testUser, 2)).isTrue();
     }
 
     @Test
-    @DisplayName("Should return max 3 chatbots for preview mode users (temporary for testing)")
-    void shouldReturnMaxThreeChatbotsForPreviewMode() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(true);
+    @DisplayName("Should return max 1 chatbot for FREE plan")
+    void shouldReturnMaxOneChatbotForFreePlan() {
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.empty());
 
-        // Act
         int maxChatbots = accessControlService.getMaxChatbotsAllowed(testUser);
 
-        // Assert
-        assertThat(maxChatbots).isEqualTo(3);
+        assertThat(maxChatbots).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("Should return unlimited chatbots for paid users")
-    void shouldReturnUnlimitedChatbotsForPaidUsers() {
-        // Arrange
-        when(costTrackingService.isPreviewMode(testUser)).thenReturn(false);
+    @DisplayName("Should return plan-based chatbot limit for paid users (BASIC = 3)")
+    void shouldReturnPlanBasedChatbotLimitForPaidUsers() {
         when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(activePaidSubscription));
 
-        // Act
         int maxChatbots = accessControlService.getMaxChatbotsAllowed(testUser);
 
-        // Assert
-        assertThat(maxChatbots).isEqualTo(Integer.MAX_VALUE);
+        assertThat(maxChatbots).isEqualTo(3);
     }
 
     @Test

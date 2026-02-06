@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -16,22 +17,16 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
- * Service for tracking and enforcing cost limits per user account.
- * Prevents abuse by limiting costs for preview mode users.
+ * Service for tracking and enforcing usage-based cost limits per user account.
+ * Limits are defined per plan in {@link PlanLimits#monthlyCostCapUsd}.
  */
 @Service
 public class CostTrackingService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CostTrackingService.class);
-    
-    // Cost per token (Cohere embeddings: $0.10 per 1M tokens)
+
     private static final BigDecimal EMBEDDING_COST_PER_MILLION_TOKENS = new BigDecimal("0.10");
-    
-    // Cost per page scanned (minimal, mainly for API calls)
     private static final BigDecimal SCAN_COST_PER_PAGE = new BigDecimal("0.0001");
-    
-    // Preview mode cost limit: $5/month
-    private static final BigDecimal PREVIEW_MODE_COST_LIMIT = new BigDecimal("5.00");
     
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -88,78 +83,55 @@ public class CostTrackingService {
         return totalCost.setScale(4, RoundingMode.HALF_UP);
     }
     
+    private Subscription.SubscriptionPlan planFor(User user) {
+        Optional<Subscription> sub = subscriptionRepository.findByUserId(user.getId());
+        if (sub.isEmpty() || !sub.get().isActive()) return Subscription.SubscriptionPlan.FREE;
+        return sub.get().getPlan();
+    }
+
     /**
-     * Check if user can perform operation without exceeding cost limit
-     * Uses pessimistic locking to prevent race conditions in concurrent requests.
-     * Throws RuntimeException if limit would be exceeded
+     * Check if user can perform operation without exceeding plan cost limit.
+     * Uses pessimistic locking. Throws RuntimeException if limit would be exceeded.
      */
     @Transactional
     public void checkCostLimit(User user, BigDecimal estimatedCost) {
-        // Lock user row for update to prevent race conditions
         User lockedUser = userRepository.findByIdWithLock(user.getId())
             .orElseThrow(() -> new RuntimeException("User not found: " + user.getId()));
-        
-        // Reset cost if needed (on locked user)
         resetMonthlyCostIfNeeded(lockedUser);
-        
-        // Only enforce limits for preview mode users
-        if (!isPreviewMode(lockedUser)) {
-            logger.debug("User {} has paid subscription, skipping cost limit check", lockedUser.getId());
-            return;
-        }
-        
-        // Get current cost and limit from locked user
+
+        BigDecimal costLimit = PlanLimits.monthlyCostCapUsd(planFor(lockedUser));
         BigDecimal currentCost = lockedUser.getCurrentMonthCost();
-        BigDecimal costLimit = lockedUser.getMonthlyCostLimit();
-        
-        // Check if adding this cost would exceed limit
         BigDecimal newTotalCost = currentCost.add(estimatedCost);
         if (newTotalCost.compareTo(costLimit) > 0) {
             throw new RuntimeException(
-                "Monthly cost limit reached. Preview mode is limited to $" + 
-                costLimit + "/month. Upgrade to continue."
+                "Monthly cost limit reached. Your plan limit is $" + costLimit + "/month. Upgrade to continue."
             );
         }
-        
-        logger.debug("Cost check passed for user {}: current=${}, estimated=${}, limit=${}", 
+        logger.debug("Cost check passed for user {}: current=${}, estimated=${}, limit=${}",
             lockedUser.getId(), currentCost, estimatedCost, costLimit);
     }
     
     /**
-     * Track cost for website scanning operation
-     * Uses pessimistic locking to prevent race conditions in concurrent requests.
+     * Track cost for website scanning; enforces plan-based monthly cost cap for all users.
      */
     @Transactional
     public void trackWebsiteScanCost(User user, int pagesScanned, int tokensEmbedded) {
-        // Lock user row for update to prevent race conditions
         User lockedUser = userRepository.findByIdWithLock(user.getId())
             .orElseThrow(() -> new RuntimeException("User not found: " + user.getId()));
-        
-        // Reset cost if needed (on locked user)
         resetMonthlyCostIfNeeded(lockedUser);
-        
-        // Calculate cost
+
         BigDecimal cost = calculateWebsiteScanCost(pagesScanned, tokensEmbedded);
-        
-        // Only track costs for preview mode users
-        if (isPreviewMode(lockedUser)) {
-            BigDecimal currentCost = lockedUser.getCurrentMonthCost();
-            BigDecimal costLimit = lockedUser.getMonthlyCostLimit();
-            BigDecimal newCost = currentCost.add(cost);
-            if (newCost.compareTo(costLimit) > 0) {
-                throw new RuntimeException(
-                    "Monthly cost limit reached. Preview mode is limited to $"
-                        + costLimit + "/month. Upgrade to continue."
-                );
-            }
-            lockedUser.setCurrentMonthCost(newCost);
-            userRepository.save(lockedUser);
-            
-            logger.info("Tracked website scan cost for user {}: ${} ({} pages, {} tokens)", 
-                lockedUser.getId(), cost, pagesScanned, tokensEmbedded);
-        } else {
-            logger.debug("User {} has paid subscription, not tracking costs", lockedUser.getId());
+        BigDecimal costLimit = PlanLimits.monthlyCostCapUsd(planFor(lockedUser));
+        BigDecimal newCost = lockedUser.getCurrentMonthCost().add(cost);
+        if (newCost.compareTo(costLimit) > 0) {
+            throw new RuntimeException(
+                "Monthly cost limit reached. Your plan limit is $" + costLimit + "/month. Upgrade to continue."
+            );
         }
+        lockedUser.setCurrentMonthCost(newCost);
+        userRepository.save(lockedUser);
+        logger.info("Tracked website scan cost for user {}: ${} ({} pages, {} tokens)",
+            lockedUser.getId(), cost, pagesScanned, tokensEmbedded);
     }
     
     /**
@@ -171,14 +143,10 @@ public class CostTrackingService {
     }
     
     /**
-     * Get monthly cost limit for user
+     * Get monthly cost limit for user (plan-based).
      */
     public BigDecimal getMonthlyCostLimit(User user) {
-        if (isPreviewMode(user)) {
-            return PREVIEW_MODE_COST_LIMIT;
-        }
-        // Paid users have no limit (or very high limit)
-        return new BigDecimal("999999.99");
+        return PlanLimits.monthlyCostCapUsd(planFor(user));
     }
 }
 

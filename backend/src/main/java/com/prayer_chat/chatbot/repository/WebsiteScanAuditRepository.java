@@ -46,5 +46,11 @@ public interface WebsiteScanAuditRepository extends JpaRepository<WebsiteScanAud
            "AND YEAR(wsa.scanDate) = YEAR(CURRENT_DATE) " +
            "AND MONTH(wsa.scanDate) = MONTH(CURRENT_DATE)")
     java.math.BigDecimal getTotalCostThisMonthByUserId(@Param("userId") Long userId);
+
+    /**
+     * Count website scans by user since the given date (e.g. start of current month).
+     */
+    @Query("SELECT COUNT(wsa) FROM WebsiteScanAudit wsa WHERE wsa.user.id = :userId AND wsa.scanDate >= :date")
+    long countScansByUserAndScanDateAfter(@Param("userId") Long userId, @Param("date") LocalDateTime date);
 }
 

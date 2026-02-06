@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
+import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.*;
@@ -55,6 +56,9 @@ class RateLimitingSecurityTest {
     private AccessControlService accessControlService;
 
     @Mock
+    private SubscriptionRepository subscriptionRepository;
+
+    @Mock
     private RateLimitingService rateLimitingService;
 
     @Mock
@@ -81,7 +85,8 @@ class RateLimitingSecurityTest {
         realRateLimitingService = new RateLimitingService(
             messageRepository,
             websiteScanAuditRepository,
-            accessControlService
+            accessControlService,
+            subscriptionRepository
         );
     }
 

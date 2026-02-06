@@ -148,20 +148,17 @@ class CostTrackingServiceTest {
     }
 
     @Test
-    @DisplayName("Should not enforce cost limit for paid users")
+    @DisplayName("Should enforce plan cost limit for paid users when over cap (BASIC = $15)")
     void shouldNotEnforceCostLimitForPaidUsers() {
-        // Arrange
-        paidUser.setCurrentMonthCost(new BigDecimal("100.00"));
-        paidUser.setCostResetDate(LocalDateTime.now()); // Not expired, so reset won't be called
+        paidUser.setCurrentMonthCost(BigDecimal.ZERO);
+        paidUser.setCostResetDate(LocalDateTime.now());
         BigDecimal estimatedCost = new BigDecimal("50.00");
         when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(paidSubscription));
         when(userRepository.findByIdWithLock(paidUser.getId())).thenReturn(Optional.of(paidUser));
 
-        // Act & Assert - Should not throw
-        costTrackingService.checkCostLimit(paidUser, estimatedCost);
-
-        // Verify - Should not save (no cost tracking for paid users, and reset not needed)
-        verify(userRepository, never()).save(any(User.class));
+        assertThatThrownBy(() -> costTrackingService.checkCostLimit(paidUser, estimatedCost))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Monthly cost limit reached");
     }
 
     @Test
@@ -184,18 +181,17 @@ class CostTrackingServiceTest {
     }
 
     @Test
-    @DisplayName("Should not track website scan cost for paid users")
-    void shouldNotTrackWebsiteScanCostForPaidUsers() {
-        // Arrange
-        paidUser.setCostResetDate(LocalDateTime.now()); // Not expired, so reset won't be called
+    @DisplayName("Should track website scan cost for paid users within plan cap")
+    void shouldTrackWebsiteScanCostForPaidUsersWithinCap() {
+        paidUser.setCurrentMonthCost(BigDecimal.ZERO);
+        paidUser.setCostResetDate(LocalDateTime.now());
         when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(paidSubscription));
         when(userRepository.findByIdWithLock(paidUser.getId())).thenReturn(Optional.of(paidUser));
+        when(userRepository.save(any(User.class))).thenReturn(paidUser);
 
-        // Act
         costTrackingService.trackWebsiteScanCost(paidUser, 10, 20000);
 
-        // Assert
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
@@ -244,16 +240,11 @@ class CostTrackingServiceTest {
     }
 
     @Test
-    @DisplayName("Should get high limit for paid users")
-    void shouldGetHighLimitForPaidUsers() {
-        // Arrange
+    @DisplayName("Should get plan-based cost limit for paid users (BASIC = $15)")
+    void shouldGetPlanCostLimitForPaidUsers() {
         when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(paidSubscription));
-
-        // Act
         BigDecimal limit = costTrackingService.getMonthlyCostLimit(paidUser);
-
-        // Assert
-        assertThat(limit).isGreaterThan(new BigDecimal("999999.00"));
+        assertThat(limit).isEqualByComparingTo(new BigDecimal("15.00"));
     }
 }
 

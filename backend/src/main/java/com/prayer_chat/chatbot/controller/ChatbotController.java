@@ -17,6 +17,7 @@ import com.prayer_chat.chatbot.service.JesusVersesTaggingService;
 import com.prayer_chat.chatbot.dto.JesusTeaching;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
@@ -303,17 +304,16 @@ public class ChatbotController {
             boolean isPreviewMode = accessControlService.isPreviewMode(user);
             if (isPreviewMode) {
                 int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
-                int maxPagesForPreview = 50;
-                
-                if (estimatedPages > maxPagesForPreview) {
-                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {} for preview mode)", 
-                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForPreview);
+                int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
+                if (estimatedPages > maxPagesForUser) {
+                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
+                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                     return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Upgrade to scan larger websites.",
+                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Upgrade to scan larger websites.",
                         "estimatedPages", estimatedPages,
-                        "maxPages", maxPagesForPreview,
+                        "maxPages", maxPagesForUser,
                         "upgradeRequired", true,
-                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more than 50 pages."
+                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
                     ));
                 }
             }
@@ -428,17 +428,16 @@ public class ChatbotController {
                 }
                 
                 int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
-                int maxPagesForPreview = 50;
-                
-                if (estimatedPages > maxPagesForPreview) {
-                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {} for preview mode)", 
-                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForPreview);
+                int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
+                if (estimatedPages > maxPagesForUser) {
+                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
+                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                     return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Upgrade to scan larger websites.",
+                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Upgrade to scan larger websites.",
                         "estimatedPages", estimatedPages,
-                        "maxPages", maxPagesForPreview,
+                        "maxPages", maxPagesForUser,
                         "upgradeRequired", true,
-                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more than 50 pages."
+                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
                     ));
                 }
             }
@@ -682,39 +681,33 @@ public class ChatbotController {
             
             // 2. Estimate website size BEFORE scanning (prevents costs for large sites)
             int estimatedPages = websiteSizeEstimator.estimateSize(chatbot.getWebsiteUrl());
-            int maxPagesForUser = isPreviewMode ? 50 : Integer.MAX_VALUE;
-            
+            int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
             if (estimatedPages > maxPagesForUser) {
-                logger.warn("User {} attempted to scan website with {} pages (limit: {} for preview mode)", 
+                logger.warn("User {} attempted to scan website with {} pages (limit: {})", 
                     LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Website too large for preview mode. Preview mode is limited to 50 pages. Subscribe to scan larger websites.",
+                    "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Subscribe to scan larger websites.",
                     "estimatedPages", estimatedPages,
                     "maxPages", maxPagesForUser,
                     "upgradeRequired", true
                 ));
             }
-            
-            // 3. Estimate cost and check cost limit
-            java.math.BigDecimal estimatedCost = java.math.BigDecimal.ZERO;
-            if (isPreviewMode) {
-                // Estimate tokens: ~2000 tokens per page (conservative estimate)
-                int estimatedTokens = estimatedPages * 2000;
-                estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
-                
-                try {
-                    costTrackingService.checkCostLimit(user, estimatedCost);
-                } catch (RuntimeException e) {
-                    logger.warn("User {} attempted to scan website but cost limit would be exceeded: {}", 
-                        LogSanitizer.sanitize(user.getEmail()), e.getMessage());
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                        "error", e.getMessage(),
-                        "estimatedCost", estimatedCost.toString(),
-                        "upgradeRequired", true
-                    ));
-                }
+
+            // 3. Estimate cost and check plan cost limit (all plans have a monthly cap)
+            int estimatedTokens = estimatedPages * 2000;
+            java.math.BigDecimal estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
+            try {
+                costTrackingService.checkCostLimit(user, estimatedCost);
+            } catch (RuntimeException e) {
+                logger.warn("User {} attempted to scan website but cost limit would be exceeded: {}", 
+                    LogSanitizer.sanitize(user.getEmail()), e.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", e.getMessage(),
+                    "estimatedCost", estimatedCost.toString(),
+                    "upgradeRequired", true
+                ));
             }
-            
+
             // All checks passed - create audit entry BEFORE starting scan
             // SECURITY: This audit entry persists even if chatbot is deleted, preventing abuse
             WebsiteScanAudit audit = new WebsiteScanAudit(user, chatbot.getWebsiteUrl(), estimatedPages, estimatedCost, chatbot.getId());

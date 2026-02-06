@@ -1,7 +1,10 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.config.PlanLimits;
+import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.MessageRepository;
+import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,36 +13,38 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.Optional;
 
 /**
- * Service for enforcing rate limits on messages and website scans
- *
- * Limits:
- * - Preview mode: 10 messages/day, 1 scan/day
- * - Paid mode: Unlimited messages, 10 scans/day
+ * Service for enforcing usage-based rate limits on messages and website scans.
+ * Limits are defined per plan in {@link PlanLimits} (monthly scan quota, daily scan cap, messages/day).
  */
 @Service
 public class RateLimitingService {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimitingService.class);
 
-    // Rate limits
-    private static final int PREVIEW_MESSAGE_LIMIT = 10; // messages per day
-    private static final int PREVIEW_SCAN_LIMIT = 1;    // scans per day (preview)
-    private static final int PAID_SCAN_LIMIT = 10;      // scans per day (paid)
-    private static final int PAID_MESSAGE_LIMIT = Integer.MAX_VALUE; // unlimited
-    
     private final MessageRepository messageRepository;
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
-    
+    private final SubscriptionRepository subscriptionRepository;
+
     @Autowired
     public RateLimitingService(MessageRepository messageRepository,
                                WebsiteScanAuditRepository websiteScanAuditRepository,
-                               AccessControlService accessControlService) {
+                               AccessControlService accessControlService,
+                               SubscriptionRepository subscriptionRepository) {
         this.messageRepository = messageRepository;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
+        this.subscriptionRepository = subscriptionRepository;
+    }
+
+    private static Subscription.SubscriptionPlan planFor(User user, SubscriptionRepository subscriptionRepository) {
+        Optional<Subscription> sub = subscriptionRepository.findByUserId(user.getId());
+        if (sub.isEmpty() || !sub.get().isActive()) return Subscription.SubscriptionPlan.FREE;
+        return sub.get().getPlan();
     }
     
     /**
@@ -55,29 +60,19 @@ public class RateLimitingService {
      */
     @Transactional(readOnly = true)
     public RateLimitResult checkMessageLimit(User user) {
+        Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
+        int messageLimit = PlanLimits.messagesPerDay(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
-        int messageLimit = isPreviewMode ? PREVIEW_MESSAGE_LIMIT : PAID_MESSAGE_LIMIT;
-        
-        // Count messages sent today
+
         Long messagesToday = messageRepository.countUserMessagesTodayByUserId(user.getId());
-        if (messagesToday == null) {
-            messagesToday = 0L;
-        }
-        
+        if (messagesToday == null) messagesToday = 0L;
+
         boolean allowed = messagesToday < messageLimit;
-        
         if (!allowed) {
-            logger.warn("User {} attempted to send message but daily limit reached (current: {}, limit: {}, preview: {})", 
-                user.getId(), messagesToday, messageLimit, isPreviewMode);
+            logger.warn("User {} attempted to send message but daily limit reached (current: {}, limit: {}, plan: {})",
+                user.getId(), messagesToday, messageLimit, plan);
         }
-        
-        return new RateLimitResult(
-            allowed,
-            messageLimit,
-            messagesToday.intValue(),
-            isPreviewMode,
-            "message"
-        );
+        return new RateLimitResult(allowed, messageLimit, messagesToday.intValue(), isPreviewMode, "message");
     }
     
     /**
@@ -93,46 +88,50 @@ public class RateLimitingService {
      */
     @Transactional(readOnly = true)
     public RateLimitResult checkScanLimit(User user) {
+        Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
+        int dailyLimit = PlanLimits.dailyScanLimit(plan);
+        int monthlyQuota = PlanLimits.monthlyScanQuota(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
-        int scanLimit = isPreviewMode ? PREVIEW_SCAN_LIMIT : PAID_SCAN_LIMIT;
-        
-        // Count scans in the last 24 hours
+
         LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
         Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
-        if (scansInLastDay == null) {
-            scansInLastDay = 0L;
-        }
-        
-        boolean allowed = scansInLastDay < scanLimit;
-        
+        if (scansInLastDay == null) scansInLastDay = 0L;
+
+        LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
+        long scansThisMonth = websiteScanAuditRepository.countScansByUserAndScanDateAfter(user.getId(), startOfMonth);
+
+        boolean overDaily = scansInLastDay >= dailyLimit;
+        boolean overMonthly = scansThisMonth >= monthlyQuota;
+        boolean allowed = !overDaily && !overMonthly;
+        int effectiveLimit = overMonthly ? monthlyQuota : dailyLimit;
+        int current = overMonthly ? (int) scansThisMonth : scansInLastDay.intValue();
+
         if (!allowed) {
-            logger.warn("User {} attempted to scan website but daily limit reached (current: {}, limit: {}, preview: {})", 
-                user.getId(), scansInLastDay, scanLimit, isPreviewMode);
+            logger.warn("User {} attempted to scan but limit reached (daily: {}/{}, monthly: {}/{}, plan: {})",
+                user.getId(), scansInLastDay, dailyLimit, scansThisMonth, monthlyQuota, plan);
         }
-        
-        return new RateLimitResult(
-            allowed,
-            scanLimit,
-            scansInLastDay.intValue(),
-            isPreviewMode,
-            "scan"
-        );
+        return new RateLimitResult(allowed, overMonthly ? monthlyQuota : dailyLimit, current, isPreviewMode, "scan");
     }
     
     /**
      * Get the maximum number of messages allowed per day for a user
      */
     public int getMaxMessagesPerDay(User user) {
-        boolean isPreviewMode = accessControlService.isPreviewMode(user);
-        return isPreviewMode ? PREVIEW_MESSAGE_LIMIT : PAID_MESSAGE_LIMIT;
+        return PlanLimits.messagesPerDay(planFor(user, subscriptionRepository));
     }
-    
+
     /**
-     * Get the maximum number of scans allowed per day for a user
+     * Get the maximum number of scans allowed per day for a user (plan-based).
      */
     public int getMaxScansPerDay(User user) {
-        boolean isPreviewMode = accessControlService.isPreviewMode(user);
-        return isPreviewMode ? PREVIEW_SCAN_LIMIT : PAID_SCAN_LIMIT;
+        return PlanLimits.dailyScanLimit(planFor(user, subscriptionRepository));
+    }
+
+    /**
+     * Get the monthly scan quota for a user (plan-based).
+     */
+    public int getMonthlyScanQuota(User user) {
+        return PlanLimits.monthlyScanQuota(planFor(user, subscriptionRepository));
     }
     
     /**

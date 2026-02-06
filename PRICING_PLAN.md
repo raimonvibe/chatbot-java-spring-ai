@@ -1,5 +1,23 @@
 # 💰 Subscription Pricing Plan
 
+## Usage-based plans (backend implementation)
+
+Plans are enforced by **usage** so that high-cost actions (website scans = embeddings) stay within sustainable limits.
+
+| Plan       | Use case              | Scans/month | Max pages/scan | Cost cap/month | Chatbots | Messages/day |
+|-----------|------------------------|-------------|----------------|----------------|----------|--------------|
+| **FREE**  | Try before buy         | 1           | 50             | $5             | 1        | 10           |
+| **BASIC** | Small sites, light use | 5           | 500            | $15            | 3        | 100          |
+| **PRO**   | Medium sites, agencies | 20          | 2,000          | $50            | 10       | 500          |
+| **ENTERPRISE** | Large sites, high volume | 100    | 10,000         | $200           | 50       | 2,000        |
+
+- **Scans/month**: Number of website analyses per calendar month.
+- **Max pages/scan**: Prevents scanning very large sites (e.g. AWS-sized) on lower tiers; embedding cost scales with pages/tokens.
+- **Cost cap**: Hard limit on tracked usage (embedding + scan cost) per month; all plans are capped.
+- Limits are defined in `backend/.../config/PlanLimits.java` and used by `RateLimitingService`, `CostTrackingService`, `AccessControlService`, and `ChatbotController`.
+
+---
+
 ## 📊 Cost Basis Analysis
 
 ### Cost Per Chatbot (Monthly)
