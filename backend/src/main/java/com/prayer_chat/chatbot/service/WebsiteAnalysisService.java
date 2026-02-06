@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.service;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.WebsiteContent;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,9 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -21,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Service for analyzing and crawling websites to extract content for chatbot training
@@ -32,7 +34,6 @@ public class WebsiteAnalysisService {
 
     private final WebsiteContentRepository websiteContentRepository;
     private final UrlValidationService urlValidationService;
-    private final RestTemplate restTemplate;
     private final ExecutorService executorService;
     
     @Value("${app.website-analysis.max-pages:50}")
@@ -53,94 +54,203 @@ public class WebsiteAnalysisService {
         Pattern.CASE_INSENSITIVE
     );
     
+    /** Selectors to remove before extracting main content (noise, not content). */
     private static final Set<String> SKIP_SELECTORS = Set.of(
-        "nav", "header", "footer", "aside", "script", "style", 
-        ".navigation", ".menu", ".sidebar", ".ads", ".advertisement"
+        "nav", "header", "footer", "aside", "script", "style", "noscript", "iframe",
+        ".navigation", ".menu", ".sidebar", ".ads", ".advertisement", ".cookie-banner",
+        "[role=navigation]", "[role=banner]", ".social-share", ".share-buttons", ".comments"
     );
+
+    /** Selectors for main content, in priority order. First match with enough text wins. */
+    private static final String[] MAIN_CONTENT_SELECTORS = {
+        "main",
+        "article",
+        "[role=main]",
+        ".post-content", ".entry-content", ".article-body", ".article-content",
+        ".prose", ".page-content", ".post-body", ".content-area",
+        ".main-content", "#content", "#main", ".content",
+        "section"
+    };
     
     public WebsiteAnalysisService(WebsiteContentRepository websiteContentRepository,
                                   UrlValidationService urlValidationService) {
         this.websiteContentRepository = websiteContentRepository;
         this.urlValidationService = urlValidationService;
-        this.restTemplate = new RestTemplate();
         this.executorService = Executors.newFixedThreadPool(10);
+    }
+
+    /**
+     * Normalize URL for deduplication: strip fragment and common tracking params.
+     */
+    private String normalizeUrl(String url) {
+        if (url == null || url.isEmpty()) return url;
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getRawPath() != null ? uri.getRawPath() : "/";
+            String query = uri.getQuery();
+            if (query != null && !query.isEmpty()) {
+                String filtered = Arrays.stream(query.split("&"))
+                    .filter(p -> !p.startsWith("utm_") && !p.equals("fbclid") && !p.startsWith("ref="))
+                    .collect(Collectors.joining("&"));
+                if (!filtered.isEmpty()) path = path + "?" + filtered;
+            }
+            return uri.getScheme() + "://" + uri.getHost() + (path.isEmpty() ? "/" : path);
+        } catch (Exception e) {
+            return url;
+        }
     }
     
     /**
-     * Analyze a website and extract content for chatbot training
+     * Analyze a website and extract content for chatbot training.
+     * Uses sitemap when available to discover more pages; then crawls from homepage and sitemap URLs.
      */
     public CompletableFuture<List<WebsiteContent>> analyzeWebsite(Chatbot chatbot) {
         return CompletableFuture.supplyAsync(() -> {
-            logger.info("Starting website analysis for: {}", chatbot.getWebsiteUrl());
-            
+            String baseUrl = chatbot.getWebsiteUrl();
+            logger.info("Starting website analysis for: {}", baseUrl);
+
+            // SSRF: validate before any network call
+            if (!urlValidationService.isValidAndSafe(baseUrl)) {
+                logger.warn("Blocked website analysis: URL failed validation (SSRF protection): {}", urlValidationService.extractDomain(baseUrl));
+                return Collections.emptyList();
+            }
+
             Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
-            List<WebsiteContent> extractedContent = new ArrayList<>();
-            
+            List<WebsiteContent> extractedContent = Collections.synchronizedList(new ArrayList<>());
+
             try {
-                crawlWebsite(chatbot.getWebsiteUrl(), chatbot, visitedUrls, extractedContent, 0);
+                List<String> seedUrls = collectSeedUrls(baseUrl);
+                logger.info("Crawl seeds: {} (homepage + {} from sitemap)", seedUrls.size(), Math.max(0, seedUrls.size() - 1));
+
+                for (String seed : seedUrls) {
+                    if (visitedUrls.size() >= maxPages) break;
+                    String normalized = normalizeUrl(seed);
+                    if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)) {
+                        crawlWebsite(seed, normalized, chatbot, visitedUrls, extractedContent, 0);
+                    }
+                }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
             } catch (Exception e) {
                 logger.error("Error during website analysis", e);
             }
-            
+
             return extractedContent;
         }, executorService);
     }
-    
+
     /**
-     * Recursively crawl website pages
+     * Collect seed URLs: homepage plus same-domain URLs from sitemap (if present).
      */
-    private void crawlWebsite(String url, Chatbot chatbot, Set<String> visitedUrls,
-                            List<WebsiteContent> extractedContent, int depth) {
-
-        if (depth > maxDepth || visitedUrls.size() >= maxPages || visitedUrls.contains(url)) {
-            return;
-        }
-
-        // SSRF Protection: Validate URL before crawling
-        if (!urlValidationService.isValidAndSafe(url)) {
-            logger.warn("Blocked unsafe URL during crawl: {}", urlValidationService.extractDomain(url));
-            return;
-        }
-
-        visitedUrls.add(url);
-
+    private List<String> collectSeedUrls(String websiteUrl) {
+        List<String> seeds = new ArrayList<>();
+        seeds.add(websiteUrl);
         try {
-            Document document = Jsoup.connect(url)
+            URL url = new URL(websiteUrl);
+            String base = url.getProtocol() + "://" + url.getHost();
+            String sitemapUrl = base + "/sitemap.xml";
+            List<String> sitemapUrls = fetchUrlsFromSitemap(sitemapUrl, base);
+            for (String u : sitemapUrls) {
+                if (seeds.size() >= maxPages) break;
+                if (!seeds.contains(u) && urlValidationService.isValidAndSafe(u)) {
+                    seeds.add(u);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("No sitemap or error reading sitemap: {}", e.getMessage());
+        }
+        return seeds;
+    }
+
+    /**
+     * Fetch URLs from sitemap (handles sitemap index and plain sitemap).
+     */
+    private List<String> fetchUrlsFromSitemap(String sitemapUrl, String baseUrl) {
+        List<String> urls = new ArrayList<>();
+        if (!urlValidationService.isValidAndSafe(sitemapUrl)) {
+            logger.debug("Sitemap URL failed validation (SSRF protection): {}", sitemapUrl);
+            return urls;
+        }
+        try {
+            Document doc = Jsoup.connect(sitemapUrl)
                 .userAgent(userAgent)
                 .timeout(timeoutSeconds * 1000)
-                .followRedirects(true)
+                .ignoreContentType(true)
+                .maxBodySize(5 * 1024 * 1024)
                 .get();
-            
-            // Extract content from current page
-            WebsiteContent content = extractPageContent(chatbot, url, document);
+            Elements locs = doc.select("loc");
+            if (locs.isEmpty()) {
+                locs = doc.select("url loc");
+            }
+            for (Element loc : locs) {
+                String href = loc.text();
+                if (href != null && href.startsWith(baseUrl) && !SKIP_PATTERNS.matcher(href).matches()) {
+                    urls.add(href);
+                }
+            }
+            if (urls.size() > maxPages) {
+                urls = urls.subList(0, maxPages);
+            }
+        } catch (IOException e) {
+            logger.debug("Could not fetch sitemap {}: {}", sitemapUrl, e.getMessage());
+        }
+        return urls;
+    }
+    
+    /**
+     * Recursively crawl website pages. Uses normalizedUrl for deduplication.
+     */
+    private void crawlWebsite(String urlToFetch, String normalizedUrl, Chatbot chatbot,
+                              Set<String> visitedUrls, List<WebsiteContent> extractedContent, int depth) {
+
+        if (depth > maxDepth || visitedUrls.size() >= maxPages || visitedUrls.contains(normalizedUrl)) {
+            return;
+        }
+        if (!urlValidationService.isValidAndSafe(urlToFetch)) {
+            logger.warn("Blocked unsafe URL during crawl: {}", urlValidationService.extractDomain(urlToFetch));
+            return;
+        }
+
+        visitedUrls.add(normalizedUrl);
+
+        try {
+            Connection conn = Jsoup.connect(urlToFetch)
+                .userAgent(userAgent)
+                .timeout(timeoutSeconds * 1000)
+                .followRedirects(true);
+            Connection.Response response = conn.execute();
+            // SSRF: validate final URL after redirects (redirect could point to internal host)
+            String finalUrl = response.url().toString();
+            if (!urlValidationService.isValidAndSafe(finalUrl)) {
+                logger.warn("Blocked crawl after redirect to unsafe URL: {}", urlValidationService.extractDomain(finalUrl));
+                return;
+            }
+            Document document = response.parse();
+
+            WebsiteContent content = extractPageContent(chatbot, finalUrl, document);
             if (content != null && isValidContent(content)) {
                 extractedContent.add(content);
                 websiteContentRepository.save(content);
-                logger.debug("Extracted content from: {}", url);
+                logger.debug("Extracted content from: {}", urlToFetch);
             }
-            
-            // Find and crawl linked pages
-            if (depth < maxDepth) {
+
+            if (depth < maxDepth && visitedUrls.size() < maxPages) {
                 Elements links = document.select("a[href]");
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                
                 for (Element link : links) {
                     String href = link.attr("abs:href");
-                    if (isValidUrl(href, chatbot.getWebsiteUrl())) {
-                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> 
-                            crawlWebsite(href, chatbot, visitedUrls, extractedContent, depth + 1)
+                    if (href == null || href.isEmpty()) continue;
+                    String norm = normalizeUrl(href);
+                    if (isValidUrl(href, chatbot.getWebsiteUrl()) && !visitedUrls.contains(norm)) {
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
+                            crawlWebsite(href, norm, chatbot, visitedUrls, extractedContent, depth + 1)
                         );
                         futures.add(future);
                     }
                 }
-                
-                // Wait for all parallel crawls to complete
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             }
-            
         } catch (IOException e) {
-            logger.warn("Failed to crawl URL: {} - {}", url, e.getMessage());
+            logger.warn("Failed to crawl URL: {} - {}", urlToFetch, e.getMessage());
         }
     }
     
@@ -149,12 +259,7 @@ public class WebsiteAnalysisService {
      */
     private WebsiteContent extractPageContent(Chatbot chatbot, String url, Document document) {
         try {
-            // Remove unwanted elements
-            for (String selector : SKIP_SELECTORS) {
-                document.select(selector).remove();
-            }
-            
-            // Extract title
+            // Extract title (before any clone)
             String title = document.title();
             if (title == null || title.trim().isEmpty()) {
                 title = extractTitleFromContent(document);
@@ -168,15 +273,25 @@ public class WebsiteAnalysisService {
             String metaKeywords = extractMetaKeywords(document);
             String language = extractLanguage(document);
             
-            if (content == null || content.trim().length() < 100) {
-                return null; // Skip pages with insufficient content
+            if (content == null || content.trim().length() < 50) {
+                return null; // Skip pages with very little content (lowered from 100 to allow more pages)
             }
-            
-            WebsiteContent websiteContent = new WebsiteContent(chatbot, url, title, content);
+
+            // Prepend title and description so RAG has full context
+            StringBuilder fullContent = new StringBuilder();
+            if (title != null && !title.trim().isEmpty()) {
+                fullContent.append("Title: ").append(title.trim()).append(". ");
+            }
+            if (metaDescription != null && !metaDescription.trim().isEmpty()) {
+                fullContent.append("Description: ").append(metaDescription.trim()).append(". ");
+            }
+            fullContent.append(content);
+
+            WebsiteContent websiteContent = new WebsiteContent(chatbot, url, title, fullContent.toString());
             websiteContent.setMetaDescription(metaDescription);
             websiteContent.setMetaKeywords(metaKeywords);
             websiteContent.setLanguage(language);
-            
+
             return websiteContent;
             
         } catch (Exception e) {
@@ -186,27 +301,37 @@ public class WebsiteAnalysisService {
     }
     
     /**
-     * Extract main content from the page
+     * Extract main content from the page using multiple selectors; picks the best candidate (most substantive text).
      */
     private String extractMainContent(Document document) {
-        // Try to find main content area
-        Element mainContent = document.select("main").first();
-        if (mainContent == null) {
-            mainContent = document.select("article").first();
+        Document working = document.clone();
+        for (String selector : SKIP_SELECTORS) {
+            working.select(selector).remove();
         }
-        if (mainContent == null) {
-            mainContent = document.select(".content, .main-content, #content, #main").first();
+
+        Element body = working.body();
+        if (body == null) return "";
+
+        Element best = null;
+        int bestLength = 0;
+        int minUseful = 50;
+
+        for (String selector : MAIN_CONTENT_SELECTORS) {
+            Elements candidates = working.select(selector);
+            for (Element el : candidates) {
+                String text = el.text().replaceAll("\\s+", " ").trim();
+                if (text.length() >= minUseful && text.length() > bestLength) {
+                    best = el;
+                    bestLength = text.length();
+                }
+            }
+            if (best != null) break;
         }
-        if (mainContent == null) {
-            mainContent = document.body();
+
+        if (best == null) {
+            best = body;
         }
-        
-        // Extract text content
-        String content = mainContent.text();
-        
-        // Clean up the content
-        content = content.replaceAll("\\s+", " ").trim();
-        
+        String content = best.text().replaceAll("\\s+", " ").trim();
         return content;
     }
     

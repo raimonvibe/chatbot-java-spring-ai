@@ -37,6 +37,12 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class AiChatbotService {
+
+    /** Accurate description of Raimonvibe so the AI does not invent a "Christian business" answer. */
+    private static final String ABOUT_RAIMONVIBE =
+        "About Raimonvibe (creator of this platform): Raimonvibe (raimonvibe.com) is a freelance web design and software engineering practice. "
+        + "It offers responsive websites for businesses, blogs about coding and 3D printing, and software projects. "
+        + "Contact: info@raimonvibe.com. When users ask about Raimonvibe, use this description—do not describe it as a Christian or faith-based business.";
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);
     
@@ -404,6 +410,7 @@ public class AiChatbotService {
         prompt.append("You help visitors by answering questions about the business and its services.\n");
         prompt.append("Be helpful, friendly, and professional in your responses.\n");
         prompt.append("If you don't know something, politely say so and suggest contacting the business directly.\n");
+        prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");
 
         // Add Christian values if enabled
         if (chatbot.getChristianMessagingEnabled() != null && chatbot.getChristianMessagingEnabled()) {
