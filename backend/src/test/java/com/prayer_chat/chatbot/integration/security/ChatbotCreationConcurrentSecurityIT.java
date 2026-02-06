@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.integration.security;
 
+import com.prayer_chat.chatbot.config.TestOAuth2ClientRepositoryConfig;
 import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.Chatbot;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
+@Import(TestOAuth2ClientRepositoryConfig.class)
 @DisplayName("Chatbot creation concurrent security IT")
 class ChatbotCreationConcurrentSecurityIT {
 

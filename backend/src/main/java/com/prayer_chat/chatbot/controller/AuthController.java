@@ -54,7 +54,8 @@ public class AuthController {
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
 
     // Security: Maximum authorization code length (Google codes are typically ~200 chars)
     private static final int MAX_CODE_LENGTH = 500;

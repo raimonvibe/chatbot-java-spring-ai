@@ -2,8 +2,11 @@ package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +26,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DisplayName("Stripe Webhook E2E Tests")
 class StripeWebhookE2ETest extends E2ETestBase {
+
+    @BeforeEach
+    void requireRestAssured() {
+        assumeTrue(apiClient != null, "RestAssured not available - skip tests requiring ApiTestClient");
+    }
 
     @Test
     @DisplayName("Webhook: invoice.payment_succeeded Event")

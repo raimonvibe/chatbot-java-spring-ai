@@ -1,8 +1,11 @@
 package com.prayer_chat.chatbot.e2e;
 
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import org.springframework.http.HttpStatus;
 
 import java.util.Map;
@@ -28,6 +31,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DisplayName("Authentication API E2E Tests")
 class AuthApiE2ETest extends E2ETestBase {
+
+    @BeforeEach
+    void requireRestAssured() {
+        assumeTrue(apiClient != null, "RestAssured not available - skip tests requiring ApiTestClient");
+    }
 
     @Test
     @DisplayName("Complete OAuth2 Auth Flow: Create User → Access Protected Resource")

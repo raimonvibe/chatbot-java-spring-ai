@@ -1,6 +1,8 @@
 package com.prayer_chat.chatbot.integration.security;
 
+import com.prayer_chat.chatbot.config.TestOAuth2ClientRepositoryConfig;
 import com.prayer_chat.chatbot.model.User;
+import com.prayer_chat.chatbot.repository.AuditLogRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.service.CostTrackingService;
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
@@ -27,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
+@Import(TestOAuth2ClientRepositoryConfig.class)
 @DisplayName("Cost tracking concurrent security IT")
 class CostTrackingConcurrentSecurityIT {
 
@@ -42,10 +46,14 @@ class CostTrackingConcurrentSecurityIT {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+
     private User previewUser;
 
     @BeforeEach
     void setUp() {
+        auditLogRepository.deleteAll();
         subscriptionRepository.deleteAll();
         userRepository.deleteAll();
 

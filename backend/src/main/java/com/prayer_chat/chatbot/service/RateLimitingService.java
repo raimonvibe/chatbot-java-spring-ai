@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
  * Service for enforcing rate limits on messages and website scans
  *
  * Limits:
- * - Preview mode: 10 messages/day, 15 scans/day (INCREASED FOR TESTING)
- * - Paid mode: Unlimited messages, 15 scans/day
+ * - Preview mode: 10 messages/day, 1 scan/day
+ * - Paid mode: Unlimited messages, 10 scans/day
  */
 @Service
 public class RateLimitingService {
@@ -25,8 +25,8 @@ public class RateLimitingService {
 
     // Rate limits
     private static final int PREVIEW_MESSAGE_LIMIT = 10; // messages per day
-    private static final int PREVIEW_SCAN_LIMIT = 15; // INCREASED FROM 1 FOR TESTING - scans per day
-    private static final int PAID_SCAN_LIMIT = 15; // scans per day
+    private static final int PREVIEW_SCAN_LIMIT = 1;    // scans per day (preview)
+    private static final int PAID_SCAN_LIMIT = 10;      // scans per day (paid)
     private static final int PAID_MESSAGE_LIMIT = Integer.MAX_VALUE; // unlimited
     
     private final MessageRepository messageRepository;

@@ -30,7 +30,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -158,7 +160,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         assertEquals(50, body.get("maxPages"));
         
         // Verify chatbot was NOT created
-        verify(chatbotService, never()).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
@@ -170,7 +172,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         when(websiteSizeEstimator.estimateSize(smallWebsiteUrl)).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
 
         // Act
@@ -184,8 +186,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Assert
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         
-        // Verify chatbot WAS created
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        // Verify chatbot WAS created (onboarding uses createChatbotEnforcingLimit with max 1)
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
     }
 
     @Test
@@ -197,7 +199,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Paid users don't go through size check, so we don't need to stub estimateSize
         when(accessControlService.isPreviewMode(testUser)).thenReturn(false); // Paid user
         when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
 
         // Act
@@ -212,7 +214,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         
         // Verify chatbot WAS created (size check should not block paid users)
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
         // Verify size estimator was NOT called for paid users
         verify(websiteSizeEstimator, never()).estimateSize(anyString());
     }
@@ -246,7 +248,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         assertEquals(50, body.get("maxPages"));
         
         // Verify chatbot was NOT created
-        verify(chatbotService, never()).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
@@ -263,7 +265,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         when(websiteSizeEstimator.estimateSize("https://small-website.com")).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(3);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3))).thenReturn(testChatbot);
 
         // Act
         ResponseEntity<?> response = chatbotController.createChatbot(request, customOAuth2User);
@@ -272,7 +275,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         
         // Verify chatbot WAS created
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3));
     }
 
     @Test
@@ -286,7 +289,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
         request.setPrimaryLanguage("en");
         
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(3);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3))).thenReturn(testChatbot);
 
         // Act
         ResponseEntity<?> response = chatbotController.createChatbot(request, customOAuth2User);
@@ -307,7 +311,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Simulate estimation failure (returns -1 or throws exception)
         when(websiteSizeEstimator.estimateSize(websiteUrl)).thenReturn(-1);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
 
         // Act
@@ -318,8 +322,6 @@ class ChatbotControllerWebsiteSizeLimitTest {
 
         // Assert
         // Should allow creation if estimation fails (conservative approach)
-        // Or could block - depends on business logic
-        // For now, we'll allow it if estimation fails
         assertTrue(response.getStatusCode().is2xxSuccessful() || 
                    response.getStatusCode() == HttpStatus.PAYMENT_REQUIRED);
     }
@@ -333,7 +335,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         when(websiteSizeEstimator.estimateSize(websiteUrl)).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class))).thenReturn(testChatbot);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
 
         // Act
@@ -345,7 +347,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Assert
         // 50 pages should be allowed (limit is > 50, not >= 50)
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
     }
 }
 

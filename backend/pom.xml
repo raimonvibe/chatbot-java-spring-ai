@@ -351,6 +351,7 @@
                     <excludes>
                         <exclude>**/*IT.java</exclude>
                         <exclude>**/*IntegrationTest.java</exclude>
+                        <exclude>**/*E2ETest.java</exclude>
                     </excludes>
 
                     <!-- Test reporting -->

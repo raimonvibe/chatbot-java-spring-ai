@@ -4,6 +4,7 @@ import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.service.AuditService;
 import com.prayer_chat.chatbot.service.FraudDetectionService;
+import com.prayer_chat.chatbot.service.SecurityAlertService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ class FraudDetectionServiceTest {
 
     @Mock
     private AuditService auditService;
+
+    @Mock
+    private SecurityAlertService securityAlertService;
 
     @InjectMocks
     private FraudDetectionService fraudDetectionService;

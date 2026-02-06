@@ -5,6 +5,7 @@ import com.prayer_chat.chatbot.config.MockAiConfiguration;
 import com.prayer_chat.chatbot.config.TestSecurityConfig;
 import com.prayer_chat.chatbot.config.TestJacksonConfiguration;
 import com.prayer_chat.chatbot.dto.ChatbotRequest;
+import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.helpers.TestAuthenticationHelper;
 import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.Chatbot;
@@ -124,7 +125,7 @@ class ChatbotControllerIT {
         request.setPrimaryLanguage("en");
         request.setCustomPrompt("You are a helpful assistant");
 
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class)))
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt()))
             .thenReturn(testChatbot);
 
         // Act & Assert
@@ -136,18 +137,18 @@ class ChatbotControllerIT {
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.name").exists());
 
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
     @DisplayName("Should get all chatbots for user")
     void shouldGetAllChatbotsForUser() throws Exception {
-        // Arrange
+        // Arrange - controller uses findByOwnerId, not findAll
         Chatbot bot2 = TestDataBuilder.createTestChatbot(testUser);
         bot2.setId(2L);
         List<Chatbot> chatbots = Arrays.asList(testChatbot, bot2);
 
-        when(chatbotRepository.findAll()).thenReturn(chatbots);
+        when(chatbotRepository.findByOwnerId(testUser.getId())).thenReturn(chatbots);
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots")
@@ -156,7 +157,7 @@ class ChatbotControllerIT {
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(2));
 
-        verify(chatbotRepository, times(1)).findAll();
+        verify(chatbotRepository, times(1)).findByOwnerId(testUser.getId());
     }
 
     @Test
@@ -302,7 +303,7 @@ class ChatbotControllerIT {
         request.setCustomPrompt("Normal prompt");
 
         // The service should sanitize the input
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class)))
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt()))
             .thenReturn(testChatbot);
 
         // Act & Assert
@@ -313,7 +314,7 @@ class ChatbotControllerIT {
             .andExpect(status().isCreated());
 
         // Verify the service was called (sanitization happens there)
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
@@ -326,7 +327,7 @@ class ChatbotControllerIT {
         createRequest.setDescription("Lifecycle test");
         createRequest.setPrimaryLanguage("en"); // Required field
 
-        when(chatbotService.createChatbot(any(Chatbot.class), any(User.class)))
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt()))
             .thenReturn(testChatbot);
 
         // Act - Create
@@ -366,7 +367,7 @@ class ChatbotControllerIT {
             .andExpect(status().isNoContent());
 
         // Verify all operations were called
-        verify(chatbotService, times(1)).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
         verify(chatbotRepository, times(2)).findById(1L); // Once for update, once for delete
         verify(chatbotRepository, times(1)).save(any(Chatbot.class));
         verify(chatbotRepository, times(1)).deleteById(1L);
@@ -484,10 +485,10 @@ class ChatbotControllerIT {
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10); // Small website
 
-        // Act & Assert
+        // Act & Assert - controller returns 402 PAYMENT_REQUIRED when scan limit reached
         mockMvc.perform(post("/api/chatbots/1/analyze")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
-            .andExpect(status().isForbidden())
+            .andExpect(status().isPaymentRequired())
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.upgradeRequired").value(true));
 
@@ -530,7 +531,7 @@ class ChatbotControllerIT {
     @Test
     @DisplayName("Should reject chatbot creation when one chatbot limit reached for preview mode")
     void shouldRejectChatbotCreationWhenLimitReached() throws Exception {
-        // Arrange
+        // Arrange - controller calls createChatbotEnforcingLimit, which throws when limit reached
         User previewUser = TestDataBuilder.createTestUser("preview@example.com");
         previewUser.setId(2L);
         
@@ -540,11 +541,13 @@ class ChatbotControllerIT {
         request.setWebsiteUrl("https://example.com");
         request.setPrimaryLanguage("en");
 
-        when(chatbotRepository.countByOwner(previewUser.getId())).thenReturn(1L); // Already has 1 chatbot
-        when(accessControlService.canCreateChatbot(previewUser, 1L)).thenReturn(false);
         when(accessControlService.hasActiveSubscription(previewUser)).thenReturn(true);
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
+        when(accessControlService.getMaxChatbotsAllowed(previewUser)).thenReturn(1);
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
+        when(chatbotRepository.countByOwner(previewUser.getId())).thenReturn(1L);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1)))
+            .thenThrow(new ChatbotLimitReachedException(1, 1));
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
@@ -555,6 +558,6 @@ class ChatbotControllerIT {
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.upgradeRequired").value(true));
 
-        verify(chatbotService, never()).createChatbot(any(Chatbot.class), any(User.class));
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
     }
 }

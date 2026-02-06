@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Debug test to understand why user lookup fails in JWT authentication
  */
-class DebugUserLookupTest extends E2ETestBase {
+class DebugUserLookupE2ETest extends E2ETestBase {
 
     @Autowired
     private CustomUserDetailsService userDetailsService;
@@ -171,4 +171,3 @@ class DebugUserLookupTest extends E2ETestBase {
         // Just print the results
     }
 }
-
