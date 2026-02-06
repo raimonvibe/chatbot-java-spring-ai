@@ -153,7 +153,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
-        assertEquals("Website too large for preview mode. Preview mode is limited to 50 pages. Upgrade to scan larger websites.", 
+        assertEquals(
+            "Website too large for your plan. Your plan allows up to 50 pages per scan. Upgrade to scan larger websites.",
             body.get("error"));
         assertEquals(true, body.get("upgradeRequired"));
         assertEquals(estimatedPages, body.get("estimatedPages"));

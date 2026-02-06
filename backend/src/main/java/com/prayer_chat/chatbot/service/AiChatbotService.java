@@ -38,11 +38,13 @@ import java.util.stream.Collectors;
 @Transactional
 public class AiChatbotService {
 
-    /** Accurate description of Raimonvibe so the AI does not invent a "Christian business" answer. */
+    /** Accurate description of Raimonvibe; only use when user explicitly asks about the platform/creator. */
     private static final String ABOUT_RAIMONVIBE =
-        "About Raimonvibe (creator of this platform): Raimonvibe (raimonvibe.com) is a freelance web design and software engineering practice. "
+        "About the platform creator (mention ONLY when the user explicitly asks who built this tool, about the platform, or about Raimonvibe): "
+        + "Raimonvibe (raimonvibe.com) is a freelance web design and software engineering practice. "
         + "It offers responsive websites for businesses, blogs about coding and 3D printing, and software projects. "
-        + "Contact: info@raimonvibe.com. When users ask about Raimonvibe, use this description—do not describe it as a Christian or faith-based business.";
+        + "Contact: info@raimonvibe.com. Do not describe it as a Christian or faith-based business. "
+        + "For 'this site', 'the site', 'this website', or 'tell me about this site'—answer ONLY from the website content below (the site this chatbot was built from), not about Raimonvibe.";
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);
     
@@ -234,23 +236,61 @@ public class AiChatbotService {
     }
     
     /**
-     * Retrieve relevant context from vector store
+     * Retrieve relevant context from vector store for this chatbot only.
+     * Uses metadata filter so results are always from the scanned website.
+     * If vector search returns nothing, falls back to first pages of stored website content.
      */
     private List<Document> retrieveRelevantContext(Chatbot chatbot, String userMessage) {
         try {
-            // Search for relevant documents using Spring AI 1.0 API
-            List<Document> documents = vectorStore.similaritySearch(userMessage);
+            // Search only this chatbot's documents (chatbotId filter)
+            SearchRequest request = SearchRequest.builder()
+                .query(userMessage)
+                .topK(15)
+                .similarityThresholdAll()
+                .filterExpression("chatbotId == '" + chatbot.getId() + "'")
+                .build();
+            List<Document> documents = vectorStore.similaritySearch(request);
 
-            // Filter documents by chatbot and apply similarity threshold
-            return documents.stream()
-                .filter(doc -> doc.getMetadata().containsKey("chatbotId") &&
-                              doc.getMetadata().get("chatbotId").equals(chatbot.getId().toString()))
+            if (!documents.isEmpty()) {
+                return documents.stream().limit(10).collect(Collectors.toList());
+            }
+
+            // Fallback: for generic queries ("tell me about this site") vector search may miss.
+            // Load first pages of website content so the chatbot always has site-specific context.
+            List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot).stream()
                 .limit(5)
                 .collect(Collectors.toList());
-
+            if (contents.isEmpty()) {
+                return new ArrayList<>();
+            }
+            List<Document> fallbackDocs = new ArrayList<>();
+            for (WebsiteContent c : contents) {
+                String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
+                if (text.length() > 3000) {
+                    text = text.substring(0, 3000) + "...";
+                }
+                fallbackDocs.add(new Document(text, Map.of(
+                    "chatbotId", chatbot.getId().toString(),
+                    "url", c.getUrl() != null ? c.getUrl() : "",
+                    "title", c.getTitle() != null ? c.getTitle() : ""
+                )));
+            }
+            logger.debug("Using {} fallback website content chunks for chatbot {}", fallbackDocs.size(), chatbot.getId());
+            return fallbackDocs;
         } catch (Exception e) {
             logger.warn("Failed to retrieve context from vector store", e);
-            return new ArrayList<>();
+            // Try fallback on error too
+            List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot).stream().limit(5).collect(Collectors.toList());
+            if (contents.isEmpty()) {
+                return new ArrayList<>();
+            }
+            List<Document> fallbackDocs = new ArrayList<>();
+            for (WebsiteContent c : contents) {
+                String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
+                if (text.length() > 3000) text = text.substring(0, 3000) + "...";
+                fallbackDocs.add(new Document(text, Map.of("chatbotId", chatbot.getId().toString(), "url", c.getUrl() != null ? c.getUrl() : "", "title", c.getTitle() != null ? c.getTitle() : "")));
+            }
+            return fallbackDocs;
         }
     }
     
@@ -405,11 +445,24 @@ public class AiChatbotService {
                                      BibleVerse relevantVerse, String jesusTeachingContext, boolean isFirstMessage) {
         StringBuilder prompt = new StringBuilder();
 
-        // Base system prompt
+        // Base role and critical "this site" rule so answers are about the scanned website, not the platform
         prompt.append("You are an AI assistant for ").append(chatbot.getName()).append(".\n");
-        prompt.append("You help visitors by answering questions about the business and its services.\n");
-        prompt.append("Be helpful, friendly, and professional in your responses.\n");
+        String websiteUrl = chatbot.getWebsiteUrl() != null ? chatbot.getWebsiteUrl() : "";
+        prompt.append("This chatbot was built from the website: ").append(websiteUrl).append("\n");
+        prompt.append("When the user says 'this site', 'the site', 'this website', 'tell me about this site', or similar, ")
+            .append("answer ONLY using the website content below (that site). Do not describe the platform creator or the tool—only the website.\n");
+        prompt.append("You help visitors by answering questions about that business and its services. Be helpful, friendly, and professional.\n");
         prompt.append("If you don't know something, politely say so and suggest contacting the business directly.\n");
+
+        // Website content first so the model prioritizes it for "about this site" questions
+        if (!relevantDocs.isEmpty()) {
+            prompt.append("\n--- Content from the website (use this to answer questions about the site) ---\n");
+            for (Document doc : relevantDocs) {
+                prompt.append(doc.getText()).append("\n\n");
+            }
+            prompt.append("--- End of website content ---\n");
+        }
+
         prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");
 
         // Add Christian values if enabled
@@ -467,14 +520,6 @@ public class AiChatbotService {
         // Add language-specific instructions
         if (userLanguage != null && !userLanguage.equals("en")) {
             prompt.append("\nRespond in ").append(getLanguageName(userLanguage)).append(".\n");
-        }
-
-        // Add relevant context
-        if (!relevantDocs.isEmpty()) {
-            prompt.append("\nRelevant information about the business:\n");
-            for (Document doc : relevantDocs) {
-                prompt.append("- ").append(doc.getText()).append("\n");
-            }
         }
 
         return prompt.toString();
