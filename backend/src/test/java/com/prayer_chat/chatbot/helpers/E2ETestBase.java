@@ -50,9 +50,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * E2E tests extend this class to test complete user journeys
  * across multiple components of the system.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS) // Clean up context after test class
 public abstract class E2ETestBase {
 

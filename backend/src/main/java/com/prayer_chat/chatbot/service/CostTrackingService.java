@@ -143,8 +143,15 @@ public class CostTrackingService {
         
         // Only track costs for preview mode users
         if (isPreviewMode(lockedUser)) {
-            // Update user's current month cost (on locked user)
-            BigDecimal newCost = lockedUser.getCurrentMonthCost().add(cost);
+            BigDecimal currentCost = lockedUser.getCurrentMonthCost();
+            BigDecimal costLimit = lockedUser.getMonthlyCostLimit();
+            BigDecimal newCost = currentCost.add(cost);
+            if (newCost.compareTo(costLimit) > 0) {
+                throw new RuntimeException(
+                    "Monthly cost limit reached. Preview mode is limited to $"
+                        + costLimit + "/month. Upgrade to continue."
+                );
+            }
             lockedUser.setCurrentMonthCost(newCost);
             userRepository.save(lockedUser);
             

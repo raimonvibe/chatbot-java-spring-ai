@@ -30,6 +30,8 @@
         <netty.version>4.2.9.Final</netty.version>
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
         <dependency-check.skip>true</dependency-check.skip>
+        <!-- Set -Djacoco.check.skip=true to skip coverage check when running verify (e.g. without Docker) -->
+        <jacoco.check.skip>false</jacoco.check.skip>
     </properties>
 
     <dependencies>
@@ -452,6 +454,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <skip>${jacoco.check.skip}</skip>
                             <rules>
                                 <rule>
                                     <element>PACKAGE</element>

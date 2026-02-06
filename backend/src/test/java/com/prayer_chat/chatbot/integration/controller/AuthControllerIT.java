@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Note: Email/password login has been removed. Only OAuth2 (Google) login is supported.
  * This test suite focuses on the /api/auth/me endpoint which returns current user info.
  */
-@SpringBootTest
+@SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({MockAiConfiguration.class, TestSecurityConfig.class, TestJacksonConfiguration.class})

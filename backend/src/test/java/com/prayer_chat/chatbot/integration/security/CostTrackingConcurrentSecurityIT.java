@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.integration.security;
 import com.prayer_chat.chatbot.config.TestOAuth2ClientRepositoryConfig;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.AuditLogRepository;
+import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.service.CostTrackingService;
@@ -49,11 +50,15 @@ class CostTrackingConcurrentSecurityIT {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
+    @Autowired
+    private ChatbotRepository chatbotRepository;
+
     private User previewUser;
 
     @BeforeEach
     void setUp() {
         auditLogRepository.deleteAll();
+        chatbotRepository.deleteAll();
         subscriptionRepository.deleteAll();
         userRepository.deleteAll();
 

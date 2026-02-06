@@ -37,7 +37,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({MockAiConfiguration.class, TestSecurityConfig.class, TestJacksonConfiguration.class})

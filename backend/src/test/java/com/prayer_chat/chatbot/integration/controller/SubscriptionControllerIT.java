@@ -52,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - Subscription cancellation
  * - Free tier handling
  */
-@SpringBootTest
+@SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({MockAiConfiguration.class, TestSecurityConfig.class, TestJacksonConfiguration.class})

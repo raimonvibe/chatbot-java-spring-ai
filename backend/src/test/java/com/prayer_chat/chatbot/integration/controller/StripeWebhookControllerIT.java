@@ -28,7 +28,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({MockAiConfiguration.class, TestSecurityConfig.class, TestJacksonConfiguration.class})
