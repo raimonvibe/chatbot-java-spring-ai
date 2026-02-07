@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import ChristianContentAnalysisComponent from '@/components/ChristianContentAnalysis';
+import JesusTeachingsSettings from '@/components/JesusTeachingsSettings';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function Dashboard() {
@@ -431,11 +432,19 @@ export default function Dashboard() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 border-t border-brown-200 pt-4"
+                  className="mt-4 border-t border-brown-200 pt-4 space-y-4"
                 >
                   <ChristianContentAnalysisComponent
                     chatbotId={chatbot.id}
                     chatbotName={chatbot.name}
+                  />
+                  <JesusTeachingsSettings
+                    chatbot={chatbot}
+                    onUpdate={(updated) =>
+                      setChatbots((prev) =>
+                        prev.map((c) => (c.id === updated.id ? updated : c))
+                      )
+                    }
                   />
                 </motion.div>
               )}

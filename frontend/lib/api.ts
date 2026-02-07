@@ -19,6 +19,22 @@ export interface Chatbot {
   primaryLanguage: string;
   supportedLanguages: string[];
   brandingConfig: string;
+  websiteUrl?: string;
+  christianMessagingEnabled?: boolean;
+  jesusTeachingsEnabled?: boolean;
+}
+
+export interface JesusTeachingPreview {
+  reference: string;
+  text: string;
+  similarity: string;
+}
+
+export interface JesusTeachingsPreviewResponse {
+  chatbotId: string;
+  websiteUrl: string;
+  topTeachings: JesusTeachingPreview[];
+  totalJesusVerses: number;
 }
 
 export interface VerseMatch {
@@ -205,6 +221,53 @@ export async function getChatbot(chatbotId: number): Promise<Chatbot> {
 
   if (!response.ok) {
     throw new Error('Failed to fetch chatbot');
+  }
+
+  return response.json();
+}
+
+/**
+ * Update chatbot (PATCH). Pass partial Chatbot; only provided fields are updated.
+ */
+export async function updateChatbot(chatbotId: number, updates: Partial<Chatbot>): Promise<Chatbot> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Chatbot not found');
+    if (response.status === 403) throw new Error('You do not have permission to update this chatbot');
+    throw new Error('Failed to update chatbot');
+  }
+
+  return response.json();
+}
+
+/**
+ * Preview Jesus's teachings relevant to the chatbot's website (for "What Jesus Would Say" feature).
+ */
+export async function previewJesusTeachings(
+  chatbotId: number,
+  maxTeachings: number = 5
+): Promise<JesusTeachingsPreviewResponse> {
+  const headers = getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/chatbots/${chatbotId}/preview-jesus-teachings?maxTeachings=${maxTeachings}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Chatbot not found');
+    if (response.status === 403) throw new Error('You do not have permission to preview teachings');
+    throw new Error('Failed to preview Jesus teachings');
   }
 
   return response.json();

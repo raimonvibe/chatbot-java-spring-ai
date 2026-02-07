@@ -24,6 +24,10 @@
 - [x] **Step 4.1**: Preview Jesus's Teachings endpoint ✅ (Completed)
 - [x] **Step 4.2**: Update chatbot endpoint to support jesusTeachingsEnabled ✅ (Completed)
 
+### Phase 5: Frontend Integration ✅
+- [x] **Step 5.1**: Settings toggle (Dashboard → Show Christian Content Analysis → "Include What Jesus Would Say") ✅ (Completed)
+- [x] **Step 5.2**: Preview Teachings button and modal (top teachings, similarity scores) ✅ (Completed)
+
 ---
 
 ## 📋 EXECUTIVE SUMMARY
