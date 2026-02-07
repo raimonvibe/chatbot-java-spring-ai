@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Sparkles, X, ClipLoader } from 'lucide-react';
+import { BookOpen, Sparkles, X } from 'lucide-react';
+import { ClipLoader } from 'react-spinners';
 import { updateChatbot, previewJesusTeachings, type Chatbot, type JesusTeachingsPreviewResponse } from '@/lib/api';
 
 interface JesusTeachingsSettingsProps {
