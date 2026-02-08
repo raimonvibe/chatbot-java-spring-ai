@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.dto.ChatbotRequest;
 import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
+import com.prayer_chat.chatbot.model.BibleVerse;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
@@ -39,6 +40,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import com.prayer_chat.chatbot.service.ChristianContentAnalysisService.BibleVerseMatch;
 
 /**
  * REST Controller for chatbot management
@@ -715,16 +718,35 @@ public class ChatbotController {
             WebsiteScanAudit audit = new WebsiteScanAudit(user, chatbot.getWebsiteUrl(), estimatedPages, estimatedCost, chatbot.getId());
             websiteScanAuditRepository.save(audit);
             
-            // Start website analysis asynchronously
-            websiteAnalysisService.analyzeWebsite(chatbot);
-            
+            // Start website analysis asynchronously; when done, auto-run Christian content analysis and enable "What Jesus Would Say"
+            websiteAnalysisService.analyzeWebsite(chatbot)
+                .thenAccept(contents -> {
+                    if (contents == null || contents.isEmpty()) return;
+                    try {
+                        Chatbot c = chatbotRepository.findById(chatbot.getId()).orElse(null);
+                        if (c == null) return;
+                        List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
+                        if (!matches.isEmpty()) {
+                            BibleVerse v = matches.get(0).getVerse();
+                            String verseText = v.getReference() + " - \"" + v.getText() + "\"";
+                            c.setBibleVerse(verseText);
+                            c.setJesusTeachingsEnabled(true);
+                            if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
+                            chatbotRepository.save(c);
+                            logger.info("Auto-enabled Christian content for chatbot {} with verse {}", c.getId(), v.getReference());
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Could not auto-apply Christian content for chatbot {}: {}", chatbot.getId(), e.getMessage());
+                    }
+                });
+
             // Return analysis status
             Map<String, Object> response = Map.of(
                 "status", "analysis_started",
                 "chatbotId", id,
                 "websiteUrl", chatbot.getWebsiteUrl(),
                 "estimatedPages", estimatedPages,
-                "message", "Website analysis started. Check back later for results."
+                "message", "Website analysis started. Bible verses and \"What Jesus Would Say\" will be enabled automatically when ready."
             );
             
             logger.info("Started website analysis for chatbot: {} (estimated {} pages)", 

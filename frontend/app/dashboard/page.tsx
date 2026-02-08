@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
-import ChristianContentAnalysisComponent from '@/components/ChristianContentAnalysis';
-import JesusTeachingsSettings from '@/components/JesusTeachingsSettings';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function Dashboard() {
@@ -23,12 +21,12 @@ export default function Dashboard() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
-  const [showAnalysisForChatbot, setShowAnalysisForChatbot] = useState<number | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [jesusTogglingId, setJesusTogglingId] = useState<number | null>(null);
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingChatbotId, setAnalyzingChatbotId] = useState<number | null>(null);
 
   useEffect(() => {
     loadChatbots();
@@ -96,15 +94,14 @@ export default function Dashboard() {
   };
 
   const handleAnalyzeWebsite = async (chatbotId: number, websiteUrl: string) => {
-    setAnalyzing(true);
+    setAnalyzingChatbotId(chatbotId);
     try {
       await analyzeWebsite(chatbotId, websiteUrl);
-      // Website analysis started silently - no popup needed
+      // Website analysis started; Christian content will be enabled automatically when ready
     } catch (error) {
       console.error('Error analyzing website:', error);
-      // Error is logged, no popup needed
     } finally {
-      setAnalyzing(false);
+      setAnalyzingChatbotId(null);
     }
   };
 
@@ -439,38 +436,42 @@ export default function Dashboard() {
                   )}
                 </button>
                 <button
-                  onClick={() => setShowAnalysisForChatbot(
-                    showAnalysisForChatbot === chatbot.id ? null : chatbot.id
-                  )}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg transition-colors font-medium bg-brown-100 text-brown-600 hover:bg-brown-200"
+                  onClick={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
+                  disabled={analyzingChatbotId !== null}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg transition-colors font-medium bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 hover:from-brown-200 hover:to-gold-200 border border-brown-200 disabled:opacity-70"
                 >
-                  <Book className="w-4 h-4" />
-                  {showAnalysisForChatbot === chatbot.id ? 'Hide' : 'Show'} Christian Content Analysis
+                  <Sparkles className="w-4 h-4" />
+                  {analyzingChatbotId === chatbot.id ? 'Analyzing…' : 'Analyze website'}
                 </button>
               </div>
-              {showAnalysisForChatbot === chatbot.id && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 border-t border-brown-200 pt-4 space-y-4"
-                >
-                  <ChristianContentAnalysisComponent
-                    chatbotId={chatbot.id}
-                    chatbotName={chatbot.name}
-                    websiteUrl={chatbot.websiteUrl}
-                    onRunWebsiteAnalysis={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
+              <div className="mt-3 pt-3 border-t border-brown-200 space-y-1.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={chatbot.jesusTeachingsEnabled === true}
+                    disabled={jesusTogglingId === chatbot.id}
+                    onChange={async () => {
+                      setJesusTogglingId(chatbot.id);
+                      try {
+                        const updated = await updateChatbot(chatbot.id, {
+                          ...chatbot,
+                          jesusTeachingsEnabled: !chatbot.jesusTeachingsEnabled,
+                        });
+                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                      } finally {
+                        setJesusTogglingId(null);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500"
                   />
-                  <JesusTeachingsSettings
-                    chatbot={chatbot}
-                    onUpdate={(updated) =>
-                      setChatbots((prev) =>
-                        prev.map((c) => (c.id === updated.id ? updated : c))
-                      )
-                    }
-                  />
-                </motion.div>
-              )}
+                  <span className="text-sm font-medium text-brown-700">Include &quot;What Jesus Would Say&quot;</span>
+                </label>
+                {chatbot.bibleVerse && (
+                  <p className="text-xs text-brown-600 italic pl-6 line-clamp-2" title={chatbot.bibleVerse}>
+                    {chatbot.bibleVerse}
+                  </p>
+                )}
+              </div>
             </motion.div>
           ))}
         </div>

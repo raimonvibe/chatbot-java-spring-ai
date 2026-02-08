@@ -22,6 +22,7 @@ export interface Chatbot {
   websiteUrl?: string;
   christianMessagingEnabled?: boolean;
   jesusTeachingsEnabled?: boolean;
+  bibleVerse?: string;
 }
 
 export interface JesusTeachingPreview {
