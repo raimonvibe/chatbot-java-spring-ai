@@ -489,9 +489,11 @@ public class ChatbotController {
     }
     
     /**
-     * Update a chatbot
+     * Update a chatbot. Accepts both PUT and PATCH (frontend uses PATCH).
+     * Security: same for both methods — requires authentication, verifyAccess (owner + active subscription),
+     * path {@code id} only (body cannot change id/owner), and @Valid on body.
      */
-    @PutMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<Chatbot> updateChatbot(@PathVariable Long id,
                                                  @Valid @RequestBody Chatbot chatbotDetails,
                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
@@ -505,7 +507,7 @@ public class ChatbotController {
 
             Chatbot chatbot = chatbotOpt.get();
 
-            // Verify access
+            // Verify access (owner + active subscription)
             ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
             if (accessCheck != null) {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
@@ -1044,7 +1046,7 @@ public class ChatbotController {
      * This replaces the old keyword-based approach
      */
     @PostMapping("/{id}/analyze-christian-content")
-    public ResponseEntity<ChristianContentAnalysis> analyzeChristianContent(
+    public ResponseEntity<?> analyzeChristianContent(
             @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "20") int maxVerses,
             @RequestParam(required = false, defaultValue = "0.5") double similarityThreshold,
@@ -1063,6 +1065,18 @@ public class ChatbotController {
             ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
             if (accessCheck != null) {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+
+            // Christian Content Analysis requires previously crawled website content
+            String websiteContent = websiteAnalysisService.getAnalyzedContent(chatbot);
+            if (websiteContent == null || websiteContent.trim().isEmpty()) {
+                logger.warn("Christian content analysis requested but no website content for chatbot {}", id);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    Map.of(
+                        "error", "No website content available. Run Website Analysis for this chatbot first (use \"Analyze website\" or re-scan), then try Christian Content Analysis again.",
+                        "code", "NO_WEBSITE_CONTENT"
+                    )
+                );
             }
 
             // Find relevant verses using AI semantic matching

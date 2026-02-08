@@ -9,21 +9,29 @@ import { analyzeChristianContent, type ChristianContentAnalysis, type VerseMatch
 interface ChristianContentAnalysisProps {
   chatbotId: number;
   chatbotName: string;
+  /** Optional: website URL for this chatbot (enables "Run Website Analysis" CTA when no content) */
+  websiteUrl?: string;
+  /** Optional: called when user clicks "Run Website Analysis" (e.g. to trigger scan). Run Christian Analysis again after scan completes. */
+  onRunWebsiteAnalysis?: () => void | Promise<void>;
 }
 
 export default function ChristianContentAnalysisComponent({ 
   chatbotId, 
-  chatbotName 
+  chatbotName,
+  websiteUrl,
+  onRunWebsiteAnalysis,
 }: ChristianContentAnalysisProps) {
   const [analysis, setAnalysis] = useState<ChristianContentAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [maxVerses, setMaxVerses] = useState(20);
   const [similarityThreshold, setSimilarityThreshold] = useState(0.5);
 
   const handleAnalyze = async () => {
     setLoading(true);
     setError(null);
+    setErrorCode(null);
     setAnalysis(null);
 
     try {
@@ -31,6 +39,7 @@ export default function ChristianContentAnalysisComponent({
       setAnalysis(result);
     } catch (err: any) {
       setError(err.message || 'Failed to analyze Christian content');
+      setErrorCode(err.code ?? null);
       console.error('Error analyzing Christian content:', err);
     } finally {
       setLoading(false);
@@ -112,9 +121,21 @@ export default function ChristianContentAnalysisComponent({
             className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
           >
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-red-800">Error</p>
               <p className="text-sm text-red-600">{error}</p>
+              {errorCode === 'NO_WEBSITE_CONTENT' && websiteUrl && onRunWebsiteAnalysis && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onRunWebsiteAnalysis()}
+                    className="px-3 py-1.5 text-sm font-medium bg-brown-600 text-white rounded-lg hover:bg-brown-700 transition-colors"
+                  >
+                    Run Website Analysis first
+                  </button>
+                  <span className="text-xs text-brown-600">Then try Christian Content Analysis again in a few minutes.</span>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

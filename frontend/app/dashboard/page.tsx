@@ -458,6 +458,8 @@ export default function Dashboard() {
                   <ChristianContentAnalysisComponent
                     chatbotId={chatbot.id}
                     chatbotName={chatbot.name}
+                    websiteUrl={chatbot.websiteUrl}
+                    onRunWebsiteAnalysis={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
                   />
                   <JesusTeachingsSettings
                     chatbot={chatbot}

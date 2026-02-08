@@ -159,7 +159,9 @@ export async function analyzeChristianContent(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to analyze Christian content');
+    const err = new Error(errorData.error || 'Failed to analyze Christian content') as Error & { code?: string };
+    err.code = errorData.code;
+    throw err;
   }
 
   return response.json();
