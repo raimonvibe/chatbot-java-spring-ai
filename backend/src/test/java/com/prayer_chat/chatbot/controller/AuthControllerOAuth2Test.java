@@ -63,12 +63,13 @@ class AuthControllerOAuth2Test {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
-
-        // Set up OAuth credentials via reflection
+        // Inject mocks before building MockMvc so controller has RestTemplate and OAuth config
+        ReflectionTestUtils.setField(authController, "restTemplate", restTemplate);
         ReflectionTestUtils.setField(authController, "googleClientId", "test-client-id");
         ReflectionTestUtils.setField(authController, "googleClientSecret", "test-client-secret");
         ReflectionTestUtils.setField(authController, "allowedOrigins", "http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com");
+
+        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
 
         // Valid test data
         validCode = "4/0AeanS1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
