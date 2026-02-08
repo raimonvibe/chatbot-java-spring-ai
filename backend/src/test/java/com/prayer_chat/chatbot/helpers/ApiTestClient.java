@@ -337,6 +337,19 @@ public class ApiTestClient {
     }
 
     /**
+     * Create Stripe Customer Billing Portal session (manage subscription).
+     * @param returnUrl optional return URL; may be null
+     * @return Response containing portalUrl
+     */
+    public Response createPortalSession(String returnUrl) {
+        Map<String, String> body = new java.util.HashMap<>();
+        if (returnUrl != null && !returnUrl.isEmpty()) {
+            body.put("returnUrl", returnUrl);
+        }
+        return post("/api/subscription/create-portal-session", body);
+    }
+
+    /**
      * Send a Stripe webhook event
      * @param eventType Stripe event type
      * @param payload Event payload

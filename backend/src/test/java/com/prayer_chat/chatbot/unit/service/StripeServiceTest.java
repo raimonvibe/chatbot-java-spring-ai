@@ -4,7 +4,6 @@ import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
-import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.service.StripeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,9 +28,6 @@ class StripeServiceTest {
     @Mock
     private SubscriptionRepository subscriptionRepository;
 
-    @Mock
-    private UserRepository userRepository;
-
     @InjectMocks
     private StripeService stripeService;
 
@@ -47,6 +43,7 @@ class StripeServiceTest {
         testSubscription.setId(1L);
 
         // Set @Value fields using ReflectionTestUtils
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "");
         ReflectionTestUtils.setField(stripeService, "gracePeriodDays", 7);
         ReflectionTestUtils.setField(stripeService, "maxRetryAttempts", 3);
     }
@@ -217,5 +214,53 @@ class StripeServiceTest {
             .isLessThan(Subscription.SubscriptionPlan.PRO.ordinal());
         assertThat(Subscription.SubscriptionPlan.PRO.ordinal())
             .isLessThan(Subscription.SubscriptionPlan.ENTERPRISE.ordinal());
+    }
+
+    @Test
+    @DisplayName("isConfigured returns false when API key is empty")
+    void isConfigured_returnsFalse_whenApiKeyEmpty() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "");
+        assertThat(stripeService.isConfigured()).isFalse();
+    }
+
+    @Test
+    @DisplayName("isConfigured returns false when API key is null")
+    void isConfigured_returnsFalse_whenApiKeyNull() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", null);
+        assertThat(stripeService.isConfigured()).isFalse();
+    }
+
+    @Test
+    @DisplayName("isConfigured returns false when API key is whitespace only")
+    void isConfigured_returnsFalse_whenApiKeyWhitespace() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "   ");
+        assertThat(stripeService.isConfigured()).isFalse();
+    }
+
+    @Test
+    @DisplayName("isConfigured returns true when API key is set")
+    void isConfigured_returnsTrue_whenApiKeySet() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        assertThat(stripeService.isConfigured()).isTrue();
+    }
+
+    @Test
+    @DisplayName("createCheckoutSession throws when Stripe not configured")
+    void createCheckoutSession_throwsWhenNotConfigured() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "");
+        assertThatThrownBy(() -> stripeService.createCheckoutSession(testUser, null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not configured");
+        verify(subscriptionRepository, never()).findByUserId(any());
+    }
+
+    @Test
+    @DisplayName("createBillingPortalSession throws when Stripe not configured")
+    void createBillingPortalSession_throwsWhenNotConfigured() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "");
+        assertThatThrownBy(() -> stripeService.createBillingPortalSession(testUser, "https://example.com/return"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not configured");
+        verify(subscriptionRepository, never()).findByUserId(any());
     }
 }

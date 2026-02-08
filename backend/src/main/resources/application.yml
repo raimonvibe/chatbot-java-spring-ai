@@ -257,8 +257,13 @@ cors:
 stripe:
   api-key: ${STRIPE_SECRET_KEY:}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  # Default price (used when no plan/priceId specified)
   price-id: ${STRIPE_PRICE_ID:}
-  price-amount: 498  # $4.98 in cents
+  # Optional per-plan Stripe Price IDs (e.g. STRIPE_PRICE_ID_BASIC=price_xxx)
+  price-id-basic: ${STRIPE_PRICE_ID_BASIC:}
+  price-id-pro: ${STRIPE_PRICE_ID_PRO:}
+  price-id-enterprise: ${STRIPE_PRICE_ID_ENTERPRISE:}
+  price-amount: 498  # $4.98 in cents (fallback when no price ID)
   price-currency: usd
   product-name: "Prayer-Chat Monthly Subscription"
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}}

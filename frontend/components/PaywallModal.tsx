@@ -110,12 +110,20 @@ export default function PaywallModal({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to create checkout session' }));
-        throw new Error(errorData.error || 'Failed to create checkout session');
+        const contentType = response.headers.get('content-type');
+        const errorData = contentType?.includes('application/json')
+          ? await response.json().catch(() => ({ error: 'Failed to create checkout session' }))
+          : {};
+        const message = errorData?.error || 'Failed to create checkout session';
+        if (response.status === 503 && message.toLowerCase().includes('not configured')) {
+          throw new Error('Payments are not configured yet. Please contact support.');
+        }
+        throw new Error(message);
       }
 
-      const { url } = await response.json();
-      
+      const data = await response.json();
+      const url = data.checkoutUrl || data.url;
+
       // Security: Validate URL is from Stripe before redirecting
       if (!url || typeof url !== 'string') {
         throw new Error('Invalid checkout URL received');

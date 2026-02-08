@@ -10,6 +10,7 @@ import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,6 +34,9 @@ public class SubscriptionController {
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
+
+    @Value("${cors.allowed-origins:http://localhost:3000}")
+    private String allowedOrigins;
 
     /**
      * Get current user's subscription status
@@ -86,13 +90,30 @@ public class SubscriptionController {
         try {
             User user = currentUser.getUser();
 
-            // Validate priceId if provided
-            if (request != null && request.containsKey("priceId")) {
-                String priceId = request.get("priceId");
-                if (priceId == null || priceId.trim().isEmpty() || priceId.equals("invalid_price_id")) {
-                    Map<String, String> error = new HashMap<>();
-                    error.put("error", "Invalid price ID");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            // Resolve plan or priceId: prefer "plan" (BASIC, PRO, ENTERPRISE), else "priceId" (Stripe price_xxx)
+            String planOrPriceId = null;
+            if (request != null) {
+                if (request.containsKey("plan")) {
+                    String plan = request.get("plan");
+                    if (plan != null && !plan.trim().isEmpty()) {
+                        String p = plan.trim().toUpperCase();
+                        if ("BASIC".equals(p) || "PRO".equals(p) || "ENTERPRISE".equals(p)) {
+                            planOrPriceId = p;
+                        } else {
+                            Map<String, String> error = new HashMap<>();
+                            error.put("error", "Invalid plan. Use BASIC, PRO, or ENTERPRISE.");
+                            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                        }
+                    }
+                }
+                if (planOrPriceId == null && request.containsKey("priceId")) {
+                    String priceId = request.get("priceId");
+                    if (priceId == null || priceId.trim().isEmpty() || "invalid_price_id".equals(priceId)) {
+                        Map<String, String> error = new HashMap<>();
+                        error.put("error", "Invalid price ID");
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                    }
+                    planOrPriceId = priceId.trim();
                 }
             }
 
@@ -104,7 +125,13 @@ public class SubscriptionController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }
 
-            String checkoutUrl = stripeService.createCheckoutSession(user);
+            if (!stripeService.isConfigured()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Payment provider not configured");
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+            }
+
+            String checkoutUrl = stripeService.createCheckoutSession(user, planOrPriceId);
 
             Map<String, String> response = new HashMap<>();
             response.put("checkoutUrl", checkoutUrl);
@@ -112,6 +139,10 @@ public class SubscriptionController {
             logger.info("Created checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
             return ResponseEntity.ok(response);
 
+        } catch (IllegalStateException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Payment provider not configured");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
         } catch (StripeException e) {
             logger.error("Stripe error creating checkout session: {}", LogSanitizer.sanitizeException(e));
             Map<String, String> error = new HashMap<>();
@@ -123,6 +154,70 @@ public class SubscriptionController {
             error.put("error", "Internal server error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
+    }
+
+    /**
+     * Create a Stripe Customer Billing Portal session (manage subscription, payment method, invoices).
+     */
+    @PostMapping("/create-portal-session")
+    public ResponseEntity<Map<String, String>> createPortalSession(
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody(required = false) Map<String, String> request) {
+
+        try {
+            User user = currentUser.getUser();
+            if (!stripeService.isConfigured()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Payment provider not configured");
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+            }
+            String returnUrl = request != null && request.containsKey("returnUrl")
+                ? request.get("returnUrl") : null;
+            if (returnUrl != null && !returnUrl.isBlank() && !isAllowedReturnUrl(returnUrl)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid return URL");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            String portalUrl = stripeService.createBillingPortalSession(user, returnUrl);
+            Map<String, String> response = new HashMap<>();
+            response.put("portalUrl", portalUrl);
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Payment provider not configured");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+        } catch (StripeException e) {
+            logger.error("Stripe error creating portal session: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to open billing portal");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        } catch (Exception e) {
+            logger.error("Error creating portal session: {}", LogSanitizer.sanitizeException(e));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * Validate return URL to prevent open-redirect: must be an allowed origin or a path under it.
+     */
+    private boolean isAllowedReturnUrl(String returnUrl) {
+        if (returnUrl == null || returnUrl.isBlank()) {
+            return false;
+        }
+        String url = returnUrl.trim();
+        if (allowedOrigins == null || allowedOrigins.isBlank()) {
+            return url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1");
+        }
+        for (String origin : allowedOrigins.split(",")) {
+            String base = origin.trim();
+            if (base.isEmpty()) continue;
+            if (url.equals(base) || url.startsWith(base + "/")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

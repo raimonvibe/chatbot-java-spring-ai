@@ -45,6 +45,10 @@ jwt:
 stripe:
   api-key: sk_test_mock
   webhook-secret: whsec_test_mock
+  price-id: ${STRIPE_PRICE_ID:price_test_default}
+  price-id-basic: price_test_basic
+  price-id-pro: price_test_pro
+  price-id-enterprise: price_test_enterprise
   price:
     basic: price_test_basic
     pro: price_test_pro

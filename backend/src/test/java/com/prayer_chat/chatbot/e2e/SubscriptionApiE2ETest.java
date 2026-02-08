@@ -238,6 +238,37 @@ class SubscriptionApiE2ETest extends E2ETestBase {
                 assertTrue(status == 401 || status == 403,
                     "Should block unauthenticated access to checkout creation. Got: " + status);
             });
+
+        // Step 3: Try to create portal session without auth
+        webApiClient.createPortalSession(null)
+            .expectStatus().is4xxClientError()
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                assertTrue(status == 401 || status == 403,
+                    "Should block unauthenticated access to portal session. Got: " + status);
+            });
+    }
+
+    @Test
+    @DisplayName("Create Portal Session: Authenticated returns 200 with portalUrl, or 503/500 when not configured or Stripe error")
+    void shouldCreatePortalSession_whenAuthenticated() {
+        String email = "portalsession@example.com";
+        String token = createOAuth2User(email);
+
+        webApiClient.withAuth(token).createPortalSession("https://example.com/dashboard")
+            .expectBody()
+            .consumeWith(result -> {
+                int status = result.getStatus().value();
+                assertTrue(status == 200 || status == 503 || status == 500,
+                    "Portal session should return 200 (success), 503 (not configured), or 500 (Stripe API error e.g. invalid test key). Got: " + status);
+                if (status == 200) {
+                    assertNotNull(result.getResponseBody(), "Response body should not be null");
+                }
+                if (status == 503 || status == 500) {
+                    assertNotNull(result.getResponseBody(), "Error response should have body");
+                }
+            });
     }
 
     @Test

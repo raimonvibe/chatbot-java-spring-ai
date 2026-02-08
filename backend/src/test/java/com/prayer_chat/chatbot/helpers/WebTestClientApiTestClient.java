@@ -256,7 +256,18 @@ public class WebTestClientApiTestClient {
         Map<String, String> body = Map.of("priceId", priceId);
         return post("/api/subscription/create-checkout-session", body);
     }
-    
+
+    /**
+     * Create Stripe Customer Billing Portal session (manage subscription).
+     * @param returnUrl optional return URL; may be null
+     */
+    public WebTestClient.ResponseSpec createPortalSession(String returnUrl) {
+        Map<String, String> body = returnUrl != null && !returnUrl.isEmpty()
+            ? Map.of("returnUrl", returnUrl)
+            : Map.of();
+        return post("/api/subscription/create-portal-session", body);
+    }
+
     /**
      * Login and store auth token
      */

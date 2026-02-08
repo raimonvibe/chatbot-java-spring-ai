@@ -3,14 +3,12 @@ package com.prayer_chat.chatbot.service;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Customer;
-import com.stripe.model.Event;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
-import com.prayer_chat.chatbot.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +38,15 @@ public class StripeService {
     @Value("${stripe.price-id:}")
     private String stripePriceId;
 
+    @Value("${stripe.price-id-basic:}")
+    private String stripePriceIdBasic;
+
+    @Value("${stripe.price-id-pro:}")
+    private String stripePriceIdPro;
+
+    @Value("${stripe.price-id-enterprise:}")
+    private String stripePriceIdEnterprise;
+
     @Value("${stripe.price-amount:498}")
     private Long priceAmount;
 
@@ -64,9 +71,6 @@ public class StripeService {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
     @PostConstruct
     public void init() {
         if (stripeApiKey != null && !stripeApiKey.isEmpty()) {
@@ -78,22 +82,37 @@ public class StripeService {
     }
 
     /**
-     * Create a Stripe checkout session for subscription
+     * Whether Stripe is configured (secret key set). When false, checkout and other payment APIs should return a clear error.
      */
-    public String createCheckoutSession(User user) throws StripeException {
-        // Get or create Stripe customer
-        String customerId = getOrCreateCustomer(user);
+    public boolean isConfigured() {
+        return stripeApiKey != null && !stripeApiKey.trim().isEmpty();
+    }
 
-        // Build line item - use Price ID if available, otherwise use default price
+    /**
+     * Create a Stripe checkout session for subscription.
+     * @param user the user
+     * @param planOrPriceId optional: plan name (BASIC, PRO, ENTERPRISE) or Stripe price ID (price_xxx). If null/empty, uses default price.
+     * @throws IllegalStateException if Stripe is not configured (missing STRIPE_SECRET_KEY)
+     */
+    public String createCheckoutSession(User user, String planOrPriceId) throws StripeException {
+        if (!isConfigured()) {
+            throw new IllegalStateException("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
+        }
+        String customerId = getOrCreateCustomer(user);
+        String effectivePriceId = resolvePriceId(planOrPriceId);
+        String planForMetadata = planOrPriceId != null && !planOrPriceId.isEmpty()
+            && (Subscription.SubscriptionPlan.BASIC.name().equalsIgnoreCase(planOrPriceId)
+                || Subscription.SubscriptionPlan.PRO.name().equalsIgnoreCase(planOrPriceId)
+                || Subscription.SubscriptionPlan.ENTERPRISE.name().equalsIgnoreCase(planOrPriceId))
+            ? planOrPriceId.toUpperCase() : null;
+
         SessionCreateParams.LineItem.Builder lineItemBuilder = SessionCreateParams.LineItem.builder()
             .setQuantity(1L);
 
-        if (stripePriceId != null && !stripePriceId.isEmpty()) {
-            // Use existing Stripe Price ID
-            lineItemBuilder.setPrice(stripePriceId);
-            logger.info("Using Stripe Price ID: {}", stripePriceId);
+        if (effectivePriceId != null && !effectivePriceId.isEmpty()) {
+            lineItemBuilder.setPrice(effectivePriceId);
+            logger.info("Using Stripe Price ID: {} for plan/price: {}", effectivePriceId, planOrPriceId);
         } else {
-            // Use default inline price
             lineItemBuilder.setPriceData(
                 SessionCreateParams.LineItem.PriceData.builder()
                     .setCurrency(priceCurrency)
@@ -113,20 +132,72 @@ public class StripeService {
             logger.info("Using default price: ${}{} per month", priceAmount / 100.0, priceCurrency.toUpperCase());
         }
 
-        // Create checkout session
-        SessionCreateParams params = SessionCreateParams.builder()
+        SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
             .setCustomer(customerId)
             .addLineItem(lineItemBuilder.build())
             .setSuccessUrl(successUrl)
             .setCancelUrl(cancelUrl)
-            .putMetadata("user_id", user.getId().toString())
-            .build();
-
-        Session session = Session.create(params);
+            .putMetadata("user_id", user.getId().toString());
+        if (planForMetadata != null) {
+            paramsBuilder.putMetadata("plan", planForMetadata);
+        }
+        Session session = Session.create(paramsBuilder.build());
         logger.info("Created Stripe checkout session for user: {}", user.getEmail());
-
         return session.getUrl();
+    }
+
+    /**
+     * Map Stripe price ID to subscription plan (for webhook handling).
+     */
+    private Subscription.SubscriptionPlan planFromPriceId(String priceId) {
+        if (priceId == null) return Subscription.SubscriptionPlan.BASIC;
+        if (stripePriceIdBasic != null && priceId.equals(stripePriceIdBasic)) return Subscription.SubscriptionPlan.BASIC;
+        if (stripePriceIdPro != null && priceId.equals(stripePriceIdPro)) return Subscription.SubscriptionPlan.PRO;
+        if (stripePriceIdEnterprise != null && priceId.equals(stripePriceIdEnterprise)) return Subscription.SubscriptionPlan.ENTERPRISE;
+        if (stripePriceId != null && priceId.equals(stripePriceId)) return Subscription.SubscriptionPlan.BASIC; // default price = BASIC
+        return Subscription.SubscriptionPlan.BASIC;
+    }
+
+    /**
+     * Resolve plan name or price ID to a Stripe price ID. Returns null if fallback to default inline price should be used.
+     */
+    private String resolvePriceId(String planOrPriceId) {
+        if (planOrPriceId == null || planOrPriceId.trim().isEmpty()) {
+            return stripePriceId != null && !stripePriceId.isEmpty() ? stripePriceId : null;
+        }
+        String s = planOrPriceId.trim();
+        if (s.startsWith("price_")) {
+            return s;
+        }
+        return switch (s.toUpperCase()) {
+            case "BASIC" -> stripePriceIdBasic != null && !stripePriceIdBasic.isEmpty() ? stripePriceIdBasic : stripePriceId;
+            case "PRO" -> stripePriceIdPro != null && !stripePriceIdPro.isEmpty() ? stripePriceIdPro : stripePriceId;
+            case "ENTERPRISE" -> stripePriceIdEnterprise != null && !stripePriceIdEnterprise.isEmpty() ? stripePriceIdEnterprise : stripePriceId;
+            default -> stripePriceId != null && !stripePriceId.isEmpty() ? stripePriceId : null;
+        };
+    }
+
+    /**
+     * Create a Stripe Customer Billing Portal session so the user can manage subscription, payment method, invoices.
+     * @param user current user (must have Stripe customer ID)
+     * @param returnUrl URL to redirect to when user leaves the portal (e.g. dashboard)
+     * @return portal URL to redirect the user to
+     */
+    public String createBillingPortalSession(User user, String returnUrl) throws StripeException {
+        if (!isConfigured()) {
+            throw new IllegalStateException("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
+        }
+        String customerId = getOrCreateCustomer(user);
+        com.stripe.param.billingportal.SessionCreateParams portalParams =
+            com.stripe.param.billingportal.SessionCreateParams.builder()
+                .setCustomer(customerId)
+                .setReturnUrl(returnUrl != null && !returnUrl.isEmpty() ? returnUrl : successUrl)
+                .build();
+        com.stripe.model.billingportal.Session portalSession =
+            com.stripe.model.billingportal.Session.create(portalParams);
+        logger.info("Created billing portal session for user: {}", user.getEmail());
+        return portalSession.getUrl();
     }
 
     /**
@@ -170,10 +241,11 @@ public class StripeService {
         }
 
         Subscription subscription = subscriptionOpt.get();
+        String priceId = stripeSubscription.getItems().getData().get(0).getPrice().getId();
         subscription.setStripeSubscriptionId(stripeSubscription.getId());
-        subscription.setStripePriceId(stripeSubscription.getItems().getData().get(0).getPrice().getId());
+        subscription.setStripePriceId(priceId);
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
-        subscription.setPlan(Subscription.SubscriptionPlan.BASIC);  // Default plan
+        subscription.setPlan(planFromPriceId(priceId));
         // Get billing periods from subscription item (Stripe API 2025-03-31+)
         com.stripe.model.SubscriptionItem firstItem = stripeSubscription.getItems().getData().get(0);
         subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
@@ -528,12 +600,5 @@ public class StripeService {
             return null;
         }
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), ZoneId.systemDefault());
-    }
-
-    private LocalDateTime convertToLocalDateTime(Instant instant) {
-        if (instant == null) {
-            return null;
-        }
-        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 }

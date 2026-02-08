@@ -248,6 +248,67 @@ export async function updateChatbot(chatbotId: number, updates: Partial<Chatbot>
 }
 
 /**
+/**
+ * Create a Stripe checkout session for subscription.
+ * @param plan Optional plan: BASIC, PRO, or ENTERPRISE. If omitted, backend uses default price.
+ * @returns Checkout URL to redirect the user to.
+ */
+export async function createCheckoutSession(plan?: 'BASIC' | 'PRO' | 'ENTERPRISE'): Promise<string> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/subscription/create-checkout-session`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(plan != null ? { plan } : {}),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('Unauthorized');
+    if (response.status === 503) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.error || 'Payment provider not configured');
+    }
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to create checkout session');
+  }
+
+  const data = await response.json();
+  const url = data.checkoutUrl || data.url;
+  if (!url || typeof url !== 'string') throw new Error('Invalid checkout URL received');
+  return url;
+}
+
+/**
+ * Create a Stripe Customer Billing Portal session (manage subscription, payment method, cancel).
+ * Returns URL to redirect the user to.
+ */
+export async function createPortalSession(returnUrl?: string): Promise<string> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/subscription/create-portal-session`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(returnUrl != null ? { returnUrl } : {}),
+  });
+
+  if (!response.ok) {
+    if (response.status === 503) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.error || 'Payment provider not configured');
+    }
+    if (response.status === 404) throw new Error('Not found');
+    if (response.status === 403) throw new Error('Not allowed');
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to open billing portal');
+  }
+
+  const data = await response.json();
+  const url = data.portalUrl || data.url;
+  if (!url || typeof url !== 'string') throw new Error('Invalid portal URL');
+  return url;
+}
+
+/**
  * Preview Jesus's teachings relevant to the chatbot's website (for "What Jesus Would Say" feature).
  */
 export async function previewJesusTeachings(

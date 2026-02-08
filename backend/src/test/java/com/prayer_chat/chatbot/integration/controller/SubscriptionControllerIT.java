@@ -20,11 +20,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -162,9 +159,10 @@ class SubscriptionControllerIT {
     @DisplayName("Should create checkout session")
     void shouldCreateCheckoutSession() throws Exception {
         // Arrange
+        when(stripeService.isConfigured()).thenReturn(true);
         when(subscriptionRepository.findByUserId(1L))
             .thenReturn(Optional.empty());
-        when(stripeService.createCheckoutSession(any(User.class)))
+        when(stripeService.createCheckoutSession(any(User.class), any()))
             .thenReturn("https://checkout.stripe.com/test");
 
         // Act & Assert
@@ -173,7 +171,154 @@ class SubscriptionControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.checkoutUrl", equalTo("https://checkout.stripe.com/test")));
 
-        verify(stripeService, times(1)).createCheckoutSession(any(User.class));
+        verify(stripeService, times(1)).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should create checkout session with plan PRO")
+    void shouldCreateCheckoutSession_withPlan() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(stripeService.createCheckoutSession(any(User.class), eq("PRO")))
+            .thenReturn("https://checkout.stripe.com/pro");
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"plan\": \"PRO\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.checkoutUrl", equalTo("https://checkout.stripe.com/pro")));
+
+        verify(stripeService, times(1)).createCheckoutSession(any(User.class), eq("PRO"));
+    }
+
+    @Test
+    @DisplayName("Should return 400 for invalid plan in create checkout session")
+    void shouldReturn400ForInvalidPlan_createCheckoutSession() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"plan\": \"INVALID\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", containsString("Invalid plan")));
+
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should return 503 when Stripe not configured for checkout")
+    void shouldReturn503_whenStripeNotConfigured_createCheckoutSession() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(false);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.error", equalTo("Payment provider not configured")));
+
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should return 401 when unauthenticated for create checkout session")
+    void shouldReturn401_whenUnauthenticated_createCheckoutSession() throws Exception {
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should return 400 when user already has active subscription")
+    void shouldReturn400_whenUserAlreadyHasActiveSubscription() throws Exception {
+        testSubscription.setPlan(Subscription.SubscriptionPlan.BASIC);
+        testSubscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("User already has an active subscription")));
+
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should create portal session and return portalUrl")
+    void shouldCreatePortalSession_andReturnPortalUrl() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(stripeService.createBillingPortalSession(any(User.class), any()))
+            .thenReturn("https://billing.stripe.com/session/test");
+
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.portalUrl", equalTo("https://billing.stripe.com/session/test")));
+
+        verify(stripeService, times(1)).createBillingPortalSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should create portal session with returnUrl in body (allowed origin)")
+    void shouldCreatePortalSession_withReturnUrlInBody() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        String allowedReturnUrl = "http://localhost:3000/dashboard";
+        when(stripeService.createBillingPortalSession(any(User.class), eq(allowedReturnUrl)))
+            .thenReturn("https://billing.stripe.com/session/with-return");
+
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"returnUrl\": \"" + allowedReturnUrl + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.portalUrl", equalTo("https://billing.stripe.com/session/with-return")));
+
+        verify(stripeService, times(1)).createBillingPortalSession(any(User.class), eq(allowedReturnUrl));
+    }
+
+    @Test
+    @DisplayName("Should return 503 when Stripe not configured for portal session")
+    void shouldReturn503_whenStripeNotConfigured_createPortalSession() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(false);
+
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.error", equalTo("Payment provider not configured")));
+
+        verify(stripeService, never()).createBillingPortalSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should return 401 when unauthenticated for create portal session")
+    void shouldReturn401_whenUnauthenticated_createPortalSession() throws Exception {
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should return 400 when portal returnUrl is not allowed (open redirect prevention)")
+    void shouldReturn400_whenPortalReturnUrlNotAllowed() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"returnUrl\": \"https://evil.com/phishing\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid return URL")));
+
+        verify(stripeService, never()).createBillingPortalSession(any(User.class), any());
     }
 
     @Test
@@ -263,6 +408,22 @@ class SubscriptionControllerIT {
 
         verify(stripeService, times(1)).downgradeSubscription(
             eq(1L), eq("price_test"), eq(Subscription.SubscriptionPlan.BASIC));
+    }
+
+    @Test
+    @DisplayName("Should return 400 for invalid priceId in create checkout session")
+    void shouldReturn400ForInvalidPriceId_createCheckoutSession() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"invalid_price_id\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid price ID")));
+
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
     }
 
     @Test

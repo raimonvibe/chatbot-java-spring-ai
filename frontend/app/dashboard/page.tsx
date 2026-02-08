@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import ChristianContentAnalysisComponent from '@/components/ChristianContentAnalysis';
 import JesusTeachingsSettings from '@/components/JesusTeachingsSettings';
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [upgradeMessage, setUpgradeMessage] = useState('');
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
   const [showAnalysisForChatbot, setShowAnalysisForChatbot] = useState<number | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
@@ -291,6 +292,26 @@ export default function Dashboard() {
                 <Trash2 className="w-5 h-5" /> Delete All
               </button>
             )}
+            <button
+              onClick={async () => {
+                setPortalLoading(true);
+                try {
+                  const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+                  const url = await createPortalSession(returnUrl);
+                  window.location.href = url;
+                } catch (e) {
+                  console.error('Portal session error:', e);
+                  alert(e instanceof Error ? e.message : 'Failed to open billing portal');
+                } finally {
+                  setPortalLoading(false);
+                }
+              }}
+              disabled={portalLoading}
+              className="px-4 py-3 bg-brown-100 text-brown-800 rounded-xl font-medium hover:bg-brown-200 transition-all flex items-center gap-2 disabled:opacity-50"
+              title="Manage subscription, payment method, and invoices"
+            >
+              <CreditCard className="w-5 h-5" /> {portalLoading ? 'Opening…' : 'Manage subscription'}
+            </button>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
               className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
