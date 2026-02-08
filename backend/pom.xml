@@ -24,8 +24,8 @@
         <spring-ai.version>1.1.2</spring-ai.version>
         <!-- Security: Tomcat CVEs (incl. CVE-2025-61795 DoS multipart cleanup). Fixed in 10.1.47+ -->
         <tomcat.version>10.1.47</tomcat.version>
-        <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse - logback-core. Fixed in 1.5.19+ -->
-        <logback.version>1.5.19</logback.version>
+        <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
+        <logback.version>1.5.25</logback.version>
         <!-- Security: CVE-2025-41248, CVE-2025-22223 - Spring Security authorization bypass. Fixed in 6.4.11+ -->
         <spring-security.version>6.4.11</spring-security.version>
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
@@ -177,9 +177,11 @@
         <!-- Jackson 2.x from Spring Boot 3.3.x parent (RestAssured and export compatible) -->
 
         <!-- Utilities -->
+        <!-- Security: CVE-2025-48924 - explicit version to override transitives -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
+            <version>${commons-lang3.version}</version>
         </dependency>
 
         <dependency>
@@ -335,13 +337,46 @@
                 <artifactId>spring-webmvc</artifactId>
                 <version>6.2.11</version>
             </dependency>
+            <!-- Security: CVE-2025-41232, CVE-2025-41248 - force Spring Security version -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-core</artifactId>
+                <version>${spring-security.version}</version>
+            </dependency>
+            <!-- Security: CVE-2025-55754 (tomcat-juli), CVE-2025-55752 etc - force all Tomcat modules -->
+            <dependency>
+                <groupId>org.apache.tomcat</groupId>
+                <artifactId>tomcat-juli</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat</groupId>
+                <artifactId>tomcat-catalina</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects -->
+            <dependency>
+                <groupId>io.projectreactor.netty</groupId>
+                <artifactId>reactor-netty-http</artifactId>
+                <version>${reactor-netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.projectreactor.netty</groupId>
+                <artifactId>reactor-netty-core</artifactId>
+                <version>${reactor-netty.version}</version>
+            </dependency>
             <!-- Security: CVE-2025-53864 - Nimbus JOSE+JWT uncontrolled recursion. Fixed in 9.37.4+ -->
             <dependency>
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
                 <version>9.37.4</version>
             </dependency>
-            <!-- Security: CVE-2024-12798, CVE-2025-11226, malicious logback.xml - logback. Fixed in 1.5.19+ -->
+            <!-- Security: CVE-2024-12798, CVE-2025-11226, malicious logback.xml, ACE config (Dependabot #11). Fixed in 1.5.25+ -->
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
