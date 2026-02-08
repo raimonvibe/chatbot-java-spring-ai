@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { E2E_MOCK_AUTH_TOKEN } from './test-auth-constants';
 
 /**
  * Authentication helper for E2E tests
@@ -32,12 +33,10 @@ export class AuthHelper {
     });
 
     // Set auth state BEFORE setting up route (avoids race condition)
-    // Use valid JWT format (3 parts) to pass validation
-    const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature';
     await this.page.evaluate(({ userData, token }: { userData: { id: number; email: string; name: string; authProvider: string }; token: string }) => {
       localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(userData));
-    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' }, token: mockToken });
+    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' }, token: E2E_MOCK_AUTH_TOKEN });
 
     // Intercept navigation to OAuth endpoint
     // Use a promise to handle navigation properly
@@ -116,9 +115,8 @@ export class AuthHelper {
   /**
    * Set authentication token in local storage
    * Useful for bypassing the login flow in tests
-   * Uses a valid JWT format (3 parts separated by dots) to pass validation
    */
-  async setAuthToken(token: string = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature') {
+  async setAuthToken(token: string = E2E_MOCK_AUTH_TOKEN) {
     await this.page.goto('/');
     await this.page.evaluate((authToken) => {
       localStorage.setItem('authToken', authToken);
@@ -177,9 +175,7 @@ export class AuthHelper {
   }) {
     await this.page.goto('/');
 
-    // Set auth token (use valid JWT format to pass validation)
-    // Format: header.payload.signature
-    await this.setAuthToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature');
+    await this.setAuthToken(E2E_MOCK_AUTH_TOKEN);
 
     // Set user data
     await this.page.evaluate((userData: { id: number; email: string; name: string; authProvider: string }) => {

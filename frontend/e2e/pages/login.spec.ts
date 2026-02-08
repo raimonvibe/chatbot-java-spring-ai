@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { AuthHelper } from '../helpers/auth';
 import { ApiMock } from '../helpers/api-mock';
 import { testUsers } from '../fixtures/users';
+import { E2E_MOCK_AUTH_TOKEN, E2E_MOCK_TOKEN_MARKER } from '../helpers/test-auth-constants';
 
 /**
  * Login Page E2E Tests
@@ -62,7 +63,7 @@ test.describe('Login Page', () => {
     // Verify we're authenticated by checking localStorage
     const token = await page.evaluate(() => localStorage.getItem('authToken'));
     expect(token).toBeTruthy();
-    expect(token).toContain('mock_signature'); // Valid JWT format
+    expect(token).toContain(E2E_MOCK_TOKEN_MARKER);
   });
 
   test('should handle OAuth authentication success', async ({ page }) => {
@@ -74,7 +75,7 @@ test.describe('Login Page', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIn0.mock_signature',
+          token: E2E_MOCK_AUTH_TOKEN,
           user: testUsers.google,
         }),
       });

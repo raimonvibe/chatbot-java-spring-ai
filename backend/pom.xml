@@ -22,10 +22,14 @@
     <properties>
         <java.version>17</java.version>
         <spring-ai.version>1.1.2</spring-ai.version>
-        <!-- Security: CVE-2025-55754 - Tomcat console manipulation (tomcat-juli). Fixed in 10.1.45+ -->
+        <!-- Security: CVE-2025-55754, CVE-2025-55752, CVE-2025-53506, CVE-2025-52520, CVE-2025-49125 - Tomcat -->
         <tomcat.version>10.1.45</tomcat.version>
-        <!-- Security: CVE-2025-41232 - Spring Security method security on private methods (affects ASPECTJ mode only; we use default proxy). Use 6.4.6+ to satisfy scanners. -->
-        <spring-security.version>6.4.6</spring-security.version>
+        <!-- Security: CVE-2025-41248, CVE-2025-22223 - Spring Security authorization bypass. Fixed in 6.4.11+ -->
+        <spring-security.version>6.4.11</spring-security.version>
+        <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
+        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects. Fixed in 1.2.8+ -->
+        <reactor-netty.version>1.2.8</reactor-netty.version>
         <postgresql.version>42.7.8</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
@@ -313,11 +317,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Security: CVE-2025-41249 - Spring Framework annotation detection. Fixed in 6.2.11+ -->
+            <!-- Security: CVE-2025-41249, CVE-2025-41242, CVE-2025-41234 - Spring Framework. Fixed in 6.2.11+ -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-core</artifactId>
                 <version>6.2.11</version>
+            </dependency>
+            <!-- Security: CVE-2025-53864 - Nimbus JOSE+JWT uncontrolled recursion. Fixed in 9.37.4+ -->
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>9.37.4</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
