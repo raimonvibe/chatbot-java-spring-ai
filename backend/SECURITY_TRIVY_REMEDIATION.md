@@ -4,7 +4,51 @@ This document maps each Trivy/GitHub alert to root cause and fix, then summarize
 
 ---
 
-## Why Trivy may still report issues after overrides
+## Why GitHub Code Scanning (Trivy) still shows open alerts
+
+**Short answer:** The runtime is patched; the scanner is wrong for our setup.
+
+1. **Trivy’s Maven handling**  
+   Trivy does not fully replicate Maven’s dependency resolution. It often does not apply `dependencyManagement` and parent BOM overrides correctly, so it reports vulnerabilities for *declared* or *BOM* versions instead of the *resolved* versions.  
+   We verified with `mvn dependency:tree` that the application uses patched versions (Spring 6.2.11, Tomcat 10.1.47, Spring Security 6.4.11, logback 1.5.25, etc.). So the alerts are **false positives** from Trivy’s perspective.
+
+2. **Artifact naming**  
+   We use **embedded** Tomcat (`tomcat-embed-core`). CVEs are often linked to **standalone** artifacts (`tomcat-juli`, `tomcat-catalina`). Trivy may still flag those names even though the same fixed code (10.1.47) is in use via the embed jars.
+
+3. **What we did**  
+   - **In the repo:** `.trivyignore` at the repo root lists these CVEs with a short comment. Trivy will suppress them in future scans, so new Code Scanning results should stop opening these.  
+   - **In the UI:** For existing open alerts, you can **Dismiss** each with reason **“Risk accepted”** or **“False positive”** and a comment such as: *“Fixed via dependencyManagement; resolved version verified with mvn dependency:tree. See backend/SECURITY_TRIVY_REMEDIATION.md and .trivyignore.”*
+
+Treating these as “fixed in code, false positive in scanner” is the right way to handle them; the `.trivyignore` and this doc are the serious, auditable record.
+
+---
+
+## Future-proofing and safety
+
+**Is this safe long-term?**
+
+- **Risk if we did nothing:** Trivy would keep opening alerts that are false positives; noise and potential for real issues to be missed.
+- **Risk of .trivyignore with no expiry:** If we later downgrade a dependency (or a transitive pulls in an old version), Trivy would still suppress the CVE and we wouldn't see the alert. That would be unsafe.
+
+**What we did to keep it future-proof:**
+
+1. **Expiry on every suppression**  
+   Every line in `.trivyignore` uses `exp:2026-03-01`. After that date, Trivy will report those CVEs again. That forces a re-check: either we confirm versions are still patched and bump the expiry, or we fix a real regression.
+
+2. **Re-review on dependency upgrades**  
+   When you upgrade Spring Boot, Tomcat, or other major deps:
+   - Run `mvn dependency:tree` and confirm no vulnerable versions.
+   - If Trivy's behaviour or Maven resolution changes and alerts stop being false positives, remove the relevant CVE from `.trivyignore` and fix the dependency instead.
+   - Optionally refresh the expiry (e.g. extend by one year) after verifying.
+
+3. **Don't add CVEs to .trivyignore without verification**  
+   Only suppress a CVE after confirming with `mvn dependency:tree` (or equivalent) that the resolved version is patched. Otherwise we might hide a real vulnerability.
+
+**Summary:** With expiry and a clear process, the approach is future-proof and safe: we get rid of known false positives now, and we get a forced review later (and on every major upgrade) so real issues don't stay hidden.
+
+---
+
+## Why Trivy may still report issues after overrides (technical)
 
 1. **Trivy pom.xml parsing**: Trivy does not fully replicate Maven’s resolution. It can ignore or mishandle `dependencyManagement` and parent BOM version overrides, so it may report versions that are not what `mvn dependency:tree` actually resolves.
 2. **Transitive versions**: We override `spring-core`, `spring-web`, `spring-webmvc` at 6.2.11, but other Spring Framework modules (e.g. `spring-beans`, `spring-context`, `spring-aop`) can still be pulled in at 6.1.x by the Spring Boot BOM. Those must be forced to 6.2.11 as well so the whole framework stack is patched.
