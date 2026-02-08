@@ -147,7 +147,8 @@ See also **STRIPE_SAFE_SETUP.md** and **RENDER_ENV_VARIABLES.md** for production
 
 ## Production deployment
 
-- Use Stripe **live** keys and live Price ID; add production webhook endpoint.
+- Use Stripe **live** keys and live Price IDs; add production webhook endpoint.
+- **Multi-plan setup:** For Basic / Pro / Enterprise ($12 / $29 / $79 per month), create three Products/Prices in Stripe and set `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PRO`, `STRIPE_PRICE_ID_ENTERPRISE`. Optionally set `STRIPE_PRICE_ID` as the default (e.g. Pro) when no plan is sent. Full steps: **[STRIPE_SAFE_SETUP.md](../STRIPE_SAFE_SETUP.md) §2.1 What you need for production**.
 - Add production OAuth redirect URIs and origins in Google Cloud Console.
 - Set `CORS_ALLOWED_ORIGINS` and ensure no test keys in production env.
 

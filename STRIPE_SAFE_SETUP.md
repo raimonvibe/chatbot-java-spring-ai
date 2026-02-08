@@ -14,11 +14,59 @@ This app uses **Stripe Checkout** so card data never touches your server ([Strip
 |----------|---------|------------------|
 | `STRIPE_SECRET_KEY` | Backend API calls (create session, etc.) | Stripe Dashboard → Developers → API keys → Secret key |
 | `STRIPE_WEBHOOK_SECRET` | Verify webhook signatures | Stripe Dashboard → Developers → Webhooks → your endpoint → Signing secret |
-| `STRIPE_PRICE_ID` | (Optional) Use an existing Price for the subscription | Stripe Dashboard → Products → your product → Price ID |
+| `STRIPE_PRICE_ID` | (Optional) Default price when no plan is sent (e.g. Pro) | Stripe Dashboard → Products → your product → Price ID |
+| `STRIPE_PRICE_ID_BASIC` | (Production) Price for Basic plan | See [§2.1 What you need for production](#21-what-you-need-for-production) |
+| `STRIPE_PRICE_ID_PRO` | (Production) Price for Pro plan | See [§2.1 What you need for production](#21-what-you-need-for-production) |
+| `STRIPE_PRICE_ID_ENTERPRISE` | (Production) Price for Enterprise plan | See [§2.1 What you need for production](#21-what-you-need-for-production) |
 | `STRIPE_SUCCESS_URL` | Where to redirect after payment | e.g. `https://yourdomain.com/dashboard?session_id={CHECKOUT_SESSION_ID}` |
 | `STRIPE_CANCEL_URL` | Where to redirect if user cancels | e.g. `https://yourdomain.com/pricing` |
 
 If `STRIPE_SECRET_KEY` is missing, the API returns **503 Payment provider not configured** instead of calling Stripe.
+
+### 2.1 What you need for production (multi-plan: Basic / Pro / Enterprise)
+
+For production with three tiers (Basic $12/mo, Pro $29/mo, Enterprise $79/mo), do the following.
+
+**Step 1: Create three Products and Prices in Stripe Dashboard**
+
+1. In [Stripe Dashboard](https://dashboard.stripe.com/) switch to **Live** mode (or Test for staging).
+2. Go to **Product catalog** → **Products** → **Add product**.
+3. Create each product and its recurring price:
+
+   | Product name (example) | Price | Billing | After saving, copy |
+   |------------------------|-------|---------|--------------------|
+   | Prayer-Chat Basic | $12.00 USD | Monthly (recurring) | **Price ID** (starts with `price_`) |
+   | Prayer-Chat Pro | $29.00 USD | Monthly (recurring) | **Price ID** |
+   | Prayer-Chat Enterprise | $79.00 USD | Monthly (recurring) | **Price ID** |
+
+   For each: set **Pricing model** to *Recurring*, **Billing period** to *Monthly*, **Price** and **Currency** as above, then **Save product**. Copy the **Price ID** from the product’s pricing section (e.g. `price_1ABC...`).
+
+**Step 2: Set environment variables**
+
+In your production environment (e.g. Render, or `.env` for production), set:
+
+```bash
+# Per-plan Price IDs (from Step 1)
+STRIPE_PRICE_ID_BASIC=price_xxx    # replace with your Basic price ID
+STRIPE_PRICE_ID_PRO=price_xxx      # replace with your Pro price ID
+STRIPE_PRICE_ID_ENTERPRISE=price_xxx  # replace with your Enterprise price ID
+```
+
+**Step 3 (optional): Default when no plan is sent**
+
+If the frontend or API sometimes calls create-checkout without a plan (e.g. “Subscribe” with no tier), the backend uses a single default price. Set that to your most common tier (e.g. Pro):
+
+```bash
+STRIPE_PRICE_ID=price_xxx   # e.g. same as STRIPE_PRICE_ID_PRO
+```
+
+If you don’t set `STRIPE_PRICE_ID`, and no plan/price is sent, the backend may fall back to an inline price (see `StripeService`); for a clear production setup, set `STRIPE_PRICE_ID` to one of your Price IDs (typically Pro).
+
+**Step 4: How the backend uses these**
+
+- **Checkout with plan:** Frontend sends `{ "plan": "BASIC" }`, `{ "plan": "PRO" }`, or `{ "plan": "ENTERPRISE" }` to `POST /api/subscription/create-checkout-session`. The backend maps those to `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PRO`, `STRIPE_PRICE_ID_ENTERPRISE` respectively.
+- **Checkout with no plan:** If the body is `{}` or no plan, the backend uses `STRIPE_PRICE_ID` (your default).
+- **Webhook:** When Stripe sends `customer.subscription.created` (etc.), the app maps the subscription’s price ID back to a plan (BASIC/PRO/ENTERPRISE) and stores it so limits and features match the tier.
 
 ## 3. Webhook security
 
