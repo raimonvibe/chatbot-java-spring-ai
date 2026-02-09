@@ -104,6 +104,8 @@ public class TestSecurityConfig {
                 // 6. GET requests to chatbots - permitAll() (public read access)
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
+                // 6b. Plan limits (public pricing info) - must match production SecurityConfig
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/plans/limits").permitAll()
                 
                 // 7. Write operations to chatbots - authenticated() (must come AFTER GET rules)
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/chatbots/**").authenticated()

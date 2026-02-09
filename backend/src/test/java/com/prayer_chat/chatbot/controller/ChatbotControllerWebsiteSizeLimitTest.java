@@ -17,6 +17,7 @@ import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
+import com.prayer_chat.chatbot.model.Subscription;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -128,7 +129,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
         lenient().when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);
         lenient().when(accessControlService.canCreateChatbot(any(User.class), anyLong())).thenReturn(true);
-        lenient().when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(3);
+        lenient().when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(1);
     }
 
     @Test
@@ -150,17 +151,17 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Assert
         assertEquals(HttpStatus.PAYMENT_REQUIRED, response.getStatusCode());
         assertNotNull(response.getBody());
-        
+
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
-        // Must match ChatbotController plan-based message (not "preview mode")
-        assertEquals(
-            "Website too large for your plan. Your plan allows up to 50 pages per scan. Upgrade to scan larger websites.",
-            body.get("error"));
+        assertTrue(body.get("error").toString().contains("Website too large for your plan"));
+        assertTrue(body.get("error").toString().contains("Upgrade to BASIC for sites up to 500 pages"));
         assertEquals(true, body.get("upgradeRequired"));
         assertEquals(estimatedPages, body.get("estimatedPages"));
         assertEquals(50, body.get("maxPages"));
-        
+        assertEquals("BASIC", body.get("suggestedPlan"));
+        assertEquals(500, body.get("suggestedMaxPages"));
+
         // Verify chatbot was NOT created
         verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
@@ -248,7 +249,9 @@ class ChatbotControllerWebsiteSizeLimitTest {
         assertEquals(true, body.get("upgradeRequired"));
         assertEquals(estimatedPages, body.get("estimatedPages"));
         assertEquals(50, body.get("maxPages"));
-        
+        assertEquals("BASIC", body.get("suggestedPlan"));
+        assertEquals(500, body.get("suggestedMaxPages"));
+
         // Verify chatbot was NOT created
         verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
@@ -267,17 +270,17 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         when(websiteSizeEstimator.estimateSize("https://small-website.com")).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(3);
-        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3))).thenReturn(testChatbot);
+        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(1);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
 
         // Act
         ResponseEntity<?> response = chatbotController.createChatbot(request, customOAuth2User);
 
         // Assert
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        
-        // Verify chatbot WAS created
-        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3));
+
+        // Verify chatbot WAS created (one chatbot per user)
+        verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
     }
 
     @Test
@@ -291,15 +294,15 @@ class ChatbotControllerWebsiteSizeLimitTest {
         request.setPrimaryLanguage("en");
         
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(3);
-        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(3))).thenReturn(testChatbot);
+        when(accessControlService.getMaxChatbotsAllowed(testUser)).thenReturn(1);
+        when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
 
         // Act
         ResponseEntity<?> response = chatbotController.createChatbot(request, customOAuth2User);
 
         // Assert
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        
+
         // Verify size estimator was NOT called (no URL to estimate)
         verify(websiteSizeEstimator, never()).estimateSize(anyString());
     }
@@ -350,6 +353,37 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // 50 pages should be allowed (limit is > 50, not >= 50)
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
+    }
+
+    @Test
+    @DisplayName("Analyze website returns 403 with suggestedPlan when site exceeds plan limit")
+    void analyzeWebsiteReturns403WithSuggestedPlanWhenOverLimit() {
+        testChatbot.setOwner(testUser);
+        testChatbot.setWebsiteUrl("https://large-site.com");
+        int estimatedPages = 100;
+
+        when(chatbotRepository.findById(100L)).thenReturn(java.util.Optional.of(testChatbot));
+        when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
+        when(rateLimitingService.checkScanLimit(testUser))
+            .thenReturn(new RateLimitingService.RateLimitResult(true, 1, 0, true, "scan"));
+        when(websiteSizeEstimator.estimateSize("https://large-site.com")).thenReturn(estimatedPages);
+        when(accessControlService.getSubscriptionPlan(testUser)).thenReturn(Subscription.SubscriptionPlan.FREE);
+
+        ResponseEntity<?> response = chatbotController.analyzeWebsite(100L, customOAuth2User);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Website too large for your plan"));
+        assertEquals(100, body.get("estimatedPages"));
+        assertEquals(50, body.get("maxPages"));
+        assertEquals("BASIC", body.get("suggestedPlan"));
+        assertEquals(500, body.get("suggestedMaxPages"));
+        assertEquals(true, body.get("upgradeRequired"));
+
+        verify(websiteAnalysisService, never()).analyzeWebsite(any(Chatbot.class));
     }
 }
 

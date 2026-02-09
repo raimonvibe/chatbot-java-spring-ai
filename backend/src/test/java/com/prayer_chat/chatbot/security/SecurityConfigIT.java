@@ -78,6 +78,17 @@ class SecurityConfigIT {
     }
 
     @Test
+    @DisplayName("Should allow unauthenticated GET /api/plans/limits (public pricing info)")
+    void shouldAllowPublicAccessToPlanLimits() throws Exception {
+        mockMvc.perform(get("/api/plans/limits"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.plans").exists())
+            .andExpect(jsonPath("$.standardPageTiers").exists())
+            .andExpect(jsonPath("$.plans.FREE.maxPagesPerScan").value(50))
+            .andExpect(jsonPath("$.plans.ENTERPRISE.maxPagesPerScan").value(10000));
+    }
+
+    @Test
     @DisplayName("Should allow public access to /api/chat/** endpoints (permitAll)")
     void shouldAllowPublicAccessToChatEndpoints() throws Exception {
         // /api/chat/** should be permitAll() - no authentication required

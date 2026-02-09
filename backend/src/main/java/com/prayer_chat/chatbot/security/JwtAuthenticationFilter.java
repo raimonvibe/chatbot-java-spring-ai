@@ -62,7 +62,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                       requestUri.equals("/api/health") ||
                                       requestUri.startsWith("/api/auth/") ||
                                       requestUri.startsWith("/login/") ||
-                                      requestUri.startsWith("/oauth2/");
+                                      requestUri.startsWith("/oauth2/") ||
+                                      requestUri.equals("/api/plans/limits");
         
         logger.debug("🔍 JwtAuthenticationFilter: isPermitAllEndpoint={}, currentAuth={}", 
             isPermitAllEndpoint, 

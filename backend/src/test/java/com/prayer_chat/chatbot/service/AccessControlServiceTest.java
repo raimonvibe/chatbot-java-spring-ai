@@ -171,10 +171,17 @@ class AccessControlServiceTest {
     }
 
     @Test
-    @DisplayName("Should allow chatbot creation for paid users when under plan limit (BASIC = 3)")
+    @DisplayName("Should allow chatbot creation for paid users when at 0 chatbots")
     void shouldAllowChatbotCreationForPaidUsers() {
         when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(activePaidSubscription));
-        assertThat(accessControlService.canCreateChatbot(testUser, 2)).isTrue();
+        assertThat(accessControlService.canCreateChatbot(testUser, 0)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should deny chatbot creation when user already has 1 chatbot (one per user)")
+    void shouldDenyChatbotCreationWhenAtLimit() {
+        when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(activePaidSubscription));
+        assertThat(accessControlService.canCreateChatbot(testUser, 1)).isFalse();
     }
 
     @Test
@@ -188,13 +195,13 @@ class AccessControlServiceTest {
     }
 
     @Test
-    @DisplayName("Should return plan-based chatbot limit for paid users (BASIC = 3)")
+    @DisplayName("Should return 1 chatbot for all plans (one chatbot per user)")
     void shouldReturnPlanBasedChatbotLimitForPaidUsers() {
         when(subscriptionRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(activePaidSubscription));
 
         int maxChatbots = accessControlService.getMaxChatbotsAllowed(testUser);
 
-        assertThat(maxChatbots).isEqualTo(3);
+        assertThat(maxChatbots).isEqualTo(1);
     }
 
     @Test

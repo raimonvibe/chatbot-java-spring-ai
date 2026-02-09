@@ -79,6 +79,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
                 // Protect write operations (POST, PUT, DELETE)
                 .requestMatchers("/api/chatbots/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/plans/limits").permitAll()
                 .requestMatchers("/api/subscription/**").authenticated()
                 // Admin endpoints: Only available in "local" profile
                 // AdminController is disabled in production via @Profile("local")

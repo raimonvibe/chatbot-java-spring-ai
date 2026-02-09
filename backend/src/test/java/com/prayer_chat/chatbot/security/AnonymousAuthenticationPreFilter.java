@@ -37,7 +37,7 @@ public class AnonymousAuthenticationPreFilter extends OncePerRequestFilter {
         String requestUri = request.getRequestURI();
         logger.debug("🔍 AnonymousAuthenticationPreFilter: Processing request URI: {}", requestUri);
         
-        // Check if this is a permitAll() endpoint
+        // Check if this is a permitAll() endpoint (must match TestSecurityConfig and production SecurityConfig)
         boolean isPermitAllEndpoint = requestUri.startsWith("/api/chat/") || 
                                       requestUri.equals("/api/health") ||
                                       requestUri.startsWith("/api/auth/") ||
@@ -48,7 +48,8 @@ public class AnonymousAuthenticationPreFilter extends OncePerRequestFilter {
                                       requestUri.startsWith("/js/") ||
                                       requestUri.startsWith("/images/") ||
                                       requestUri.startsWith("/webjars/") ||
-                                      (requestUri.startsWith("/api/chatbots") && "GET".equals(request.getMethod()));
+                                      (requestUri.startsWith("/api/chatbots") && "GET".equals(request.getMethod())) ||
+                                      (requestUri.equals("/api/plans/limits") && "GET".equals(request.getMethod()));
         
         // Check current authentication state
         var currentAuth = SecurityContextHolder.getContext().getAuthentication();

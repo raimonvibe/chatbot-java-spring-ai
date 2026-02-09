@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Book, Check, Zap, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 // Auto-detect backend URL based on environment
 function getApiBaseUrl(): string {
@@ -28,7 +28,7 @@ const API_BASE_URL = getApiBaseUrl();
 // Plan keys sent to backend (must match backend: BASIC, PRO, ENTERPRISE)
 type PlanKey = 'BASIC' | 'PRO' | 'ENTERPRISE';
 
-// Limits aligned with backend PlanLimits
+// One chatbot per user; plan tier = website size (max pages). Aligned with backend PlanLimits.
 const PLANS = [
   {
     id: 'FREE',
@@ -37,9 +37,9 @@ const PLANS = [
     priceLabel: '$0',
     period: '/month',
     chatbots: 1,
+    maxPagesPerScan: 50,
     messagesPerDay: 10,
     scansPerMonth: 1,
-    maxPagesPerScan: 50,
     features: ['Christian messaging'],
     cta: 'Get Started Free',
     href: '/dashboard',
@@ -52,11 +52,11 @@ const PLANS = [
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    chatbots: 3,
+    chatbots: 1,
+    maxPagesPerScan: 500,
     messagesPerDay: 100,
     scansPerMonth: 5,
-    maxPagesPerScan: 500,
-    features: ['Christian messaging', 'Small sites'],
+    features: ['Christian messaging', 'Embed code'],
     cta: 'Subscribe',
     planKey: 'BASIC' as PlanKey,
     buttonType: 'subscribe' as const,
@@ -68,11 +68,11 @@ const PLANS = [
     price: 29,
     priceLabel: '$29',
     period: '/month',
-    chatbots: 10,
+    chatbots: 1,
+    maxPagesPerScan: 2000,
     messagesPerDay: 500,
     scansPerMonth: 20,
-    maxPagesPerScan: 2000,
-    features: ['Everything in Basic', 'Custom Bible verses', 'Priority support', 'Webhook integrations'],
+    features: ['Everything in Basic', 'Webhooks', 'Priority support'],
     cta: 'Subscribe',
     planKey: 'PRO' as PlanKey,
     buttonType: 'subscribe' as const,
@@ -84,11 +84,11 @@ const PLANS = [
     price: 79,
     priceLabel: '$79',
     period: '/month',
-    chatbots: 50,
+    chatbots: 1,
+    maxPagesPerScan: 10000,
     messagesPerDay: 2000,
     scansPerMonth: 100,
-    maxPagesPerScan: 10000,
-    features: ['Everything in Pro', 'Large sites & docs', 'Dedicated support'],
+    features: ['Everything in Pro', 'Dedicated support'],
     cta: 'Subscribe',
     planKey: 'ENTERPRISE' as PlanKey,
     buttonType: 'subscribe' as const,
@@ -96,9 +96,31 @@ const PLANS = [
   },
 ];
 
+/** Plan limits from backend (GET /api/plans/limits). When set, overrides static maxPagesPerScan etc. */
+interface PlanLimitsResponse {
+  plans?: Record<string, { maxPagesPerScan: number; messagesPerDay: number; monthlyScanQuota: number }>;
+  standardPageTiers?: Record<string, number>;
+}
+
 function PricingContent() {
   const searchParams = useSearchParams();
   const newUser = searchParams.get('new_user');
+  const [limitsFromApi, setLimitsFromApi] = useState<PlanLimitsResponse | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/plans/limits`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PlanLimitsResponse | null) => data && setLimitsFromApi(data))
+      .catch(() => {});
+  }, []);
+
+  const plansToShow = PLANS.map((plan) => {
+    const fromApiPlan = limitsFromApi?.plans?.[plan.id];
+    const maxPages = fromApiPlan?.maxPagesPerScan ?? limitsFromApi?.standardPageTiers?.[plan.id] ?? plan.maxPagesPerScan;
+    const messagesPerDay = fromApiPlan?.messagesPerDay ?? plan.messagesPerDay;
+    const scansPerMonth = fromApiPlan?.monthlyScanQuota ?? plan.scansPerMonth;
+    return { ...plan, maxPagesPerScan: maxPages, messagesPerDay, scansPerMonth };
+  });
 
   const handleSubscribe = async (planKey: PlanKey) => {
     try {
@@ -178,7 +200,7 @@ function PricingContent() {
             Choose Your Plan
           </h2>
           <p className="text-lg text-brown-700">
-            Plans scale with website size: more pages per scan and more scans per month as you grow.
+            One chatbot per subscription. Choose the plan that fits your website size (max pages we analyze).
           </p>
         </motion.div>
 
@@ -188,7 +210,7 @@ function PricingContent() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full"
         >
-          {PLANS.map((plan) => (
+          {plansToShow.map((plan) => (
             <div
               key={plan.id}
               className={`rounded-2xl shadow-lg p-6 border-2 flex flex-col ${
@@ -214,7 +236,7 @@ function PricingContent() {
               <ul className="space-y-2 mb-6 flex-1 text-sm">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-brown-700">{plan.chatbots} Chatbot{plan.chatbots !== 1 ? 's' : ''}</span>
+                  <span className="text-brown-700 font-medium">1 chatbot · Website up to {plan.maxPagesPerScan.toLocaleString()} pages</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
@@ -222,7 +244,7 @@ function PricingContent() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-brown-700">{plan.scansPerMonth} scan{plan.scansPerMonth !== 1 ? 's' : ''}/month (up to {plan.maxPagesPerScan.toLocaleString()} pages/scan)</span>
+                  <span className="text-brown-700">{plan.scansPerMonth} scan{plan.scansPerMonth !== 1 ? 's' : ''}/month</span>
                 </li>
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">

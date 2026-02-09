@@ -208,7 +208,7 @@ export default function Dashboard() {
       setSubscriptionStatus({
         isPreviewMode: false,
         canAccessIntegrationScript: false,
-        maxChatbots: 3, // Preview mode allows 3 chatbots
+        maxChatbots: 1,
         currentChatbotCount: 0,
       });
       alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);

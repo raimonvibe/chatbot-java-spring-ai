@@ -4,6 +4,7 @@ import com.prayer_chat.chatbot.dto.ChatbotRequest;
 import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.model.BibleVerse;
 import com.prayer_chat.chatbot.model.Chatbot;
+import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.AiChatbotService;
@@ -309,12 +310,16 @@ public class ChatbotController {
                 int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
                 int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
                 if (estimatedPages > maxPagesForUser) {
+                    Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPages);
+                    int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
                     logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
                         LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                     return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Upgrade to scan larger websites.",
+                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
                         "estimatedPages", estimatedPages,
                         "maxPages", maxPagesForUser,
+                        "suggestedPlan", suggested.name(),
+                        "suggestedMaxPages", suggestedMaxPages,
                         "upgradeRequired", true,
                         "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
                     ));
@@ -433,12 +438,16 @@ public class ChatbotController {
                 int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
                 int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
                 if (estimatedPages > maxPagesForUser) {
+                    Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPages);
+                    int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
                     logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
                         LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                     return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Upgrade to scan larger websites.",
+                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
                         "estimatedPages", estimatedPages,
                         "maxPages", maxPagesForUser,
+                        "suggestedPlan", suggested.name(),
+                        "suggestedMaxPages", suggestedMaxPages,
                         "upgradeRequired", true,
                         "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
                     ));
@@ -688,12 +697,16 @@ public class ChatbotController {
             int estimatedPages = websiteSizeEstimator.estimateSize(chatbot.getWebsiteUrl());
             int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
             if (estimatedPages > maxPagesForUser) {
+                Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPages);
+                int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
                 logger.warn("User {} attempted to scan website with {} pages (limit: {})", 
                     LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages per scan. Subscribe to scan larger websites.",
+                    "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
                     "estimatedPages", estimatedPages,
                     "maxPages", maxPagesForUser,
+                    "suggestedPlan", suggested.name(),
+                    "suggestedMaxPages", suggestedMaxPages,
                     "upgradeRequired", true
                 ));
             }

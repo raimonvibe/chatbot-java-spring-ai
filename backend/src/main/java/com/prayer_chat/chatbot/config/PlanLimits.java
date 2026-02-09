@@ -6,17 +6,29 @@ import java.math.BigDecimal;
 
 /**
  * Usage-based limits per subscription plan.
- * Aligned with actual costs: website scans (embeddings) are the main cost driver.
+ * One chatbot per user; plan tier is defined by website size (max pages per scan).
+ * These page tiers are the single source of truth — backend and frontend should reference them.
  *
- * Use cases:
- * - FREE: Try before buy; minimal scans and pages to control cost.
- * - BASIC: Small sites, few chatbots; light monthly usage.
- * - PRO: Medium sites, agencies; moderate scans and page limits.
- * - ENTERPRISE: Large sites (e.g. big docs), high volume; high limits.
+ * <h3>Standard page tiers (cost-sustainable)</h3>
+ * <pre>
+ * Plan        | Max pages/scan | Est. scan cost (1×) | Monthly cost cap
+ * ------------|----------------|---------------------|------------------
+ * FREE        | 50             | ~$0.02              | $5
+ * BASIC       | 500            | ~$0.15              | $15
+ * PRO         | 2,000          | ~$0.60              | $50
+ * ENTERPRISE  | 10,000         | ~$3.00              | $200
+ * </pre>
+ * One full scan at plan max stays well under the monthly cap; plans are doable.
  */
 public final class PlanLimits {
 
     private PlanLimits() {}
+
+    /** Standard max pages per scan per plan — single source of truth for "plan by website size". */
+    public static final int FREE_MAX_PAGES = 50;
+    public static final int BASIC_MAX_PAGES = 500;
+    public static final int PRO_MAX_PAGES = 2_000;
+    public static final int ENTERPRISE_MAX_PAGES = 10_000;
 
     /** Maximum website scans per month for this plan. */
     public static int monthlyScanQuota(Subscription.SubscriptionPlan plan) {
@@ -29,15 +41,28 @@ public final class PlanLimits {
         };
     }
 
-    /** Maximum pages per single website scan (large sites = high embedding cost). */
+    /** Maximum pages per single website scan (plan tier = website size). Uses standard constants. */
     public static int maxPagesPerScan(Subscription.SubscriptionPlan plan) {
-        if (plan == null) return 50;
+        if (plan == null) return FREE_MAX_PAGES;
         return switch (plan) {
-            case FREE -> 50;
-            case BASIC -> 500;
-            case PRO -> 2_000;
-            case ENTERPRISE -> 10_000;
+            case FREE -> FREE_MAX_PAGES;
+            case BASIC -> BASIC_MAX_PAGES;
+            case PRO -> PRO_MAX_PAGES;
+            case ENTERPRISE -> ENTERPRISE_MAX_PAGES;
         };
+    }
+
+    /**
+     * Minimum plan required for a website of the given page count.
+     * Use when showing upgrade path (e.g. "Your site has X pages → upgrade to Pro").
+     * Negative or zero page count is treated as FREE (no upgrade needed).
+     */
+    public static Subscription.SubscriptionPlan minimumPlanForPages(int estimatedPages) {
+        if (estimatedPages <= 0) return Subscription.SubscriptionPlan.FREE;
+        if (estimatedPages <= FREE_MAX_PAGES) return Subscription.SubscriptionPlan.FREE;
+        if (estimatedPages <= BASIC_MAX_PAGES) return Subscription.SubscriptionPlan.BASIC;
+        if (estimatedPages <= PRO_MAX_PAGES) return Subscription.SubscriptionPlan.PRO;
+        return Subscription.SubscriptionPlan.ENTERPRISE;
     }
 
     /** Monthly cost cap in USD (embedding + scan cost); null = no cap. */
@@ -51,15 +76,9 @@ public final class PlanLimits {
         };
     }
 
-    /** Maximum chatbots per account. */
+    /** Maximum chatbots per account (one per user; plan determines website page limit). */
     public static int maxChatbots(Subscription.SubscriptionPlan plan) {
-        if (plan == null) return 1;
-        return switch (plan) {
-            case FREE -> 1;
-            case BASIC -> 3;
-            case PRO -> 10;
-            case ENTERPRISE -> 50;
-        };
+        return 1;
     }
 
     /** Maximum chat messages per day. */
