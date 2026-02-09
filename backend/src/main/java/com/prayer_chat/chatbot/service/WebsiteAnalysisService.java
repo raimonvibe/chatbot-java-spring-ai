@@ -448,6 +448,19 @@ public class WebsiteAnalysisService {
     }
 
     /**
+     * Whether website content is analyzed and indexed so the chatbot can answer questions about the site.
+     * Used by frontend to keep loading screen until ready.
+     */
+    public Map<String, Object> getAnalysisStatus(Chatbot chatbot) {
+        List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot);
+        int indexed = (int) contents.stream().filter(c -> Boolean.TRUE.equals(c.getIsIndexed())).count();
+        Map<String, Object> status = new HashMap<>();
+        status.put("ready", indexed > 0);
+        status.put("pagesIndexed", indexed);
+        return status;
+    }
+
+    /**
      * Get analyzed website content as a concatenated string (for Bible verse suggestion)
      */
     public String getAnalyzedContent(Chatbot chatbot) {

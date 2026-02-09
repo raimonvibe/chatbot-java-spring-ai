@@ -41,7 +41,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import com.prayer_chat.chatbot.model.WebsiteContent;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService.BibleVerseMatch;
 
 /**
@@ -263,6 +267,24 @@ public class ChatbotController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Get website analysis status for a chatbot. Used by frontend to keep loading screen until content is ready.
+     * GET is permitAll so preview page can poll without auth.
+     */
+    @GetMapping("/{id}/analysis-status")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Map<String, Object>> getAnalysisStatus(@PathVariable Long id) {
+        if (id == null || id < 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+        if (chatbotOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, Object> status = websiteAnalysisService.getAnalysisStatus(chatbotOpt.get());
+        return ResponseEntity.ok(status);
+    }
     
     /**
      * Simplified onboarding endpoint - creates chatbot from website URL only
@@ -344,12 +366,60 @@ public class ChatbotController {
             logger.info("Created chatbot via onboarding: {} for user: {}", 
                 LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
 
-            // Start website analysis asynchronously; when done, index content and auto-enable Christian content
+            // Website analysis: fast path for small sites (<=50 pages) so content is ready when we return
             try {
                 Long savedId = savedChatbot.getId();
-                java.util.concurrent.CompletableFuture<List<com.prayer_chat.chatbot.model.WebsiteContent>> analysisFuture =
+                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
+                java.util.concurrent.CompletableFuture<List<WebsiteContent>> analysisFuture =
                     websiteAnalysisService.analyzeWebsite(savedChatbot);
-                if (analysisFuture != null) {
+                if (analysisFuture == null) {
+                    // no-op
+                } else if (estimatedPages <= PlanLimits.FREE_MAX_PAGES) {
+                    try {
+                        List<WebsiteContent> contents = analysisFuture.get(120, TimeUnit.SECONDS);
+                        if (contents != null && !contents.isEmpty()) {
+                            Chatbot c = chatbotRepository.findById(savedId).orElse(null);
+                            if (c != null) {
+                                aiChatbotService.indexWebsiteContent(c);
+                                logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
+                                List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
+                                if (!matches.isEmpty()) {
+                                    BibleVerse v = matches.get(0).getVerse();
+                                    String verseText = v.getReference() + " - \"" + v.getText() + "\"";
+                                    c.setBibleVerse(verseText);
+                                    c.setJesusTeachingsEnabled(true);
+                                    if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
+                                    chatbotRepository.save(c);
+                                    logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
+                                }
+                            }
+                        }
+                    } catch (TimeoutException | ExecutionException | InterruptedException e) {
+                        if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                        logger.debug("Onboarding sync analysis incomplete, continuing in background: {}", e.getMessage());
+                        analysisFuture.thenAccept(contents -> {
+                            if (contents == null || contents.isEmpty()) return;
+                            try {
+                                Chatbot c = chatbotRepository.findById(savedId).orElse(null);
+                                if (c == null) return;
+                                aiChatbotService.indexWebsiteContent(c);
+                                logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
+                                List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
+                                if (!matches.isEmpty()) {
+                                    BibleVerse v = matches.get(0).getVerse();
+                                    String verseText = v.getReference() + " - \"" + v.getText() + "\"";
+                                    c.setBibleVerse(verseText);
+                                    c.setJesusTeachingsEnabled(true);
+                                    if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
+                                    chatbotRepository.save(c);
+                                    logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
+                                }
+                            } catch (Exception ex) {
+                                logger.warn("Onboarding post-analysis step failed for chatbot {}: {}", savedId, ex.getMessage());
+                            }
+                        });
+                    }
+                } else {
                     analysisFuture.thenAccept(contents -> {
                         if (contents == null || contents.isEmpty()) return;
                         try {
@@ -375,7 +445,6 @@ public class ChatbotController {
             } catch (Exception e) {
                 logger.warn("Failed to start website analysis for onboarding chatbot {}: {}", 
                     savedChatbot.getId(), e.getMessage());
-                // Don't fail the request - analysis can be triggered later
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(savedChatbot);
@@ -755,32 +824,65 @@ public class ChatbotController {
             // SECURITY: This audit entry persists even if chatbot is deleted, preventing abuse
             WebsiteScanAudit audit = new WebsiteScanAudit(user, chatbot.getWebsiteUrl(), estimatedPages, estimatedCost, chatbot.getId());
             websiteScanAuditRepository.save(audit);
-            
-            // Start website analysis asynchronously; when done, index for RAG then auto-run Christian content
-            websiteAnalysisService.analyzeWebsite(chatbot)
-                .thenAccept(contents -> {
-                    if (contents == null || contents.isEmpty()) return;
-                    try {
-                        Chatbot c = chatbotRepository.findById(chatbot.getId()).orElse(null);
-                        if (c == null) return;
-                        aiChatbotService.indexWebsiteContent(c);
-                        logger.info("Indexed {} pages for chatbot {} after analysis", contents.size(), c.getId());
-                        List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
-                        if (!matches.isEmpty()) {
-                            BibleVerse v = matches.get(0).getVerse();
-                            String verseText = v.getReference() + " - \"" + v.getText() + "\"";
-                            c.setBibleVerse(verseText);
-                            c.setJesusTeachingsEnabled(true);
-                            if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
-                            chatbotRepository.save(c);
-                            logger.info("Auto-enabled Christian content for chatbot {} with verse {}", c.getId(), v.getReference());
-                        }
-                    } catch (Exception e) {
-                        logger.warn("Could not auto-apply Christian content for chatbot {}: {}", chatbot.getId(), e.getMessage());
-                    }
-                });
 
-            // Return analysis status
+            // Helper: index + Christian content after analysis (used by both sync and async paths)
+            java.util.function.Consumer<List<WebsiteContent>> onAnalysisDone = contents -> {
+                if (contents == null || contents.isEmpty()) return;
+                try {
+                    Chatbot c = chatbotRepository.findById(chatbot.getId()).orElse(null);
+                    if (c == null) return;
+                    aiChatbotService.indexWebsiteContent(c);
+                    logger.info("Indexed {} pages for chatbot {} after analysis", contents.size(), c.getId());
+                    List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
+                    if (!matches.isEmpty()) {
+                        BibleVerse v = matches.get(0).getVerse();
+                        String verseText = v.getReference() + " - \"" + v.getText() + "\"";
+                        c.setBibleVerse(verseText);
+                        c.setJesusTeachingsEnabled(true);
+                        if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
+                        chatbotRepository.save(c);
+                        logger.info("Auto-enabled Christian content for chatbot {} with verse {}", c.getId(), v.getReference());
+                    }
+                } catch (Exception e) {
+                    logger.warn("Could not auto-apply Christian content for chatbot {}: {}", chatbot.getId(), e.getMessage());
+                }
+            };
+
+            // Single future: used for both sync (small sites) and async (large or timeout) paths
+            java.util.concurrent.CompletableFuture<List<WebsiteContent>> analysisFuture =
+                websiteAnalysisService.analyzeWebsite(chatbot);
+
+            // Fast path: for small sites (<=50 pages), wait for completion so content is ready when we return
+            final int syncPageThreshold = PlanLimits.FREE_MAX_PAGES;
+            final int syncTimeoutSeconds = 120;
+            if (estimatedPages <= syncPageThreshold) {
+                try {
+                    List<WebsiteContent> contents = analysisFuture.get(syncTimeoutSeconds, TimeUnit.SECONDS);
+                    if (contents != null && !contents.isEmpty()) {
+                        onAnalysisDone.accept(contents);
+                        Map<String, Object> response = Map.of(
+                            "status", "analysis_completed",
+                            "chatbotId", id,
+                            "websiteUrl", chatbot.getWebsiteUrl(),
+                            "estimatedPages", estimatedPages,
+                            "pagesIndexed", contents.size(),
+                            "message", "Website analysis completed. Content is ready for chat."
+                        );
+                        logger.info("Completed website analysis synchronously for chatbot: {} ({} pages)", 
+                            LogSanitizer.sanitize(chatbot.getName()), contents.size());
+                        return ResponseEntity.ok(response);
+                    }
+                } catch (TimeoutException e) {
+                    logger.info("Sync analysis timed out for chatbot {}, completion will continue in background", id);
+                } catch (ExecutionException | InterruptedException e) {
+                    logger.warn("Sync analysis failed for chatbot {}, completion will continue in background: {}", id, e.getMessage());
+                    if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                }
+            }
+
+            // When analysis completes (async or after sync timeout), index and auto-run Christian content
+            analysisFuture.thenAccept(onAnalysisDone);
+
             Map<String, Object> response = Map.of(
                 "status", "analysis_started",
                 "chatbotId", id,
@@ -788,8 +890,7 @@ public class ChatbotController {
                 "estimatedPages", estimatedPages,
                 "message", "Website analysis started. Bible verses and \"What Jesus Would Say\" will be enabled automatically when ready."
             );
-            
-            logger.info("Started website analysis for chatbot: {} (estimated {} pages)", 
+            logger.info("Started website analysis (async) for chatbot: {} (estimated {} pages)", 
                 LogSanitizer.sanitize(chatbot.getName()), estimatedPages);
             return ResponseEntity.ok(response);
             

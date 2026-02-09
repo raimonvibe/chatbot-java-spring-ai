@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, pollUntilAnalysisReady, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard } from 'lucide-react';
@@ -135,19 +135,15 @@ export default function Dashboard() {
       }
 
       const newChatbot = await createChatbotFromUrl(websiteUrl.trim());
-
-      // Keep loader visible for a moment to show completion
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Keep loader visible until website analysis is ready so preview works when they open it
+      if (newChatbot?.websiteUrl) {
+        await pollUntilAnalysisReady(newChatbot.id, { intervalMs: 2000, timeoutMs: 180000 });
+      }
 
       setChatbots([...chatbots, newChatbot]);
       setWebsiteUrl('');
       setShowCreateForm(false);
-      setCreating(false); // Hide loader only after successful creation
-
-      // Auto-analyze website if URL provided (after loader is hidden)
-      if (websiteUrl.trim()) {
-        handleAnalyzeWebsite(newChatbot.id, websiteUrl.trim());
-      }
+      setCreating(false);
     } catch (error: any) {
       console.error('Error creating chatbot:', error);
       setCreating(false); // Hide loader on error

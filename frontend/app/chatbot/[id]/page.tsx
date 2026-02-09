@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import Message from '@/components/Message';
-import { sendMessage, getChatbot, getQuickReplies, type Message as MessageType, type Chatbot } from '@/lib/api';
+import { sendMessage, getChatbot, getQuickReplies, pollUntilAnalysisReady, type Message as MessageType, type Chatbot } from '@/lib/api';
 import Link from 'next/link';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import CalligraphicFrame from '@/components/CalligraphicFrame';
@@ -31,13 +31,17 @@ export default function ChatbotPreview() {
   const [sessionId, setSessionId] = useState<string>('');
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const [jesusCardOpen, setJesusCardOpen] = useState(false);
+  /** When true, we are still waiting for website analysis so the chatbot can answer about the site. */
+  const [analysisLoading, setAnalysisLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
+    let cancelled = false;
     getChatbot(chatbotId)
-      .then((data) => {
+      .then(async (data) => {
+        if (cancelled) return;
         setChatbot(data);
         setMessages([
           {
@@ -47,12 +51,27 @@ export default function ChatbotPreview() {
             timestamp: Date.now(),
           },
         ]);
+        // If chatbot has a website, keep loading until analysis is ready so "tell me about this site" works
+        if (data.websiteUrl?.trim()) {
+          try {
+            await pollUntilAnalysisReady(chatbotId, { intervalMs: 2000, timeoutMs: 180000 });
+          } finally {
+            if (!cancelled) setAnalysisLoading(false);
+          }
+        } else {
+          setAnalysisLoading(false);
+        }
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) setAnalysisLoading(false);
+      });
 
     getQuickReplies(chatbotId)
       .then(setQuickReplies)
       .catch(console.error);
+
+    return () => { cancelled = true; };
   }, [chatbotId, isValidId]);
 
   useEffect(() => {
@@ -125,6 +144,26 @@ export default function ChatbotPreview() {
           >
             Back to Dashboard
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (analysisLoading) {
+    return (
+      <main className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center gap-1.5 mb-4">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-2.5 h-2.5 bg-brown-500 rounded-full animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+          <h2 className="text-lg font-semibold text-brown-800 mb-2">Setting up your chatbot</h2>
+          <p className="text-brown-700 text-sm">Analyzing your website so I can answer questions about it. This may take a minute.</p>
         </div>
       </main>
     );

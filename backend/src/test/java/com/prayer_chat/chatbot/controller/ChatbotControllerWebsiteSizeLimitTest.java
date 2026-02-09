@@ -199,11 +199,12 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Arrange
         String largeWebsiteUrl = "https://large-website.com";
         
-        // Paid users don't go through size check, so we don't need to stub estimateSize
         when(accessControlService.isPreviewMode(testUser)).thenReturn(false); // Paid user
         when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
+        // Onboarding calls estimateSize to choose sync vs async path (not for blocking paid users)
+        when(websiteSizeEstimator.estimateSize(largeWebsiteUrl)).thenReturn(100);
 
         // Act
         java.util.Map<String, String> request = new java.util.HashMap<>();
@@ -215,11 +216,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
 
         // Assert
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        
-        // Verify chatbot WAS created (size check should not block paid users)
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
-        // Verify size estimator was NOT called for paid users
-        verify(websiteSizeEstimator, never()).estimateSize(anyString());
     }
 
     @Test

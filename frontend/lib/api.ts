@@ -440,6 +440,37 @@ export async function createChatbot(data: {
   return response.json();
 }
 
+export interface AnalysisStatus {
+  ready: boolean;
+  pagesIndexed?: number;
+}
+
+export async function getAnalysisStatus(chatbotId: number): Promise<AnalysisStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analysis-status`, {
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to get analysis status');
+  }
+  const data = await response.json();
+  return { ready: !!data.ready, pagesIndexed: data.pagesIndexed ?? 0 };
+}
+
+/** Poll until website analysis is ready or timeout. Keeps loading screen until chatbot can answer about the site. */
+export async function pollUntilAnalysisReady(
+  chatbotId: number,
+  options: { intervalMs?: number; timeoutMs?: number } = {}
+): Promise<AnalysisStatus> {
+  const { intervalMs = 2000, timeoutMs = 180000 } = options; // default 2s poll, 3 min max
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const status = await getAnalysisStatus(chatbotId);
+    if (status.ready) return status;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return await getAnalysisStatus(chatbotId); // return last status even if not ready
+}
+
 export async function analyzeWebsite(chatbotId: number, websiteUrl: string): Promise<any> {
   const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analyze`, {
