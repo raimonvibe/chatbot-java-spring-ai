@@ -54,7 +54,7 @@ export default function ChatbotPreview() {
         // If chatbot has a website, keep loading until analysis is ready so "tell me about this site" works
         if (data.websiteUrl?.trim()) {
           try {
-            await pollUntilAnalysisReady(chatbotId, { intervalMs: 2000, timeoutMs: 180000 });
+            await pollUntilAnalysisReady(chatbotId);
           } finally {
             if (!cancelled) setAnalysisLoading(false);
           }

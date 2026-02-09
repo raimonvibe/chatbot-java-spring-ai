@@ -69,7 +69,7 @@ export default function OnboardingPage() {
       const chatbot = await createChatbotFromUrl(websiteUrl.trim());
       // Keep loading screen until website analysis is ready so preview is useful when user lands
       if (chatbot?.websiteUrl) {
-        await pollUntilAnalysisReady(chatbot.id, { intervalMs: 2000, timeoutMs: 180000 });
+        await pollUntilAnalysisReady(chatbot.id);
       }
       // Redirect to dashboard once creation (and analysis for site-backed bots) is ready
       router.push('/dashboard');

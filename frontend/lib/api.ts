@@ -445,15 +445,24 @@ export interface AnalysisStatus {
   pagesIndexed?: number;
 }
 
+const ANALYSIS_STATUS_FETCH_TIMEOUT_MS = 10000; // 10s per request so one slow response doesn't hang the UI
+
 export async function getAnalysisStatus(chatbotId: number): Promise<AnalysisStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analysis-status`, {
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error('Failed to get analysis status');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ANALYSIS_STATUS_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analysis-status`, {
+      credentials: 'include',
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get analysis status');
+    }
+    const data = await response.json();
+    return { ready: !!data.ready, pagesIndexed: data.pagesIndexed ?? 0 };
+  } finally {
+    clearTimeout(timeoutId);
   }
-  const data = await response.json();
-  return { ready: !!data.ready, pagesIndexed: data.pagesIndexed ?? 0 };
 }
 
 /** Poll until website analysis is ready or timeout. Keeps loading screen until chatbot can answer about the site. */
@@ -461,14 +470,21 @@ export async function pollUntilAnalysisReady(
   chatbotId: number,
   options: { intervalMs?: number; timeoutMs?: number } = {}
 ): Promise<AnalysisStatus> {
-  const { intervalMs = 2000, timeoutMs = 180000 } = options; // default 2s poll, 3 min max
+  const { intervalMs = 2000, timeoutMs = 120000 } = options; // default 2s poll, 2 min max (avoids feeling like a long hang)
   const start = Date.now();
+  let lastStatus: AnalysisStatus = { ready: false, pagesIndexed: 0 };
   while (Date.now() - start < timeoutMs) {
-    const status = await getAnalysisStatus(chatbotId);
-    if (status.ready) return status;
+    try {
+      const status = await getAnalysisStatus(chatbotId);
+      lastStatus = status;
+      if (status.ready) return status;
+    } catch (e) {
+      // One failed poll (network/timeout): keep last status and retry next interval instead of throwing
+      console.warn('Analysis status poll failed, retrying:', e);
+    }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  return await getAnalysisStatus(chatbotId); // return last status even if not ready
+  return lastStatus; // proceed after timeout so UI doesn't stall forever
 }
 
 export async function analyzeWebsite(chatbotId: number, websiteUrl: string): Promise<any> {

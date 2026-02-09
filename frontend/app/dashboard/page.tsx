@@ -137,7 +137,7 @@ export default function Dashboard() {
       const newChatbot = await createChatbotFromUrl(websiteUrl.trim());
       // Keep loader visible until website analysis is ready so preview works when they open it
       if (newChatbot?.websiteUrl) {
-        await pollUntilAnalysisReady(newChatbot.id, { intervalMs: 2000, timeoutMs: 180000 });
+        await pollUntilAnalysisReady(newChatbot.id);
       }
 
       setChatbots([...chatbots, newChatbot]);
