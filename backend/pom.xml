@@ -401,7 +401,7 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-test</artifactId>
-                <version>6.2.11</version>
+                <version>7.0.3</version>
             </dependency>
             <!-- Security: CVE-2025-41232, CVE-2025-41248 - force Spring Security version -->
             <dependency>
