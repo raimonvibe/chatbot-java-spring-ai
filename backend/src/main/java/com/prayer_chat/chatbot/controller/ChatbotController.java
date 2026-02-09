@@ -344,9 +344,34 @@ public class ChatbotController {
             logger.info("Created chatbot via onboarding: {} for user: {}", 
                 LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
 
-            // Start website analysis asynchronously (will also generate description)
+            // Start website analysis asynchronously; when done, index content and auto-enable Christian content
             try {
-                websiteAnalysisService.analyzeWebsite(savedChatbot);
+                Long savedId = savedChatbot.getId();
+                java.util.concurrent.CompletableFuture<List<com.prayer_chat.chatbot.model.WebsiteContent>> analysisFuture =
+                    websiteAnalysisService.analyzeWebsite(savedChatbot);
+                if (analysisFuture != null) {
+                    analysisFuture.thenAccept(contents -> {
+                        if (contents == null || contents.isEmpty()) return;
+                        try {
+                            Chatbot c = chatbotRepository.findById(savedId).orElse(null);
+                            if (c == null) return;
+                            aiChatbotService.indexWebsiteContent(c);
+                            logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
+                            List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
+                            if (!matches.isEmpty()) {
+                                BibleVerse v = matches.get(0).getVerse();
+                                String verseText = v.getReference() + " - \"" + v.getText() + "\"";
+                                c.setBibleVerse(verseText);
+                                c.setJesusTeachingsEnabled(true);
+                                if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
+                                chatbotRepository.save(c);
+                                logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Onboarding post-analysis step failed for chatbot {}: {}", savedId, e.getMessage());
+                        }
+                    });
+                }
             } catch (Exception e) {
                 logger.warn("Failed to start website analysis for onboarding chatbot {}: {}", 
                     savedChatbot.getId(), e.getMessage());
@@ -731,13 +756,15 @@ public class ChatbotController {
             WebsiteScanAudit audit = new WebsiteScanAudit(user, chatbot.getWebsiteUrl(), estimatedPages, estimatedCost, chatbot.getId());
             websiteScanAuditRepository.save(audit);
             
-            // Start website analysis asynchronously; when done, auto-run Christian content analysis and enable "What Jesus Would Say"
+            // Start website analysis asynchronously; when done, index for RAG then auto-run Christian content
             websiteAnalysisService.analyzeWebsite(chatbot)
                 .thenAccept(contents -> {
                     if (contents == null || contents.isEmpty()) return;
                     try {
                         Chatbot c = chatbotRepository.findById(chatbot.getId()).orElse(null);
                         if (c == null) return;
+                        aiChatbotService.indexWebsiteContent(c);
+                        logger.info("Indexed {} pages for chatbot {} after analysis", contents.size(), c.getId());
                         List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
                         if (!matches.isEmpty()) {
                             BibleVerse v = matches.get(0).getVerse();

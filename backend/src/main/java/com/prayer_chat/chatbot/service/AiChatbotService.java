@@ -261,6 +261,7 @@ public class AiChatbotService {
                 .limit(5)
                 .collect(Collectors.toList());
             if (contents.isEmpty()) {
+                logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", chatbot.getId());
                 return new ArrayList<>();
             }
             List<Document> fallbackDocs = new ArrayList<>();
@@ -282,6 +283,7 @@ public class AiChatbotService {
             // Try fallback on error too
             List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot).stream().limit(5).collect(Collectors.toList());
             if (contents.isEmpty()) {
+                logger.debug("Fallback: no website content for chatbot {} after vector store error", chatbot.getId());
                 return new ArrayList<>();
             }
             List<Document> fallbackDocs = new ArrayList<>();
@@ -461,6 +463,13 @@ public class AiChatbotService {
                 prompt.append(doc.getText()).append("\n\n");
             }
             prompt.append("--- End of website content ---\n");
+        } else {
+            // No content yet (analysis may still be running or failed). Apply to any website—do not invent info.
+            prompt.append("\n--- No website content is available yet ---\n");
+            prompt.append("The scanned website content for this chatbot is not available yet (analysis may still be running or the site could not be crawled). ");
+            prompt.append("Do NOT invent or guess information about the site. ");
+            prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), reply that the website content is still being analyzed and they can try again in a minute or two. ");
+            prompt.append("For other questions, answer helpfully but do not claim specific facts about the site.\n");
         }
 
         prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");

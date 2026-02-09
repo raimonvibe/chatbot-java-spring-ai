@@ -103,11 +103,18 @@ public class WebsiteAnalysisService {
     /**
      * Analyze a website and extract content for chatbot training.
      * Uses sitemap when available to discover more pages; then crawls from homepage and sitemap URLs.
+     * SECURITY: URL validated for SSRF before any network call. Uses minimal chatbot reference (id only)
+     * when saving so persistence works correctly from async threads.
      */
     public CompletableFuture<List<WebsiteContent>> analyzeWebsite(Chatbot chatbot) {
+        Long chatbotId = chatbot != null ? chatbot.getId() : null;
+        String baseUrl = chatbot != null ? chatbot.getWebsiteUrl() : null;
+        if (chatbotId == null || baseUrl == null || baseUrl.isBlank()) {
+            logger.warn("Website analysis skipped: missing chatbot id or website URL");
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
         return CompletableFuture.supplyAsync(() -> {
-            String baseUrl = chatbot.getWebsiteUrl();
-            logger.info("Starting website analysis for: {}", baseUrl);
+            logger.info("Starting website analysis for: {} (chatbot id: {})", baseUrl, chatbotId);
 
             // SSRF: validate before any network call
             if (!urlValidationService.isValidAndSafe(baseUrl)) {
@@ -117,6 +124,9 @@ public class WebsiteAnalysisService {
 
             Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
             List<WebsiteContent> extractedContent = Collections.synchronizedList(new ArrayList<>());
+            // Minimal reference for persistence from async thread (avoids detached-entity issues)
+            Chatbot ref = new Chatbot();
+            ref.setId(chatbotId);
 
             try {
                 List<String> seedUrls = collectSeedUrls(baseUrl);
@@ -126,7 +136,7 @@ public class WebsiteAnalysisService {
                     if (visitedUrls.size() >= maxPages) break;
                     String normalized = normalizeUrl(seed);
                     if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)) {
-                        crawlWebsite(seed, normalized, chatbot, visitedUrls, extractedContent, 0);
+                        crawlWebsite(seed, normalized, baseUrl, ref, visitedUrls, extractedContent, 0);
                     }
                 }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
@@ -198,8 +208,10 @@ public class WebsiteAnalysisService {
     
     /**
      * Recursively crawl website pages. Uses normalizedUrl for deduplication.
+     * @param baseUrlForDomain base website URL for same-domain link validation (not used for fetch)
+     * @param chatbotRef minimal chatbot reference (id only) for persisting WebsiteContent from async thread
      */
-    private void crawlWebsite(String urlToFetch, String normalizedUrl, Chatbot chatbot,
+    private void crawlWebsite(String urlToFetch, String normalizedUrl, String baseUrlForDomain, Chatbot chatbotRef,
                               Set<String> visitedUrls, List<WebsiteContent> extractedContent, int depth) {
 
         if (depth > maxDepth || visitedUrls.size() >= maxPages || visitedUrls.contains(normalizedUrl)) {
@@ -226,7 +238,7 @@ public class WebsiteAnalysisService {
             }
             Document document = response.parse();
 
-            WebsiteContent content = extractPageContent(chatbot, finalUrl, document);
+            WebsiteContent content = extractPageContent(chatbotRef, finalUrl, document);
             if (content != null && isValidContent(content)) {
                 extractedContent.add(content);
                 websiteContentRepository.save(content);
@@ -240,9 +252,9 @@ public class WebsiteAnalysisService {
                     String href = link.attr("abs:href");
                     if (href == null || href.isEmpty()) continue;
                     String norm = normalizeUrl(href);
-                    if (isValidUrl(href, chatbot.getWebsiteUrl()) && !visitedUrls.contains(norm)) {
+                    if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)) {
                         CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
-                            crawlWebsite(href, norm, chatbot, visitedUrls, extractedContent, depth + 1)
+                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1)
                         );
                         futures.add(future);
                     }
