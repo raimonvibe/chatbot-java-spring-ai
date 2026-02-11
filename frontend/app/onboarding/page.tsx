@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Book, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
-import { createChatbotFromUrl, getAllChatbots, checkAuth, pollUntilAnalysisReady } from '@/lib/api';
+import { createChatbotFromUrl, getAllChatbots, checkAuth } from '@/lib/api';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
 
@@ -65,13 +65,8 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Create chatbot with simplified onboarding (analysis may run sync or async)
-      const chatbot = await createChatbotFromUrl(websiteUrl.trim());
-      // Keep loading screen until website analysis is ready so preview is useful when user lands
-      if (chatbot?.websiteUrl) {
-        await pollUntilAnalysisReady(chatbot.id);
-      }
-      // Redirect to dashboard once creation (and analysis for site-backed bots) is ready
+      // Create chatbot (analysis runs in background; preview page shows "Setting up..." until ready)
+      await createChatbotFromUrl(websiteUrl.trim());
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Error creating chatbot:', err);

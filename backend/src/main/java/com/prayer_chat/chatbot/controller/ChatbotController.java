@@ -366,60 +366,12 @@ public class ChatbotController {
             logger.info("Created chatbot via onboarding: {} for user: {}", 
                 LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
 
-            // Website analysis: fast path for small sites (<=50 pages) so content is ready when we return
+            // Website analysis: run async only so 201 returns quickly; preview page shows "Setting up..." until ready
             try {
                 Long savedId = savedChatbot.getId();
-                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
                 java.util.concurrent.CompletableFuture<List<WebsiteContent>> analysisFuture =
                     websiteAnalysisService.analyzeWebsite(savedChatbot);
-                if (analysisFuture == null) {
-                    // no-op
-                } else if (estimatedPages <= PlanLimits.FREE_MAX_PAGES) {
-                    try {
-                        List<WebsiteContent> contents = analysisFuture.get(120, TimeUnit.SECONDS);
-                        if (contents != null && !contents.isEmpty()) {
-                            Chatbot c = chatbotRepository.findById(savedId).orElse(null);
-                            if (c != null) {
-                                aiChatbotService.indexWebsiteContent(c);
-                                logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
-                                List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
-                                if (!matches.isEmpty()) {
-                                    BibleVerse v = matches.get(0).getVerse();
-                                    String verseText = v.getReference() + " - \"" + v.getText() + "\"";
-                                    c.setBibleVerse(verseText);
-                                    c.setJesusTeachingsEnabled(true);
-                                    if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
-                                    chatbotRepository.save(c);
-                                    logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
-                                }
-                            }
-                        }
-                    } catch (TimeoutException | ExecutionException | InterruptedException e) {
-                        if (e instanceof InterruptedException) Thread.currentThread().interrupt();
-                        logger.debug("Onboarding sync analysis incomplete, continuing in background: {}", e.getMessage());
-                        analysisFuture.thenAccept(contents -> {
-                            if (contents == null || contents.isEmpty()) return;
-                            try {
-                                Chatbot c = chatbotRepository.findById(savedId).orElse(null);
-                                if (c == null) return;
-                                aiChatbotService.indexWebsiteContent(c);
-                                logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
-                                List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
-                                if (!matches.isEmpty()) {
-                                    BibleVerse v = matches.get(0).getVerse();
-                                    String verseText = v.getReference() + " - \"" + v.getText() + "\"";
-                                    c.setBibleVerse(verseText);
-                                    c.setJesusTeachingsEnabled(true);
-                                    if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
-                                    chatbotRepository.save(c);
-                                    logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
-                                }
-                            } catch (Exception ex) {
-                                logger.warn("Onboarding post-analysis step failed for chatbot {}: {}", savedId, ex.getMessage());
-                            }
-                        });
-                    }
-                } else {
+                if (analysisFuture != null) {
                     analysisFuture.thenAccept(contents -> {
                         if (contents == null || contents.isEmpty()) return;
                         try {
