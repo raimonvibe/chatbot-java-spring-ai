@@ -161,7 +161,7 @@ export default function PaywallModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
@@ -169,7 +169,7 @@ export default function PaywallModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', duration: 0.3 }}
-          className="bg-gradient-to-br from-brown-50 via-gold-50 to-brown-50 rounded-2xl p-8 max-w-lg w-full border-2 border-gold-300 shadow-2xl relative"
+          className="bg-gradient-to-br from-brown-50 via-gold-50 to-brown-50 rounded-2xl p-6 sm:p-8 max-w-lg w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border-2 border-gold-300 shadow-2xl relative my-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
@@ -230,11 +230,11 @@ export default function PaywallModal({
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
             <button
               onClick={handleUpgrade}
               disabled={loading}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-brown-600 via-gold-600 to-brown-600 text-white rounded-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="flex-1 min-w-0 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-brown-600 via-gold-600 to-brown-600 text-white rounded-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 font-semibold text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {loading ? (
                 <>
@@ -250,7 +250,7 @@ export default function PaywallModal({
             </button>
             <button
               onClick={onClose}
-              className="px-6 py-4 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors font-medium"
+              className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-4 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors font-medium"
             >
               Maybe Later
             </button>

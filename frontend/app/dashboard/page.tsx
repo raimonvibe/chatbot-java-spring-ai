@@ -490,34 +490,34 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
             onClick={() => setEmbedCode('')}
           >
             <div
-              className="bg-brown-50 rounded-2xl p-8 max-w-2xl w-full border-2 border-brown-300 shadow-2xl"
+              className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border-2 border-brown-300 shadow-2xl my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 mb-4">
-                <Code className="w-6 h-6 text-brown-700" />
-                <h3 className="text-2xl font-bold text-brown-800">Embed Code for {selectedChatbot.name}</h3>
+                <Code className="w-6 h-6 text-brown-700 flex-shrink-0" />
+                <h3 className="text-xl sm:text-2xl font-bold text-brown-800 truncate min-w-0">Embed Code for {selectedChatbot.name}</h3>
               </div>
-              <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900">
+              <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900 text-sm sm:text-base">
                 <code>{embedCode}</code>
               </pre>
-              <div className="flex gap-4">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                 <button
                   onClick={async () => {
                     await navigator.clipboard.writeText(embedCode);
                     // Copy successful - no popup needed, user can see the code
                   }}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 min-w-0 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   <Copy className="w-4 h-4" />
                   Copy Code
                 </button>
                 <button
                   onClick={() => setEmbedCode('')}
-                  className="px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors flex items-center justify-center gap-2"
                 >
                   <X className="w-4 h-4" />
                   Close
