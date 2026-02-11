@@ -212,19 +212,19 @@ export default function PaywallModal({
               </div>
             </div>
 
-            {/* Features list */}
+            {/* Features list — must match actual plan benefits (see PlanLimits: 1 chatbot; paid = embed + larger scans + more messages) */}
             <div className="grid grid-cols-1 gap-3 mb-6 text-left">
               <div className="flex items-center gap-3 bg-white/50 rounded-lg p-3">
-                <Sparkles className="w-5 h-5 text-gold-600 flex-shrink-0" />
-                <span className="text-brown-800 font-medium">Unlimited chatbots</span>
+                <Zap className="w-5 h-5 text-gold-600 flex-shrink-0" />
+                <span className="text-brown-800 font-medium">Embed on your website</span>
               </div>
               <div className="flex items-center gap-3 bg-white/50 rounded-lg p-3">
-                <Zap className="w-5 h-5 text-gold-600 flex-shrink-0" />
-                <span className="text-brown-800 font-medium">Integration scripts</span>
+                <Sparkles className="w-5 h-5 text-gold-600 flex-shrink-0" />
+                <span className="text-brown-800 font-medium">Larger website scans (500+ pages)</span>
               </div>
               <div className="flex items-center gap-3 bg-white/50 rounded-lg p-3">
                 <Crown className="w-5 h-5 text-gold-600 flex-shrink-0" />
-                <span className="text-brown-800 font-medium">Advanced analytics</span>
+                <span className="text-brown-800 font-medium">More messages per day</span>
               </div>
             </div>
           </div>

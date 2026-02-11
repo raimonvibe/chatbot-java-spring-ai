@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, pollUntilAnalysisReady, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard } from 'lucide-react';
@@ -135,11 +135,6 @@ export default function Dashboard() {
       }
 
       const newChatbot = await createChatbotFromUrl(websiteUrl.trim());
-      // Keep loader visible until website analysis is ready so preview works when they open it
-      if (newChatbot?.websiteUrl) {
-        await pollUntilAnalysisReady(newChatbot.id);
-      }
-
       setChatbots([...chatbots, newChatbot]);
       setWebsiteUrl('');
       setShowCreateForm(false);
