@@ -10,8 +10,8 @@ const BORDER = 16;
 const INNER_TRIM = 2;
 
 /**
- * Ornamental frame around the chat window: soft gradient border, thin gold trim,
- * and minimal corner strokes. Avoids busy patterns so the frame feels elegant, not noisy.
+ * Ornamental frame around the chat window: soft gradient border and thin gold trim.
+ * No corner flourishes—clean lining only.
  */
 export default function CalligraphicFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
@@ -34,11 +34,6 @@ export default function CalligraphicFrame({ children, className = '' }: { childr
             <stop offset="0%" stopColor="#d4a84b" />
             <stop offset="100%" stopColor="#b8860b" />
           </linearGradient>
-          {/* Corner stroke: single warm tone */}
-          <linearGradient id="frame-corner" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#a67c52" />
-            <stop offset="100%" stopColor="#8b6914" />
-          </linearGradient>
         </defs>
 
         {/* Outer frame: four sides only (border), no fill over content */}
@@ -58,40 +53,6 @@ export default function CalligraphicFrame({ children, className = '' }: { childr
           strokeWidth={0.8}
           rx={BORDER * 0.2}
           opacity={0.9}
-        />
-
-        {/* Corner accents: one simple flowing stroke per corner (no filled blobs) */}
-        <path
-          d="M 0 28 Q 0 6 22 0 Q 38 0 42 10"
-          fill="none"
-          stroke="url(#frame-corner)"
-          strokeWidth={1.2}
-          strokeLinecap="round"
-          opacity={0.7}
-        />
-        <path
-          d={`M ${VIEW_WIDTH} 28 Q ${VIEW_WIDTH} 6 ${VIEW_WIDTH - 22} 0 Q ${VIEW_WIDTH - 38} 0 ${VIEW_WIDTH - 42} 10`}
-          fill="none"
-          stroke="url(#frame-corner)"
-          strokeWidth={1.2}
-          strokeLinecap="round"
-          opacity={0.7}
-        />
-        <path
-          d={`M 0 ${VIEW_HEIGHT - 28} Q 0 ${VIEW_HEIGHT - 6} 22 ${VIEW_HEIGHT} Q 38 ${VIEW_HEIGHT} 42 ${VIEW_HEIGHT - 10}`}
-          fill="none"
-          stroke="url(#frame-corner)"
-          strokeWidth={1.2}
-          strokeLinecap="round"
-          opacity={0.7}
-        />
-        <path
-          d={`M ${VIEW_WIDTH} ${VIEW_HEIGHT - 28} Q ${VIEW_WIDTH} ${VIEW_HEIGHT - 6} ${VIEW_WIDTH - 22} ${VIEW_HEIGHT} Q ${VIEW_WIDTH - 38} ${VIEW_HEIGHT} ${VIEW_WIDTH - 42} ${VIEW_HEIGHT - 10}`}
-          fill="none"
-          stroke="url(#frame-corner)"
-          strokeWidth={1.2}
-          strokeLinecap="round"
-          opacity={0.7}
         />
       </svg>
       <div className="relative z-10 h-full min-h-0">{children}</div>
