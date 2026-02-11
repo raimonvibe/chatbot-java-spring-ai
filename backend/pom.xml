@@ -35,6 +35,8 @@
         <postgresql.version>42.7.8</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
+        <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
+        <spring-framework.version>6.2.11</spring-framework.version>
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
         <dependency-check.skip>true</dependency-check.skip>
         <!-- Set -Djacoco.check.skip=true to skip coverage check when running verify (e.g. without Docker) -->
@@ -251,7 +253,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>2.0.3</version>
+            <version>1.21.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -325,83 +327,83 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-core</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-web</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-webmvc</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
-            <!-- Force all Spring Framework to 6.2.11 so no 6.1.x remains (CVE-2025-41249, 41242, 41234, 2024-38820) -->
+            <!-- Force all Spring Framework to same version to avoid NoSuchMethodError (CVE-2025-41249, 41242, 41234, 2024-38820) -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-beans</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-context</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-aop</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-expression</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-orm</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-tx</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-jcl</artifactId>
-                <version>6.2.15</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-aspects</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-jdbc</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-messaging</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-context-support</artifactId>
-                <version>6.2.11</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-webflux</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-test</artifactId>
-                <version>7.0.3</version>
+                <version>${spring-framework.version}</version>
             </dependency>
             <!-- Security: CVE-2025-41232, CVE-2025-41248 - force Spring Security version -->
             <dependency>
