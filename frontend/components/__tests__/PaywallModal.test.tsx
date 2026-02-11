@@ -140,9 +140,9 @@ describe('PaywallModal', () => {
   it('should display feature list', () => {
     render(<PaywallModal isOpen={true} onClose={jest.fn()} />);
     
-    expect(screen.getByText(/Unlimited chatbots/i)).toBeInTheDocument();
-    expect(screen.getByText(/Integration scripts/i)).toBeInTheDocument();
-    expect(screen.getByText(/Advanced analytics/i)).toBeInTheDocument();
+    expect(screen.getByText(/Embed on your website/i)).toBeInTheDocument();
+    expect(screen.getByText(/Larger website scans/i)).toBeInTheDocument();
+    expect(screen.getByText(/More messages per day/i)).toBeInTheDocument();
   });
 
   it('should display pricing hint', () => {

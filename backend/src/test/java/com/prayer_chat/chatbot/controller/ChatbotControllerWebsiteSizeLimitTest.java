@@ -203,8 +203,6 @@ class ChatbotControllerWebsiteSizeLimitTest {
         when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
-        // Onboarding calls estimateSize to choose sync vs async path (not for blocking paid users)
-        when(websiteSizeEstimator.estimateSize(largeWebsiteUrl)).thenReturn(100);
 
         // Act
         java.util.Map<String, String> request = new java.util.HashMap<>();
