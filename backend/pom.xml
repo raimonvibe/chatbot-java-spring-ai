@@ -36,7 +36,7 @@
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
         <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
-        <spring-framework.version>6.2.11</spring-framework.version>
+        <spring-framework.version>6.2.16</spring-framework.version>
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
         <dependency-check.skip>true</dependency-check.skip>
         <!-- Set -Djacoco.check.skip=true to skip coverage check when running verify (e.g. without Docker) -->
