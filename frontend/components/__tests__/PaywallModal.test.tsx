@@ -147,7 +147,7 @@ describe('PaywallModal', () => {
 
   it('should display pricing hint', () => {
     render(<PaywallModal isOpen={true} onClose={jest.fn()} />);
-    expect(screen.getByText(/Starting at \$29\/month/i)).toBeInTheDocument();
+    expect(screen.getByText(/Starting at \$12\/month/i)).toBeInTheDocument();
   });
 
   describe('Stripe Checkout Integration', () => {

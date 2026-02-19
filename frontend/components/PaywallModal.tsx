@@ -258,7 +258,7 @@ export default function PaywallModal({
 
           {/* Pricing hint */}
           <p className="text-center text-sm text-brown-600 mt-4">
-            Starting at $29/month • Cancel anytime
+            Starting at $12/month • Cancel anytime
           </p>
         </motion.div>
       </motion.div>
