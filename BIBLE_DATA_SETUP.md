@@ -155,14 +155,10 @@ Response:
 
 If you have a pre-generated `bible_embeddings.json` file (e.g., from Google Colab), you can import it instead of generating embeddings via API. This is **much faster and cheaper**!
 
-See **[EMBEDDINGS_IMPORT_RENDER.md](./EMBEDDINGS_IMPORT_RENDER.md)** for detailed instructions on uploading and importing the 662MB embeddings file on Render.
+See **[docs/EMBEDDINGS_IMPORT_RENDER.md](./docs/EMBEDDINGS_IMPORT_RENDER.md)** for full instructions.
 
-**Quick Summary:**
-1. Upload `bible_embeddings.json` to Render (via cloud storage or Render Shell)
-2. Temporarily enable import: Set `APP_BIBLE_ALLOW_IMPORT=true` in Render environment variables
-3. Call import endpoint: `POST /api/admin/bible/import-embeddings?filePath=data/bible_embeddings.json`
-4. Verify import: `GET /api/admin/bible/status`
-5. **Important:** Disable `APP_BIBLE_ALLOW_IMPORT` after import for security!
+**Recommended on Render (no large file on GitHub, ephemeral disk):**  
+Set `IMPORT_EMBEDDINGS_FILE=/tmp/data/bible_embeddings.json` and **`IMPORT_EMBEDDINGS_URL`** to a direct download link (e.g. Google Drive). The app downloads the file on startup, imports into the DB, then you remove both env vars. No Shell upload needed; data persists in PostgreSQL.
 
 ## Admin Endpoints
 

@@ -76,13 +76,22 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         System.out.println("🔍 EmbeddingImportRunner.run() CALLED!");
         System.out.println("=".repeat(60));
         logger.info("🔍 EmbeddingImportRunner.run() called");
+
+        // Option 1: Multiple URLs (for large file split into parts — e.g. Google Drive size limits)
+        String urlsList = environment.getProperty("IMPORT_EMBEDDINGS_URLS");
+        if (urlsList != null && !urlsList.trim().isEmpty()) {
+            runMultiUrlImport(urlsList.trim());
+            return;
+        }
+
+        // Option 2: Single file (optional single URL)
         String filePath = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
         System.out.println("🔍 IMPORT_EMBEDDINGS_FILE value: " + (filePath != null ? filePath : "null"));
         logger.info("🔍 IMPORT_EMBEDDINGS_FILE value: {}", filePath != null ? filePath : "null");
         
         if (filePath == null || filePath.trim().isEmpty()) {
             logger.info("IMPORT_EMBEDDINGS_FILE not set. Skipping embedding import.");
-            logger.info("To import embeddings, set: IMPORT_EMBEDDINGS_FILE=data/bible_embeddings.json");
+            logger.info("To import embeddings, set: IMPORT_EMBEDDINGS_FILE=... or IMPORT_EMBEDDINGS_URLS=url1,url2,...");
             return;
         }
 
@@ -136,8 +145,8 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             logger.warn("⚠️  File not found after {} retries: {}", maxRetries, file.getAbsolutePath());
             logger.warn("⚠️  Options:");
             logger.warn("⚠️    1. Set IMPORT_EMBEDDINGS_URL to auto-download on startup");
-            logger.warn("⚠️    2. Upload the file manually to: {}", file.getAbsolutePath());
-            logger.warn("⚠️    3. Then manually restart the service");
+            logger.warn("⚠️    2. Set IMPORT_EMBEDDINGS_URLS=url1,url2,... for multiple smaller parts");
+            logger.warn("⚠️    3. Upload the file manually to: {}", file.getAbsolutePath());
             logger.warn("⚠️  The service will continue running normally.");
             logger.warn("=".repeat(60));
             return; // Exit gracefully, don't fail startup
@@ -152,8 +161,7 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             logger.info("✅ Embedding import completed successfully!");
             logger.info("📊 Imported embeddings for {} verses", imported);
             logger.info("=".repeat(60));
-            logger.info("⚠️  IMPORTANT: Remove IMPORT_EMBEDDINGS_FILE environment variable");
-            logger.info("⚠️  IMPORTANT: Remove 'import-embeddings' from SPRING_PROFILES_ACTIVE");
+            logger.info("⚠️  IMPORTANT: Remove IMPORT_EMBEDDINGS_FILE and IMPORT_EMBEDDINGS_URL");
             logger.info("=".repeat(60));
             
         } catch (Exception e) {
@@ -161,6 +169,61 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             logger.error("Please check the file path and try again.");
             throw e;
         }
+    }
+
+    /**
+     * Import from multiple URLs (e.g. when the full file is too large for a single Google Drive download).
+     * Each URL must point to a JSON file with the same format: { "verses": [ ... ] }.
+     * Use scripts/split-embeddings-for-import.py to split the large file into parts.
+     */
+    private void runMultiUrlImport(String urlsList) {
+        String[] urls = urlsList.split(",");
+        int totalImported = 0;
+        int partIndex = 0;
+        File tmpDir = new File("/tmp/data");
+        if (!tmpDir.exists()) {
+            tmpDir.mkdirs();
+        }
+
+        logger.info("📦 Multi-part import: {} URL(s)", urls.length);
+        System.out.println("📦 Importing from " + urls.length + " part(s)...");
+
+        for (String urlStr : urls) {
+            urlStr = urlStr.trim();
+            if (urlStr.isEmpty()) continue;
+            partIndex++;
+
+            if (!urlValidationService.isValidAndSafe(urlStr)) {
+                logger.error("❌ SECURITY: Invalid or unsafe URL skipped: {}", urlStr);
+                continue;
+            }
+
+            File partFile = new File(tmpDir, "bible_embeddings_part_" + partIndex + ".json");
+            try {
+                logger.info("📥 Part {}/{}: Downloading from URL...", partIndex, urls.length);
+                System.out.println("📥 Part " + partIndex + "/" + urls.length + ": downloading...");
+                boolean downloaded = downloadFile(urlStr, partFile);
+                if (!downloaded) {
+                    logger.error("❌ Part {} download failed, skipping", partIndex);
+                    if (partFile.exists()) partFile.delete();
+                    continue;
+                }
+                String path = partFile.getAbsolutePath();
+                int imported = embeddingImporterService.importEmbeddings(path);
+                totalImported += imported;
+                logger.info("✅ Part {}/{}: imported {} verses (total so far: {})", partIndex, urls.length, imported, totalImported);
+            } catch (Exception e) {
+                logger.error("❌ Part {} import failed", partIndex, e);
+                throw new RuntimeException("Part " + partIndex + " import failed: " + e.getMessage(), e);
+            } finally {
+                if (partFile.exists()) partFile.delete();
+            }
+        }
+
+        logger.info("=".repeat(60));
+        logger.info("✅ Multi-part embedding import completed! Total verses: {}", totalImported);
+        logger.info("⚠️  IMPORTANT: Remove IMPORT_EMBEDDINGS_URLS environment variable");
+        logger.info("=".repeat(60));
     }
 
     /**
