@@ -29,7 +29,7 @@
         <!-- Security: CVE-2025-41248, CVE-2025-22223 - Spring Security authorization bypass. Fixed in 6.4.11+ -->
         <spring-security.version>7.0.2</spring-security.version>
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
-        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects. Fixed in 1.2.8+ -->
         <reactor-netty.version>1.3.3</reactor-netty.version>
         <postgresql.version>42.7.8</postgresql.version>
