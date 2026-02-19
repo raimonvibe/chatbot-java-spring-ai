@@ -38,19 +38,10 @@ export class AuthHelper {
       localStorage.setItem('user', JSON.stringify(userData));
     }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' }, token: E2E_MOCK_AUTH_TOKEN });
 
-    // Intercept navigation to OAuth endpoint
-    // Use a promise to handle navigation properly
+    // Intercept navigation to Google OAuth (app uses direct redirect to accounts.google.com)
     let navigationPromise: ReturnType<typeof this.page.goto> | null = null;
-    
-    await this.page.route('**/oauth2/authorization/google', async (route) => {
-      // Fulfill the route immediately
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/html',
-        body: '<html><body>OAuth intercepted</body></html>',
-      });
-      
-      // Navigate to dashboard - don't await here to avoid blocking
+    await this.page.route('**/*accounts.google.com*', async (route) => {
+      await route.abort();
       navigationPromise = this.page.goto('/dashboard').catch(() => null);
     });
 

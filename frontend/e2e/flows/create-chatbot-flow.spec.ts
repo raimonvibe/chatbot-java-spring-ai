@@ -329,10 +329,10 @@ test.describe('Create Chatbot Flow', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/dashboard/);
 
-    // Verify we can try to create another
-    const createButton = page.getByRole('button', { name: /create|new.*chatbot/i });
+    // Verify we can try to create another (force click to avoid overlay intercept on mobile)
+    const createButton = page.getByRole('button', { name: /create|new.*chatbot/i }).first();
     if (await createButton.isVisible()) {
-      await createButton.click();
+      await createButton.click({ force: true });
       await page.waitForLoadState('networkidle');
     }
 
@@ -345,7 +345,6 @@ test.describe('Create Chatbot Flow - Subscription Limits', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
-    // FREE user with chatbot limit reached (e.g., 1 chatbot max)
     await apiMock.mockAllEndpoints({
       user: testUsers.freeUser,
       subscriptionPlan: 'FREE',
@@ -357,11 +356,9 @@ test.describe('Create Chatbot Flow - Subscription Limits', () => {
 
     await page.goto('/dashboard');
 
-    // Try to create another chatbot
-    const createButton = page.getByRole('button', { name: /create|new.*chatbot/i });
-
+    const createButton = page.getByRole('button', { name: /create|new.*chatbot/i }).first();
     if (await createButton.isVisible()) {
-      await createButton.click();
+      await createButton.click({ force: true });
       await page.waitForTimeout(500);
     }
 

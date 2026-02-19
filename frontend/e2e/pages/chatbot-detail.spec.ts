@@ -302,13 +302,11 @@ test.describe('Chatbot Detail Page', () => {
 
     await page.goto(`/chatbot/${chatbot.id}`);
 
-    // Look for back/dashboard link
-    const backLink = page.getByRole('link', { name: /dashboard|back/i });
-
-    if (await backLink.isVisible()) {
-      await backLink.click();
-      await expect(page).toHaveURL(/\/dashboard/);
-    }
+    // Target "Back to Dashboard" specifically (Header has "Back to Home" -> /)
+    const backToDashboardLink = page.getByRole('link', { name: /back to dashboard/i });
+    await expect(backToDashboardLink).toBeVisible();
+    await backToDashboardLink.click();
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('should show chatbot statistics', async ({ page }) => {

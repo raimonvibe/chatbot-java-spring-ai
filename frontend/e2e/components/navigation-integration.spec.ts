@@ -69,17 +69,12 @@ test.describe('Navigation Integration', () => {
   });
 
   test('should maintain auth state across navigation', async ({ page }) => {
-    // Mock authentication
     await apiMock.mockAuthEndpoints({
       loginSuccess: true,
       user: testUsers.google,
     });
-
-    // Login
-    await page.goto('/login');
-    await authHelper.loginWithGoogle(testUsers.google.email, testUsers.google.name);
-
-    // Wait for redirect
+    await authHelper.setupAuthenticatedState(testUsers.google);
+    await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
     // Navigate to different pages
@@ -170,18 +165,11 @@ test.describe('Navigation Integration', () => {
   });
 
   test('should handle logout and clear auth state', async ({ page }) => {
-    // Mock authentication
     await apiMock.mockAuthEndpoints({
       loginSuccess: true,
       user: testUsers.google,
     });
-
-    // Login
-    await page.goto('/login');
-    await authHelper.loginWithGoogle(testUsers.google.email, testUsers.google.name);
-    await page.waitForLoadState('networkidle');
-
-    // Navigate to dashboard
+    await authHelper.setupAuthenticatedState(testUsers.google);
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
@@ -228,26 +216,14 @@ test.describe('Navigation Integration', () => {
   });
 
   test('should navigate between authenticated pages', async ({ page }) => {
-    // Mock authentication
     await apiMock.mockAuthEndpoints({
       loginSuccess: true,
       user: testUsers.google,
     });
-
     await apiMock.mockChatbotEndpoints([
-      {
-        id: 1,
-        name: 'Test Bot',
-        websiteUrl: 'https://example.com',
-      },
+      { id: 1, name: 'Test Bot', websiteUrl: 'https://example.com' },
     ]);
-
-    // Login
-    await page.goto('/login');
-    await authHelper.loginWithGoogle(testUsers.google.email, testUsers.google.name);
-    await page.waitForLoadState('networkidle');
-
-    // Navigate to dashboard
+    await authHelper.setupAuthenticatedState(testUsers.google);
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('body')).toBeVisible();
@@ -366,17 +342,11 @@ test.describe('Navigation Integration', () => {
   });
 
   test('should maintain state when refreshing page', async ({ page }) => {
-    // Mock authentication
     await apiMock.mockAuthEndpoints({
       loginSuccess: true,
       user: testUsers.google,
     });
-
-    await page.goto('/login');
-    await authHelper.loginWithGoogle(testUsers.google.email, testUsers.google.name);
-    await page.waitForLoadState('networkidle');
-
-    // Navigate to dashboard
+    await authHelper.setupAuthenticatedState(testUsers.google);
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 

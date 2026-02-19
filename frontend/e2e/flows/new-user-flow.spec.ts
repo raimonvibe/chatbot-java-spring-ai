@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from '../helpers/auth';
 import { ApiMock } from '../helpers/api-mock';
-import { testUsers, testSubscriptions } from '../fixtures/users';
+import { testUsers, testSubscriptions, testChatbots } from '../fixtures/users';
 
 /**
  * New User Flow E2E Tests
@@ -90,32 +90,29 @@ test.describe('New User Flow', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
-    // Mock endpoints
+    // Mock with one chatbot so dashboard does not redirect to onboarding
     await apiMock.mockAllEndpoints({
       user: testUsers.freeUser,
       subscriptionPlan: 'FREE',
       subscriptionStatus: 'ACTIVE',
-      chatbots: [],
+      chatbots: [testChatbots[0]],
     });
 
     await authHelper.setupAuthenticatedState(testUsers.freeUser);
 
-    // Go to dashboard
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/dashboard/);
 
     // Look for upgrade prompt or pricing link
     const upgradeLink = page.getByRole('link', { name: /upgrade|pricing|plans/i });
-
     if (await upgradeLink.isVisible()) {
       await upgradeLink.click();
       await expect(page).toHaveURL(/\/pricing/);
     } else {
-      // Navigate directly to pricing
-      await page.goto('/pricing');
+      await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL(/\/pricing/);
     }
 
-    // Verify pricing page loads
     await expect(page.locator('main, [role="main"]')).toBeVisible();
   });
 
@@ -204,20 +201,19 @@ test.describe('New User Flow', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
+    // One chatbot so dashboard does not redirect to onboarding
     await apiMock.mockAllEndpoints({
       user: testUsers.local,
       subscriptionPlan: 'FREE',
       subscriptionStatus: 'ACTIVE',
-      chatbots: [],
+      chatbots: [testChatbots[0]],
     });
 
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Test navigation to different pages
     const pages = ['/dashboard', '/pricing'];
-
     for (const pagePath of pages) {
-      await page.goto(pagePath);
+      await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL(pagePath);
       await expect(page.locator('body')).toBeVisible();
     }
@@ -227,22 +223,20 @@ test.describe('New User Flow', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
+    // One chatbot so dashboard stays (no redirect to onboarding)
     await apiMock.mockAllEndpoints({
       user: testUsers.local,
       subscriptionPlan: 'FREE',
       subscriptionStatus: 'ACTIVE',
-      chatbots: [],
+      chatbots: [testChatbots[0]],
     });
 
-    // Setup auth
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Navigate to dashboard
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/dashboard/);
 
-    // Reload page
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
     // Should still be on dashboard (auth persisted)
     await expect(page).toHaveURL(/\/dashboard/);

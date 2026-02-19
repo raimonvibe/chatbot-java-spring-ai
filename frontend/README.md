@@ -182,6 +182,26 @@ const chatbotId = 1; // Your chatbot ID
 - Timestamps for each message
 - Smooth entrance animations
 
+## Testing
+
+### Unit tests (Jest)
+```bash
+npm run test:ci
+```
+
+### E2E tests (Playwright)
+**Before first run**, install Playwright browsers (required; CI does this automatically):
+```bash
+npx playwright install
+```
+Optionally install only Chromium for faster installs: `npx playwright install chromium`
+
+Then run E2E tests (starts the dev server automatically):
+```bash
+npm run test:e2e
+```
+See `package.json` for other E2E scripts (e.g. `test:e2e:critical`, `test:e2e:pages`).
+
 ## Browser Support
 
 - Chrome (latest)

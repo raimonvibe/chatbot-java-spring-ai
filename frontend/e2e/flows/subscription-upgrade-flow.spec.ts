@@ -15,22 +15,20 @@ test.describe('Subscription Upgrade Flow', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
-    // Start as FREE user
+    // One chatbot so dashboard does not redirect to onboarding
     await apiMock.mockAllEndpoints({
       user: testUsers.freeUser,
       subscriptionPlan: 'FREE',
       subscriptionStatus: 'ACTIVE',
-      chatbots: [],
+      chatbots: [testChatbots[0]],
     });
 
     await authHelper.setupAuthenticatedState(testUsers.freeUser);
 
-    // Step 1: Go to dashboard
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/dashboard/);
 
-    // Step 2: Navigate to pricing page
-    await page.goto('/pricing');
+    await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/pricing/);
 
     // Step 3: Look for BASIC plan

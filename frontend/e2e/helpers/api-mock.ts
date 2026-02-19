@@ -176,6 +176,15 @@ export class ApiMock {
         });
       }
     });
+
+    // Mock analysis-status so chatbot preview/detail page leaves loading state
+    await this.page.route('**/api/chatbots/*/analysis-status', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ready: true, pagesIndexed: 1 }),
+      });
+    });
   }
 
   /**
