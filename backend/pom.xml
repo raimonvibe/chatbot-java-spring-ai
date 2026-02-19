@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.13</version>
+        <version>4.0.2</version>
         <!-- Spring Boot 3.3.x: on Maven Central everywhere; 4.0.2 can be missing on some mirrors/Docker builds -->
         <relativePath/>
     </parent>
