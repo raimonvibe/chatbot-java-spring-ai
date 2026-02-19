@@ -25,7 +25,7 @@
         <!-- Security: Tomcat CVEs (incl. CVE-2025-61795 DoS multipart cleanup). Fixed in 10.1.47+. Use 10.1.x (not 11.x): Spring Boot 3.3 expects setRejectIllegalHeader which Tomcat 11 removed. -->
         <tomcat.version>11.0.18</tomcat.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
-        <logback.version>1.5.25</logback.version>
+        <logback.version>1.5.31</logback.version>
         <!-- Security: CVE-2025-41248, CVE-2025-22223 - Spring Security authorization bypass. Fixed in 6.4.11+ -->
         <spring-security.version>7.0.3</spring-security.version>
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
