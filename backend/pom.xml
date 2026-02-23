@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.13</version>
+        <version>4.0.3</version>
         <!-- Pinned to 3.3.13: spring-boot-starter-aop:4.0.2 not yet on Maven Central; 3.3.x has all starters -->
         <relativePath/>
     </parent>
