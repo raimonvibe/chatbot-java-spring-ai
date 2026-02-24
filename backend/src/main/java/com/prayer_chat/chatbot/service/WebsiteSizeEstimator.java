@@ -23,7 +23,7 @@ public class WebsiteSizeEstimator {
     
     private static final Logger logger = LoggerFactory.getLogger(WebsiteSizeEstimator.class);
     
-    private static final int TIMEOUT_MS = 5000; // 5 seconds timeout for estimation
+    private static final int TIMEOUT_MS = 2000; // 2s per step (keep fast UX; SSRF validation unchanged)
     private static final String USER_AGENT = "PrayerChatCrawler/1.0 (+https://prayer-chat.com/bot)";
     
     private final UrlValidationService urlValidationService;

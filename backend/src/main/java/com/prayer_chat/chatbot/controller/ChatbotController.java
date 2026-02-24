@@ -41,9 +41,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import com.prayer_chat.chatbot.model.WebsiteContent;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService.BibleVerseMatch;
@@ -800,39 +797,9 @@ public class ChatbotController {
                 }
             };
 
-            // Single future: used for both sync (small sites) and async (large or timeout) paths
+            // Always async: return immediately so UI doesn't block; frontend polls analysis-status until ready
             java.util.concurrent.CompletableFuture<List<WebsiteContent>> analysisFuture =
                 websiteAnalysisService.analyzeWebsite(chatbot);
-
-            // Fast path: for small sites (<=50 pages), wait for completion so content is ready when we return
-            final int syncPageThreshold = PlanLimits.FREE_MAX_PAGES;
-            final int syncTimeoutSeconds = 120;
-            if (estimatedPages <= syncPageThreshold) {
-                try {
-                    List<WebsiteContent> contents = analysisFuture.get(syncTimeoutSeconds, TimeUnit.SECONDS);
-                    if (contents != null && !contents.isEmpty()) {
-                        onAnalysisDone.accept(contents);
-                        Map<String, Object> response = Map.of(
-                            "status", "analysis_completed",
-                            "chatbotId", id,
-                            "websiteUrl", chatbot.getWebsiteUrl(),
-                            "estimatedPages", estimatedPages,
-                            "pagesIndexed", contents.size(),
-                            "message", "Website analysis completed. Content is ready for chat."
-                        );
-                        logger.info("Completed website analysis synchronously for chatbot: {} ({} pages)", 
-                            LogSanitizer.sanitize(chatbot.getName()), contents.size());
-                        return ResponseEntity.ok(response);
-                    }
-                } catch (TimeoutException e) {
-                    logger.info("Sync analysis timed out for chatbot {}, completion will continue in background", id);
-                } catch (ExecutionException | InterruptedException e) {
-                    logger.warn("Sync analysis failed for chatbot {}, completion will continue in background: {}", id, e.getMessage());
-                    if (e instanceof InterruptedException) Thread.currentThread().interrupt();
-                }
-            }
-
-            // When analysis completes (async or after sync timeout), index and auto-run Christian content
             analysisFuture.thenAccept(onAnalysisDone);
 
             Map<String, Object> response = Map.of(
