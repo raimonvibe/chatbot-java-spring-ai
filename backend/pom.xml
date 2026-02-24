@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.13</version>
+        <version>4.0.3</version>
         <!-- Pinned to 3.3.13: spring-boot-starter-aop:4.0.2 not yet on Maven Central; 3.3.x has all starters -->
         <relativePath/>
     </parent>
@@ -23,9 +23,9 @@
         <java.version>17</java.version>
         <spring-ai.version>1.1.2</spring-ai.version>
         <!-- Security: Tomcat CVEs (incl. CVE-2025-61795). Fixed in 10.1.47+. Use 10.1.x: Spring Boot 3.3 expects setRejectIllegalHeader which Tomcat 11 removed. -->
-        <tomcat.version>10.1.49</tomcat.version>
+        <tomcat.version>11.0.18</tomcat.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
-        <logback.version>1.5.31</logback.version>
+        <logback.version>1.5.32</logback.version>
         <!-- Spring Security version managed by Spring Boot 3.3.13 (7.x requires Spring Framework 6.4+ / HttpMessageConverters$ClientBuilder) -->
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
@@ -172,7 +172,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.40.0</version>
+            <version>4.41.0</version>
         </dependency>
 
         <!-- Jackson 2.x from Spring Boot 3.3.x parent (RestAssured and export compatible) -->
@@ -435,7 +435,7 @@
             <dependency>
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
-                <version>10.7</version>
+                <version>10.8</version>
             </dependency>
             <!-- Security: CVE-2024-12798, CVE-2025-11226, malicious logback.xml, ACE config (Dependabot #11). Fixed in 1.5.25+ -->
             <dependency>
