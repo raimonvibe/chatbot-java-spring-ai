@@ -122,11 +122,19 @@ public class WebsiteAnalysisService {
                 return Collections.emptyList();
             }
 
-            Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
-            List<WebsiteContent> extractedContent = Collections.synchronizedList(new ArrayList<>());
             // Minimal reference for persistence from async thread (avoids detached-entity issues)
             Chatbot ref = new Chatbot();
             ref.setId(chatbotId);
+
+            // Clear previous scan so re-analyze replaces content instead of appending duplicates
+            try {
+                websiteContentRepository.deleteByChatbot(ref);
+            } catch (Exception e) {
+                logger.warn("Could not clear previous website content for chatbot {}: {}", chatbotId, e.getMessage());
+            }
+
+            Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
+            List<WebsiteContent> extractedContent = Collections.synchronizedList(new ArrayList<>());
 
             try {
                 List<String> seedUrls = collectSeedUrls(baseUrl);

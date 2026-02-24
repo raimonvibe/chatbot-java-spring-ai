@@ -19,6 +19,11 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
      * Find all website content for a specific chatbot
      */
     List<WebsiteContent> findByChatbot(Chatbot chatbot);
+
+    /**
+     * Delete all website content for a chatbot (used before re-scan to avoid duplicates).
+     */
+    void deleteByChatbot(Chatbot chatbot);
     
     /**
      * Find indexed content for a chatbot
