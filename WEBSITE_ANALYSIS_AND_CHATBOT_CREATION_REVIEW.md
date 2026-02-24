@@ -80,7 +80,17 @@
 
 ---
 
-## 5. Optional follow-ups
+## 5. SPA / client-rendered sites (e.g. Lagos Health Navigator, Vercel)
+
+**Why "still being analyzed" after a minute:** Sites like https://lagos-health-navigator.vercel.app/ are often **client-side rendered** (React/Next.js on Vercel). The crawler uses **Jsoup**, which does **not** run JavaScript. It only sees the initial HTML: a shell with `<div id="root"></div>` and script tags. So `extractMainContent` gets almost no body text, we skip the page (content &lt; 50 chars), and no `WebsiteContent` is saved. The chatbot then has nothing to answer from and shows "website content is still being analyzed".
+
+**Fix applied:** When body content is minimal (&lt; 50 chars), we now build a **fallback** from **title + meta description + og:description** (and use **og:title** when the document title is empty). If that gives at least 30 characters, we save one page so the chatbot can at least answer from meta/SEO content. This helps SPAs that have good meta tags in the initial HTML.
+
+**Limitation:** If the SPA sends no meta tags in the initial HTML (everything injected by JS), we still get nothing. Full support would require a headless browser (e.g. Puppeteer/Playwright), which is heavier to run and maintain.
+
+---
+
+## 6. Optional follow-ups
 
 - **Vector store cleanup on re-scan:** For a persistent vector store, consider deleting documents with `chatbotId == chatbot.getId()` before re-indexing (if the store supports filter-based delete or delete-by-id using stored vector IDs).
 - **Indexing in batches:** `indexWebsiteContent` currently calls `vectorStore.add(List.of(document))` per page; batching (e.g. 10–20 documents per add) could reduce round-trips to the embedding API.

@@ -284,17 +284,28 @@ public class WebsiteAnalysisService {
             if (title == null || title.trim().isEmpty()) {
                 title = extractTitleFromContent(document);
             }
+            String ogTitle = extractOgTitle(document);
+            if ((title == null || title.trim().isEmpty()) && ogTitle != null && !ogTitle.trim().isEmpty()) {
+                title = ogTitle.trim();
+            }
             
             // Extract main content
             String content = extractMainContent(document);
             
             // Extract metadata
             String metaDescription = extractMetaDescription(document);
+            String ogDescription = extractOgDescription(document);
             String metaKeywords = extractMetaKeywords(document);
             String language = extractLanguage(document);
             
+            // SPA / client-rendered sites: Jsoup gets minimal HTML (no JS execution). Use title + meta as fallback so we index something.
             if (content == null || content.trim().length() < 50) {
-                return null; // Skip pages with very little content (lowered from 100 to allow more pages)
+                String fallback = buildFallbackContentFromMeta(title, metaDescription, ogDescription);
+                if (fallback.length() < 30) {
+                    return null; // No usable content at all
+                }
+                logger.debug("Using title+meta fallback for SPA/minimal page: {}", url);
+                content = fallback;
             }
 
             // Prepend title and description so RAG has full context
@@ -378,6 +389,40 @@ public class WebsiteAnalysisService {
     private String extractMetaDescription(Document document) {
         Element metaDesc = document.select("meta[name=description]").first();
         return metaDesc != null ? metaDesc.attr("content") : null;
+    }
+
+    /**
+     * Extract og:description for SPA/SEO fallback
+     */
+    private String extractOgDescription(Document document) {
+        Element og = document.select("meta[property=og:description]").first();
+        return og != null ? og.attr("content") : null;
+    }
+
+    /**
+     * Extract og:title for SPA/SEO fallback
+     */
+    private String extractOgTitle(Document document) {
+        Element og = document.select("meta[property=og:title]").first();
+        return og != null ? og.attr("content") : null;
+    }
+
+    /**
+     * Build minimal content from title + meta for client-rendered (SPA) pages that have little body text.
+     */
+    private String buildFallbackContentFromMeta(String title, String metaDescription, String ogDescription) {
+        StringBuilder sb = new StringBuilder();
+        if (title != null && !title.trim().isEmpty()) {
+            sb.append(title.trim());
+        }
+        String desc = metaDescription != null && !metaDescription.trim().isEmpty()
+            ? metaDescription.trim()
+            : (ogDescription != null && !ogDescription.trim().isEmpty() ? ogDescription.trim() : null);
+        if (desc != null) {
+            if (sb.length() > 0) sb.append(". ");
+            sb.append(desc);
+        }
+        return sb.toString();
     }
     
     /**
