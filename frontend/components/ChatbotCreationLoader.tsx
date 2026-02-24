@@ -132,12 +132,11 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               </motion.div>
             </div>
 
-            {/* Title */}
+            {/* Title - opacity only so layout stays fixed */}
             <motion.h2
               key="title"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="text-4xl md:text-5xl font-bold text-white mb-4"
             >
               {isAnalysis ? 'Setting up your chatbot' : 'Creating Your Chatbot'}
@@ -167,26 +166,18 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               </motion.p>
             )}
 
-            {/* Current step with icon */}
+            {/* Current step with icon - opacity only to avoid layout jump */}
             <motion.div
               key={`step-${currentStep}`}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="flex flex-col items-center gap-4 mb-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col items-center gap-4 mb-8 min-h-[5rem]"
             >
-              <motion.div
-                animate={{
-                  rotate: [0, 10, -10, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              >
+              <div>
                 <CurrentIcon className={`w-12 h-12 ${loadingSteps[currentStep].color}`} strokeWidth={2} />
-              </motion.div>
+              </div>
               <div className="flex items-center gap-3">
                 <PulseLoader 
                   color="#d4af37" 
@@ -214,13 +205,14 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               />
             </div>
 
-            {/* Fun facts or tips */}
+            {/* Fun facts or tips - opacity only, no vertical movement */}
             <motion.div
               key={`tip-${currentStep}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-sm text-brown-300 italic"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-sm text-brown-300 italic min-h-[1.5rem]"
             >
               {isAnalysis ? (
                 <>
