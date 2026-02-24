@@ -8,6 +8,7 @@ import { sendMessage, getChatbot, getQuickReplies, pollUntilAnalysisReady, type 
 import Link from 'next/link';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import CalligraphicFrame from '@/components/CalligraphicFrame';
+import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 
 /** Validates and parses chatbot ID from URL. Returns a positive integer or null if invalid (no API calls with bad ID). */
 function parseChatbotId(raw: string | string[] | undefined): number | null {
@@ -151,21 +152,9 @@ export default function ChatbotPreview() {
 
   if (analysisLoading) {
     return (
-      <main className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50 p-4">
-        <div className="text-center max-w-md">
-          <div className="flex justify-center gap-1.5 mb-4">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="w-2.5 h-2.5 bg-brown-500 rounded-full animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
-          <h2 className="text-lg font-semibold text-brown-800 mb-2">Setting up your chatbot</h2>
-          <p className="text-brown-700 text-sm">Analyzing your website so I can answer questions about it. This may take a minute.</p>
-        </div>
-      </main>
+      <>
+        <ChatbotCreationLoader isVisible={true} mode="analysis" chatbotName={chatbot?.name} isScanningWebsite />
+      </>
     );
   }
 

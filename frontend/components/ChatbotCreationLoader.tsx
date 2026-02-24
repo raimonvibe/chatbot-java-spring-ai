@@ -10,17 +10,28 @@ interface ChatbotCreationLoaderProps {
   isVisible: boolean;
   chatbotName?: string;
   isScanningWebsite?: boolean; // For longer processes like website scanning
+  /** 'analysis' = fancy full-screen shown on chatbot preview while website is being analyzed */
+  mode?: 'creating' | 'analysis';
 }
 
-const loadingSteps = [
+const creatingSteps = [
   { icon: Sparkles, text: 'Initializing your chatbot...', color: 'text-gold-600' },
   { icon: Brain, text: 'Training AI with your content...', color: 'text-brown-600' },
   { icon: Zap, text: 'Optimizing responses...', color: 'text-gold-600' },
   { icon: Book, text: 'Finalizing your chatbot...', color: 'text-brown-600' },
 ];
 
-export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanningWebsite = false }: ChatbotCreationLoaderProps) {
+const analysisSteps = [
+  { icon: Sparkles, text: 'Discovering pages on your website...', color: 'text-gold-600' },
+  { icon: Brain, text: 'Reading and understanding your content...', color: 'text-brown-600' },
+  { icon: Zap, text: 'Building knowledge for your chatbot...', color: 'text-gold-600' },
+  { icon: Book, text: 'Almost ready! Preparing to answer questions...', color: 'text-brown-600' },
+];
+
+export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanningWebsite = false, mode = 'creating' }: ChatbotCreationLoaderProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const loadingSteps = mode === 'analysis' ? analysisSteps : creatingSteps;
+  const isAnalysis = mode === 'analysis';
 
   useEffect(() => {
     if (!isVisible) {
@@ -36,7 +47,7 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
     return () => {
       clearInterval(stepInterval);
     };
-  }, [isVisible]);
+  }, [isVisible, loadingSteps.length]);
 
   if (!isVisible) return null;
 
@@ -98,9 +109,8 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               >
                 <div className="absolute inset-0 bg-gold-500/30 rounded-full blur-xl" />
                 <div className="relative z-10 flex items-center justify-center">
-                  {isScanningWebsite ? (
-                    // Lottie animation for longer processes (website scanning)
-                    // Using a simple rotating circle animation
+                  {isScanningWebsite || isAnalysis ? (
+                    // Rotating circle for website scanning / analysis
                     <div className="w-24 h-24 flex items-center justify-center">
                       <motion.div
                         animate={{ rotate: 360 }}
@@ -130,8 +140,20 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               exit={{ opacity: 0, y: -20 }}
               className="text-4xl md:text-5xl font-bold text-white mb-4"
             >
-              Creating Your Chatbot
+              {isAnalysis ? 'Setting up your chatbot' : 'Creating Your Chatbot'}
             </motion.h2>
+
+            {/* Subtitle for analysis mode */}
+            {isAnalysis && (
+              <motion.p
+                key="analysis-subtitle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-lg text-brown-200 mb-6 max-w-md mx-auto"
+              >
+                Analyzing your website so I can answer questions about it. This may take a minute.
+              </motion.p>
+            )}
 
             {/* Chatbot name - sanitized to prevent XSS */}
             {chatbotName && (
@@ -200,10 +222,21 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               exit={{ opacity: 0, y: -10 }}
               className="text-sm text-brown-300 italic"
             >
-              {currentStep === 0 && "✨ Your chatbot is learning to understand your content..."}
-              {currentStep === 1 && "🧠 Processing thousands of words to build knowledge..."}
-              {currentStep === 2 && "⚡ Fine-tuning responses for the best user experience..."}
-              {currentStep === 3 && "📚 Almost ready! Preparing your chatbot for launch..."}
+              {isAnalysis ? (
+                <>
+                  {currentStep === 0 && "✨ Discovering what your site is about..."}
+                  {currentStep === 1 && "🧠 Reading and understanding your pages..."}
+                  {currentStep === 2 && "⚡ Building a knowledge base for your chatbot..."}
+                  {currentStep === 3 && "📚 Almost ready! You'll be able to ask me about your site soon."}
+                </>
+              ) : (
+                <>
+                  {currentStep === 0 && "✨ Your chatbot is learning to understand your content..."}
+                  {currentStep === 1 && "🧠 Processing thousands of words to build knowledge..."}
+                  {currentStep === 2 && "⚡ Fine-tuning responses for the best user experience..."}
+                  {currentStep === 3 && "📚 Almost ready! Preparing your chatbot for launch..."}
+                </>
+              )}
             </motion.div>
 
             {/* Floating particles */}
