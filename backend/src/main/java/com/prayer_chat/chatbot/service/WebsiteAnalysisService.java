@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.service;
 
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.WebsiteContent;
+import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -39,6 +40,7 @@ public class WebsiteAnalysisService {
 
     private final WebsiteContentRepository websiteContentRepository;
     private final UrlValidationService urlValidationService;
+    private final ChatbotRepository chatbotRepository;
     private final ExecutorService executorService;
     
     @Value("${app.website-analysis.max-pages:50}")
@@ -71,6 +73,9 @@ public class WebsiteAnalysisService {
         "[role=navigation]", "[role=banner]", ".social-share", ".share-buttons", ".comments"
     );
 
+    /** Host suffixes that typically serve SPAs (client-rendered); we try headless first for these on the homepage. */
+    private static final String[] SPA_HOST_SUFFIXES = { ".vercel.app", ".netlify.app", ".web.app", ".firebaseapp.com" };
+
     /** Selectors for main content, in priority order. First match with enough text wins. */
     private static final String[] MAIN_CONTENT_SELECTORS = {
         "main",
@@ -86,9 +91,11 @@ public class WebsiteAnalysisService {
     
     public WebsiteAnalysisService(WebsiteContentRepository websiteContentRepository,
                                   UrlValidationService urlValidationService,
+                                  ChatbotRepository chatbotRepository,
                                   @Autowired(required = false) HeadlessFetchService headlessFetchService) {
         this.websiteContentRepository = websiteContentRepository;
         this.urlValidationService = urlValidationService;
+        this.chatbotRepository = chatbotRepository;
         this.headlessFetchService = headlessFetchService;
         this.executorService = Executors.newFixedThreadPool(10);
     }
@@ -128,13 +135,13 @@ public class WebsiteAnalysisService {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
         return CompletableFuture.supplyAsync(() -> {
-            logger.info("Starting website analysis for: {} (chatbot id: {})", baseUrl, chatbotId);
-
-            // SSRF: validate before any network call
-            if (!urlValidationService.isValidAndSafe(baseUrl)) {
-                logger.warn("Blocked website analysis: URL failed validation (SSRF protection): {}", urlValidationService.extractDomain(baseUrl));
+            // Complete and normalize URL (add https if missing, strip fragment) so any URL is analyzable
+            String urlToAnalyze = urlValidationService.completeAndValidate(baseUrl).orElse(null);
+            if (urlToAnalyze == null) {
+                logger.warn("Website analysis skipped: URL could not be completed or failed validation: {}", urlValidationService.extractDomain(baseUrl));
                 return Collections.emptyList();
             }
+            logger.info("Starting website analysis for: {} (chatbot id: {})", urlToAnalyze, chatbotId);
 
             // Minimal reference for persistence from async thread (avoids detached-entity issues)
             Chatbot ref = new Chatbot();
@@ -151,7 +158,7 @@ public class WebsiteAnalysisService {
             List<WebsiteContent> extractedContent = Collections.synchronizedList(new ArrayList<>());
 
             try {
-                List<String> seedUrls = collectSeedUrls(baseUrl);
+                List<String> seedUrls = collectSeedUrls(urlToAnalyze);
                 logger.info("Crawl seeds: {} (homepage + {} from sitemap)", seedUrls.size(), Math.max(0, seedUrls.size() - 1));
 
                 AtomicInteger headlessUsed = new AtomicInteger(0);
@@ -159,10 +166,22 @@ public class WebsiteAnalysisService {
                     if (visitedUrls.size() >= maxPages) break;
                     String normalized = normalizeUrl(seed);
                     if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)) {
-                        crawlWebsite(seed, normalized, baseUrl, ref, visitedUrls, extractedContent, 0, headlessUsed);
+                        crawlWebsite(seed, normalized, urlToAnalyze, ref, visitedUrls, extractedContent, 0, headlessUsed);
                     }
                 }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
+                // Persist completed/normalized URL on chatbot so future use has canonical form
+                if (!urlToAnalyze.equals(baseUrl)) {
+                    try {
+                        chatbotRepository.findById(chatbotId).ifPresent(c -> {
+                            c.setWebsiteUrl(urlToAnalyze);
+                            chatbotRepository.save(c);
+                            logger.debug("Updated chatbot {} websiteUrl to completed form", chatbotId);
+                        });
+                    } catch (Exception e) {
+                        logger.warn("Could not persist completed URL for chatbot {}: {}", chatbotId, e.getMessage());
+                    }
+                }
             } catch (Exception e) {
                 logger.error("Error during website analysis", e);
             }
@@ -252,25 +271,54 @@ public class WebsiteAnalysisService {
         visitedUrls.add(normalizedUrl);
 
         try {
-            Connection conn = Jsoup.connect(urlToFetch)
-                .userAgent(userAgent)
-                .timeout(timeoutSeconds * 1000)
-                .followRedirects(true);
-            Connection.Response response = conn.execute();
-            // SSRF: validate final URL after redirects (redirect could point to internal host)
-            String finalUrl = response.url().toString();
-            if (!urlValidationService.isValidAndSafe(finalUrl)) {
-                logger.warn("Blocked crawl after redirect to unsafe URL: {}", urlValidationService.extractDomain(finalUrl));
-                return;
-            }
-            Document document = response.parse();
+            String finalUrl = urlToFetch;
+            Document document = null;
+            WebsiteContent content = null;
 
-            WebsiteContent content = extractPageContent(chatbotRef, finalUrl, document);
+            // For homepage on known SPA hosts, try headless first so we get full client-rendered content
+            boolean tryHeadlessFirst = depth == 0 && headlessUsed.get() < maxHeadlessPagesPerScan
+                && headlessFetchService != null && headlessFetchService.isHeadlessEnabled()
+                && isLikelySpaHost(urlToFetch);
+
+            if (tryHeadlessFirst) {
+                Optional<String> renderedHtml = headlessFetchService.fetchRenderedHtml(urlToFetch);
+                if (renderedHtml.isPresent()) {
+                    try {
+                        document = Jsoup.parse(renderedHtml.get(), urlToFetch, Parser.htmlParser());
+                        finalUrl = urlToFetch;
+                        content = extractPageContent(chatbotRef, finalUrl, document);
+                        if (content != null && content.getContent() != null && content.getContent().length() >= 50) {
+                            headlessUsed.incrementAndGet();
+                            logger.info("Headless-first got content for SPA homepage {} ({} chars)", urlToFetch, content.getContent().length());
+                        } else {
+                            content = null;
+                            document = null;
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Headless-first parse failed for {}: {}", urlToFetch, e.getMessage());
+                    }
+                }
+            }
+
+            if (document == null) {
+                Connection conn = Jsoup.connect(urlToFetch)
+                    .userAgent(userAgent)
+                    .timeout(timeoutSeconds * 1000)
+                    .followRedirects(true);
+                Connection.Response response = conn.execute();
+                finalUrl = response.url().toString();
+                if (!urlValidationService.isValidAndSafe(finalUrl)) {
+                    logger.warn("Blocked crawl after redirect to unsafe URL: {}", urlValidationService.extractDomain(finalUrl));
+                    return;
+                }
+                document = response.parse();
+                content = extractPageContent(chatbotRef, finalUrl, document);
+            }
 
             // If Jsoup got minimal content (likely SPA) and we have headless budget, retry with headless browser
             boolean minimalFromJsoup = content == null || (content.getContent() != null && content.getContent().length() < 200);
             if (minimalFromJsoup && headlessUsed.get() < maxHeadlessPagesPerScan
-                && headlessFetchService != null && headlessFetchService.isHeadlessEnabled()) {
+                && headlessFetchService != null && headlessFetchService.isHeadlessEnabled() && !tryHeadlessFirst) {
                 Optional<String> renderedHtml = headlessFetchService.fetchRenderedHtml(urlToFetch);
                 if (renderedHtml.isPresent()) {
                     try {
@@ -489,6 +537,24 @@ public class WebsiteAnalysisService {
         return "en"; // Default to English
     }
     
+    /**
+     * True if the URL host is a known SPA host (e.g. Vercel, Netlify) where Jsoup often gets minimal HTML.
+     */
+    private boolean isLikelySpaHost(String url) {
+        if (url == null || url.isEmpty()) return false;
+        try {
+            String host = URI.create(url).getHost();
+            if (host == null) return false;
+            String lower = host.toLowerCase();
+            for (String suffix : SPA_HOST_SUFFIXES) {
+                if (lower.endsWith(suffix)) return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * Check if URL is valid for crawling
      */

@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.service;
 
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.WebsiteContent;
+import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,10 +16,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -42,11 +45,14 @@ class WebsiteAnalysisServiceSecurityTest {
     @Mock
     private UrlValidationService urlValidationService;
 
+    @Mock
+    private ChatbotRepository chatbotRepository;
+
     private WebsiteAnalysisService analysisService;
 
     @BeforeEach
     void setUp() {
-        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, null);
+        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, chatbotRepository, null);
 
         // Configure service with secure defaults
         ReflectionTestUtils.setField(analysisService, "maxPages", 50);
@@ -71,16 +77,16 @@ class WebsiteAnalysisServiceSecurityTest {
     })
     @DisplayName("SECURITY: Must block localhost access (SSRF)")
     void mustBlockLocalhost_ssrfProtection(String maliciousUrl) throws Exception {
-        // Arrange
+        // Arrange - completeAndValidate returns empty for invalid/unsafe URLs
         Chatbot chatbot = createChatbot(maliciousUrl);
-        when(urlValidationService.isValidAndSafe(maliciousUrl)).thenReturn(false);
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
         List<WebsiteContent> content = result.get();
 
         // Assert - MUST NOT crawl localhost
-        verify(urlValidationService, atLeastOnce()).isValidAndSafe(maliciousUrl);
+        verify(urlValidationService, atLeastOnce()).completeAndValidate(maliciousUrl);
         assertThat(content).isEmpty();
         verify(websiteContentRepository, never()).save(any());
     }
@@ -99,14 +105,14 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustBlockPrivateIpRanges_ssrfProtection(String privateIp) throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot(privateIp);
-        when(urlValidationService.isValidAndSafe(privateIp)).thenReturn(false);
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
         List<WebsiteContent> content = result.get();
 
         // Assert - MUST NOT access private networks
-        verify(urlValidationService, atLeastOnce()).isValidAndSafe(privateIp);
+        verify(urlValidationService, atLeastOnce()).completeAndValidate(privateIp);
         assertThat(content).isEmpty();
         verify(websiteContentRepository, never()).save(any());
     }
@@ -125,14 +131,14 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustBlockCloudMetadata_criticalSsrfProtection(String metadataUrl) throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot(metadataUrl);
-        when(urlValidationService.isValidAndSafe(metadataUrl)).thenReturn(false);
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
         List<WebsiteContent> content = result.get();
 
         // Assert - CRITICAL: Cloud metadata access = full AWS/GCP/Azure compromise
-        verify(urlValidationService, atLeastOnce()).isValidAndSafe(metadataUrl);
+        verify(urlValidationService, atLeastOnce()).completeAndValidate(metadataUrl);
         assertThat(content).isEmpty();
         verify(websiteContentRepository, never()).save(any());
     }
@@ -150,14 +156,14 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustBlockFileProtocol_localFileAccess(String fileUrl) throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot(fileUrl);
-        when(urlValidationService.isValidAndSafe(fileUrl)).thenReturn(false);
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
         List<WebsiteContent> content = result.get();
 
         // Assert - MUST NOT read local files
-        verify(urlValidationService, atLeastOnce()).isValidAndSafe(fileUrl);
+        verify(urlValidationService, atLeastOnce()).completeAndValidate(fileUrl);
         assertThat(content).isEmpty();
         verify(websiteContentRepository, never()).save(any());
     }
@@ -174,14 +180,14 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustBlockNonHttpProtocols(String url) throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot(url);
-        when(urlValidationService.isValidAndSafe(url)).thenReturn(false);
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
         List<WebsiteContent> content = result.get();
 
         // Assert
-        verify(urlValidationService, atLeastOnce()).isValidAndSafe(url);
+        verify(urlValidationService, atLeastOnce()).completeAndValidate(url);
         assertThat(content).isEmpty();
     }
 
@@ -192,9 +198,8 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustValidateUrls_afterRedirects() throws Exception {
         // Arrange - Attacker tries: https://safe.com -> http://localhost
         Chatbot chatbot = createChatbot("https://safe.com");
-
-        // First URL is valid, but service must re-validate after redirect
-        when(urlValidationService.isValidAndSafe("https://safe.com")).thenReturn(true);
+        when(urlValidationService.completeAndValidate("https://safe.com")).thenReturn(Optional.of("https://safe.com/"));
+        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
         lenient().when(urlValidationService.isValidAndSafe(argThat(url ->
             url != null && url.contains("localhost")))).thenReturn(false);
 
@@ -214,9 +219,8 @@ class WebsiteAnalysisServiceSecurityTest {
         // Arrange - DNS rebinding: safe.com initially resolves to 1.2.3.4,
         // later resolves to 127.0.0.1
         Chatbot chatbot = createChatbot("http://safe.com");
-
-        when(urlValidationService.isValidAndSafe("http://safe.com"))
-            .thenReturn(true);  // First check: valid
+        when(urlValidationService.completeAndValidate("http://safe.com")).thenReturn(Optional.of("http://safe.com/"));
+        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
@@ -234,6 +238,7 @@ class WebsiteAnalysisServiceSecurityTest {
         // Arrange
         ReflectionTestUtils.setField(analysisService, "maxDepth", 2);
         Chatbot chatbot = createChatbot("https://example.com");
+        when(urlValidationService.completeAndValidate(anyString())).thenAnswer(inv -> Optional.of(inv.getArgument(0).toString()));
         when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act
@@ -251,6 +256,7 @@ class WebsiteAnalysisServiceSecurityTest {
         // Arrange
         ReflectionTestUtils.setField(analysisService, "maxPages", 10);
         Chatbot chatbot = createChatbot("https://example.com");
+        when(urlValidationService.completeAndValidate(anyString())).thenAnswer(inv -> Optional.of(inv.getArgument(0).toString()));
         when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act
@@ -294,10 +300,8 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustOnlyCrawlSameDomain_noCrossDomain() throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot("https://example.com");
-        when(urlValidationService.isValidAndSafe("https://example.com")).thenReturn(true);
-
-        // Different domain should be rejected by internal validation (lenient as may not be called)
-        lenient().when(urlValidationService.isValidAndSafe("https://evil.com")).thenReturn(true);
+        when(urlValidationService.completeAndValidate(anyString())).thenAnswer(inv -> Optional.of(inv.getArgument(0).toString()));
+        when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act
         CompletableFuture<List<WebsiteContent>> result = analysisService.analyzeWebsite(chatbot);
@@ -327,6 +331,7 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustSkipBinaryFiles(String url) throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot("https://example.com");
+        when(urlValidationService.completeAndValidate(anyString())).thenAnswer(inv -> Optional.of(inv.getArgument(0).toString()));
         when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act
@@ -353,6 +358,7 @@ class WebsiteAnalysisServiceSecurityTest {
     void mustLimitContentSize_preventMemoryExhaustion() throws Exception {
         // Arrange
         Chatbot chatbot = createChatbot("https://example.com");
+        when(urlValidationService.completeAndValidate(anyString())).thenAnswer(inv -> Optional.of(inv.getArgument(0).toString()));
         when(urlValidationService.isValidAndSafe(anyString())).thenReturn(true);
 
         // Act

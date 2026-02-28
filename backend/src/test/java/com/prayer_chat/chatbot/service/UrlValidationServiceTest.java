@@ -6,6 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -493,5 +495,41 @@ class UrlValidationServiceTest {
             assertTrue(urlValidationService.isValidAndSafe(url),
                 "CDN URL should be allowed: " + url);
         }
+    }
+
+    // ============================================================================
+    // completeAndValidate (URL completion for crawling)
+    // ============================================================================
+
+    @Test
+    @DisplayName("completeAndValidate: should add https and return canonical URL for bare hostname")
+    void completeAndValidate_addsHttpsForBareHostname() {
+        Optional<String> result = urlValidationService.completeAndValidate("lagos-health-navigator.vercel.app");
+        assertTrue(result.isPresent(), "Should complete valid bare hostname");
+        assertTrue(result.get().startsWith("https://"), "Completed URL should use https");
+        assertTrue(result.get().contains("lagos-health-navigator.vercel.app"), "Completed URL should contain host");
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should strip fragment from URL")
+    void completeAndValidate_stripsFragment() {
+        Optional<String> result = urlValidationService.completeAndValidate("https://www.google.com/page#section");
+        assertTrue(result.isPresent());
+        assertFalse(result.get().contains("#"), "Fragment should be stripped");
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should return empty for null or blank")
+    void completeAndValidate_rejectsNullOrBlank() {
+        assertTrue(urlValidationService.completeAndValidate(null).isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("   ").isEmpty());
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should return empty for unsafe URLs (e.g. localhost)")
+    void completeAndValidate_rejectsUnsafeUrls() {
+        assertTrue(urlValidationService.completeAndValidate("http://localhost").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("127.0.0.1").isEmpty());
     }
 }

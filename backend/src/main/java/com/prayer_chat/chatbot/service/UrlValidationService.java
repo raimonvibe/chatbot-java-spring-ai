@@ -6,9 +6,11 @@ import org.springframework.stereotype.Service;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -257,6 +259,47 @@ public class UrlValidationService {
             return host != null ? host : "invalid-url";
         } catch (Exception e) {
             return "invalid-url";
+        }
+    }
+
+    /**
+     * Complete and normalize a website URL for crawling: add https if no scheme, strip fragment, trim.
+     * SECURITY: Result is validated with {@link #isValidAndSafe(String)} before return.
+     * Use this before starting website analysis so any URL (e.g. "lagos-health-navigator.vercel.app")
+     * is turned into a valid, canonical form.
+     *
+     * @param url raw URL from user (may lack scheme or have fragment)
+     * @return completed URL if valid and safe, empty otherwise
+     */
+    public Optional<String> completeAndValidate(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        String s = url.trim();
+        if (!s.startsWith("http://") && !s.startsWith("https://")) {
+            s = "https://" + s;
+        }
+        try {
+            URI uri = new URI(s);
+            // Strip fragment and rebuild so crawler uses canonical form
+            String path = uri.getRawPath();
+            if (path == null || path.isEmpty()) path = "/";
+            String query = uri.getRawQuery();
+            URI normalized = new URI(
+                uri.getScheme(),
+                uri.getHost(),
+                path,
+                query != null && !query.isEmpty() ? query : null,
+                null
+            );
+            String completed = normalized.toASCIIString();
+            if (isValidAndSafe(completed)) {
+                return Optional.of(completed);
+            }
+            return Optional.empty();
+        } catch (URISyntaxException e) {
+            logger.debug("URL completion failed for '{}': {}", url, e.getMessage());
+            return Optional.empty();
         }
     }
 }
