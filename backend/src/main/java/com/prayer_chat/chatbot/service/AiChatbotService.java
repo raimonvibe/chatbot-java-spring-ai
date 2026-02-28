@@ -6,7 +6,6 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
-import com.prayer_chat.chatbot.service.JesusTeachingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -16,18 +15,16 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -365,28 +362,31 @@ public class AiChatbotService {
                 }
             }
 
-            // Smart threshold logic
+            // Smart threshold logic (bestMatch is non-null when bestSimilarity > 0)
+            if (bestMatch == null) {
+                return null;
+            }
             if (isFirstMessage) {
                 // First message: Use verse if similarity >= 0.5 (moderately relevant)
                 if (bestSimilarity >= 0.5) {
-                    logger.info("Found Bible verse for first message: {} (similarity: {:.2f})",
+                    logger.info("Found Bible verse for first message: {} (similarity: {})",
                         bestMatch.getReference(), bestSimilarity);
                     return bestMatch;
                 }
             } else {
                 // Subsequent messages: Use verse only if highly or moderately relevant
                 if (bestSimilarity >= 0.7) {
-                    logger.info("Found highly relevant Bible verse: {} (similarity: {:.2f})",
+                    logger.info("Found highly relevant Bible verse: {} (similarity: {})",
                         bestMatch.getReference(), bestSimilarity);
                     return bestMatch;
                 } else if (bestSimilarity >= 0.5) {
-                    logger.info("Found moderately relevant Bible verse: {} (similarity: {:.2f})",
+                    logger.info("Found moderately relevant Bible verse: {} (similarity: {})",
                         bestMatch.getReference(), bestSimilarity);
                     return bestMatch;
                 }
             }
 
-            logger.debug("No sufficiently relevant Bible verse found (best similarity: {:.2f})", bestSimilarity);
+            logger.debug("No sufficiently relevant Bible verse found (best similarity: {})", bestSimilarity);
             return null;
 
         } catch (Exception e) {
@@ -450,7 +450,8 @@ public class AiChatbotService {
         // Base role and critical "this site" rule so answers are about the scanned website, not the platform
         prompt.append("You are an AI assistant for ").append(chatbot.getName()).append(".\n");
         String websiteUrl = chatbot.getWebsiteUrl() != null ? chatbot.getWebsiteUrl() : "";
-        prompt.append("This chatbot was built from the website: ").append(websiteUrl).append("\n");
+        String safeUrl = safeUrlForPrompt(websiteUrl);
+        prompt.append("This chatbot was built from the website: ").append(safeUrl.isEmpty() ? "" : safeUrl).append("\n");
         prompt.append("When the user says 'this site', 'the site', 'this website', 'tell me about this site', or similar, ")
             .append("answer ONLY using the website content below (that site). Do not describe the platform creator or the tool—only the website.\n");
         prompt.append("You help visitors by answering questions about that business and its services. Be helpful, friendly, and professional.\n");
@@ -459,10 +460,20 @@ public class AiChatbotService {
         // Website content first so the model prioritizes it for "about this site" questions
         if (!relevantDocs.isEmpty()) {
             prompt.append("\n--- Content from the website (use this to answer questions about the site) ---\n");
+            int totalContentChars = 0;
             for (Document doc : relevantDocs) {
-                prompt.append(doc.getText()).append("\n\n");
+                String text = doc.getText();
+                if (text != null) totalContentChars += text.length();
+                prompt.append(text != null ? text : "").append("\n\n");
             }
             prompt.append("--- End of website content ---\n");
+            // When content is minimal (e.g. SPA with only title "frontend"), give a helpful reply instead of "I don't have much"
+            if (totalContentChars < 400) {
+                prompt.append("\nNote: The content above is minimal (e.g. only a page title). This often happens with modern single-page apps (Vercel, React, etc.). ");
+                prompt.append("If the user asks about the site (e.g. 'tell me about this site'), respond warmly: say you could only see limited text from the scan, ");
+                prompt.append("suggest they visit the site directly").append(safeUrl.isEmpty() ? "" : " at " + safeUrl).append(" for full details, and offer to help with other questions. ");
+                prompt.append("Do not claim the site has no purpose—just that your view of it is limited. Keep the tone friendly and helpful.\n");
+            }
         } else {
             // No content yet (analysis may still be running or failed). Apply to any website—do not invent info.
             prompt.append("\n--- No website content is available yet ---\n");
@@ -532,6 +543,32 @@ public class AiChatbotService {
         }
 
         return prompt.toString();
+    }
+
+    /**
+     * Returns a safe URL string for inclusion in the system prompt (origin only: scheme + host).
+     * Prevents prompt injection via path, query, fragment, or newlines in websiteUrl.
+     * Max length enforced to avoid oversized prompts.
+     */
+    static String safeUrlForPrompt(String url) {
+        if (url == null || url.isBlank()) return "";
+        String s = url.trim();
+        final int maxLen = 500;
+        if (s.length() > maxLen) s = s.substring(0, maxLen);
+        try {
+            URI uri = URI.create(s);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || host == null) return "";
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) return "";
+            int port = uri.getPort();
+            if (port == -1 || port == 80 && "http".equalsIgnoreCase(scheme) || port == 443 && "https".equalsIgnoreCase(scheme)) {
+                return scheme + "://" + host;
+            }
+            return scheme + "://" + host + ":" + port;
+        } catch (Exception e) {
+            return "";
+        }
     }
     
     /**

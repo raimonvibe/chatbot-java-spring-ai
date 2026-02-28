@@ -66,6 +66,12 @@ public class HeadlessFetchService {
         WebDriver driver = null;
         try {
             ChromeOptions options = new ChromeOptions();
+            // Use CHROME_BIN only when set and path is safe (prevents path injection via env)
+            String chromeBin = System.getenv("CHROME_BIN");
+            if (isSafeChromeBinPath(chromeBin)) {
+                options.setBinary(chromeBin);
+            }
+            // Hardened flags: headless, no sandbox (required in Docker), minimal surface
             options.addArguments(
                 "--headless=new",
                 "--no-sandbox",
@@ -74,7 +80,14 @@ public class HeadlessFetchService {
                 "--disable-software-rasterizer",
                 "--window-size=1280,720",
                 "--disable-extensions",
-                "--disable-setuid-sandbox"
+                "--disable-setuid-sandbox",
+                "--no-first-run",
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-sync",
+                "--disable-translate",
+                "--disable-features=TranslateUI",
+                "--metrics-recording-only"
             );
             options.setPageLoadStrategy(PageLoadStrategy.NORMAL);
             options.addArguments("--user-agent=PrayerChatCrawler/1.0 (+https://prayer-chat.com/bot)");
@@ -113,5 +126,18 @@ public class HeadlessFetchService {
 
     public boolean isHeadlessEnabled() {
         return headlessEnabled;
+    }
+
+    /**
+     * Only allow CHROME_BIN to point to a known safe location (e.g. /usr/bin/chromium).
+     * Rejects path traversal, relative paths, and paths outside system browser dirs.
+     * Package visibility for tests.
+     */
+    static boolean isSafeChromeBinPath(String path) {
+        if (path == null || path.isBlank()) return false;
+        String p = path.trim();
+        if (p.contains("..") || p.startsWith("-")) return false;
+        // Allow only absolute paths under /usr (typical for apt-installed Chromium)
+        return p.startsWith("/usr/") && p.length() <= 256;
     }
 }

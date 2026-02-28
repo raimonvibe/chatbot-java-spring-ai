@@ -1,5 +1,12 @@
 # Website URL Analysis Improvements
 
+## Chatbot creation flow (safe URLs, all sites, large → paid)
+
+- **All safe URLs** (validated for SSRF, public only) can be used to create a chatbot: Vercel sites, normal sites, small or large.
+- **Small sites** (within plan page limit): chatbot is created and website analysis runs (Jsoup + headless when needed).
+- **Large sites**: Before creating the chatbot, the backend estimates site size. If **estimated pages > plan limit** (FREE 50, BASIC 500, PRO 2000, ENTERPRISE 10000), the API returns **402 Payment Required** with `upgradeRequired: true`, `suggestedPlan`, and a message to upgrade. The frontend can redirect the user to the pricing/paid plan page. This is already implemented in the onboarding and create-chatbot flows.
+- **Live/Docker**: The backend Dockerfile includes **Chromium** so headless crawl runs in production. Vercel/SPA sites are analyzed with full content. The service runs correctly live when built with this image.
+
 ## Why some URLs (e.g. lagos-health-navigator.vercel.app) weren’t analyzed well
 
 1. **URL not completed**  
@@ -52,4 +59,4 @@ So for URLs like `https://lagos-health-navigator.vercel.app/`, the homepage is f
 
 ## Deployment note
 
-For SPAs (e.g. Vercel apps), headless must be enabled and Chrome/Chromium installed in the runtime image. If not, the app still works but SPA homepages may yield only title/meta, so answers like “what is this site about?” may be limited. See `HEADLESS_CRAWL.md` for setup.
+For SPAs (e.g. Vercel apps), headless must be enabled and Chrome/Chromium installed in the runtime image. If not, the app still works but SPA homepages may yield only title/meta, so answers like “what is this site about?” may be limited. When the crawler only gets minimal content (e.g. title "frontend"), the chatbot is now instructed to give a friendly reply: suggest visiting the site directly and offer to help with other questions. For full SPA content, install Chrome/Chromium in your image—see `HEADLESS_CRAWL.md` for setup.

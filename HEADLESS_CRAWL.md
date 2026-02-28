@@ -30,17 +30,10 @@ Environment variable: `HEADLESS_CRAWL_ENABLED=false` to disable without changing
 
 ## Deployment (Docker / Render)
 
-**Note:** The default backend Dockerfile uses a minimal JRE image and does **not** install Chrome/Chromium. In that setup, headless fetch will no-op (returns empty) and the crawler uses Jsoup only. To enable headless in Docker you must use an image that includes the browser (see below).
+**The backend Dockerfile now includes Chromium** (`chromium-browser` on the runtime image) so headless crawl works in production. Vercel/SPA sites (e.g. lagos-health-navigator.vercel.app) are analyzed with full content when the service runs in this image.
 
-If you run the backend in Docker or on Render and want headless crawling:
-
-1. **Install Chrome/Chromium** in the image, e.g.:
-   - Debian/Ubuntu: `apt-get install -y chromium` or the official Chrome package.
-   - Alpine: `apk add chromium`.
-2. Set the environment so the driver finds the browser (e.g. `CHROME_BIN` or `CHROMIUM_FLAGS` if needed by your setup).
-3. Keep `HEADLESS_CRAWL_ENABLED=true` (default) or set it explicitly.
-
-If you **do not** install Chrome, the service will still start; headless fetch will simply return empty and the crawler will behave as before (Jsoup-only, with fallback to title/meta when possible).
+- **Optional:** Set `CHROME_BIN` to the Chromium binary path if the driver does not find it (e.g. `CHROME_BIN=/usr/bin/chromium-browser`). The app uses this when set.
+- To disable headless (e.g. in a minimal image): set `HEADLESS_CRAWL_ENABLED=false`. The service will still start; the crawler will use Jsoup only and title/meta fallback for SPAs.
 
 ## When headless is used
 
