@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 
 /**
  * Fetches a URL using a headless Chrome browser so that client-rendered (SPA) pages
@@ -37,6 +38,8 @@ public class HeadlessFetchService {
     private boolean headlessEnabled;
 
     private final UrlValidationService urlValidationService;
+    /** Only one headless browser at a time to avoid OOM on small instances (e.g. Render). */
+    private final Semaphore headlessPermits = new Semaphore(1);
 
     public HeadlessFetchService(UrlValidationService urlValidationService) {
         this.urlValidationService = urlValidationService;
@@ -60,6 +63,12 @@ public class HeadlessFetchService {
         // Double-check: do not fetch if URL was not validated (defense in depth)
         if (!urlValidationService.isValidAndSafe(url)) {
             logger.warn("Headless fetch skipped: URL not valid (SSRF)");
+            return Optional.empty();
+        }
+
+        // Only one headless browser at a time to avoid memory exhaustion (Chromium is ~200–400MB each)
+        if (!headlessPermits.tryAcquire()) {
+            logger.debug("Headless fetch skipped: another headless browser in use (memory limit)");
             return Optional.empty();
         }
 
@@ -114,6 +123,7 @@ public class HeadlessFetchService {
             logger.debug("Headless fetch failed for {}: {} (Chrome may not be installed)", url, e.getMessage());
             return Optional.empty();
         } finally {
+            headlessPermits.release();
             if (driver != null) {
                 try {
                     driver.quit();
