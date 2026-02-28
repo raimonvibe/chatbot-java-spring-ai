@@ -44,6 +44,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String googleId = oAuth2User.getAttribute("sub");
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
+        String pictureUrl = oAuth2User.getAttribute("picture");
 
         if (email == null || email.isEmpty()) {
             throw new OAuth2AuthenticationException("Email not found from OAuth2 provider");
@@ -53,9 +54,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user;
 
         if (userOptional.isPresent()) {
-            // Existing user - update last login
+            // Existing user - update last login and profile image
             user = userOptional.get();
             user.setLastLogin(LocalDateTime.now());
+            if (pictureUrl != null && !pictureUrl.isBlank()) {
+                user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+            }
             userRepository.save(user);
             logger.info("Existing user logged in via Google: {}", email);
         } else {
@@ -67,6 +71,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setLastLogin(LocalDateTime.now());
+                if (pictureUrl != null && !pictureUrl.isBlank()) {
+                    user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+                }
                 userRepository.save(user);
                 logger.info("Linked Google account to existing user: {}", email);
             } else {
@@ -79,6 +86,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setEnabled(true);
                 user.setLastLogin(LocalDateTime.now());
                 user.getRoles().add("USER");
+                if (pictureUrl != null && !pictureUrl.isBlank()) {
+                    user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+                }
                 userRepository.save(user);
                 logger.info("Created new user via Google OAuth: {}", email);
             }
@@ -96,13 +106,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             throw new RuntimeException("Email not found from OAuth2 provider");
         }
 
+        String pictureUrl = oAuth2User != null ? oAuth2User.getAttribute("picture") : null;
         Optional<User> userOptional = userRepository.findByGoogleId(googleId);
         User user;
 
         if (userOptional.isPresent()) {
-            // Existing user - update last login
+            // Existing user - update last login and profile image
             user = userOptional.get();
             user.setLastLogin(LocalDateTime.now());
+            if (pictureUrl != null && !pictureUrl.isBlank()) {
+                user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+            }
             userRepository.save(user);
             logger.info("Existing user logged in via Google: {}", email);
         } else {
@@ -114,6 +128,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setLastLogin(LocalDateTime.now());
+                if (pictureUrl != null && !pictureUrl.isBlank()) {
+                    user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+                }
                 userRepository.save(user);
                 logger.info("Linked Google account to existing user: {}", email);
             } else {
@@ -121,12 +138,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user = new User();
                 user.setUsername(email);
                 user.setEmail(email);
-                // Note: User model doesn't have a name field, only username and email
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setEnabled(true);
                 user.setLastLogin(LocalDateTime.now());
                 user.getRoles().add("USER");
+                if (pictureUrl != null && !pictureUrl.isBlank()) {
+                    user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
+                }
                 userRepository.save(user);
                 logger.info("Created new user via Google OAuth: {}", email);
             }

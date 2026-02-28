@@ -26,7 +26,7 @@ import {
 export default function AccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ id: number; username: string; email?: string; authProvider?: string } | null>(null);
+  const [user, setUser] = useState<{ id: number; username: string; email?: string; authProvider?: string; picture?: string } | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatusApi | null | 'error'>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
@@ -132,8 +132,17 @@ export default function AccountPage() {
           className="rounded-2xl bg-brown-800/60 backdrop-blur border border-brown-700/80 shadow-xl p-6 mb-6"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-xl bg-brown-700/80">
-              <User className="w-6 h-6 text-gold-300" />
+            <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden bg-brown-700/80 flex items-center justify-center ring-2 ring-brown-600/80">
+              {user?.picture && user.picture.startsWith('https://') && user.picture.includes('googleusercontent.com') ? (
+                <img
+                  src={user.picture}
+                  alt="Profile"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-6 h-6 text-gold-300" />
+              )}
             </div>
             <h2 className="text-xl font-semibold text-brown-100">Profile</h2>
           </div>

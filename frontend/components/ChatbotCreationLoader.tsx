@@ -205,31 +205,12 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               />
             </div>
 
-            {/* Fun facts or tips - opacity only, no vertical movement */}
-            <motion.div
-              key={`tip-${currentStep}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-sm text-brown-300 italic min-h-[1.5rem]"
-            >
-              {isAnalysis ? (
-                <>
-                  {currentStep === 0 && "✨ Discovering what your site is about..."}
-                  {currentStep === 1 && "🧠 Reading and understanding your pages..."}
-                  {currentStep === 2 && "⚡ Building a knowledge base for your chatbot..."}
-                  {currentStep === 3 && "📚 Almost ready! You'll be able to ask me about your site soon."}
-                </>
-              ) : (
-                <>
-                  {currentStep === 0 && "✨ Your chatbot is learning to understand your content..."}
-                  {currentStep === 1 && "🧠 Processing thousands of words to build knowledge..."}
-                  {currentStep === 2 && "⚡ Fine-tuning responses for the best user experience..."}
-                  {currentStep === 3 && "📚 Almost ready! Preparing your chatbot for launch..."}
-                </>
-              )}
-            </motion.div>
+            {/* Static tip - no rotation, no movement, stays fixed */}
+            <div className="text-sm text-brown-300 italic min-h-[1.5rem]">
+              {isAnalysis
+                ? "This may take a minute. You'll be able to ask questions about your site when it's ready."
+                : "Please wait while your chatbot is being prepared."}
+            </div>
 
             {/* Floating particles */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">

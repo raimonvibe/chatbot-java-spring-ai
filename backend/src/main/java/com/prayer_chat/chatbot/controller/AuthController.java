@@ -95,6 +95,9 @@ public class AuthController {
             response.put("email", user.getEmail());
             response.put("roles", user.getRoles());
             response.put("authProvider", user.getAuthProvider());
+            if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isBlank()) {
+                response.put("picture", user.getProfileImageUrl());
+            }
 
             return ResponseEntity.ok(response);
         }
@@ -107,6 +110,9 @@ public class AuthController {
         response.put("email", user.getEmail());
         response.put("roles", user.getRoles());
         response.put("authProvider", user.getAuthProvider());
+        if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isBlank()) {
+            response.put("picture", user.getProfileImageUrl());
+        }
 
         return ResponseEntity.ok(response);
     }

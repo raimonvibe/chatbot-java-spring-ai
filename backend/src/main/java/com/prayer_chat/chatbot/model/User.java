@@ -39,6 +39,10 @@ public class User implements UserDetails, Serializable {
     @Column
     private String googleId;
 
+    /** Google profile picture URL (from OAuth2 userinfo "picture"). */
+    @Column(name = "profile_image_url", length = 512)
+    private String profileImageUrl;
+
     @Column(columnDefinition = "VARCHAR(20)")
     @Enumerated(EnumType.STRING)
     private AuthProvider authProvider = AuthProvider.LOCAL;
@@ -200,6 +204,14 @@ public class User implements UserDetails, Serializable {
 
     public void setGoogleId(String googleId) {
         this.googleId = googleId;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     public AuthProvider getAuthProvider() {
