@@ -252,40 +252,28 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="min-h-screen p-6 md:p-8">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Simplified top navbar */}
+        <nav className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-brown-200">
           <div className="flex items-center gap-3">
-            <Book className="w-10 h-10 text-brown-700" strokeWidth={1.5} />
+            <Book className="w-8 h-8 text-brown-700" strokeWidth={1.5} />
             <div>
-              <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
+              <h1 className="text-2xl md:text-3xl font-bold text-brown-800">
                 Prayer-Chat Dashboard
               </h1>
               {subscriptionStatus?.isPreviewMode && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Sparkles className="w-4 h-4 text-gold-600" />
-                  <span className="text-sm text-brown-600 font-medium">Preview Mode</span>
-                </div>
+                <span className="text-xs text-brown-600 font-medium">Preview Mode</span>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
-              <button
-                onClick={handleDeleteAllChatbots}
-                className="px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 hover:shadow-lg transition-all flex items-center gap-2"
-                title="Delete all chatbots (preview mode only - for testing)"
-              >
-                <Trash2 className="w-5 h-5" /> Delete All
-              </button>
-            )}
-            <Link
-              href="/account"
-              className="px-4 py-3 bg-brown-100 text-brown-800 rounded-xl font-medium hover:bg-brown-200 transition-all flex items-center gap-2"
-              title="Account and subscription"
-            >
-              <User className="w-5 h-5" /> Account
+          <div className="flex items-center gap-4 md:gap-6 text-sm font-medium">
+            <Link href="/dashboard" className="text-brown-700 hover:text-brown-900 transition-colors">
+              Dashboard
+            </Link>
+            <Link href="/account" className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5">
+              <User className="w-4 h-4" /> Account
             </Link>
             <button
               onClick={async () => {
@@ -293,45 +281,66 @@ export default function Dashboard() {
                 try {
                   const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
                   const url = await createPortalSession(returnUrl);
+                  const allowed = (u: string) => {
+                    try {
+                      const o = new URL(u);
+                      return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
+                    } catch {
+                      return false;
+                    }
+                  };
+                  if (!url || typeof url !== 'string' || !allowed(url)) {
+                    alert('Invalid billing portal URL. Please try again or contact support.');
+                    return;
+                  }
                   window.location.href = url;
                 } catch (e) {
-                  console.error('Portal session error:', e);
-                  alert(e instanceof Error ? e.message : 'Failed to open billing portal');
+                  const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
+                  if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
+                    alert(msg);
+                  } else {
+                    alert('Something went wrong. Please try again or contact support.');
+                  }
                 } finally {
                   setPortalLoading(false);
                 }
               }}
               disabled={portalLoading}
-              className="px-4 py-3 bg-brown-100 text-brown-800 rounded-xl font-medium hover:bg-brown-200 transition-all flex items-center gap-2 disabled:opacity-50"
-              title="Manage subscription, payment method, and invoices"
+              className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
-              <CreditCard className="w-5 h-5" /> {portalLoading ? 'Opening…' : 'Manage subscription'}
+              <CreditCard className="w-4 h-4" /> {portalLoading ? 'Opening…' : 'Subscription'}
             </button>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex items-center gap-1.5"
             >
-              {showCreateForm ? (
-                <><X className="w-5 h-5" /> Cancel</>
-              ) : (
-                <><Plus className="w-5 h-5" /> Create New Chatbot</>
-              )}
+              {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {showCreateForm ? 'Cancel' : 'New Chatbot'}
             </button>
             <button
               onClick={handleLogout}
-              className="px-4 py-3 bg-brown-500 text-white rounded-xl font-medium hover:bg-brown-600 hover:shadow-lg transition-all flex items-center gap-2"
-              title="Logout (volledig uitloggen)"
+              className="text-brown-600 hover:text-brown-900 transition-colors flex items-center gap-1.5"
+              title="Log out"
             >
-              <LogOut className="w-5 h-5" /> Logout
+              <LogOut className="w-4 h-4" /> Logout
             </button>
+            {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
+              <button
+                onClick={handleDeleteAllChatbots}
+                className="text-red-600 hover:text-red-700 text-xs"
+                title="Delete all chatbots (preview only)"
+              >
+                Delete All
+              </button>
+            )}
           </div>
-        </div>
+        </nav>
 
         {showCreateForm && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-brown-200"
+            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-brown-200 max-w-xl mx-auto"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -378,109 +387,116 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {chatbots.map((chatbot) => (
-            <motion.div
-              key={chatbot.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border border-brown-200"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Book className="w-5 h-5 text-brown-700" />
-                  <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
+        {/* Centered chatbot preview card(s) */}
+        <div className="flex flex-col items-center">
+          <div className={`w-full max-w-2xl mx-auto ${chatbots.length > 1 ? 'grid grid-cols-1 gap-6 sm:grid-cols-2' : ''}`}>
+            {chatbots.map((chatbot) => (
+              <motion.div
+                key={chatbot.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border border-brown-200"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Book className="w-5 h-5 text-brown-700 flex-shrink-0" />
+                    <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    title="Delete chatbot"
+                    type="button"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete chatbot"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-brown-700 mb-4">{chatbot.description}</p>
+                <p className="text-brown-700 mb-4">{chatbot.description}</p>
 
-              <div className="space-y-2">
-                <Link
-                  href={`/chatbot/${chatbot.id}`}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-brown-100 text-brown-800 rounded-lg hover:bg-brown-200 transition-colors font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  Preview Chatbot
-                </Link>
+                <div className="space-y-2">
+                  <Link
+                    href={`/chatbot/${chatbot.id}`}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brown-100 text-brown-800 rounded-lg hover:bg-brown-200 transition-colors font-medium cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Preview Chatbot
+                  </Link>
 
-                <button
-                  onClick={() => {
-                    handleGetEmbedCode(chatbot.id);
-                    setSelectedChatbot(chatbot);
-                  }}
-                  className={`flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg transition-colors font-medium ${
-                    subscriptionStatus?.isPreviewMode
-                      ? 'bg-brown-100 text-brown-600 hover:bg-brown-200 opacity-75'
-                      : 'bg-gold-100 text-gold-800 hover:bg-gold-200'
-                  }`}
-                >
-                  {subscriptionStatus?.isPreviewMode ? (
-                    <>
-                      <Crown className="w-4 h-4" />
-                      Upgrade for Embed Code
-                    </>
-                  ) : (
-                    <>
-                      <Code className="w-4 h-4" />
-                      Get Embed Code
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
-                  disabled={analyzingChatbotId !== null}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg transition-colors font-medium bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 hover:from-brown-200 hover:to-gold-200 border border-brown-200 disabled:opacity-70"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {analyzingChatbotId === chatbot.id ? 'Analyzing…' : 'Analyze website'}
-                </button>
-              </div>
-              <div className="mt-3 pt-3 border-t border-brown-200 space-y-1.5">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={chatbot.jesusTeachingsEnabled === true}
-                    disabled={jesusTogglingId === chatbot.id}
-                    onChange={async () => {
-                      setJesusTogglingId(chatbot.id);
-                      try {
-                        const updated = await updateChatbot(chatbot.id, {
-                          ...chatbot,
-                          jesusTeachingsEnabled: !chatbot.jesusTeachingsEnabled,
-                        });
-                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-                      } finally {
-                        setJesusTogglingId(null);
-                      }
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleGetEmbedCode(chatbot.id);
+                      setSelectedChatbot(chatbot);
                     }}
-                    className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500"
-                  />
-                  <span className="text-sm font-medium text-brown-700">Include &quot;What Jesus Would Say&quot;</span>
-                </label>
-                {chatbot.bibleVerse && (
-                  <p className="text-xs text-brown-600 italic pl-6 line-clamp-2" title={chatbot.bibleVerse}>
-                    {chatbot.bibleVerse}
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                    className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium cursor-pointer ${
+                      subscriptionStatus?.isPreviewMode
+                        ? 'bg-brown-100 text-brown-600 hover:bg-brown-200'
+                        : 'bg-gold-100 text-gold-800 hover:bg-gold-200'
+                    }`}
+                  >
+                    {subscriptionStatus?.isPreviewMode ? (
+                      <>
+                        <Crown className="w-4 h-4" />
+                        Upgrade for Embed Code
+                      </>
+                    ) : (
+                      <>
+                        <Code className="w-4 h-4" />
+                        Get Embed Code
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
+                    disabled={analyzingChatbotId !== null}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 hover:from-brown-200 hover:to-gold-200 border border-brown-200 disabled:opacity-70 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {analyzingChatbotId === chatbot.id ? 'Analyzing…' : 'Analyze website'}
+                  </button>
+                </div>
+                <div className="mt-3 pt-3 border-t border-brown-200 space-y-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={chatbot.jesusTeachingsEnabled === true}
+                      disabled={jesusTogglingId === chatbot.id}
+                      onChange={async () => {
+                        setJesusTogglingId(chatbot.id);
+                        try {
+                          const updated = await updateChatbot(chatbot.id, {
+                            ...chatbot,
+                            jesusTeachingsEnabled: !chatbot.jesusTeachingsEnabled,
+                          });
+                          setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                        } finally {
+                          setJesusTogglingId(null);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-brown-700">Include &quot;What Jesus Would Say&quot;</span>
+                  </label>
+                  {chatbot.bibleVerse && (
+                    <p className="text-xs text-brown-600 italic pl-6 line-clamp-2" title={chatbot.bibleVerse}>
+                      {chatbot.bibleVerse}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
 
         {chatbots.length === 0 && !showCreateForm && (
-          <div className="text-center py-16">
+          <div className="text-center py-16 max-w-xl mx-auto">
             <Book className="w-20 h-20 text-brown-400 mx-auto mb-4" strokeWidth={1.5} />
             <p className="text-xl text-brown-700 mb-4">No chatbots yet</p>
             <button
+              type="button"
               onClick={() => setShowCreateForm(true)}
-              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-5 h-5" />
               Create Your First Chatbot
