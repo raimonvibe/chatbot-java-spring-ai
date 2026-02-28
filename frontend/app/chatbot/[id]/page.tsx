@@ -282,9 +282,9 @@ export default function ChatbotPreview() {
               </div>
             )}
 
-            {/* Input: fixed at bottom, fully inside frame */}
-            <div className="flex-shrink-0 pt-3 px-0 pb-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50">
-              <div className="flex gap-2">
+            {/* Input: fixed at bottom, fully inside frame; min-w-0 so input shrinks and send button stays visible on mobile */}
+            <div className="flex-shrink-0 pt-3 px-2 pb-0 md:px-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50">
+              <div className="flex gap-2 min-w-0">
                 <input
                   type="text"
                   value={input}
@@ -292,12 +292,13 @@ export default function ChatbotPreview() {
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-brown-200 focus:outline-none focus:ring-2 focus:ring-brown-400 focus:border-brown-400 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400"
+                  className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 border-brown-200 focus:outline-none focus:ring-2 focus:ring-brown-400 focus:border-brown-400 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400"
                 />
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!input.trim() || isLoading}
-                  className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all flex-shrink-0"
+                  className="flex-shrink-0 px-4 py-3 md:px-6 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all min-w-[48px]"
+                  aria-label="Send message"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

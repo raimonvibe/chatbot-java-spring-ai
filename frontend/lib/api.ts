@@ -251,6 +251,26 @@ export async function updateChatbot(chatbotId: number, updates: Partial<Chatbot>
 }
 
 /**
+/** Allow only Stripe checkout redirect URLs (security: prevent open redirect from API response). */
+function isStripeCheckoutUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.hostname === 'checkout.stripe.com';
+  } catch {
+    return false;
+  }
+}
+
+/** Allow only Stripe billing portal redirect URLs. */
+function isStripePortalUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.hostname === 'billing.stripe.com';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Create a Stripe checkout session for subscription.
  * @param plan Optional plan: BASIC, PRO, or ENTERPRISE. If omitted, backend uses default price.
@@ -278,6 +298,7 @@ export async function createCheckoutSession(plan?: 'BASIC' | 'PRO' | 'ENTERPRISE
   const data = await response.json();
   const url = data.checkoutUrl || data.url;
   if (!url || typeof url !== 'string') throw new Error('Invalid checkout URL received');
+  if (!isStripeCheckoutUrl(url)) throw new Error('Invalid checkout URL received');
   return url;
 }
 
@@ -308,6 +329,7 @@ export async function createPortalSession(returnUrl?: string): Promise<string> {
   const data = await response.json();
   const url = data.portalUrl || data.url;
   if (!url || typeof url !== 'string') throw new Error('Invalid portal URL');
+  if (!isStripePortalUrl(url)) throw new Error('Invalid portal URL');
   return url;
 }
 

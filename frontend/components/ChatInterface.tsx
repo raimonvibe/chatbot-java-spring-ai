@@ -161,9 +161,9 @@ export default function ChatInterface() {
         </div>
       )}
 
-      {/* Input Area */}
+      {/* Input Area: min-w-0 so input shrinks and send button stays visible on mobile */}
       <div className="p-4 border-t-2 border-brown-200 bg-brown-100/50">
-        <div className="flex gap-2">
+        <div className="flex gap-2 min-w-0">
           <motion.input
             type="text"
             value={input}
@@ -171,14 +171,14 @@ export default function ChatInterface() {
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 rounded-xl border-2 border-brown-300 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-white text-brown-900"
+            className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 border-brown-300 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-white text-brown-900"
             whileFocus={{ scale: 1.01 }}
           />
           <motion.button
             onClick={() => handleSendMessage()}
             disabled={!input.trim() || isLoading}
             aria-label="Send message"
-            className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+            className="flex-shrink-0 min-w-[48px] px-4 py-3 md:px-6 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
