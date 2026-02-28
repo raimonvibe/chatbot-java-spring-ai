@@ -43,7 +43,7 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Value("${cors.allowed-origins:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com,https://chatbot-java-spring-ai.vercel.app}")
+    @Value("${cors.allowed-origins:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com}")
     private String allowedOrigins;
 
     @Autowired private RateLimitingFilter rateLimitingFilter;

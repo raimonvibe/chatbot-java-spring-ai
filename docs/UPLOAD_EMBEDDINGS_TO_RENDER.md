@@ -36,7 +36,16 @@ Save so the service restarts **once**.
    cd /tmp/data
    ```
 3. Upload `bible_embeddings.json` to `/tmp/data/bible_embeddings.json`:
-   - If you have a **direct download URL** (e.g. from a temporary host or Drive):
+   - **Google Drive:** The "Share" link (`https://drive.google.com/file/d/XXX/view?usp=sharing`) does **not** work with wget — it returns HTML. Use the script to get the direct download URL:
+     ```bash
+     # On your machine (or in Render Shell if you have the script):
+     ./scripts/google-drive-download-url.sh "https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing"
+     ```
+     It prints the correct URL. Then in Render Shell:
+     ```bash
+     wget -O bible_embeddings.json "https://drive.usercontent.google.com/download?id=YOUR_FILE_ID&export=download&confirm=t"
+     ```
+   - Or any other **direct download URL** (e.g. temporary host):
      ```bash
      wget -O bible_embeddings.json "YOUR_DIRECT_DOWNLOAD_URL"
      ```
@@ -72,5 +81,6 @@ In the service **Logs**, wait for:
 
 ## References
 
+- **scripts/google-drive-download-url.sh** — pass your Drive share link; it prints the direct download URL for wget.
 - **EmbeddingImportRunner** — uses `IMPORT_EMBEDDINGS_FILE` and optional `IMPORT_EMBEDDINGS_URL`.
 - **docs/EMBEDDINGS_IMPORT_RENDER.md** — single URL, multiple URLs, and split-file options.
