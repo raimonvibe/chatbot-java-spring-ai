@@ -39,10 +39,10 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
       return;
     }
 
-    // Animate loading steps
+    // Animate loading steps (slow enough for visitors to read each line)
     const stepInterval = setInterval(() => {
       setCurrentStep((prev) => (prev + 1) % loadingSteps.length);
-    }, 2000);
+    }, 5000);
 
     return () => {
       clearInterval(stepInterval);
