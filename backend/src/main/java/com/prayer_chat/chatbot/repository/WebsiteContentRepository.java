@@ -2,6 +2,8 @@ package com.prayer_chat.chatbot.repository;
 
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.WebsiteContent;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +21,11 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
      * Find all website content for a specific chatbot
      */
     List<WebsiteContent> findByChatbot(Chatbot chatbot);
+
+    /**
+     * Find website content for a chatbot with pagination (for memory-efficient batch indexing).
+     */
+    Page<WebsiteContent> findByChatbot(Chatbot chatbot, Pageable pageable);
 
     /**
      * Delete all website content for a chatbot (used before re-scan to avoid duplicates).

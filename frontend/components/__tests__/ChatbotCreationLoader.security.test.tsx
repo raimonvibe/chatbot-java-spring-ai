@@ -128,8 +128,7 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} />
       );
 
-      // Should render spinners without external network requests
-      expect(container.querySelector('[data-testid="clip-loader"]')).toBeInTheDocument();
+      // Should render spinners without external network requests (PulseLoader + BarLoader; top circle spinner removed)
       expect(container.querySelector('[data-testid="pulse-loader"]')).toBeInTheDocument();
       expect(container.querySelector('[data-testid="bar-loader"]')).toBeInTheDocument();
     });

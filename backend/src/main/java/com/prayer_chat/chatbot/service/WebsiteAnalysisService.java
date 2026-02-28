@@ -97,7 +97,8 @@ public class WebsiteAnalysisService {
         this.urlValidationService = urlValidationService;
         this.chatbotRepository = chatbotRepository;
         this.headlessFetchService = headlessFetchService;
-        this.executorService = Executors.newFixedThreadPool(10);
+        // Small pool to avoid OOM on Render: crawl + Chromium + post-analysis indexing all share memory
+        this.executorService = Executors.newFixedThreadPool(3);
     }
 
     /**
@@ -351,8 +352,9 @@ public class WebsiteAnalysisService {
                     if (href == null || href.isEmpty()) continue;
                     String norm = normalizeUrl(href);
                     if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)) {
-                        CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
-                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed)
+                        CompletableFuture<Void> future =                         CompletableFuture.runAsync(() ->
+                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed),
+                            executorService
                         );
                         futures.add(future);
                     }

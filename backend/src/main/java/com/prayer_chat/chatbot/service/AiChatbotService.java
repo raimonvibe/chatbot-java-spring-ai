@@ -21,6 +21,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -590,43 +591,54 @@ public class AiChatbotService {
         return languages.getOrDefault(languageCode, "English");
     }
     
+    /** Batch size for indexing to limit peak memory (avoids OOM after analysis on small instances). */
+    private static final int INDEXING_BATCH_SIZE = 10;
+    /** Max batches to prevent unbounded iteration DoS (5000 content items). */
+    private static final int INDEXING_MAX_BATCHES = 500;
+
     /**
-     * Index website content for a chatbot
+     * Index website content for a chatbot. Processes in batches to reduce peak memory after analysis.
+     * Uses fixed batch size and max-batch cap for security and stability.
      */
     public void indexWebsiteContent(Chatbot chatbot) {
-        logger.info("Starting content indexing for chatbot: {}", chatbot.getId());
-        
-        List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot);
-        
-        for (WebsiteContent content : contents) {
-            try {
-                // Create document for vector store
-                Document document = new Document(
-                    content.getContent(),
-                    Map.of(
-                        "chatbotId", chatbot.getId().toString(),
-                        "url", content.getUrl(),
-                        "title", content.getTitle(),
-                        "language", content.getLanguage() != null ? content.getLanguage() : "en"
-                    )
-                );
-                
-                // Add to vector store
-                vectorStore.add(List.of(document));
-                
-                // Mark as indexed
-                content.setIsIndexed(true);
-                content.setVectorId(document.getId());
-                websiteContentRepository.save(content);
-                
-                logger.debug("Indexed content: {}", content.getUrl());
-                
-            } catch (Exception e) {
-                logger.error("Failed to index content: {}", content.getUrl(), e);
-            }
+        if (chatbot == null || chatbot.getId() == null) {
+            logger.warn("Indexing skipped: chatbot or id is null");
+            return;
         }
-        
-        logger.info("Content indexing completed for chatbot: {}", chatbot.getId());
+        logger.info("Starting content indexing for chatbot: {}", chatbot.getId());
+        int page = 0;
+        int totalIndexed = 0;
+        while (page < INDEXING_MAX_BATCHES) {
+            var batch = websiteContentRepository.findByChatbot(chatbot, PageRequest.of(page, INDEXING_BATCH_SIZE));
+            if (batch.isEmpty()) break;
+            for (WebsiteContent content : batch) {
+                try {
+                    Document document = new Document(
+                        content.getContent(),
+                        Map.of(
+                            "chatbotId", chatbot.getId().toString(),
+                            "url", content.getUrl(),
+                            "title", content.getTitle(),
+                            "language", content.getLanguage() != null ? content.getLanguage() : "en"
+                        )
+                    );
+                    vectorStore.add(List.of(document));
+                    content.setIsIndexed(true);
+                    content.setVectorId(document.getId());
+                    websiteContentRepository.save(content);
+                    totalIndexed++;
+                    logger.debug("Indexed content: {}", content.getUrl());
+                } catch (Exception e) {
+                    logger.error("Failed to index content: {}", content.getUrl(), e);
+                }
+            }
+            if (!batch.hasNext()) break;
+            page++;
+        }
+        if (page >= INDEXING_MAX_BATCHES) {
+            logger.warn("Indexing stopped at batch cap for chatbot {} ({} items indexed)", chatbot.getId(), totalIndexed);
+        }
+        logger.info("Content indexing completed for chatbot: {} ({} pages)", chatbot.getId(), totalIndexed);
     }
     
     /**

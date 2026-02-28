@@ -378,6 +378,18 @@ class WebsiteAnalysisServiceSecurityTest {
         }
     }
 
+    @Test
+    @DisplayName("SECURITY: Crawl uses bounded executor (pool size 3) to limit concurrency and memory DoS")
+    void crawlUsesBoundedExecutor_preventUnboundedConcurrency() {
+        java.util.concurrent.ExecutorService executor =
+            (java.util.concurrent.ExecutorService) ReflectionTestUtils.getField(analysisService, "executorService");
+        assertThat(executor).isNotNull();
+        if (executor instanceof java.util.concurrent.ThreadPoolExecutor tpe) {
+            assertThat(tpe.getMaximumPoolSize()).isEqualTo(3);
+            assertThat(tpe.getCorePoolSize()).isEqualTo(3);
+        }
+    }
+
     // ========== Helper Methods ==========
 
     private Chatbot createChatbot(String url) {

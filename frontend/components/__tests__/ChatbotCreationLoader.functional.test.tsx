@@ -125,13 +125,6 @@ describe('ChatbotCreationLoader Functional Tests', () => {
   });
 
   describe('Loading Spinners', () => {
-    it('should render ClipLoader when not scanning website', () => {
-      const { container } = render(
-        <ChatbotCreationLoader isVisible={true} isScanningWebsite={false} />
-      );
-      expect(container.querySelector('[data-testid="clip-loader"]')).toBeInTheDocument();
-    });
-
     it('should render PulseLoader for step indicators', () => {
       const { container } = render(<ChatbotCreationLoader isVisible={true} />);
       expect(container.querySelector('[data-testid="pulse-loader"]')).toBeInTheDocument();
@@ -145,9 +138,6 @@ describe('ChatbotCreationLoader Functional Tests', () => {
     it('should use correct colors for spinners', () => {
       const { container } = render(<ChatbotCreationLoader isVisible={true} />);
       
-      const clipLoader = container.querySelector('[data-testid="clip-loader"]');
-      expect(clipLoader?.getAttribute('data-color')).toBe('#d4af37');
-      
       const pulseLoader = container.querySelector('[data-testid="pulse-loader"]');
       expect(pulseLoader?.getAttribute('data-color')).toBe('#d4af37');
       
@@ -157,25 +147,18 @@ describe('ChatbotCreationLoader Functional Tests', () => {
   });
 
   describe('Website Scanning Mode', () => {
-    it('should render different animation when isScanningWebsite is true', () => {
+    it('should render when isScanningWebsite is true', () => {
       const { container } = render(
         <ChatbotCreationLoader isVisible={true} isScanningWebsite={true} />
       );
-      
-      // Should not render ClipLoader when scanning
-      expect(container.querySelector('[data-testid="clip-loader"]')).not.toBeInTheDocument();
-      
-      // Should render scanning animation (motion.div with border)
-      const scanningAnimation = container.querySelector('.border-4.border-gold-400');
-      expect(scanningAnimation).toBeInTheDocument();
+      expect(container.querySelector('h2')).toBeInTheDocument();
     });
 
-    it('should render ClipLoader when isScanningWebsite is false', () => {
+    it('should render when isScanningWebsite is false', () => {
       const { container } = render(
         <ChatbotCreationLoader isVisible={true} isScanningWebsite={false} />
       );
-      
-      expect(container.querySelector('[data-testid="clip-loader"]')).toBeInTheDocument();
+      expect(container.querySelector('h2')).toBeInTheDocument();
     });
   });
 

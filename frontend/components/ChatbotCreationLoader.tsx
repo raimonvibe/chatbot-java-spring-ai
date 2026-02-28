@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Book, Sparkles, Zap, Brain, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { ClipLoader, PulseLoader, BarLoader } from 'react-spinners';
+import { PulseLoader, BarLoader } from 'react-spinners';
 import Lottie from 'lottie-react';
 
 interface ChatbotCreationLoaderProps {
@@ -92,46 +92,6 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
 
           {/* Main content */}
           <div className="relative z-10 text-center">
-            {/* Spinning book icon with react-spinners or Lottie for website scanning */}
-            <div className="mb-8 flex justify-center">
-              <motion.div
-                animate={{
-                  scale: [1, 1.1, 1],
-                }}
-                transition={{
-                  scale: {
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  },
-                }}
-                className="relative"
-              >
-                <div className="absolute inset-0 bg-gold-500/30 rounded-full blur-xl" />
-                <div className="relative z-10 flex items-center justify-center">
-                  {isScanningWebsite || isAnalysis ? (
-                    // Rotating circle for website scanning / analysis
-                    <div className="w-24 h-24 flex items-center justify-center">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        className="w-20 h-20 border-4 border-gold-400 border-t-transparent rounded-full"
-                      />
-                    </div>
-                  ) : (
-                    <ClipLoader 
-                      color="#d4af37" 
-                      size={96} 
-                      speedMultiplier={0.8}
-                      cssOverride={{
-                        borderWidth: '3px',
-                      }}
-                    />
-                  )}
-                </div>
-              </motion.div>
-            </div>
-
             {/* Title - opacity only so layout stays fixed */}
             <motion.h2
               key="title"
