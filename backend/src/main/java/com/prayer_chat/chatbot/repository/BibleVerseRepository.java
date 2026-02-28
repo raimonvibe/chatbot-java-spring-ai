@@ -60,7 +60,7 @@ public interface BibleVerseRepository extends JpaRepository<BibleVerse, Long> {
      * Memory impact: Reduces memory from ~300MB to ~10MB during delete operation
      */
     @Modifying
-    @Query(value = "DELETE FROM bible_verse", nativeQuery = true)
+    @Query(value = "DELETE FROM bible_verses", nativeQuery = true)
     void deleteAllVerses();
 
     /**

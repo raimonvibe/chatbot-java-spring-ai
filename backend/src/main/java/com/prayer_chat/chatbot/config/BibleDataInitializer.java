@@ -10,6 +10,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -54,10 +55,20 @@ public class BibleDataInitializer implements CommandLineRunner {
         if (forceReload) {
             logger.warn("⚠️  FORCE_RELOAD_BIBLE_DATA is set to true!");
             logger.warn("⚠️  Deleting all existing Bible verses and reloading...");
-            long deletedCount = bibleVerseRepository.count();
-            // Use optimized native query delete to avoid loading all entities into memory
-            bibleVerseRepository.deleteAllVerses();
-            logger.info("✅ Deleted {} existing Bible verses (using optimized native query)", deletedCount);
+            try {
+                long deletedCount = bibleVerseRepository.count();
+                // Use optimized native query delete to avoid loading all entities into memory
+                bibleVerseRepository.deleteAllVerses();
+                logger.info("✅ Deleted {} existing Bible verses (using optimized native query)", deletedCount);
+            } catch (InvalidDataAccessResourceUsageException e) {
+                // Table may not exist yet (e.g. first deploy); skip delete and proceed to load
+                if (e.getCause() != null && e.getCause().getMessage() != null
+                        && e.getCause().getMessage().contains("does not exist")) {
+                    logger.info("Bible table not present yet; skipping delete, will load data.");
+                } else {
+                    throw e;
+                }
+            }
             logger.info("🔄 Reloading Bible data (only New Testament will be loaded if load-old-testament=false)...");
         }
 
