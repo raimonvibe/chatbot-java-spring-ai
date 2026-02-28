@@ -66,6 +66,8 @@ public class WebsiteAnalysisService {
         "main",
         "article",
         "[role=main]",
+        "#__next", /* Next.js app root */
+        "[data-react-root]", /* React root */
         ".post-content", ".entry-content", ".article-body", ".article-content",
         ".prose", ".page-content", ".post-body", ".content-area",
         ".main-content", "#content", "#main", ".content",
@@ -247,7 +249,9 @@ public class WebsiteAnalysisService {
             Document document = response.parse();
 
             WebsiteContent content = extractPageContent(chatbotRef, finalUrl, document);
-            if (content != null && isValidContent(content)) {
+            boolean acceptContent = content != null && (isValidContent(content)
+                || (depth == 0 && isMinimalUsableContent(content))); // First page: accept SPA fallback so chatbot has something
+            if (acceptContent) {
                 extractedContent.add(content);
                 websiteContentRepository.save(content);
                 logger.debug("Extracted content from: {}", urlToFetch);
@@ -477,12 +481,23 @@ public class WebsiteAnalysisService {
     }
     
     /**
-     * Check if content is valid for training
+     * Check if content is valid for training (substantial content)
      */
     private boolean isValidContent(WebsiteContent content) {
-        return content.getContent() != null && 
-               content.getContent().length() > 100 && 
-               content.getWordCount() > 20;
+        return content.getContent() != null &&
+               content.getContent().length() > 100 &&
+               content.getWordCount() != null && content.getWordCount() > 20;
+    }
+
+    /**
+     * Relaxed check for first page (SPA/minimal HTML): accept title+meta fallback so we index at least one page.
+     * Allows chatbot to answer "about this site" instead of "content not loaded" after 2 minutes.
+     */
+    private boolean isMinimalUsableContent(WebsiteContent content) {
+        if (content == null || content.getContent() == null) return false;
+        int len = content.getContent().length();
+        int words = content.getWordCount() != null ? content.getWordCount() : 0;
+        return len >= 40 && words >= 3;
     }
     
     /**
