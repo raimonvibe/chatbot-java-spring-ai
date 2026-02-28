@@ -511,6 +511,32 @@ export interface SubscriptionStatus {
   plan?: string;
 }
 
+/** Response from GET /api/subscription/status */
+export interface SubscriptionStatusApi {
+  hasSubscription: boolean;
+  status: string;
+  plan: string;
+  isActive: boolean;
+  canUseChatbot: boolean;
+  currentPeriodEnd?: string;
+  canceledAt?: string;
+}
+
+export async function getSubscriptionStatusFromApi(): Promise<SubscriptionStatusApi | null> {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/subscription/status`, {
+      method: 'GET',
+      credentials: 'include',
+      headers,
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   try {
     // Try to get user info which includes subscription status

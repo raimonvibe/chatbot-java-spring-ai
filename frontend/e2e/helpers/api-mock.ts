@@ -212,14 +212,17 @@ export class ApiMock {
   } = {}) {
     const { status = 'ACTIVE', plan = 'FREE' } = options;
 
-    // Mock subscription status
+    // Mock subscription status (full shape for account page)
     await this.page.route('**/api/subscription/status', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
+          hasSubscription: plan !== 'FREE',
           status,
           plan,
+          isActive: status === 'ACTIVE',
+          canUseChatbot: plan !== 'FREE',
           currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         }),
       });
@@ -232,6 +235,17 @@ export class ApiMock {
         contentType: 'application/json',
         body: JSON.stringify({
           url: 'https://checkout.stripe.com/mock',
+        }),
+      });
+    });
+
+    // Mock create portal session (account page "Manage subscription")
+    await this.page.route('**/api/subscription/create-portal-session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          portalUrl: 'https://billing.stripe.com/session/mock',
         }),
       });
     });

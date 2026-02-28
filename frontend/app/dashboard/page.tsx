@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
 
@@ -280,6 +280,13 @@ export default function Dashboard() {
                 <Trash2 className="w-5 h-5" /> Delete All
               </button>
             )}
+            <Link
+              href="/account"
+              className="px-4 py-3 bg-brown-100 text-brown-800 rounded-xl font-medium hover:bg-brown-200 transition-all flex items-center gap-2"
+              title="Account and subscription"
+            >
+              <User className="w-5 h-5" /> Account
+            </Link>
             <button
               onClick={async () => {
                 setPortalLoading(true);

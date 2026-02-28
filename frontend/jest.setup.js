@@ -11,6 +11,7 @@ jest.mock('framer-motion', () => {
     ...jest.requireActual('framer-motion'),
     motion: {
       div: React.forwardRef((props, ref) => React.createElement('div', { ...filterProps(props), ref })),
+      section: React.forwardRef((props, ref) => React.createElement('section', { ...filterProps(props), ref })),
       button: React.forwardRef((props, ref) => React.createElement('button', { ...filterProps(props), ref })),
       input: React.forwardRef((props, ref) => React.createElement('input', { ...filterProps(props), ref })),
       p: React.forwardRef((props, ref) => React.createElement('p', { ...filterProps(props), ref })),
