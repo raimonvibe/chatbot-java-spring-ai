@@ -199,22 +199,57 @@ public class SubscriptionController {
         }
     }
 
+    /** Max length for return URL (Stripe limit 500; we enforce to prevent abuse). */
+    private static final int MAX_RETURN_URL_LENGTH = 500;
+
     /**
-     * Validate return URL to prevent open-redirect: must be an allowed origin or a path under it.
+     * Validate return URL to prevent open-redirect: only https (or http for localhost), host must exactly match an allowed origin, no javascript/data, length capped.
      */
     private boolean isAllowedReturnUrl(String returnUrl) {
-        if (returnUrl == null || returnUrl.isBlank()) {
+        if (returnUrl == null || returnUrl.isBlank() || returnUrl.length() > MAX_RETURN_URL_LENGTH) {
             return false;
         }
         String url = returnUrl.trim();
+        String lower = url.toLowerCase();
+        if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:") || lower.startsWith("file:")) {
+            return false;
+        }
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(url);
+        } catch (Exception e) {
+            return false;
+        }
+        String scheme = uri.getScheme();
+        if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))) {
+            return false;
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            return false;
+        }
         if (allowedOrigins == null || allowedOrigins.isBlank()) {
-            return url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1");
+            return ("http".equalsIgnoreCase(scheme) && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host)));
         }
         for (String origin : allowedOrigins.split(",")) {
             String base = origin.trim();
             if (base.isEmpty()) continue;
-            if (url.equals(base) || url.startsWith(base + "/")) {
-                return true;
+            try {
+                java.net.URI baseUri = java.net.URI.create(base);
+                String baseHost = baseUri.getHost();
+                if (baseHost == null || !baseHost.equalsIgnoreCase(host)) continue;
+                String basePath = baseUri.getPath();
+                if (basePath == null) basePath = "";
+                String path = uri.getPath();
+                if (path == null) path = "";
+                if (basePath.isEmpty() || basePath.equals("/")) {
+                    return true;
+                }
+                if (path.equals(basePath) || path.startsWith(basePath + "/")) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+                continue;
             }
         }
         return false;
@@ -256,19 +291,32 @@ public class SubscriptionController {
     }
 
     /**
-     * Get subscription details
+     * Get subscription details (safe fields only; Stripe customer/subscription/price IDs are not exposed).
      */
     @GetMapping("/details")
-    public ResponseEntity<Subscription> getSubscriptionDetails(
+    public ResponseEntity<Map<String, Object>> getSubscriptionDetails(
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
 
         try {
             User user = currentUser.getUser();
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
 
-            return subscriptionOpt
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            if (subscriptionOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            Subscription sub = subscriptionOpt.get();
+            Map<String, Object> safe = new HashMap<>();
+            safe.put("id", sub.getId());
+            safe.put("status", sub.getStatus());
+            safe.put("plan", sub.getPlan());
+            safe.put("isActive", sub.isActive());
+            safe.put("canUseChatbot", sub.canUseChatbot());
+            safe.put("currentPeriodStart", sub.getCurrentPeriodStart());
+            safe.put("currentPeriodEnd", sub.getCurrentPeriodEnd());
+            safe.put("canceledAt", sub.getCanceledAt());
+            safe.put("createdAt", sub.getCreatedAt());
+            safe.put("updatedAt", sub.getUpdatedAt());
+            return ResponseEntity.ok(safe);
 
         } catch (Exception e) {
             logger.error("Error retrieving subscription details: {}", LogSanitizer.sanitizeException(e));
@@ -282,9 +330,14 @@ public class SubscriptionController {
     @PostMapping("/change-plan")
     public ResponseEntity<Map<String, String>> changePlan(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
-            @RequestBody Map<String, String> request) {
+            @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (request == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing request body");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
             User user = currentUser.getUser();
             String newPriceId = request.get("priceId");
             String planStr = request.get("plan");
@@ -338,9 +391,14 @@ public class SubscriptionController {
     @PostMapping("/upgrade")
     public ResponseEntity<Map<String, String>> upgradePlan(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
-            @RequestBody Map<String, String> request) {
+            @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (request == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing request body");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
             User user = currentUser.getUser();
             String newPriceId = request.get("priceId");
             String planStr = request.get("plan");
@@ -394,9 +452,14 @@ public class SubscriptionController {
     @PostMapping("/downgrade")
     public ResponseEntity<Map<String, String>> downgradePlan(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
-            @RequestBody Map<String, String> request) {
+            @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (request == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Missing request body");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
             User user = currentUser.getUser();
             String newPriceId = request.get("priceId");
             String planStr = request.get("plan");

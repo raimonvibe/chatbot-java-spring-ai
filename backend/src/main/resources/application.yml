@@ -261,6 +261,8 @@ cors:
 stripe:
   api-key: ${STRIPE_SECRET_KEY:}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  # Optional: when set, only these IPs can POST to /stripe/webhook (defense-in-depth). Comma-separated. See https://stripe.com/files/ips/ips_webhooks.txt
+  webhook-ip-allowlist: ${STRIPE_WEBHOOK_IP_ALLOWLIST:}
   # Default price (used when no plan/priceId specified)
   price-id: ${STRIPE_PRICE_ID:}
   # Optional per-plan Stripe Price IDs (e.g. STRIPE_PRICE_ID_BASIC=price_xxx)

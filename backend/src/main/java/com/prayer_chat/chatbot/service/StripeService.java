@@ -4,6 +4,7 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Customer;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.prayer_chat.chatbot.model.Subscription;
@@ -142,7 +143,11 @@ public class StripeService {
         if (planForMetadata != null) {
             paramsBuilder.putMetadata("plan", planForMetadata);
         }
-        Session session = Session.create(paramsBuilder.build());
+        // Idempotency key: same user+plan within 5 min returns same session (retries/double-clicks)
+        String idemKey = "ck_" + user.getId() + "_" + (planOrPriceId != null ? planOrPriceId : "default")
+            + "_" + (System.currentTimeMillis() / 300_000L);
+        RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
+        Session session = Session.create(paramsBuilder.build(), requestOptions);
         logger.info("Created Stripe checkout session for user: {}", user.getEmail());
         return session.getUrl();
     }
@@ -204,8 +209,11 @@ public class StripeService {
                 .setCustomer(customerId)
                 .setReturnUrl(returnUrl != null && !returnUrl.isEmpty() ? returnUrl : successUrl)
                 .build();
+        // Idempotency key: same user within 5 min returns same portal session (retries/double-clicks)
+        String idemKey = "portal_" + user.getId() + "_" + (System.currentTimeMillis() / 300_000L);
+        RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
         com.stripe.model.billingportal.Session portalSession =
-            com.stripe.model.billingportal.Session.create(portalParams);
+            com.stripe.model.billingportal.Session.create(portalParams, requestOptions);
         logger.info("Created billing portal session for user: {}", user.getEmail());
         return portalSession.getUrl();
     }

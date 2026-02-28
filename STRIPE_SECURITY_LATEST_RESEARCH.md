@@ -11,7 +11,7 @@ This document summarizes **current** Stripe and industry guidance on coding a se
 | **Use low-risk integrations** | Don’t handle raw card data. Use Stripe Checkout or Elements so card data goes straight to Stripe. | ✅ We use **Stripe Checkout**; card data never touches our server. |
 | **TLS/HTTPS** | Payment and webhook endpoints must use TLS 1.2+. All Stripe API calls use HTTPS. | ✅ Production uses HTTPS; Stripe Java SDK uses HTTPS. |
 | **Verify webhook signatures** | Use `Stripe-Signature` and `Webhook.constructEvent(payload, sigHeader, endpointSecret)` so only Stripe can trigger logic. | ✅ `StripeWebhookController` verifies before processing. Rejects missing/empty secret or signature. |
-| **Allowlist Stripe webhook IPs** | Restrict webhook endpoint so only Stripe’s IPs can POST. | ⚠️ **Not implemented.** Optional defense-in-depth; signature verification is the primary control. See [§5](#5-optional-webhook-ip-allowlist) below. |
+| **Allowlist Stripe webhook IPs** | Restrict webhook endpoint so only Stripe’s IPs can POST. | ✅ **Optional:** Set `STRIPE_WEBHOOK_IP_ALLOWLIST` (comma-separated IPs from [Stripe's list](https://stripe.com/files/ips/ips_webhooks.txt)) to enable. When set, requests from other IPs get 403. |
 | **CSP for Stripe** | Allow Stripe domains in Content-Security-Policy so Checkout/Elements work. | ✅ `SecurityConfig` allows `js.stripe.com`, `api.stripe.com`, `checkout.stripe.com`, `frame-src` etc. per [Stripe CSP docs](https://stripe.com/docs/security/guide#content-security-policy). |
 
 ## 2. Webhook implementation
@@ -52,8 +52,8 @@ This document summarizes **current** Stripe and industry guidance on coding a se
 Stripe’s security guide says: *“verify webhook signatures and allowlist Stripe’s IP addresses to ensure that every Stripe webhook you receive is sent exclusively by Stripe.”*
 
 - **Signature verification** is the main guarantee; Stripe and many practitioners consider it sufficient on its own.
-- **IP allowlisting** is an extra layer: only accept POSTs to `/stripe/webhook` from [Stripe’s published webhook IP list](https://stripe.com/files/ips/ips_webhooks.txt) (updated periodically).
-- **Trade-offs:** IP list can change; you need to refresh it (e.g. periodic fetch or deploy). In serverless or behind CDNs, client IP might not be the real Stripe IP. For many apps, signature verification plus HTTPS is enough; add IP allowlisting if you want defense-in-depth (e.g. strict firewall).
+- **IP allowlisting** is implemented as an optional extra: set `STRIPE_WEBHOOK_IP_ALLOWLIST` to a comma-separated list of IPs (from [Stripe’s list](https://stripe.com/files/ips/ips_webhooks.txt)). When set, only requests from those IPs are accepted; others get 403. If unset, no IP check is performed.
+- **Trade-offs:** IP list can change; update the env when Stripe publishes changes. When behind a proxy/load balancer, `request.getRemoteAddr()` may be the proxy IP—ensure the proxy forwards the real client IP or add the proxy’s egress IP to the list.
 
 ## 6. Idempotency keys (Stripe API)
 
@@ -61,7 +61,7 @@ Stripe’s security guide says: *“verify webhook signatures and allowlist Stri
 
 - For **POST** requests that create or change state (e.g. creating a PaymentIntent, Subscription, or one-off charge), Stripe supports **idempotency keys** so retries don’t create duplicates.
 - **Checkout Session creation:** Stripe’s Create Checkout Session API accepts an idempotency key. If the client retries (e.g. double-click), the same key returns the same session.
-- **Our setup:** We don’t currently send `Idempotency-Key` from the backend when creating checkout or portal sessions. Adding a unique key per user/request (e.g. UUID) would make create-checkout and create-portal idempotent and is recommended for production.
+- **Our setup:** We send an idempotency key when creating checkout and billing portal sessions. The key is derived from user id + plan (for checkout) or user id (for portal) plus a 5-minute time bucket, so duplicate requests within the window return the same Stripe session without creating a second one.
 
 ## 7. PCI and card data
 
@@ -82,8 +82,8 @@ Stripe’s security guide says: *“verify webhook signatures and allowlist Stri
 | Restrict price IDs to configured list | ✅ |
 | Secret keys only on server, from env | ✅ |
 | CSP allows required Stripe domains | ✅ |
-| Webhook IP allowlist | Optional (see §5) |
-| Idempotency key on Checkout/Portal session creation | Recommended |
+| Webhook IP allowlist | Optional: set `STRIPE_WEBHOOK_IP_ALLOWLIST` (see §5) |
+| Idempotency key on Checkout/Portal session creation | ✅ Implemented (5-min bucket per user/plan) |
 | Return 200 quickly, process webhook async | Optional for heavy work |
 
 ## References

@@ -5,6 +5,7 @@ import com.stripe.model.Event;
 import com.stripe.model.Subscription;
 import com.stripe.net.Webhook;
 import com.prayer_chat.chatbot.service.StripeService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -39,14 +40,21 @@ class StripeWebhookControllerTest {
     private static final String WEBHOOK_SECRET = "whsec_test_secret";
     private static final String VALID_SIGNATURE = "t=1234567890,v1=valid_signature";
 
+    private HttpServletRequest mockRequest() {
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        when(req.getRemoteAddr()).thenReturn("127.0.0.1");
+        return req;
+    }
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         controller = new StripeWebhookController();
 
-        // Inject mocked service and webhook secret
+        // Inject mocked service, webhook secret, and empty IP allowlist (no IP check in tests)
         ReflectionTestUtils.setField(controller, "stripeService", stripeService);
         ReflectionTestUtils.setField(controller, "webhookSecret", WEBHOOK_SECRET);
+        ReflectionTestUtils.setField(controller, "webhookIpAllowlist", "");
     }
 
     // ============================================================================
@@ -59,7 +67,7 @@ class StripeWebhookControllerTest {
         String payload = "{\"type\":\"customer.subscription.created\"}";
         String invalidSignature = "t=1234567890,v1=invalid_signature_here";
 
-        ResponseEntity<String> response = controller.handleWebhook(payload, invalidSignature);
+        ResponseEntity<String> response = controller.handleWebhook(payload, invalidSignature, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Invalid signature", response.getBody());
@@ -73,7 +81,7 @@ class StripeWebhookControllerTest {
     void testRejectMissingSignature() {
         String payload = "{\"type\":\"customer.subscription.created\"}";
 
-        ResponseEntity<String> response = controller.handleWebhook(payload, null);
+        ResponseEntity<String> response = controller.handleWebhook(payload, null, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
@@ -86,11 +94,27 @@ class StripeWebhookControllerTest {
     void testRejectEmptySignature() {
         String payload = "{\"type\":\"customer.subscription.created\"}";
 
-        ResponseEntity<String> response = controller.handleWebhook(payload, "");
+        ResponseEntity<String> response = controller.handleWebhook(payload, "", mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
         verifyNoInteractions(stripeService);
+    }
+
+    @Test
+    @DisplayName("Should reject webhook when IP allowlist is set and request IP not in list")
+    void testRejectWhenIpNotInAllowlist() {
+        ReflectionTestUtils.setField(controller, "webhookIpAllowlist", "3.18.12.63,3.130.192.231");
+        HttpServletRequest requestFromUnknown = mock(HttpServletRequest.class);
+        when(requestFromUnknown.getRemoteAddr()).thenReturn("1.2.3.4");
+        String payload = "{\"type\":\"customer.subscription.created\"}";
+
+        ResponseEntity<String> response = controller.handleWebhook(payload, "t=1,v1=abc", requestFromUnknown);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals("IP not allowed", response.getBody());
+        verifyNoInteractions(stripeService);
+        ReflectionTestUtils.setField(controller, "webhookIpAllowlist", "");
     }
 
     @Test
@@ -99,7 +123,7 @@ class StripeWebhookControllerTest {
         String payload = "{\"type\":\"customer.subscription.created\"}";
         String malformedSignature = "this-is-not-a-valid-signature-format";
 
-        ResponseEntity<String> response = controller.handleWebhook(payload, malformedSignature);
+        ResponseEntity<String> response = controller.handleWebhook(payload, malformedSignature, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
@@ -113,7 +137,7 @@ class StripeWebhookControllerTest {
     @Test
     @DisplayName("Should reject null payload")
     void testRejectNullPayload() {
-        ResponseEntity<String> response = controller.handleWebhook(null, VALID_SIGNATURE);
+        ResponseEntity<String> response = controller.handleWebhook(null, VALID_SIGNATURE, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
@@ -123,7 +147,7 @@ class StripeWebhookControllerTest {
     @Test
     @DisplayName("Should reject empty payload")
     void testRejectEmptyPayload() {
-        ResponseEntity<String> response = controller.handleWebhook("", VALID_SIGNATURE);
+        ResponseEntity<String> response = controller.handleWebhook("", VALID_SIGNATURE, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
@@ -135,7 +159,7 @@ class StripeWebhookControllerTest {
     void testRejectMalformedJson() {
         String malformedJson = "{this is not valid json}";
 
-        ResponseEntity<String> response = controller.handleWebhook(malformedJson, VALID_SIGNATURE);
+        ResponseEntity<String> response = controller.handleWebhook(malformedJson, VALID_SIGNATURE, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
@@ -152,7 +176,7 @@ class StripeWebhookControllerTest {
         // Payload that passes signature but fails deserialization
         String problematicPayload = "{\"type\":\"unknown.event\",\"data\":{}}";
 
-        ResponseEntity<String> response = controller.handleWebhook(problematicPayload, VALID_SIGNATURE);
+        ResponseEntity<String> response = controller.handleWebhook(problematicPayload, VALID_SIGNATURE, mockRequest());
 
         // Should return error status
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -228,7 +252,7 @@ class StripeWebhookControllerTest {
         String oldTimestamp = "t=1000000000,v1=some_signature";
 
         ResponseEntity<String> response = controller.handleWebhook(
-            "{\"type\":\"test\"}", oldTimestamp);
+            "{\"type\":\"test\"}", oldTimestamp, mockRequest());
 
         // Should fail signature verification due to old timestamp
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -322,7 +346,7 @@ class StripeWebhookControllerTest {
 
         // Test rapid consecutive webhook calls
         for (int i = 0; i < 100; i++) {
-            controller.handleWebhook("{}", "invalid");
+            controller.handleWebhook("{}", "invalid", mockRequest());
         }
 
         // Should not crash or hang
@@ -373,7 +397,7 @@ class StripeWebhookControllerTest {
         // - Error responses
         // - Exception stack traces
 
-        ResponseEntity<String> response = controller.handleWebhook("{}", "bad_sig");
+        ResponseEntity<String> response = controller.handleWebhook("{}", "bad_sig", mockRequest());
 
         assertNotNull(response.getBody());
         assertFalse(response.getBody().contains(WEBHOOK_SECRET),
@@ -383,7 +407,7 @@ class StripeWebhookControllerTest {
     @Test
     @DisplayName("Should not leak implementation details in error messages")
     void testNoImplementationDetailsLeaked() {
-        ResponseEntity<String> response = controller.handleWebhook("malformed{json", "sig");
+        ResponseEntity<String> response = controller.handleWebhook("malformed{json", "sig", mockRequest());
 
         String body = response.getBody();
 
@@ -410,7 +434,7 @@ class StripeWebhookControllerTest {
         // Verify that weak algorithms are not accepted
         String weakSignature = "md5=abc123";  // MD5 is weak
 
-        ResponseEntity<String> response = controller.handleWebhook("{}", weakSignature);
+        ResponseEntity<String> response = controller.handleWebhook("{}", weakSignature, mockRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
@@ -430,7 +454,7 @@ class StripeWebhookControllerTest {
 
         for (int i = 0; i < threadCount; i++) {
             threads[i] = new Thread(() -> {
-                controller.handleWebhook("{}", "sig");
+                controller.handleWebhook("{}", "sig", mockRequest());
             });
             threads[i].start();
         }

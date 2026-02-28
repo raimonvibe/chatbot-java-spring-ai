@@ -74,6 +74,7 @@ If you don’t set `STRIPE_PRICE_ID`, and no plan/price is sent, the backend may
 - Endpoint: `POST /stripe/webhook` (no auth; Stripe is not logged in – verification is by signature).
 - In Stripe Dashboard, add a webhook endpoint with URL: `https://your-backend.com/stripe/webhook`.
 - Subscribe to: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.
+- **Optional (defense-in-depth):** Set `STRIPE_WEBHOOK_IP_ALLOWLIST` to a comma-separated list of Stripe webhook IPs (see [Stripe’s list](https://stripe.com/files/ips/ips_webhooks.txt)). When set, only requests from those IPs are accepted.
 
 ## 4. Frontend
 
