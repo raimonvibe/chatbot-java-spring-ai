@@ -113,7 +113,13 @@ public class SubscriptionController {
                         error.put("error", "Invalid price ID");
                         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
                     }
-                    planOrPriceId = priceId.trim();
+                    String trimmed = priceId.trim();
+                    if (!stripeService.isAllowedPriceId(trimmed)) {
+                        Map<String, String> error = new HashMap<>();
+                        error.put("error", "Price ID not allowed");
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                    }
+                    planOrPriceId = trimmed;
                 }
             }
 
@@ -356,6 +362,16 @@ public class SubscriptionController {
                 error.put("error", "Invalid plan: " + planStr);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
             }
+            if (newPlan == Subscription.SubscriptionPlan.FREE) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Use the cancel endpoint to stop your subscription. FREE is not a selectable plan for change.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            if (!stripeService.isAllowedPriceId(newPriceId)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Price ID not allowed");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
 
             stripeService.changeSubscriptionPlan(user.getId(), newPriceId, newPlan);
 
@@ -417,6 +433,16 @@ public class SubscriptionController {
                 error.put("error", "Invalid plan: " + planStr);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
             }
+            if (newPlan == Subscription.SubscriptionPlan.FREE) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "FREE is not a valid target for upgrade");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            if (!stripeService.isAllowedPriceId(newPriceId)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Price ID not allowed");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
 
             stripeService.upgradeSubscription(user.getId(), newPriceId, newPlan);
 
@@ -476,6 +502,16 @@ public class SubscriptionController {
             } catch (IllegalArgumentException e) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Invalid plan: " + planStr);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            if (newPlan == Subscription.SubscriptionPlan.FREE) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Use the cancel endpoint to stop your subscription. FREE is not a valid target for downgrade.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            if (!stripeService.isAllowedPriceId(newPriceId)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Price ID not allowed");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
             }
 

@@ -139,13 +139,17 @@ public class StripeService {
             .addLineItem(lineItemBuilder.build())
             .setSuccessUrl(successUrl)
             .setCancelUrl(cancelUrl)
+            .setClientReferenceId("user_" + user.getId())
             .putMetadata("user_id", user.getId().toString());
         if (planForMetadata != null) {
             paramsBuilder.putMetadata("plan", planForMetadata);
         }
-        // Idempotency key: same user+plan within 5 min returns same session (retries/double-clicks)
-        String idemKey = "ck_" + user.getId() + "_" + (planOrPriceId != null ? planOrPriceId : "default")
-            + "_" + (System.currentTimeMillis() / 300_000L);
+        // Idempotency key: same user+plan within 5 min returns same session (retries/double-clicks). Max 255 chars for Stripe.
+        String planPart = (planOrPriceId != null && planOrPriceId.length() <= 100) ? planOrPriceId : "default";
+        String idemKey = "ck_" + user.getId() + "_" + planPart + "_" + (System.currentTimeMillis() / 300_000L);
+        if (idemKey.length() > 255) {
+            idemKey = idemKey.substring(0, 255);
+        }
         RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
         Session session = Session.create(paramsBuilder.build(), requestOptions);
         logger.info("Created Stripe checkout session for user: {}", user.getEmail());
@@ -259,13 +263,17 @@ public class StripeService {
         }
 
         Subscription subscription = subscriptionOpt.get();
-        String priceId = stripeSubscription.getItems().getData().get(0).getPrice().getId();
+        List<com.stripe.model.SubscriptionItem> items = stripeSubscription.getItems().getData();
+        if (items == null || items.isEmpty()) {
+            logger.error("Stripe subscription {} has no items", stripeSubscription.getId());
+            return;
+        }
+        com.stripe.model.SubscriptionItem firstItem = items.get(0);
+        String priceId = firstItem.getPrice().getId();
         subscription.setStripeSubscriptionId(stripeSubscription.getId());
         subscription.setStripePriceId(priceId);
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
         subscription.setPlan(planFromPriceId(priceId));
-        // Get billing periods from subscription item (Stripe API 2025-03-31+)
-        com.stripe.model.SubscriptionItem firstItem = stripeSubscription.getItems().getData().get(0);
         subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
         subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
 
@@ -368,8 +376,11 @@ public class StripeService {
         com.stripe.model.Subscription stripeSubscription =
             com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
 
-        // Get the subscription item ID
-        String subscriptionItemId = stripeSubscription.getItems().getData().get(0).getId();
+        List<com.stripe.model.SubscriptionItem> subscriptionItems = stripeSubscription.getItems().getData();
+        if (subscriptionItems == null || subscriptionItems.isEmpty()) {
+            throw new IllegalStateException("Stripe subscription has no items");
+        }
+        String subscriptionItemId = subscriptionItems.get(0).getId();
 
         // Update the subscription with new price
         Map<String, Object> items = new HashMap<>();
@@ -414,8 +425,11 @@ public class StripeService {
         com.stripe.model.Subscription stripeSubscription =
             com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
 
-        // Get the subscription item ID
-        String subscriptionItemId = stripeSubscription.getItems().getData().get(0).getId();
+        List<com.stripe.model.SubscriptionItem> subscriptionItems = stripeSubscription.getItems().getData();
+        if (subscriptionItems == null || subscriptionItems.isEmpty()) {
+            throw new IllegalStateException("Stripe subscription has no items");
+        }
+        String subscriptionItemId = subscriptionItems.get(0).getId();
 
         // Update the subscription with new price
         Map<String, Object> items = new HashMap<>();
@@ -437,9 +451,21 @@ public class StripeService {
     }
 
     /**
-     * Change subscription plan (auto-detect upgrade vs downgrade)
+     * Change subscription plan (auto-detect upgrade vs downgrade).
+     * Rejects FREE (use cancel instead) and ensures priceId matches the requested plan.
      */
     public void changeSubscriptionPlan(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        if (newPlan == Subscription.SubscriptionPlan.FREE) {
+            throw new IllegalArgumentException("To cancel your plan, use the cancel endpoint. FREE is not a changeable plan.");
+        }
+        if (!isAllowedPriceId(newPriceId)) {
+            throw new IllegalArgumentException("Invalid or disallowed price ID for plan change");
+        }
+        Subscription.SubscriptionPlan planForPrice = planFromPriceId(newPriceId);
+        if (planForPrice != newPlan) {
+            throw new IllegalArgumentException("Price ID does not match plan: " + newPlan);
+        }
+
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
 
         if (subscriptionOpt.isEmpty()) {

@@ -5,24 +5,17 @@ import { Book, Check, Zap, Building2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { createCheckoutSession } from '@/lib/api';
 
-// Auto-detect backend URL based on environment
 function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
-    if (hostname.includes('vercel.app')) {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
+    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') return 'https://chatbot-backend-4mp4.onrender.com';
+    if (hostname.includes('vercel.app')) return 'https://chatbot-backend-4mp4.onrender.com';
   }
   return 'http://localhost:8081';
 }
-
 const API_BASE_URL = getApiBaseUrl();
 
 // Plan keys sent to backend (must match backend: BASIC, PRO, ENTERPRISE)
@@ -127,56 +120,21 @@ function PricingContent() {
     if (subscribingPlan) return;
     setSubscribingPlan(planKey);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/subscription/create-checkout-session`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planKey }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          window.location.href = `/login?redirect=${encodeURIComponent('/pricing')}`;
-          return;
-        }
-        const contentType = response.headers.get('content-type');
-        const data = contentType?.includes('application/json')
-          ? await response.json().catch(() => ({}))
-          : {};
-        const message = data?.error || 'Failed to create checkout session';
-        if (response.status === 503 && message.toLowerCase().includes('not configured')) {
-          alert('Payments are not configured yet. Please contact support or try again later.');
-        } else {
-          alert(message);
-        }
-        setSubscribingPlan(null);
-        return;
-      }
-
-      const data = await response.json();
-      const url = data.checkoutUrl || data.url;
-      if (!url || typeof url !== 'string') {
-        alert('Invalid response from server. Please try again.');
-        setSubscribingPlan(null);
-        return;
-      }
-      try {
-        const urlObj = new URL(url);
-        if (!['checkout.stripe.com', 'checkout.stripe.dev'].includes(urlObj.hostname)) {
-          alert('Invalid checkout URL. Please try again.');
-          setSubscribingPlan(null);
-          return;
-        }
-      } catch {
-        alert('Invalid checkout URL. Please try again.');
-        setSubscribingPlan(null);
-        return;
-      }
+      const url = await createCheckoutSession(planKey);
       window.location.href = url;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating checkout session:', error);
       setSubscribingPlan(null);
-      alert('Failed to start subscription process. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to start subscription process. Please try again.';
+      if (message === 'Unauthorized') {
+        window.location.href = `/login?redirect=${encodeURIComponent('/pricing')}`;
+        return;
+      }
+      if (message.toLowerCase().includes('not configured')) {
+        alert('Payments are not configured yet. Please contact support or try again later.');
+      } else {
+        alert(message);
+      }
     }
   };
 

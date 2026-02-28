@@ -232,6 +232,17 @@ class SubscriptionControllerIT {
     }
 
     @Test
+    @DisplayName("SECURITY: GET create-checkout-session returns 405 Method Not Allowed when authenticated")
+    void security_getCreateCheckoutSession_returns405() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        mockMvc.perform(get("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isMethodNotAllowed());
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
     @DisplayName("Should return 400 when user already has active subscription")
     void shouldReturn400_whenUserAlreadyHasActiveSubscription() throws Exception {
         testSubscription.setPlan(Subscription.SubscriptionPlan.BASIC);
@@ -322,6 +333,19 @@ class SubscriptionControllerIT {
     }
 
     @Test
+    @DisplayName("SECURITY: Portal session rejects javascript: returnUrl (open redirect)")
+    void security_portalSession_rejectsJavascriptReturnUrl() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"returnUrl\": \"javascript:alert(1)\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid return URL")));
+        verify(stripeService, never()).createBillingPortalSession(any(User.class), any());
+    }
+
+    @Test
     @DisplayName("Should cancel active subscription")
     void shouldCancelActiveSubscription() throws Exception {
         // Arrange
@@ -357,6 +381,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should change subscription plan")
     void shouldChangeSubscriptionPlan() throws Exception {
         // Arrange
+        when(stripeService.isAllowedPriceId("price_test")).thenReturn(true);
         doNothing().when(stripeService).changeSubscriptionPlan(
             eq(1L), eq("price_test"), eq(Subscription.SubscriptionPlan.BASIC));
 
@@ -376,6 +401,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should upgrade subscription plan")
     void shouldUpgradeSubscriptionPlan() throws Exception {
         // Arrange
+        when(stripeService.isAllowedPriceId("price_test")).thenReturn(true);
         doNothing().when(stripeService).upgradeSubscription(
             eq(1L), eq("price_test"), eq(Subscription.SubscriptionPlan.PRO));
 
@@ -395,6 +421,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should downgrade subscription plan")
     void shouldDowngradeSubscriptionPlan() throws Exception {
         // Arrange
+        when(stripeService.isAllowedPriceId("price_test")).thenReturn(true);
         doNothing().when(stripeService).downgradeSubscription(
             eq(1L), eq("price_test"), eq(Subscription.SubscriptionPlan.BASIC));
 
@@ -424,6 +451,35 @@ class SubscriptionControllerIT {
             .andExpect(jsonPath("$.error", equalTo("Invalid price ID")));
 
         verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should return 400 for disallowed priceId in create checkout session")
+    void shouldReturn400ForDisallowedPriceId_createCheckoutSession() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(stripeService.isAllowedPriceId("price_evil_unknown")).thenReturn(false);
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"price_evil_unknown\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Price ID not allowed")));
+
+        verify(stripeService, never()).createCheckoutSession(any(User.class), any());
+    }
+
+    @Test
+    @DisplayName("Should return 400 for plan FREE in change-plan")
+    void shouldReturn400ForPlanFree_changePlan() throws Exception {
+        mockMvc.perform(post("/api/subscription/change-plan")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"price_test\", \"plan\": \"FREE\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", containsString("cancel")));
+        verify(stripeService, never()).changeSubscriptionPlan(any(), any(), any());
     }
 
     @Test

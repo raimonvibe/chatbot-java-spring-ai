@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, X, Sparkles, Book, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { createCheckoutSession } from '@/lib/api';
 
 interface PaywallModalProps {
   isOpen: boolean;
@@ -56,26 +57,6 @@ const featureMessages = {
   }
 };
 
-function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
-    if (hostname.includes('vercel.app')) {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
-  }
-  
-  return 'http://localhost:8081';
-}
-
-const API_BASE_URL = getApiBaseUrl();
-
 export default function PaywallModal({
   isOpen,
   onClose,
@@ -92,64 +73,16 @@ export default function PaywallModal({
   const verse = bibleVerse || defaultBibleVerses[feature];
 
   const handleUpgrade = async () => {
-    // Prevent multiple simultaneous requests
-    if (loading) {
-      return;
-    }
-    
+    if (loading) return;
     setLoading(true);
     try {
-      // Call backend to create Stripe checkout session
-      const response = await fetch(`${API_BASE_URL}/api/subscription/create-checkout-session`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        const errorData = contentType?.includes('application/json')
-          ? await response.json().catch(() => ({ error: 'Failed to create checkout session' }))
-          : {};
-        const message = errorData?.error || 'Failed to create checkout session';
-        if (response.status === 503 && message.toLowerCase().includes('not configured')) {
-          throw new Error('Payments are not configured yet. Please contact support.');
-        }
-        throw new Error(message);
-      }
-
-      const data = await response.json();
-      const url = data.checkoutUrl || data.url;
-
-      // Security: Validate URL is from Stripe before redirecting
-      if (!url || typeof url !== 'string') {
-        throw new Error('Invalid checkout URL received');
-      }
-      
-      // Validate URL is from Stripe domain (prevent open redirect vulnerability)
-      try {
-        const urlObj = new URL(url);
-        const allowedDomains = [
-          'checkout.stripe.com',
-          'checkout.stripe.dev', // For test mode
-        ];
-        
-        if (!allowedDomains.includes(urlObj.hostname)) {
-          throw new Error('Invalid checkout URL domain');
-        }
-      } catch (urlError) {
-        throw new Error('Invalid checkout URL format');
-      }
-      
-      // Redirect to Stripe checkout (validated)
+      const url = await createCheckoutSession();
       window.location.href = url;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating checkout session:', error);
-      alert(error.message || 'Failed to start subscription process. Please try again.');
       setLoading(false);
+      const message = error instanceof Error ? error.message : 'Failed to start subscription process. Please try again.';
+      alert(message);
     }
   };
 

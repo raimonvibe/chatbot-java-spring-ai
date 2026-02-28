@@ -281,4 +281,18 @@ class StripeServiceTest {
         assertThat(stripeService.isAllowedPriceId(null)).isFalse();
         assertThat(stripeService.isAllowedPriceId("")).isFalse();
     }
+
+    @Test
+    @DisplayName("SECURITY: isAllowedPriceId rejects whitespace-only and substring price IDs")
+    void security_isAllowedPriceId_rejectsWhitespaceAndSubstringAttempts() {
+        ReflectionTestUtils.setField(stripeService, "stripePriceId", "price_ok");
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdBasic", "price_basic");
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdPro", null);
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdEnterprise", null);
+
+        assertThat(stripeService.isAllowedPriceId("   ")).isFalse();
+        assertThat(stripeService.isAllowedPriceId("price_ok_evil")).isFalse();
+        assertThat(stripeService.isAllowedPriceId("price_basic_attacker")).isFalse();
+        assertThat(stripeService.isAllowedPriceId("price_")).isFalse();
+    }
 }
