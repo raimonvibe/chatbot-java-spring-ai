@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Book, Check, Zap, Building2 } from 'lucide-react';
+import { Book, Check, Zap, Building2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -106,6 +106,7 @@ function PricingContent() {
   const searchParams = useSearchParams();
   const newUser = searchParams.get('new_user');
   const [limitsFromApi, setLimitsFromApi] = useState<PlanLimitsResponse | null>(null);
+  const [subscribingPlan, setSubscribingPlan] = useState<PlanKey | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/plans/limits`)
@@ -123,6 +124,8 @@ function PricingContent() {
   });
 
   const handleSubscribe = async (planKey: PlanKey) => {
+    if (subscribingPlan) return;
+    setSubscribingPlan(planKey);
     try {
       const response = await fetch(`${API_BASE_URL}/api/subscription/create-checkout-session`, {
         method: 'POST',
@@ -146,6 +149,7 @@ function PricingContent() {
         } else {
           alert(message);
         }
+        setSubscribingPlan(null);
         return;
       }
 
@@ -153,21 +157,25 @@ function PricingContent() {
       const url = data.checkoutUrl || data.url;
       if (!url || typeof url !== 'string') {
         alert('Invalid response from server. Please try again.');
+        setSubscribingPlan(null);
         return;
       }
       try {
         const urlObj = new URL(url);
         if (!['checkout.stripe.com', 'checkout.stripe.dev'].includes(urlObj.hostname)) {
           alert('Invalid checkout URL. Please try again.');
+          setSubscribingPlan(null);
           return;
         }
       } catch {
         alert('Invalid checkout URL. Please try again.');
+        setSubscribingPlan(null);
         return;
       }
       window.location.href = url;
     } catch (error) {
       console.error('Error creating checkout session:', error);
+      setSubscribingPlan(null);
       alert('Failed to start subscription process. Please try again.');
     }
   };
@@ -263,14 +271,22 @@ function PricingContent() {
               ) : (
                 <button
                   type="button"
+                  disabled={!!subscribingPlan}
                   onClick={() => plan.planKey && handleSubscribe(plan.planKey)}
-                  className={`w-full px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                  className={`w-full px-4 py-2.5 rounded-lg font-semibold text-sm transition-all inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${
                     plan.highlight
                       ? 'bg-gradient-to-r from-gold-500 to-gold-600 text-white hover:shadow-lg hover:scale-[1.02]'
                       : 'bg-brown-300 text-brown-800 hover:bg-brown-400'
                   }`}
                 >
-                  {plan.cta}
+                  {subscribingPlan === plan.planKey ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                      Redirecting…
+                    </>
+                  ) : (
+                    plan.cta
+                  )}
                 </button>
               )}
             </div>

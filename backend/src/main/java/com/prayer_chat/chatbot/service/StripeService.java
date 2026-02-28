@@ -160,7 +160,17 @@ public class StripeService {
     }
 
     /**
+     * Whether the given Stripe price ID is one of our configured prices (security: prevent arbitrary price subscription).
+     */
+    public boolean isAllowedPriceId(String priceId) {
+        if (priceId == null || priceId.isBlank()) return false;
+        String p = priceId.trim();
+        return p.equals(stripePriceId) || p.equals(stripePriceIdBasic) || p.equals(stripePriceIdPro) || p.equals(stripePriceIdEnterprise);
+    }
+
+    /**
      * Resolve plan name or price ID to a Stripe price ID. Returns null if fallback to default inline price should be used.
+     * Security: raw price_ IDs are only accepted if they are in our configured list.
      */
     private String resolvePriceId(String planOrPriceId) {
         if (planOrPriceId == null || planOrPriceId.trim().isEmpty()) {
@@ -168,7 +178,7 @@ public class StripeService {
         }
         String s = planOrPriceId.trim();
         if (s.startsWith("price_")) {
-            return s;
+            return isAllowedPriceId(s) ? s : (stripePriceId != null && !stripePriceId.isEmpty() ? stripePriceId : null);
         }
         return switch (s.toUpperCase()) {
             case "BASIC" -> stripePriceIdBasic != null && !stripePriceIdBasic.isEmpty() ? stripePriceIdBasic : stripePriceId;
@@ -330,6 +340,9 @@ public class StripeService {
      * Upgrade subscription to a higher plan
      */
     public void upgradeSubscription(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        if (!isAllowedPriceId(newPriceId)) {
+            throw new IllegalArgumentException("Invalid or disallowed price ID for upgrade");
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
 
         if (subscriptionOpt.isEmpty() || subscriptionOpt.get().getStripeSubscriptionId() == null) {
@@ -373,6 +386,9 @@ public class StripeService {
      * Downgrade subscription to a lower plan
      */
     public void downgradeSubscription(Long userId, String newPriceId, Subscription.SubscriptionPlan newPlan) throws StripeException {
+        if (!isAllowedPriceId(newPriceId)) {
+            throw new IllegalArgumentException("Invalid or disallowed price ID for downgrade");
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
 
         if (subscriptionOpt.isEmpty() || subscriptionOpt.get().getStripeSubscriptionId() == null) {

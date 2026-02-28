@@ -40,7 +40,16 @@ public class StripeWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<String> handleWebhook(
             @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String sigHeader) {
+            @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
+
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            logger.warn("Stripe webhook secret not configured - rejecting webhook");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Webhook not configured");
+        }
+        if (sigHeader == null || sigHeader.isBlank()) {
+            logger.warn("Stripe webhook called without Stripe-Signature header");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing signature");
+        }
 
         Event event;
 

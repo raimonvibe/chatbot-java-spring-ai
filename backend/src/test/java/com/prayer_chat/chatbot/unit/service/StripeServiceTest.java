@@ -263,4 +263,22 @@ class StripeServiceTest {
             .hasMessageContaining("not configured");
         verify(subscriptionRepository, never()).findByUserId(any());
     }
+
+    @Test
+    @DisplayName("isAllowedPriceId returns true only for configured price IDs")
+    void isAllowedPriceId_returnsTrueOnlyForConfiguredPrices() {
+        ReflectionTestUtils.setField(stripeService, "stripePriceId", "price_default");
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdBasic", "price_basic");
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdPro", "price_pro");
+        ReflectionTestUtils.setField(stripeService, "stripePriceIdEnterprise", "price_enterprise");
+
+        assertThat(stripeService.isAllowedPriceId("price_default")).isTrue();
+        assertThat(stripeService.isAllowedPriceId("price_basic")).isTrue();
+        assertThat(stripeService.isAllowedPriceId("price_pro")).isTrue();
+        assertThat(stripeService.isAllowedPriceId("price_enterprise")).isTrue();
+        assertThat(stripeService.isAllowedPriceId("price_evil")).isFalse();
+        assertThat(stripeService.isAllowedPriceId("price_other")).isFalse();
+        assertThat(stripeService.isAllowedPriceId(null)).isFalse();
+        assertThat(stripeService.isAllowedPriceId("")).isFalse();
+    }
 }
