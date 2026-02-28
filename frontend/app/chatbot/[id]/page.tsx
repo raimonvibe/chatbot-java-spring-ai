@@ -227,11 +227,11 @@ export default function ChatbotPreview() {
       {/* Chat window: takes remaining space, no page scroll — only inner chat scrolls */}
       <div className="flex-1 min-h-0 flex flex-col p-3 md:p-4 max-w-4xl w-full mx-auto">
         <CalligraphicFrame className="flex-1 min-h-0 rounded-3xl overflow-hidden shadow-2xl border-2 border-brown-200/80 bg-white/95 backdrop-blur-sm">
-          <div className="h-full flex flex-col rounded-3xl overflow-hidden">
-            {/* Scrollable messages area — only this scrolls */}
+          <div className="h-full flex flex-col rounded-3xl overflow-hidden p-5 md:p-6">
+            {/* Scrollable messages area — only this scrolls; horizontal padding keeps book/user icons inside frame */}
             <div
               ref={messagesContainerRef}
-              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-6 bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1 py-3 md:px-2 md:py-4 bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
             >
               <AnimatePresence mode="popLayout">
                 {messages.map((message, index) => (
@@ -266,7 +266,7 @@ export default function ChatbotPreview() {
 
             {/* Quick replies: fixed at bottom of chat panel */}
             {quickReplies.length > 0 && (
-              <div className="flex-shrink-0 px-4 md:px-6 py-2 border-t border-brown-200/80 bg-brown-50/60">
+              <div className="flex-shrink-0 px-2 md:px-3 py-2 border-t border-brown-200/80 bg-brown-50/60">
                 <div className="flex flex-wrap gap-2">
                   {quickReplies.map((reply, index) => (
                     <button
@@ -282,8 +282,8 @@ export default function ChatbotPreview() {
               </div>
             )}
 
-            {/* Input: fixed at bottom */}
-            <div className="flex-shrink-0 p-3 md:p-4 border-t-2 border-brown-200/80 bg-brown-100/50">
+            {/* Input: fixed at bottom, fully inside frame */}
+            <div className="flex-shrink-0 pt-3 px-0 pb-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50">
               <div className="flex gap-2">
                 <input
                   type="text"
