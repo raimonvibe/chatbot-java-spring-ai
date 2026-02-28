@@ -10,6 +10,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +22,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.jsoup.parser.Parser;
 
 /**
  * Service for analyzing and crawling websites to extract content for chatbot training
@@ -47,7 +52,12 @@ public class WebsiteAnalysisService {
     
     @Value("${app.website-analysis.user-agent:AI-Chatbot-Crawler/1.0}")
     private String userAgent;
-    
+
+    @Value("${app.website-analysis.max-headless-pages-per-scan:5}")
+    private int maxHeadlessPagesPerScan;
+
+    private final HeadlessFetchService headlessFetchService;
+
     // Patterns for content filtering
     private static final Pattern SKIP_PATTERNS = Pattern.compile(
         ".*\\.(css|js|png|jpg|jpeg|gif|svg|ico|pdf|zip|mp3|mp4|avi|mov)$", 
@@ -75,9 +85,11 @@ public class WebsiteAnalysisService {
     };
     
     public WebsiteAnalysisService(WebsiteContentRepository websiteContentRepository,
-                                  UrlValidationService urlValidationService) {
+                                  UrlValidationService urlValidationService,
+                                  @Autowired(required = false) HeadlessFetchService headlessFetchService) {
         this.websiteContentRepository = websiteContentRepository;
         this.urlValidationService = urlValidationService;
+        this.headlessFetchService = headlessFetchService;
         this.executorService = Executors.newFixedThreadPool(10);
     }
 
@@ -142,11 +154,12 @@ public class WebsiteAnalysisService {
                 List<String> seedUrls = collectSeedUrls(baseUrl);
                 logger.info("Crawl seeds: {} (homepage + {} from sitemap)", seedUrls.size(), Math.max(0, seedUrls.size() - 1));
 
+                AtomicInteger headlessUsed = new AtomicInteger(0);
                 for (String seed : seedUrls) {
                     if (visitedUrls.size() >= maxPages) break;
                     String normalized = normalizeUrl(seed);
                     if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)) {
-                        crawlWebsite(seed, normalized, baseUrl, ref, visitedUrls, extractedContent, 0);
+                        crawlWebsite(seed, normalized, baseUrl, ref, visitedUrls, extractedContent, 0, headlessUsed);
                     }
                 }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
@@ -218,11 +231,15 @@ public class WebsiteAnalysisService {
     
     /**
      * Recursively crawl website pages. Uses normalizedUrl for deduplication.
+     * When Jsoup returns minimal content (SPA), optionally retries with headless browser.
+     *
      * @param baseUrlForDomain base website URL for same-domain link validation (not used for fetch)
      * @param chatbotRef minimal chatbot reference (id only) for persisting WebsiteContent from async thread
+     * @param headlessUsed counter of headless fetches used in this scan (capped by maxHeadlessPagesPerScan)
      */
     private void crawlWebsite(String urlToFetch, String normalizedUrl, String baseUrlForDomain, Chatbot chatbotRef,
-                              Set<String> visitedUrls, List<WebsiteContent> extractedContent, int depth) {
+                              Set<String> visitedUrls, List<WebsiteContent> extractedContent, int depth,
+                              AtomicInteger headlessUsed) {
 
         if (depth > maxDepth || visitedUrls.size() >= maxPages || visitedUrls.contains(normalizedUrl)) {
             return;
@@ -249,6 +266,27 @@ public class WebsiteAnalysisService {
             Document document = response.parse();
 
             WebsiteContent content = extractPageContent(chatbotRef, finalUrl, document);
+
+            // If Jsoup got minimal content (likely SPA) and we have headless budget, retry with headless browser
+            boolean minimalFromJsoup = content == null || (content.getContent() != null && content.getContent().length() < 200);
+            if (minimalFromJsoup && headlessUsed.get() < maxHeadlessPagesPerScan
+                && headlessFetchService != null && headlessFetchService.isHeadlessEnabled()) {
+                Optional<String> renderedHtml = headlessFetchService.fetchRenderedHtml(urlToFetch);
+                if (renderedHtml.isPresent()) {
+                    try {
+                        Document renderedDoc = Jsoup.parse(renderedHtml.get(), finalUrl, Parser.htmlParser());
+                        WebsiteContent headlessContent = extractPageContent(chatbotRef, finalUrl, renderedDoc);
+                        if (headlessContent != null && (content == null || headlessContent.getContent().length() > (content.getContent() != null ? content.getContent().length() : 0))) {
+                            content = headlessContent;
+                            headlessUsed.incrementAndGet();
+                            logger.info("Headless fetch improved content for {} ({} chars)", urlToFetch, content.getContent().length());
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Headless HTML parse failed for {}: {}", urlToFetch, e.getMessage());
+                    }
+                }
+            }
+
             boolean acceptContent = content != null && (isValidContent(content)
                 || (depth == 0 && isMinimalUsableContent(content))); // First page: accept SPA fallback so chatbot has something
             if (acceptContent) {
@@ -266,7 +304,7 @@ public class WebsiteAnalysisService {
                     String norm = normalizeUrl(href);
                     if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)) {
                         CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
-                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1)
+                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed)
                         );
                         futures.add(future);
                     }
@@ -305,8 +343,8 @@ public class WebsiteAnalysisService {
             // SPA / client-rendered sites: Jsoup gets minimal HTML (no JS execution). Use title + meta as fallback so we index something.
             if (content == null || content.trim().length() < 50) {
                 String fallback = buildFallbackContentFromMeta(title, metaDescription, ogDescription);
-                if (fallback.length() < 30) {
-                    return null; // No usable content at all
+                if (fallback.length() < 5) {
+                    return null; // No usable content at all (not even a short title)
                 }
                 logger.debug("Using title+meta fallback for SPA/minimal page: {}", url);
                 content = fallback;
@@ -492,12 +530,13 @@ public class WebsiteAnalysisService {
     /**
      * Relaxed check for first page (SPA/minimal HTML): accept title+meta fallback so we index at least one page.
      * Allows chatbot to answer "about this site" instead of "content not loaded" after 2 minutes.
+     * Very short title-only (e.g. "Title: Lagos Health Navigator.") is accepted so client-rendered sites get one page.
      */
     private boolean isMinimalUsableContent(WebsiteContent content) {
         if (content == null || content.getContent() == null) return false;
         int len = content.getContent().length();
         int words = content.getWordCount() != null ? content.getWordCount() : 0;
-        return len >= 40 && words >= 3;
+        return len >= 15 && words >= 2;
     }
     
     /**

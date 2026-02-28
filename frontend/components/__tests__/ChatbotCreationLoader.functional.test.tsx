@@ -89,9 +89,9 @@ describe('ChatbotCreationLoader Functional Tests', () => {
       // Initial step should be visible
       expect(container.textContent).toMatch(/initializing/i);
       
-      // Advance timer to next step with act()
+      // Advance timer to next step (interval is 5s)
       act(() => {
-        jest.advanceTimersByTime(2000);
+        jest.advanceTimersByTime(5000);
       });
       
       // Wait for state update
@@ -106,9 +106,9 @@ describe('ChatbotCreationLoader Functional Tests', () => {
         <ChatbotCreationLoader isVisible={true} />
       );
       
-      // Advance timer with act()
+      // Advance timer (interval is 5s)
       act(() => {
-        jest.advanceTimersByTime(2000);
+        jest.advanceTimersByTime(5000);
       });
       
       // Hide loader

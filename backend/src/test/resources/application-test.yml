@@ -67,8 +67,10 @@ pinecone:
   environment: test
   index-name: test-index
 
-# Bible data configuration for tests (disable auto-loading)
+# App config for tests (disable headless crawl so tests don't need Chrome)
 app:
+  website-analysis:
+    headless-enabled: false
   bible:
     auto-load: false
     auto-generate-embeddings: false

@@ -204,7 +204,11 @@ app:
   
   # Website crawling/analysis settings
   website-analysis:
-  
+    # Headless browser (Chrome) for SPAs: when Jsoup gets minimal content, retry with headless (requires Chrome/Chromium installed)
+    headless-enabled: ${HEADLESS_CRAWL_ENABLED:true}
+    max-headless-pages-per-scan: 5
+    headless-timeout-seconds: 25
+
   # Bible data configuration
   bible:
     # Auto-load Bible data on startup if not already loaded

@@ -46,7 +46,7 @@ class WebsiteAnalysisServiceSecurityTest {
 
     @BeforeEach
     void setUp() {
-        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService);
+        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, null);
 
         // Configure service with secure defaults
         ReflectionTestUtils.setField(analysisService, "maxPages", 50);
