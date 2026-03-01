@@ -33,8 +33,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.*;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -504,6 +506,149 @@ class SubscriptionControllerIT {
                 .content("{\"priceId\": \"price_test\", \"plan\": \"INVALID\"}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error", containsString("Invalid plan")));
+    }
+
+    @Test
+    @DisplayName("SECURITY: createCheckoutSession is called with authenticated user only (no IDOR)")
+    void security_createCheckoutSession_usesAuthenticatedUserOnly() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(stripeService.createCheckoutSession(any(User.class), any()))
+            .thenReturn("https://checkout.stripe.com/test");
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"plan\": \"BASIC\"}"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(stripeService, times(1)).createCheckoutSession(userCaptor.capture(), any());
+        assertEquals(testUser.getId(), userCaptor.getValue().getId(),
+            "Checkout must be for authenticated user only, not any ID from request body");
+    }
+
+    @Test
+    @DisplayName("SECURITY: createPortalSession is called with authenticated user only (no IDOR)")
+    void security_createPortalSession_usesAuthenticatedUserOnly() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(stripeService.createBillingPortalSession(any(User.class), any()))
+            .thenReturn("https://billing.stripe.com/session/test");
+
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(stripeService, times(1)).createBillingPortalSession(userCaptor.capture(), any());
+        assertEquals(testUser.getId(), userCaptor.getValue().getId(),
+            "Portal session must be for authenticated user only, not any ID from request body");
+    }
+
+    @Test
+    @DisplayName("SECURITY: cancel is called with authenticated user ID only (no IDOR)")
+    void security_cancelSubscription_calledWithAuthenticatedUserId() throws Exception {
+        testSubscription.setPlan(Subscription.SubscriptionPlan.BASIC);
+        testSubscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+        doNothing().when(stripeService).cancelSubscription(1L);
+
+        mockMvc.perform(post("/api/subscription/cancel")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(stripeService, times(1)).cancelSubscription(userIdCaptor.capture());
+        assertEquals(testUser.getId(), userIdCaptor.getValue(),
+            "Cancel must use authenticated user ID only, not from request body");
+    }
+
+    @Test
+    @DisplayName("SECURITY: change-plan is called with authenticated user ID only (no IDOR)")
+    void security_changePlan_calledWithAuthenticatedUserId() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+        when(stripeService.isAllowedPriceId("price_test")).thenReturn(true);
+        doNothing().when(stripeService).changeSubscriptionPlan(eq(1L), eq("price_test"), any());
+
+        mockMvc.perform(post("/api/subscription/change-plan")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"price_test\", \"plan\": \"BASIC\"}"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(stripeService, times(1)).changeSubscriptionPlan(userIdCaptor.capture(), eq("price_test"), any());
+        assertEquals(testUser.getId(), userIdCaptor.getValue(),
+            "Change plan must use authenticated user ID only");
+    }
+
+    @Test
+    @DisplayName("SECURITY: upgrade is called with authenticated user ID only (no IDOR)")
+    void security_upgrade_calledWithAuthenticatedUserId() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+        when(stripeService.isAllowedPriceId("price_pro")).thenReturn(true);
+        doNothing().when(stripeService).upgradeSubscription(eq(1L), eq("price_pro"), any());
+
+        mockMvc.perform(post("/api/subscription/upgrade")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"price_pro\", \"plan\": \"PRO\"}"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(stripeService, times(1)).upgradeSubscription(userIdCaptor.capture(), eq("price_pro"), any());
+        assertEquals(testUser.getId(), userIdCaptor.getValue(),
+            "Upgrade must use authenticated user ID only");
+    }
+
+    @Test
+    @DisplayName("SECURITY: downgrade is called with authenticated user ID only (no IDOR)")
+    void security_downgrade_calledWithAuthenticatedUserId() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+        when(stripeService.isAllowedPriceId("price_basic")).thenReturn(true);
+        doNothing().when(stripeService).downgradeSubscription(eq(1L), eq("price_basic"), any());
+
+        mockMvc.perform(post("/api/subscription/downgrade")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceId\": \"price_basic\", \"plan\": \"BASIC\"}"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(stripeService, times(1)).downgradeSubscription(userIdCaptor.capture(), eq("price_basic"), any());
+        assertEquals(testUser.getId(), userIdCaptor.getValue(),
+            "Downgrade must use authenticated user ID only");
+    }
+
+    @Test
+    @DisplayName("SECURITY: get status uses authenticated user ID only (no IDOR)")
+    void security_getSubscriptionStatus_usesAuthenticatedUserId() throws Exception {
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+
+        mockMvc.perform(get("/api/subscription/status")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.hasSubscription", equalTo(true)));
+
+        verify(subscriptionRepository, times(1)).findByUserId(testUser.getId());
+    }
+
+    @Test
+    @DisplayName("SECURITY: get details uses authenticated user ID only (no IDOR)")
+    void security_getSubscriptionDetails_usesAuthenticatedUserId() throws Exception {
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+
+        mockMvc.perform(get("/api/subscription/details")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.plan").exists());
+
+        verify(subscriptionRepository, times(1)).findByUserId(testUser.getId());
     }
 
     @Test

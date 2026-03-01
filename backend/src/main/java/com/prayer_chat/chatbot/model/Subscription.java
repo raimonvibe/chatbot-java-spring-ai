@@ -18,7 +18,8 @@ public class Subscription {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(nullable = false)
+    /** May be null temporarily when invalid (e.g. Test/Live switch); cleared then set on retry. */
+    @Column(name = "stripe_customer_id")
     private String stripeCustomerId;
 
     @Column

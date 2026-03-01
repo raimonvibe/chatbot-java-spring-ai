@@ -100,6 +100,9 @@ public class StripeService {
         if (!isConfigured()) {
             throw new IllegalStateException("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
         }
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User and user ID are required for checkout.");
+        }
         String customerId = getOrCreateCustomer(user);
         String effectivePriceId = resolvePriceId(planOrPriceId);
         String planForMetadata = planOrPriceId != null && !planOrPriceId.isEmpty()
@@ -229,6 +232,9 @@ public class StripeService {
         if (!isConfigured()) {
             throw new IllegalStateException("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
         }
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User and user ID are required for billing portal.");
+        }
         String customerId = getOrCreateCustomer(user);
         String returnUrlVal = returnUrl != null && !returnUrl.isEmpty() ? returnUrl : successUrl;
         com.stripe.param.billingportal.SessionCreateParams portalParams =
@@ -266,6 +272,9 @@ public class StripeService {
      * Get existing Stripe customer or create a new one
      */
     private String getOrCreateCustomer(User user) throws StripeException {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User and user ID are required.");
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
 
         if (subscriptionOpt.isPresent() && subscriptionOpt.get().getStripeCustomerId() != null) {
@@ -294,6 +303,10 @@ public class StripeService {
      * Clear stored Stripe customer ID for user (e.g. after Test/Live switch so next request creates a new customer).
      */
     private void clearStripeCustomerIdForUser(User user) {
+        if (user == null || user.getId() == null) {
+            logger.warn("Cannot clear Stripe customer ID: user or user ID is null");
+            return;
+        }
         subscriptionRepository.findByUserId(user.getId()).ifPresent(sub -> {
             sub.setStripeCustomerId(null);
             subscriptionRepository.save(sub);
@@ -316,6 +329,10 @@ public class StripeService {
      */
     public void handleSubscriptionCreated(com.stripe.model.Subscription stripeSubscription) {
         String customerId = stripeSubscription.getCustomer();
+        if (customerId == null || customerId.isBlank()) {
+            logger.warn("Subscription created event with missing customer ID, skipping");
+            return;
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByStripeCustomerId(customerId);
 
         if (subscriptionOpt.isEmpty()) {
@@ -346,6 +363,10 @@ public class StripeService {
      * Handle subscription update
      */
     public void handleSubscriptionUpdated(com.stripe.model.Subscription stripeSubscription) {
+        if (stripeSubscription == null || stripeSubscription.getId() == null || stripeSubscription.getId().isBlank()) {
+            logger.warn("Subscription updated event with missing subscription ID, skipping");
+            return;
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository
             .findByStripeSubscriptionId(stripeSubscription.getId());
 
@@ -375,6 +396,10 @@ public class StripeService {
      * Handle subscription deletion/cancellation
      */
     public void handleSubscriptionDeleted(com.stripe.model.Subscription stripeSubscription) {
+        if (stripeSubscription == null || stripeSubscription.getId() == null || stripeSubscription.getId().isBlank()) {
+            logger.warn("Subscription deleted event with missing subscription ID, skipping");
+            return;
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository
             .findByStripeSubscriptionId(stripeSubscription.getId());
 

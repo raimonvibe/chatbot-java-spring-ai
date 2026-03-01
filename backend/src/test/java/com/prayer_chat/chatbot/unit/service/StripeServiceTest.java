@@ -347,4 +347,97 @@ class StripeServiceTest {
 
         assertThat((Boolean) isNoSuchCustomer.invoke(null, (Object) null)).isFalse();
     }
+
+    // --- Defensive null checks: no NPE, no cross-user or invalid state ---
+
+    @Test
+    @DisplayName("SECURITY: createCheckoutSession throws when user is null")
+    void security_createCheckoutSession_throwsWhenUserNull() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        assertThatThrownBy(() -> stripeService.createCheckoutSession(null, "BASIC"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("User and user ID are required");
+        verify(subscriptionRepository, never()).findByUserId(any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: createCheckoutSession throws when user ID is null")
+    void security_createCheckoutSession_throwsWhenUserIdNull() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        User userNoId = TestDataBuilder.createTestUser();
+        userNoId.setId(null);
+        assertThatThrownBy(() -> stripeService.createCheckoutSession(userNoId, "BASIC"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("User and user ID are required");
+        verify(subscriptionRepository, never()).findByUserId(any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: createBillingPortalSession throws when user is null")
+    void security_createBillingPortalSession_throwsWhenUserNull() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        assertThatThrownBy(() -> stripeService.createBillingPortalSession(null, "https://example.com"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("User and user ID are required");
+        verify(subscriptionRepository, never()).findByUserId(any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: handleSubscriptionCreated does nothing when customer ID is null")
+    void security_handleSubscriptionCreated_skipsWhenCustomerIdNull() {
+        com.stripe.model.Subscription stripeSub = mock(com.stripe.model.Subscription.class);
+        when(stripeSub.getCustomer()).thenReturn(null);
+
+        stripeService.handleSubscriptionCreated(stripeSub);
+
+        verify(subscriptionRepository, never()).findByStripeCustomerId(any());
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
+    @Test
+    @DisplayName("SECURITY: handleSubscriptionCreated does nothing when customer ID is blank")
+    void security_handleSubscriptionCreated_skipsWhenCustomerIdBlank() {
+        com.stripe.model.Subscription stripeSub = mock(com.stripe.model.Subscription.class);
+        when(stripeSub.getCustomer()).thenReturn("  ");
+
+        stripeService.handleSubscriptionCreated(stripeSub);
+
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
+    @Test
+    @DisplayName("SECURITY: handleSubscriptionCreated does not save when no subscription found for customer")
+    void security_handleSubscriptionCreated_noSaveWhenUnknownCustomer() {
+        com.stripe.model.Subscription stripeSub = mock(com.stripe.model.Subscription.class);
+        when(stripeSub.getCustomer()).thenReturn("cus_unknown_from_webhook");
+        when(subscriptionRepository.findByStripeCustomerId("cus_unknown_from_webhook")).thenReturn(Optional.empty());
+
+        stripeService.handleSubscriptionCreated(stripeSub);
+
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
+    @Test
+    @DisplayName("SECURITY: handleSubscriptionUpdated does nothing when subscription ID is null")
+    void security_handleSubscriptionUpdated_skipsWhenSubscriptionIdNull() {
+        com.stripe.model.Subscription stripeSub = mock(com.stripe.model.Subscription.class);
+        when(stripeSub.getId()).thenReturn(null);
+
+        stripeService.handleSubscriptionUpdated(stripeSub);
+
+        verify(subscriptionRepository, never()).findByStripeSubscriptionId(any());
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
+
+    @Test
+    @DisplayName("SECURITY: handleSubscriptionDeleted does nothing when subscription ID is null")
+    void security_handleSubscriptionDeleted_skipsWhenSubscriptionIdNull() {
+        com.stripe.model.Subscription stripeSub = mock(com.stripe.model.Subscription.class);
+        when(stripeSub.getId()).thenReturn(null);
+
+        stripeService.handleSubscriptionDeleted(stripeSub);
+
+        verify(subscriptionRepository, never()).findByStripeSubscriptionId(any());
+        verify(subscriptionRepository, never()).save(any(Subscription.class));
+    }
 }

@@ -13,12 +13,14 @@ Summary of security measures for the subscription checkout flow and where they a
 - **Plan** from the client is restricted to `BASIC`, `PRO`, or `ENTERPRISE`. Any other value returns 400. **FREE** is rejected for checkout and for change-plan/upgrade/downgrade (use cancel instead).
 - **Price ID** from the client is accepted only if it is in the configured allowlist. The **controller** rejects disallowed price IDs with 400 "Price ID not allowed" for create-checkout-session, change-plan, upgrade, and downgrade. The service also validates and enforces that **priceId matches the requested plan** in `changeSubscriptionPlan` (prevents inconsistent DB vs Stripe state).
 - `StripeService.isAllowedPriceId()` enforces exact match; substring or whitespace-only inputs are rejected.
-- **Stripe payloads**: `handleSubscriptionCreated` guards against empty `items.getData()`; upgrade/downgrade guard against empty subscription items and throw instead of NPE.
+- **Stripe payloads**: `handleSubscriptionCreated` guards against empty `items.getData()` and null/blank customer ID; `handleSubscriptionUpdated`/`handleSubscriptionDeleted` guard against null/blank subscription ID; upgrade/downgrade guard against empty subscription items and throw instead of NPE.
+- **Defensive null checks**: `createCheckoutSession`, `createBillingPortalSession`, `getOrCreateCustomer`, and `clearStripeCustomerIdForUser` validate that `user` and `user.getId()` are non-null before proceeding (avoid NPE and ensure we never clear or create for an invalid user).
 
 ## Authentication and method
 
 - **Authentication required**: `create-checkout-session` and `create-portal-session` require an authenticated user (`@AuthenticationPrincipal`). Unauthenticated requests receive 401.
 - **POST only**: `create-checkout-session` is mapped with `@PostMapping`. GET requests receive 405 Method Not Allowed (avoids misuse or crawlers hitting the URL).
+- **No IDOR**: All subscription operations use only the authenticated user from `@AuthenticationPrincipal`; no user ID is read from the request body, so a client cannot act on another user’s subscription.
 
 ## Redirect URLs
 
@@ -40,6 +42,13 @@ Summary of security measures for the subscription checkout flow and where they a
 | Portal returnUrl | Disallowed origin returns 400 | `SubscriptionControllerIT` (evil.com) |
 | Portal returnUrl | `javascript:` URL returns 400 | `SubscriptionControllerIT.security_portalSession_rejectsJavascriptReturnUrl` |
 | No-such-customer retry | Only `resource_missing` + "No such customer" triggers clear-and-retry; other errors are not retried | `StripeServiceTest.security_isNoSuchCustomer_*` (4 tests) |
+| IDOR | Checkout is invoked with authenticated user only (no user ID from body) | `SubscriptionControllerIT.security_createCheckoutSession_usesAuthenticatedUserOnly` |
+| IDOR | Portal session is invoked with authenticated user only | `SubscriptionControllerIT.security_createPortalSession_usesAuthenticatedUserOnly` |
+| IDOR | Cancel, change-plan, upgrade, downgrade use authenticated user ID only | `SubscriptionControllerIT.security_cancelSubscription_calledWithAuthenticatedUserId`, `security_changePlan_calledWithAuthenticatedUserId`, `security_upgrade_calledWithAuthenticatedUserId`, `security_downgrade_calledWithAuthenticatedUserId` |
+| IDOR | Status and details use authenticated user ID only (no path/query user ID) | `SubscriptionControllerIT.security_getSubscriptionStatus_usesAuthenticatedUserId`, `security_getSubscriptionDetails_usesAuthenticatedUserId` |
+| Null user | createCheckoutSession / createBillingPortalSession throw when user or user.getId() is null | `StripeServiceTest.security_createCheckoutSession_throwsWhenUserNull`, `_throwsWhenUserIdNull`, `security_createBillingPortalSession_throwsWhenUserNull` |
+| Webhook unknown customer | handleSubscriptionCreated does not save when customer ID is null/blank or when no subscription found | `StripeServiceTest.security_handleSubscriptionCreated_skipsWhenCustomerIdNull`, `_skipsWhenCustomerIdBlank`, `_noSaveWhenUnknownCustomer` |
+| Webhook null subscription ID | handleSubscriptionUpdated / handleSubscriptionDeleted skip and do not save when subscription ID is null | `StripeServiceTest.security_handleSubscriptionUpdated_skipsWhenSubscriptionIdNull`, `security_handleSubscriptionDeleted_skipsWhenSubscriptionIdNull` |
 
 ## Webhook security
 
