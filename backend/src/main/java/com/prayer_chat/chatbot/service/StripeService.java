@@ -10,6 +10,7 @@ import com.stripe.param.checkout.SessionCreateParams;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,7 @@ public class StripeService {
         }
         RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
         Session session = Session.create(paramsBuilder.build(), requestOptions);
-        logger.info("Created Stripe checkout session for user: {}", user.getEmail());
+        logger.info("Created Stripe checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
         return session.getUrl();
     }
 
@@ -218,7 +219,7 @@ public class StripeService {
         RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
         com.stripe.model.billingportal.Session portalSession =
             com.stripe.model.billingportal.Session.create(portalParams, requestOptions);
-        logger.info("Created billing portal session for user: {}", user.getEmail());
+        logger.info("Created billing portal session for user: {}", LogSanitizer.sanitize(user.getEmail()));
         return portalSession.getUrl();
     }
 
@@ -240,7 +241,7 @@ public class StripeService {
             .build();
 
         Customer customer = Customer.create(params);
-        logger.info("Created Stripe customer for user: {}", user.getEmail());
+        logger.info("Created Stripe customer for user: {}", LogSanitizer.sanitize(user.getEmail()));
 
         // Save customer ID to subscription
         Subscription subscription = subscriptionOpt.orElse(new Subscription(user, customer.getId()));
@@ -278,7 +279,7 @@ public class StripeService {
         subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
 
         subscriptionRepository.save(subscription);
-        logger.info("Subscription created for user: {}", subscription.getUser().getEmail());
+        logger.info("Subscription created for user: {}", LogSanitizer.sanitize(subscription.getUser().getEmail()));
     }
 
     /**
@@ -307,7 +308,7 @@ public class StripeService {
         }
 
         subscriptionRepository.save(subscription);
-        logger.info("Subscription updated for user: {}", subscription.getUser().getEmail());
+        logger.info("Subscription updated for user: {}", LogSanitizer.sanitize(subscription.getUser().getEmail()));
     }
 
     /**
@@ -327,7 +328,7 @@ public class StripeService {
         subscription.setCanceledAt(LocalDateTime.now());
 
         subscriptionRepository.save(subscription);
-        logger.info("Subscription canceled for user: {}", subscription.getUser().getEmail());
+        logger.info("Subscription canceled for user: {}", LogSanitizer.sanitize(subscription.getUser().getEmail()));
     }
 
     /**

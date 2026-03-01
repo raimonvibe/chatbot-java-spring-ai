@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.security;
 
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.UserRepository;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +62,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
             }
             userRepository.save(user);
-            logger.info("Existing user logged in via Google: {}", email);
+            logger.info("Existing user logged in via Google: {}", LogSanitizer.sanitize(email));
         } else {
             // New user - check if email already exists
             Optional<User> existingEmailUser = userRepository.findByEmail(email);
@@ -75,7 +76,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
                 }
                 userRepository.save(user);
-                logger.info("Linked Google account to existing user: {}", email);
+                logger.info("Linked Google account to existing user: {}", LogSanitizer.sanitize(email));
             } else {
                 // Create new user
                 user = new User();
@@ -90,7 +91,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
                 }
                 userRepository.save(user);
-                logger.info("Created new user via Google OAuth: {}", email);
+                logger.info("Created new user via Google OAuth: {}", LogSanitizer.sanitize(email));
             }
         }
 
@@ -118,7 +119,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
             }
             userRepository.save(user);
-            logger.info("Existing user logged in via Google: {}", email);
+            logger.info("Existing user logged in via Google: {}", LogSanitizer.sanitize(email));
         } else {
             // New user - check if email already exists
             Optional<User> existingEmailUser = userRepository.findByEmail(email);
@@ -132,7 +133,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
                 }
                 userRepository.save(user);
-                logger.info("Linked Google account to existing user: {}", email);
+                logger.info("Linked Google account to existing user: {}", LogSanitizer.sanitize(email));
             } else {
                 // Create new user
                 user = new User();
@@ -147,7 +148,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
                 }
                 userRepository.save(user);
-                logger.info("Created new user via Google OAuth: {}", email);
+                logger.info("Created new user via Google OAuth: {}", LogSanitizer.sanitize(email));
             }
         }
 

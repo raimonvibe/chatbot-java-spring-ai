@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.security;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -134,7 +135,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
             if (subscriptionOpt.isEmpty()) {
                 // No subscription - create FREE plan automatically
-                logger.info("Creating FREE subscription for new user: {}", user.getEmail());
+                logger.info("Creating FREE subscription for new user: {}", LogSanitizer.sanitize(user.getEmail()));
                 Subscription freeSubscription = new Subscription();
                 freeSubscription.setUser(user);
                 freeSubscription.setStripeCustomerId("free_" + user.getId());
@@ -142,7 +143,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 freeSubscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
                 subscriptionRepository.save(freeSubscription);
 
-                logger.info("User {} created with FREE plan, redirecting to onboarding", user.getEmail());
+                logger.info("User {} created with FREE plan, redirecting to onboarding", LogSanitizer.sanitize(user.getEmail()));
                 String redirectUrl = getFrontendUrl(request) + "/onboarding?welcome=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
@@ -152,7 +153,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
             if (!subscription.canUseChatbot()) {
                 // Has subscription but inactive - redirect to pricing
-                logger.info("User {} has inactive subscription, redirecting to pricing", user.getEmail());
+                logger.info("User {} has inactive subscription, redirecting to pricing", LogSanitizer.sanitize(user.getEmail()));
                 String redirectUrl = getFrontendUrl(request) + "/pricing?upgrade=true";
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 return;
@@ -160,7 +161,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
             // User has active subscription - redirect to dashboard
             // Dashboard will check for chatbots and redirect to onboarding if needed
-            logger.info("User {} logged in successfully with active subscription", user.getEmail());
+            logger.info("User {} logged in successfully with active subscription", LogSanitizer.sanitize(user.getEmail()));
             String redirectUrl = getFrontendUrl(request) + "/dashboard";
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } else {

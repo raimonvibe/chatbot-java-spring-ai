@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.security;
 
 import com.prayer_chat.chatbot.model.User;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -127,20 +128,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 if (isValid) {
                     String username = jwtTokenProvider.getUsernameFromToken(jwt);
-                    logger.debug("Extracted username from token: {}", username);
+                    logger.debug("Extracted username from token: {}", LogSanitizer.sanitize(username));
 
                     // Check if username is valid before loading user details
                     if (StringUtils.hasText(username)) {
-                        logger.debug("Attempting to load user by username/email: {}", username);
+                        logger.debug("Attempting to load user by username/email: {}", LogSanitizer.sanitize(username));
                         UserDetails userDetails;
                         try {
                             userDetails = userDetailsService.loadUserByUsername(username);
-                            logger.debug("User loaded successfully: {}", userDetails != null ? userDetails.getUsername() : "null");
+                            logger.debug("User loaded successfully: {}", userDetails != null ? LogSanitizer.sanitize(userDetails.getUsername()) : "null");
                         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-                            logger.error("User not found in database for username/email: {}. Error: {}", username, e.getMessage());
+                            logger.error("User not found in database for username/email: {}. Error: {}", LogSanitizer.sanitize(username), e.getMessage());
                             throw e;
                         } catch (Exception e) {
-                            logger.error("Error loading user by username/email: {}. Error: {}", username, e.getMessage(), e);
+                            logger.error("Error loading user by username/email: {}. Error: {}", LogSanitizer.sanitize(username), e.getMessage(), e);
                             throw e;
                         }
                         

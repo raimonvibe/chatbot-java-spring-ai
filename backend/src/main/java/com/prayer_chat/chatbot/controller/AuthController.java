@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.security.CustomOAuth2UserService;
 import com.prayer_chat.chatbot.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -264,7 +265,7 @@ public class AuthController {
 
             // Step 4: Generate JWT token
             String jwtToken = jwtTokenProvider.generateToken(user.getEmail());
-            logger.info("Generated JWT token for user: {}", user.getEmail());
+            logger.info("Generated JWT token for user: {}", LogSanitizer.sanitize(user.getEmail()));
 
             // Step 5: Create session (optional, for session-based auth)
             HttpSession session = httpRequest.getSession(true);
