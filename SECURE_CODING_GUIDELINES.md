@@ -20,6 +20,7 @@
 - **Escape by default:** Use React’s JSX (no `dangerouslySetInnerHTML` with user input unless sanitized).
 - **Validate/sanitize** any user input before sending to the API and before displaying; prefer the backend as the source of truth for validation.
 - **API responses:** Treat all API data as untrusted when rendering; avoid injecting raw HTML.
+- **Dashboard & Footer:** Chatbot name/description are rendered as text (React escapes). Portal redirect URL is validated (Stripe domains only). Auth redirect when unauthenticated. Footer uses internal links only; external link has `rel="noopener noreferrer"`. See `app/dashboard/__tests__/page.test.tsx` and `components/__tests__/Footer.test.tsx` for security and accessibility tests.
 
 ---
 

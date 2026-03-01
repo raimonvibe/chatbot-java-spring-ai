@@ -252,15 +252,15 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen p-6 md:p-8">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
-      <div className="max-w-4xl mx-auto">
-        {/* Simplified top navbar */}
-        <nav className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-brown-200">
-          <div className="flex items-center gap-3">
-            <Book className="w-8 h-8 text-brown-700" strokeWidth={1.5} />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-brown-800">
+      <div className="max-w-4xl mx-auto min-w-0">
+        {/* Responsive top navbar: title full-width on mobile, nav wraps */}
+        <nav className="flex flex-col gap-4 mb-6 pb-4 border-b border-brown-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <Book className="w-8 h-8 text-brown-700 flex-shrink-0" strokeWidth={1.5} />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-brown-800 truncate">
                 Prayer-Chat Dashboard
               </h1>
               {subscriptionStatus?.isPreviewMode && (
@@ -268,12 +268,12 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-4 md:gap-6 text-sm font-medium">
-            <Link href="/dashboard" className="text-brown-700 hover:text-brown-900 transition-colors">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 md:gap-6 text-sm font-medium">
+            <Link href="/dashboard" className="text-brown-700 hover:text-brown-900 transition-colors whitespace-nowrap py-1">
               Dashboard
             </Link>
-            <Link href="/account" className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5">
-              <User className="w-4 h-4" /> Account
+            <Link href="/account" className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 whitespace-nowrap py-1" aria-label="Account">
+              <User className="w-4 h-4 flex-shrink-0" /> Account
             </Link>
             <button
               onClick={async () => {
@@ -306,28 +306,31 @@ export default function Dashboard() {
                 }
               }}
               disabled={portalLoading}
-              className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap py-1"
+              aria-label="Subscription"
             >
-              <CreditCard className="w-4 h-4" /> {portalLoading ? 'Opening…' : 'Subscription'}
+              <CreditCard className="w-4 h-4 flex-shrink-0" /> <span className="hidden sm:inline">{portalLoading ? 'Opening…' : 'Subscription'}</span>
             </button>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex items-center gap-1.5"
+              className="px-3 py-2 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 min-w-0"
+              aria-label={showCreateForm ? 'Cancel' : 'New Chatbot'}
             >
               {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              {showCreateForm ? 'Cancel' : 'New Chatbot'}
+              <span className="hidden sm:inline">{showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
             </button>
             <button
               onClick={handleLogout}
-              className="text-brown-600 hover:text-brown-900 transition-colors flex items-center gap-1.5"
+              className="text-brown-600 hover:text-brown-900 transition-colors flex items-center gap-1.5 whitespace-nowrap py-1"
               title="Log out"
+              aria-label="Log out"
             >
-              <LogOut className="w-4 h-4" /> Logout
+              <LogOut className="w-4 h-4 flex-shrink-0" /> <span className="hidden sm:inline">Logout</span>
             </button>
             {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
               <button
                 onClick={handleDeleteAllChatbots}
-                className="text-red-600 hover:text-red-700 text-xs"
+                className="text-red-600 hover:text-red-700 text-xs whitespace-nowrap py-1"
                 title="Delete all chatbots (preview only)"
               >
                 Delete All
@@ -490,15 +493,15 @@ export default function Dashboard() {
         </div>
 
         {chatbots.length === 0 && !showCreateForm && (
-          <div className="text-center py-16 max-w-xl mx-auto">
-            <Book className="w-20 h-20 text-brown-400 mx-auto mb-4" strokeWidth={1.5} />
-            <p className="text-xl text-brown-700 mb-4">No chatbots yet</p>
+          <div className="text-center py-12 sm:py-16 max-w-xl mx-auto px-2 min-w-0">
+            <Book className="w-16 h-16 sm:w-20 sm:h-20 text-brown-400 mx-auto mb-4" strokeWidth={1.5} />
+            <p className="text-lg sm:text-xl text-brown-700 mb-4">No chatbots yet</p>
             <button
               type="button"
               onClick={() => setShowCreateForm(true)}
-              className="px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+              className="w-full max-w-sm mx-auto px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 flex-shrink-0" />
               Create Your First Chatbot
             </button>
           </div>
