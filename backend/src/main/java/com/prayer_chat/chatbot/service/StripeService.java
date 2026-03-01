@@ -113,7 +113,8 @@ public class StripeService {
 
         if (effectivePriceId != null && !effectivePriceId.isEmpty()) {
             lineItemBuilder.setPrice(effectivePriceId);
-            logger.info("Using Stripe Price ID: {} for plan/price: {}", effectivePriceId, planOrPriceId);
+            logger.info("Using Stripe Price ID: {} for plan/price: {}", effectivePriceId,
+                planOrPriceId != null && !planOrPriceId.isEmpty() ? planOrPriceId : "default");
         } else {
             lineItemBuilder.setPriceData(
                 SessionCreateParams.LineItem.PriceData.builder()
@@ -134,17 +135,6 @@ public class StripeService {
             logger.info("Using default price: ${}{} per month", priceAmount / 100.0, priceCurrency.toUpperCase());
         }
 
-        SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
-            .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-            .setCustomer(customerId)
-            .addLineItem(lineItemBuilder.build())
-            .setSuccessUrl(successUrl)
-            .setCancelUrl(cancelUrl)
-            .setClientReferenceId("user_" + user.getId())
-            .putMetadata("user_id", user.getId().toString());
-        if (planForMetadata != null) {
-            paramsBuilder.putMetadata("plan", planForMetadata);
-        }
         // Idempotency key: same user+plan within 5 min returns same session (retries/double-clicks). Max 255 chars for Stripe.
         String planPart = (planOrPriceId != null && planOrPriceId.length() <= 100) ? planOrPriceId : "default";
         String idemKey = "ck_" + user.getId() + "_" + planPart + "_" + (System.currentTimeMillis() / 300_000L);
@@ -152,9 +142,40 @@ public class StripeService {
             idemKey = idemKey.substring(0, 255);
         }
         RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
-        Session session = Session.create(paramsBuilder.build(), requestOptions);
-        logger.info("Created Stripe checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
-        return session.getUrl();
+
+        SessionCreateParams params = buildCheckoutParams(user, customerId, lineItemBuilder.build(), planForMetadata);
+        try {
+            Session session = Session.create(params, requestOptions);
+            logger.info("Created Stripe checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
+            return session.getUrl();
+        } catch (StripeException e) {
+            if (isNoSuchCustomer(e)) {
+                logger.warn("Stored Stripe customer invalid (e.g. Test/Live switch), creating new customer and retrying");
+                clearStripeCustomerIdForUser(user);
+                customerId = getOrCreateCustomer(user);
+                params = buildCheckoutParams(user, customerId, lineItemBuilder.build(), planForMetadata);
+                Session session = Session.create(params, requestOptions);
+                logger.info("Created Stripe checkout session for user: {}", LogSanitizer.sanitize(user.getEmail()));
+                return session.getUrl();
+            }
+            throw e;
+        }
+    }
+
+    private SessionCreateParams buildCheckoutParams(User user, String customerId,
+            SessionCreateParams.LineItem lineItem, String planForMetadata) {
+        SessionCreateParams.Builder b = SessionCreateParams.builder()
+            .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+            .setCustomer(customerId)
+            .addLineItem(lineItem)
+            .setSuccessUrl(successUrl)
+            .setCancelUrl(cancelUrl)
+            .setClientReferenceId("user_" + user.getId())
+            .putMetadata("user_id", user.getId().toString());
+        if (planForMetadata != null) {
+            b.putMetadata("plan", planForMetadata);
+        }
+        return b.build();
     }
 
     /**
@@ -209,18 +230,36 @@ public class StripeService {
             throw new IllegalStateException("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
         }
         String customerId = getOrCreateCustomer(user);
+        String returnUrlVal = returnUrl != null && !returnUrl.isEmpty() ? returnUrl : successUrl;
         com.stripe.param.billingportal.SessionCreateParams portalParams =
             com.stripe.param.billingportal.SessionCreateParams.builder()
                 .setCustomer(customerId)
-                .setReturnUrl(returnUrl != null && !returnUrl.isEmpty() ? returnUrl : successUrl)
+                .setReturnUrl(returnUrlVal)
                 .build();
         // Idempotency key: same user within 5 min returns same portal session (retries/double-clicks)
         String idemKey = "portal_" + user.getId() + "_" + (System.currentTimeMillis() / 300_000L);
         RequestOptions requestOptions = RequestOptions.builder().setIdempotencyKey(idemKey).build();
-        com.stripe.model.billingportal.Session portalSession =
-            com.stripe.model.billingportal.Session.create(portalParams, requestOptions);
-        logger.info("Created billing portal session for user: {}", LogSanitizer.sanitize(user.getEmail()));
-        return portalSession.getUrl();
+        try {
+            com.stripe.model.billingportal.Session portalSession =
+                com.stripe.model.billingportal.Session.create(portalParams, requestOptions);
+            logger.info("Created billing portal session for user: {}", LogSanitizer.sanitize(user.getEmail()));
+            return portalSession.getUrl();
+        } catch (StripeException e) {
+            if (isNoSuchCustomer(e)) {
+                logger.warn("Stored Stripe customer invalid (e.g. Test/Live switch), creating new customer and retrying");
+                clearStripeCustomerIdForUser(user);
+                customerId = getOrCreateCustomer(user);
+                portalParams = com.stripe.param.billingportal.SessionCreateParams.builder()
+                    .setCustomer(customerId)
+                    .setReturnUrl(returnUrlVal)
+                    .build();
+                com.stripe.model.billingportal.Session portalSession =
+                    com.stripe.model.billingportal.Session.create(portalParams, requestOptions);
+                logger.info("Created billing portal session for user: {}", LogSanitizer.sanitize(user.getEmail()));
+                return portalSession.getUrl();
+            }
+            throw e;
+        }
     }
 
     /**
@@ -249,6 +288,27 @@ public class StripeService {
         subscriptionRepository.save(subscription);
 
         return customer.getId();
+    }
+
+    /**
+     * Clear stored Stripe customer ID for user (e.g. after Test/Live switch so next request creates a new customer).
+     */
+    private void clearStripeCustomerIdForUser(User user) {
+        subscriptionRepository.findByUserId(user.getId()).ifPresent(sub -> {
+            sub.setStripeCustomerId(null);
+            subscriptionRepository.save(sub);
+            logger.info("Cleared invalid Stripe customer ID for user: {}", LogSanitizer.sanitize(user.getEmail()));
+        });
+    }
+
+    /**
+     * True if Stripe error indicates the customer ID does not exist (e.g. wrong Test/Live mode or account).
+     */
+    private static boolean isNoSuchCustomer(StripeException e) {
+        if (e == null) return false;
+        String code = e.getCode();
+        String msg = e.getMessage() != null ? e.getMessage() : "";
+        return "resource_missing".equals(code) && msg.contains("No such customer");
     }
 
     /**

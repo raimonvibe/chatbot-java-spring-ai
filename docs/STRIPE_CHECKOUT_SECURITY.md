@@ -39,9 +39,18 @@ Summary of security measures for the subscription checkout flow and where they a
 | Price ID | `invalid_price_id` or empty priceId returns 400 | `SubscriptionControllerIT.shouldReturn400ForInvalidPriceId_createCheckoutSession` |
 | Portal returnUrl | Disallowed origin returns 400 | `SubscriptionControllerIT` (evil.com) |
 | Portal returnUrl | `javascript:` URL returns 400 | `SubscriptionControllerIT.security_portalSession_rejectsJavascriptReturnUrl` |
+| No-such-customer retry | Only `resource_missing` + "No such customer" triggers clear-and-retry; other errors are not retried | `StripeServiceTest.security_isNoSuchCustomer_*` (4 tests) |
+
+## Webhook security
+
+- **Signature verification**: All webhook requests are verified with `Webhook.constructEvent(payload, Stripe-Signature, webhookSecret)` before any processing. Invalid or missing signature returns 400; no event is processed.
+- **Raw body**: The endpoint uses `@RequestBody String payload` so the body is not parsed before verification (required for correct HMAC verification).
+- **Event idempotency**: Processed event IDs are stored in memory; the same event ID is skipped and we return 200 so Stripe stops retrying. For high concurrency, a DB table with a unique constraint on `event_id` is recommended.
+- **No such customer recovery**: If checkout or portal session creation fails with Stripe "No such customer" (e.g. after Test/Live switch), the app clears the stored customer ID and retries once by creating a new customer; no manual DB fix needed.
 
 ## References
 
 - Stripe: [Create a Checkout Session](https://stripe.com/docs/api/checkout/sessions/create) (server-side only).
 - Stripe: [Client reference ID](https://docs.stripe.com/api/checkout/sessions/create#create_checkout_session-client_reference_id) for reconciliation.
-- Project: `StripeService`, `SubscriptionController`, `STRIPE_RENDER_ENV.md`.
+- Stripe: [Webhook signature verification](https://docs.stripe.com/webhooks/signature).
+- Project: `StripeService`, `SubscriptionController`, `StripeWebhookController`, `STRIPE_RENDER_ENV.md`.

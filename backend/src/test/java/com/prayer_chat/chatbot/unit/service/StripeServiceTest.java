@@ -5,6 +5,7 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.service.StripeService;
+import com.stripe.exception.StripeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -294,5 +296,55 @@ class StripeServiceTest {
         assertThat(stripeService.isAllowedPriceId("price_ok_evil")).isFalse();
         assertThat(stripeService.isAllowedPriceId("price_basic_attacker")).isFalse();
         assertThat(stripeService.isAllowedPriceId("price_")).isFalse();
+    }
+
+    // --- No-such-customer recovery: isNoSuchCustomer() drives retry; only that error is retried ---
+
+    @Test
+    @DisplayName("SECURITY: isNoSuchCustomer returns true only for resource_missing + No such customer")
+    void security_isNoSuchCustomer_returnsTrueOnlyForNoSuchCustomer() throws Exception {
+        Method isNoSuchCustomer = StripeService.class.getDeclaredMethod("isNoSuchCustomer", StripeException.class);
+        isNoSuchCustomer.setAccessible(true);
+
+        StripeException noSuchCustomer = mock(StripeException.class);
+        when(noSuchCustomer.getCode()).thenReturn("resource_missing");
+        when(noSuchCustomer.getMessage()).thenReturn("No such customer: 'cus_TvUQUCDXuaoj1H'");
+
+        assertThat((Boolean) isNoSuchCustomer.invoke(null, noSuchCustomer)).isTrue();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isNoSuchCustomer returns false for other error codes")
+    void security_isNoSuchCustomer_returnsFalseForOtherCodes() throws Exception {
+        Method isNoSuchCustomer = StripeService.class.getDeclaredMethod("isNoSuchCustomer", StripeException.class);
+        isNoSuchCustomer.setAccessible(true);
+
+        StripeException cardError = mock(StripeException.class);
+        when(cardError.getCode()).thenReturn("card_declined");
+        when(cardError.getMessage()).thenReturn("Your card was declined.");
+
+        assertThat((Boolean) isNoSuchCustomer.invoke(null, cardError)).isFalse();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isNoSuchCustomer returns false when message does not contain No such customer")
+    void security_isNoSuchCustomer_returnsFalseWhenMessageDifferent() throws Exception {
+        Method isNoSuchCustomer = StripeService.class.getDeclaredMethod("isNoSuchCustomer", StripeException.class);
+        isNoSuchCustomer.setAccessible(true);
+
+        StripeException resourceMissingOther = mock(StripeException.class);
+        when(resourceMissingOther.getCode()).thenReturn("resource_missing");
+        when(resourceMissingOther.getMessage()).thenReturn("No such price: 'price_xxx'");
+
+        assertThat((Boolean) isNoSuchCustomer.invoke(null, resourceMissingOther)).isFalse();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isNoSuchCustomer returns false for null")
+    void security_isNoSuchCustomer_returnsFalseForNull() throws Exception {
+        Method isNoSuchCustomer = StripeService.class.getDeclaredMethod("isNoSuchCustomer", StripeException.class);
+        isNoSuchCustomer.setAccessible(true);
+
+        assertThat((Boolean) isNoSuchCustomer.invoke(null, (Object) null)).isFalse();
     }
 }

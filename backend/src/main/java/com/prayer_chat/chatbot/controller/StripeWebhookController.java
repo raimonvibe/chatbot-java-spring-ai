@@ -108,7 +108,10 @@ public class StripeWebhookController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Webhook error");
         }
 
-        // Idempotency: do not process the same event twice (replay or Stripe retry)
+        // Idempotency: do not process the same event twice (replay or Stripe retry).
+        // We return 200 so Stripe stops retrying. In-memory map is atomic per key but under high
+        // concurrency two requests can both pass the check before either writes; for production
+        // at scale consider a DB table with UNIQUE(event_id) and insert-before-process.
         String eventId = event.getId();
         if (eventId != null && !eventId.isBlank()) {
             if (processedEventIds().putIfAbsent(eventId, System.currentTimeMillis()) != null) {

@@ -77,7 +77,10 @@ If the secret key is missing or empty, the app usually returns **503** “Paymen
 ### 3. Typical Stripe errors (see backend logs)
 
 - **Invalid API Key** / **No such API key**: Wrong key or wrong account.
-- **No such price** / **Invalid price**: Price ID typo, deleted, or from another account.
+- **No such price** (`resource_missing`): Almost always **Test vs Live mismatch**. Your `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` must be from the same mode:
+  - **Test**: Dashboard → toggle **Test** (top right) → [API keys](https://dashboard.stripe.com/test/apikeys) use `sk_test_...` → [Products](https://dashboard.stripe.com/test/products) → open product → copy the **Price ID** (that’s your test price). Set both on Render.
+  - **Live**: Toggle **Live** → use `sk_live_...` and the **live** Price ID from Products. If you copied the price when in Test mode, Stripe won’t find it when using a Live key. Re-copy the Price ID with the correct mode selected.
+- **No such customer** (`resource_missing`): The stored Stripe customer ID was created in a different mode (Test vs Live) or account. The app **auto-recovers**: on the next checkout or portal request it clears the invalid ID and creates a new customer. If you see this once after switching to Live (or Test), the next click should succeed.
 - **Invalid URL** (success_url/cancel_url): Stripe rejects the URL format or scheme.
 - **Customer** / **subscription** errors: Less common on first “Create checkout”; if you see them, check DB and that the user exists.
 
