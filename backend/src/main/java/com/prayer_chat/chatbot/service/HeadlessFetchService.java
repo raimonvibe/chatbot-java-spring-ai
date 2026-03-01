@@ -9,6 +9,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
@@ -73,6 +77,7 @@ public class HeadlessFetchService {
         }
 
         WebDriver driver = null;
+        File chromeDataDir = null;
         try {
             ChromeOptions options = new ChromeOptions();
             // Use CHROME_BIN only when set and path is safe (prevents path injection via env)
@@ -80,6 +85,17 @@ public class HeadlessFetchService {
             if (isSafeChromeBinPath(chromeBin)) {
                 options.setBinary(chromeBin);
             }
+            // Use writable temp dir for Chrome profile/cache (avoids "Permission denied" when run as non-root e.g. Render)
+            // SECURITY: only use path if it stays under canonical tmpdir (prevents escape via java.io.tmpdir)
+            String tmpBase = System.getProperty("java.io.tmpdir", "/tmp");
+            Optional<Path> safeDataPath = createChromeTempDirUnder(tmpBase);
+            if (safeDataPath.isPresent()) {
+                chromeDataDir = safeDataPath.get().toFile();
+                if (chromeDataDir.mkdirs()) {
+                    options.addArguments("--user-data-dir=" + chromeDataDir.getAbsolutePath());
+                }
+            }
+
             // Hardened flags: headless, no sandbox (required in Docker), minimal surface
             options.addArguments(
                 "--headless=new",
@@ -131,6 +147,13 @@ public class HeadlessFetchService {
                     logger.debug("Error closing headless driver: {}", e.getMessage());
                 }
             }
+            if (chromeDataDir != null && chromeDataDir.exists()) {
+                try {
+                    deleteRecursively(chromeDataDir, chromeDataDir);
+                } catch (Exception e) {
+                    logger.debug("Could not delete Chrome temp dir {}: {}", chromeDataDir, e.getMessage());
+                }
+            }
         }
     }
 
@@ -149,5 +172,45 @@ public class HeadlessFetchService {
         if (p.contains("..") || p.startsWith("-")) return false;
         // Allow only absolute paths under /usr (typical for apt-installed Chromium)
         return p.startsWith("/usr/") && p.length() <= 256;
+    }
+
+    /**
+     * Create a path for Chrome user-data-dir under the given tmp base, only if the resolved path
+     * remains under the canonical form of tmpBase (prevents path escape if java.io.tmpdir is malicious).
+     * Package visibility for tests.
+     */
+    static Optional<Path> createChromeTempDirUnder(String tmpBase) {
+        if (tmpBase == null || tmpBase.isBlank()) return Optional.empty();
+        String segment = "chrome-headless-" + System.currentTimeMillis();
+        if (segment.contains("..") || segment.contains("/") || segment.contains("\\")) return Optional.empty();
+        try {
+            Path base = Path.of(tmpBase).toAbsolutePath().normalize();
+            Path resolved = base.resolve(segment).normalize();
+            if (!resolved.startsWith(base)) return Optional.empty();
+            return Optional.of(resolved);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Delete dir and its contents. Only deletes files under baseDir (canonical) to prevent symlink escape.
+     * Package visibility for tests.
+     */
+    static void deleteRecursively(File dir, File baseDir) throws IOException {
+        if (dir == null || !dir.exists()) return;
+        if (baseDir == null) return;
+        Path basePath = baseDir.toPath().toAbsolutePath().normalize();
+        Path dirPath = dir.toPath().toAbsolutePath().normalize();
+        if (!dirPath.startsWith(basePath)) return;
+        if (dir.isDirectory()) {
+            File[] children = dir.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursively(child, baseDir);
+                }
+            }
+        }
+        Files.delete(dir.toPath());
     }
 }
