@@ -126,26 +126,26 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               </motion.p>
             )}
 
-            {/* Current step with icon - opacity only to avoid layout jump */}
+            {/* Current step with icon - fixed min-height so 2 vs 3 line text doesn't wiggle on small screens */}
             <motion.div
               key={`step-${currentStep}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col items-center gap-4 mb-8 min-h-[5rem]"
+              className="flex flex-col items-center gap-4 mb-8 min-h-[8rem]"
             >
               <div>
                 <CurrentIcon className={`w-12 h-12 ${loadingSteps[currentStep].color}`} strokeWidth={2} />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center gap-3 min-h-[4rem] w-full max-w-sm mx-auto px-2">
                 <PulseLoader 
                   color="#d4af37" 
                   size={6} 
                   speedMultiplier={0.8}
                   margin={2}
                 />
-                <p className="text-xl text-brown-100 font-medium">
+                <p className="text-xl text-brown-100 font-medium text-center leading-snug">
                   {loadingSteps[currentStep].text}
                 </p>
               </div>
