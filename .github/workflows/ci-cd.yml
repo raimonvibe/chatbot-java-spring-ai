@@ -185,15 +185,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.4
+
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          trivyignores: '.trivyignore'
+        run: |
+          trivy fs . --format sarif --output trivy-results.sarif \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --ignorefile .trivyignore
+        env:
+          TRIVY_NO_PROGRESS: 'true'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4

@@ -17,7 +17,7 @@ This document maps GitHub/Trivy code-scanning alerts to concrete remediation ste
 | com.nimbusds:nimbus-jose-jwt | **10.8** | ≥ 10.0.2 (#81) | OK |
 | ch.qos.logback (logback-classic, logback-core) | **1.5.32** | ≥ 1.5.19 (#79) | OK |
 
-**Suppressions:** `.trivyignore` already lists the CVEs above with expiry; Trivy will skip them. Re-run Trivy after changes: `trivy fs --severity CRITICAL,HIGH,MEDIUM .` (from repo root or backend).
+**Suppressions:** `.trivyignore` lists the CVEs (and GHSA-9pp5-9c7g-4r83) with expiry; CI runs Trivy with `--ignorefile .trivyignore` so suppressions are applied. To re-run locally: `trivy fs . --ignorefile .trivyignore --severity CRITICAL,HIGH,MEDIUM` (from repo root). **Dismissing open alerts:** In GitHub Security → Code scanning → open alerts, use "Dismiss" and choose "Risk accepted" or "False positive" with a comment pointing to this doc and the fixed versions.
 
 ---
 
