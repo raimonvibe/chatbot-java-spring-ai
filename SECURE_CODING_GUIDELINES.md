@@ -12,6 +12,7 @@
 - **Always validate** incoming request bodies and params with Bean Validation: `@Valid`, `@NotBlank`, `@Size`, `@Pattern`, `@Email`. Reject invalid input with 400.
 - **Sanitize for XSS** before storing or returning user-controlled HTML: use the project’s `XssSanitizer` (JSoup-based). Never render raw user input in HTML.
 - **Validate URLs** used for outbound requests (e.g. website analysis, imports) with `UrlValidationService` to prevent SSRF (no localhost, private IPs, or dangerous schemes).
+- **Robots.txt (RobotsTxtService):** Validate crawl URL and robots.txt request URL with `UrlValidationService`. After fetching robots.txt, validate the final response URL (after redirects) to prevent SSRF via redirect. Use `maxBodySize` to limit response size (e.g. 64KB). Sanitize URLs in log messages with `LogSanitizer.sanitizeForLogging`. See `RobotsTxtServiceTest` for security tests.
 - **Validate file paths** when reading/writing files: use the existing path validation (e.g. `validateAndResolveFilePath`); block `..` and paths outside allowed directories.
 - **Limit lengths** (request body, query params, headers) to prevent DoS and buffer issues. Use `@Size` and framework limits.
 

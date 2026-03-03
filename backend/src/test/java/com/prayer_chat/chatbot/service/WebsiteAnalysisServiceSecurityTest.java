@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * CRITICAL SECURITY TESTS for WebsiteAnalysisService
@@ -48,11 +49,15 @@ class WebsiteAnalysisServiceSecurityTest {
     @Mock
     private ChatbotRepository chatbotRepository;
 
+    @Mock
+    private RobotsTxtService robotsTxtService;
+
     private WebsiteAnalysisService analysisService;
 
     @BeforeEach
     void setUp() {
-        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, chatbotRepository, null);
+        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, chatbotRepository, robotsTxtService, null);
+        lenient().when(robotsTxtService.isCrawlAllowed(anyString())).thenReturn(true);
 
         // Configure service with secure defaults
         ReflectionTestUtils.setField(analysisService, "maxPages", 50);

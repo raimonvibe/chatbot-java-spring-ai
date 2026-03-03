@@ -66,20 +66,34 @@ export default function PrivacyPage() {
             <li>To improve chatbot quality and service performance</li>
             <li>To provide customer support</li>
           </ul>
+          <p className="mt-3">
+            <strong>Legal basis (GDPR):</strong> We process your account, payment, and chat data on the basis of contract performance and consent where applicable.
+            Processing of <strong>scraped website content</strong> (content we crawl from URLs you provide to train your chatbot) is based on our <strong>legitimate interest</strong> (GDPR Art. 6(1)(f)): to deliver the chatbot creation service you requested. We use only publicly accessible page content, identify our crawler via a standard User-Agent, and do not intentionally collect personal data from scraped pages. You may object to this processing by not using the website-analysis feature or by contacting us.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl md:text-2xl font-semibold mb-3 text-brown-800">3a. Website Crawling and Your Responsibilities</h2>
+          <p className="mb-2">
+            When you submit a website URL for chatbot creation, we crawl and analyze that site to extract content. Please note:
+          </p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li><strong>Your responsibility:</strong> You are responsible for ensuring that the sites you ask us to analyze may be crawled under the site owner&apos;s terms (e.g. robots.txt, terms of use). We identify our crawler as &quot;PrayerChatCrawler&quot; so that site owners can allow or disallow our bot in robots.txt if they wish.</li>
+            <li><strong>Site restrictions:</strong> We aim to respect site restrictions and good practice: we use a bounded crawl (limited depth and page count), only follow same-domain links, and do not intentionally extract or store personal data (e.g. contact details) from scraped pages beyond what is necessary to train your chatbot on public content.</li>
+          </ul>
         </section>
 
         <section>
           <h2 className="text-xl md:text-2xl font-semibold mb-3 text-brown-800">4. AI Processing and Third-Party Services</h2>
           <p className="mb-2">
-            To provide our AI chatbot service, we use the following third-party AI providers:
+            To provide our AI chatbot service, we use the following third-party AI and infrastructure providers:
           </p>
           <ul className="list-disc pl-6 space-y-2">
-            <li><strong>OpenAI:</strong> For natural language processing and chatbot responses</li>
-            <li><strong>Anthropic (Claude):</strong> For advanced AI reasoning and content analysis</li>
+            <li><strong>Anthropic (Claude):</strong> For AI chat and content analysis (conversations and website content may be sent to Anthropic to generate responses).</li>
+            <li><strong>Cohere:</strong> For text embeddings (vector representations of content) used in semantic search and chatbot knowledge indexing. Website and chat-related text may be sent to Cohere to generate embeddings.</li>
           </ul>
           <p className="mt-3">
-            Your chatbot conversations and website content may be processed by these AI services to generate responses.
-            These providers have their own privacy policies and data processing practices.
+            Your chatbot conversations and website content may be processed by these AI services. These providers have their own privacy policies and data processing practices.
           </p>
         </section>
 
@@ -112,7 +126,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Authentication Provider:</strong> Google OAuth for secure account authentication</li>
             <li><strong>Payment Processor:</strong> Stripe for subscription payment processing</li>
-            <li><strong>AI Service Providers:</strong> OpenAI and Anthropic for chatbot processing and responses</li>
+            <li><strong>AI Service Providers:</strong> Anthropic (chat and content analysis) and Cohere (embeddings for search and indexing)</li>
             <li><strong>Cloud Hosting:</strong> Render.com or similar platforms for secure application hosting</li>
           </ul>
           <p className="mt-3">

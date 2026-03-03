@@ -41,6 +41,7 @@ public class WebsiteAnalysisService {
     private final WebsiteContentRepository websiteContentRepository;
     private final UrlValidationService urlValidationService;
     private final ChatbotRepository chatbotRepository;
+    private final RobotsTxtService robotsTxtService;
     private final ExecutorService executorService;
     
     @Value("${app.website-analysis.max-pages:50}")
@@ -92,10 +93,12 @@ public class WebsiteAnalysisService {
     public WebsiteAnalysisService(WebsiteContentRepository websiteContentRepository,
                                   UrlValidationService urlValidationService,
                                   ChatbotRepository chatbotRepository,
+                                  RobotsTxtService robotsTxtService,
                                   @Autowired(required = false) HeadlessFetchService headlessFetchService) {
         this.websiteContentRepository = websiteContentRepository;
         this.urlValidationService = urlValidationService;
         this.chatbotRepository = chatbotRepository;
+        this.robotsTxtService = robotsTxtService;
         this.headlessFetchService = headlessFetchService;
         // Small pool to avoid OOM on Render: crawl + Chromium + post-analysis indexing all share memory
         this.executorService = Executors.newFixedThreadPool(3);
@@ -166,8 +169,11 @@ public class WebsiteAnalysisService {
                 for (String seed : seedUrls) {
                     if (visitedUrls.size() >= maxPages) break;
                     String normalized = normalizeUrl(seed);
-                    if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)) {
+                    if (!visitedUrls.contains(normalized) && urlValidationService.isValidAndSafe(seed)
+                            && robotsTxtService.isCrawlAllowed(seed)) {
                         crawlWebsite(seed, normalized, urlToAnalyze, ref, visitedUrls, extractedContent, 0, headlessUsed);
+                    } else if (urlValidationService.isValidAndSafe(seed) && !robotsTxtService.isCrawlAllowed(seed)) {
+                        logger.debug("Skipping seed (disallowed by robots.txt): {}", seed);
                     }
                 }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
@@ -204,7 +210,7 @@ public class WebsiteAnalysisService {
             List<String> sitemapUrls = fetchUrlsFromSitemap(sitemapUrl, base);
             for (String u : sitemapUrls) {
                 if (seeds.size() >= maxPages) break;
-                if (!seeds.contains(u) && urlValidationService.isValidAndSafe(u)) {
+                if (!seeds.contains(u) && urlValidationService.isValidAndSafe(u) && robotsTxtService.isCrawlAllowed(u)) {
                     seeds.add(u);
                 }
             }
@@ -266,6 +272,10 @@ public class WebsiteAnalysisService {
         }
         if (!urlValidationService.isValidAndSafe(urlToFetch)) {
             logger.warn("Blocked unsafe URL during crawl: {}", urlValidationService.extractDomain(urlToFetch));
+            return;
+        }
+        if (!robotsTxtService.isCrawlAllowed(urlToFetch)) {
+            logger.debug("Skipping URL disallowed by robots.txt: {}", urlToFetch);
             return;
         }
 
@@ -351,8 +361,9 @@ public class WebsiteAnalysisService {
                     String href = link.attr("abs:href");
                     if (href == null || href.isEmpty()) continue;
                     String norm = normalizeUrl(href);
-                    if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)) {
-                        CompletableFuture<Void> future =                         CompletableFuture.runAsync(() ->
+                    if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)
+                            && robotsTxtService.isCrawlAllowed(href)) {
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
                             crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed),
                             executorService
                         );
