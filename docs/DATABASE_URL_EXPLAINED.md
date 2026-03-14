@@ -17,16 +17,16 @@ Render gives a URL in one of these forms:
 - `postgresql://USERNAME:PASSWORD@HOST:5432/DATABASE_NAME`
 - `postgres://USERNAME:PASSWORD@HOST:5432/DATABASE_NAME` (same thing; `postgres` is an alias for `postgresql`)
 
-Example (values are placeholders):
+Example format only (do **not** use this as a real URL — replace with your Render Internal URL from the dashboard):
 
 ```text
-postgresql://prayer_chat_user:AbCdEf123@dpg-xxxxx-a.oregon-postgres.render.com:5432/prayer_chat_db
+postgresql://<USERNAME>:<PASSWORD>@<HOST>:5432/<DATABASE_NAME>
 ```
 
-- **USERNAME** / **PASSWORD** — Render generates these when the database is created; they're embedded in the URL.
-- **HOST** — For Internal URL, something like `dpg-xxxxx-a.oregon-postgres.render.com`.
+- **USERNAME** / **PASSWORD** — Render generates these when the database is created; they're embedded in the URL. Never commit real credentials.
+- **HOST** — For Internal URL, a hostname like `dpg-xxxxxxxxx-a.oregon-postgres.render.com` (from your Render PostgreSQL service).
 - **5432** — Default PostgreSQL port.
-- **DATABASE_NAME** — The database name (e.g. `prayer_chat_db`).
+- **DATABASE_NAME** — The database name shown in your Render PostgreSQL connection info.
 
 ## What this app does with DATABASE_URL
 
@@ -58,8 +58,8 @@ You can append query parameters if needed (the app only adds `sslmode=require` w
 - `?sslmode=verify-full` — SSL and verify server certificate (stricter).
 - `?connect_timeout=10` — Connection timeout in seconds.
 
-Example with params:  
-`postgresql://user:pass@host:5432/dbname?sslmode=require&connect_timeout=10`
+Example with params (placeholders only):  
+`postgresql://<USER>:<PASSWORD>@<HOST>:5432/<DB>?sslmode=require&connect_timeout=10`
 
 ## See also
 
