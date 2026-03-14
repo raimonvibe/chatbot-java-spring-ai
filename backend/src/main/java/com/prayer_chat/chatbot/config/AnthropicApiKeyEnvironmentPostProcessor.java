@@ -69,7 +69,28 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
             hasProperties = true;
             logger.info("✅ Set spring.ai.cohere.api-key from COHERE_API_KEY (length: {})", cohereApiKey.length());
         }
-        
+
+        // Normalize DATABASE_URL for Spring Session JDBC: Render (and others) often give postgresql:// or postgres://
+        // without "jdbc:" prefix, which causes "Failed to determine DatabaseDriver" in JdbcSessionConfiguration.
+        // Security: DATABASE_URL may contain credentials; never log its value.
+        String databaseUrl = environment.getProperty("DATABASE_URL");
+        if (databaseUrl == null || databaseUrl.isBlank()) {
+            databaseUrl = System.getenv("DATABASE_URL");
+        }
+        if (databaseUrl != null && !databaseUrl.isBlank()) {
+            String jdbcUrl = databaseUrl.trim();
+            if (jdbcUrl.startsWith("postgres://")) {
+                jdbcUrl = "jdbc:postgresql://" + jdbcUrl.substring("postgres://".length());
+            } else if (jdbcUrl.startsWith("postgresql://") && !jdbcUrl.startsWith("jdbc:")) {
+                jdbcUrl = "jdbc:" + jdbcUrl;
+            }
+            if (jdbcUrl.startsWith("jdbc:postgresql://")) {
+                properties.put("spring.datasource.url", jdbcUrl);
+                hasProperties = true;
+                logger.info("✅ Set spring.datasource.url from DATABASE_URL (JDBC format for session/driver detection)");
+            }
+        }
+
         if (hasProperties) {
             MapPropertySource propertySource = new MapPropertySource(
                 "env-vars-override", properties);
