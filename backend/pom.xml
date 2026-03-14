@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.3</version>
+        <version>3.3.13</version>
         <!-- 4.0.x pulls tools.jackson:jackson-bom which is not in Maven Central; stay on 3.3.x until 4.x is stable -->
         <relativePath/>
     </parent>
@@ -23,7 +23,7 @@
         <java.version>17</java.version>
         <spring-ai.version>1.1.2</spring-ai.version>
         <!-- Tomcat 10.1.x: CVE-2025-66614 fixed in 10.1.49; 11.x is for Spring Boot 4.x. -->
-        <tomcat.version>11.0.18</tomcat.version>
+        <tomcat.version>10.1.49</tomcat.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
         <logback.version>1.5.32</logback.version>
         <!-- Spring Security version managed by Spring Boot 3.3.13 (7.x requires Spring Framework 6.4+ / HttpMessageConverters$ClientBuilder) -->
