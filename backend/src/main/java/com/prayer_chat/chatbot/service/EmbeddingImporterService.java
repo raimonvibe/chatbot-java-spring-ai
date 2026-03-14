@@ -47,8 +47,7 @@ public class EmbeddingImporterService {
     @Transactional
     public int importEmbeddings(String jsonFilePath) {
         try {
-            logger.info("Starting STREAMING embedding import from: {}", jsonFilePath);
-            logger.info("⚡ Using streaming parser to minimize memory usage");
+            logger.info("Starting streaming embedding import from: {}", jsonFilePath);
 
             // SECURITY: Validate and sanitize file path to prevent path traversal attacks
             File file = validateAndResolveFilePath(jsonFilePath);
@@ -95,8 +94,6 @@ public class EmbeddingImporterService {
                 if (!foundVerses) {
                     throw new RuntimeException("Invalid JSON format: 'verses' array not found");
                 }
-
-                logger.info("📖 Starting to process verses (streaming mode)...");
 
                 // Process each verse object in the array ONE AT A TIME
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
@@ -170,7 +167,7 @@ public class EmbeddingImporterService {
 
                         // Log progress every 500 verses
                         if (updated % 500 == 0) {
-                            logger.info("📊 Progress: {} verses imported", updated);
+                            logger.info("Embedding import progress: {} verses imported", updated);
                             // Suggest garbage collection to free memory
                             System.gc();
                         }
@@ -184,10 +181,7 @@ public class EmbeddingImporterService {
                 }
             }
 
-            logger.info("✅ Embedding import completed:");
-            logger.info("   - Updated: {}", updated);
-            logger.info("   - Skipped: {}", skipped);
-            logger.info("   - Total processed: {}", updated + skipped);
+            logger.info("Embedding import completed. Updated: {}, skipped: {}, total: {}", updated, skipped, updated + skipped);
 
             return updated;
 

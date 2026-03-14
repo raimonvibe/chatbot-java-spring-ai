@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.config;
 
 import com.prayer_chat.chatbot.service.EmbeddingImporterService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -62,21 +63,10 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         this.embeddingImporterService = embeddingImporterService;
         this.environment = environment;
         this.urlValidationService = urlValidationService;
-        // Use System.out for maximum visibility
-        System.out.println("=".repeat(60));
-        System.out.println("✅ EmbeddingImportRunner CONSTRUCTOR CALLED - Component created!");
-        System.out.println("✅ Profile: import-embeddings is active");
-        System.out.println("=".repeat(60));
-        logger.info("✅ EmbeddingImportRunner initialized (profile: import-embeddings)");
     }
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("=".repeat(60));
-        System.out.println("🔍 EmbeddingImportRunner.run() CALLED!");
-        System.out.println("=".repeat(60));
-        logger.info("🔍 EmbeddingImportRunner.run() called");
-
         // Option 1: Multiple URLs (for large file split into parts — e.g. Google Drive size limits)
         String urlsList = environment.getProperty("IMPORT_EMBEDDINGS_URLS");
         if (urlsList != null && !urlsList.trim().isEmpty()) {
@@ -86,19 +76,12 @@ public class EmbeddingImportRunner implements CommandLineRunner {
 
         // Option 2: Single file (optional single URL)
         String filePath = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
-        System.out.println("🔍 IMPORT_EMBEDDINGS_FILE value: " + (filePath != null ? filePath : "null"));
-        logger.info("🔍 IMPORT_EMBEDDINGS_FILE value: {}", filePath != null ? filePath : "null");
-        
         if (filePath == null || filePath.trim().isEmpty()) {
             logger.info("IMPORT_EMBEDDINGS_FILE not set. Skipping embedding import.");
-            logger.info("To import embeddings, set: IMPORT_EMBEDDINGS_FILE=... or IMPORT_EMBEDDINGS_URLS=url1,url2,...");
             return;
         }
 
-        logger.info("=".repeat(60));
-        logger.info("🚀 Starting automatic embedding import...");
-        logger.info("📁 File path: {}", filePath);
-        logger.info("=".repeat(60));
+        logger.info("Starting embedding import (file: {}). Service may show 'live' before import completes.", filePath);
 
         // Resolve file path (handle relative paths)
         File file = resolveFilePath(filePath);
@@ -110,27 +93,23 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             if (downloadUrl != null && !downloadUrl.trim().isEmpty()) {
                 // SECURITY: Validate URL to prevent SSRF attacks
                 if (!urlValidationService.isValidAndSafe(downloadUrl)) {
-                    logger.error("❌ SECURITY: Invalid or unsafe download URL blocked: {}", downloadUrl);
-                    logger.error("❌ URL must be a valid HTTPS URL pointing to a public server");
-                    logger.error("❌ Blocked: localhost, private IPs, cloud metadata endpoints, dangerous ports");
-                    System.out.println("❌ SECURITY: Download URL validation failed - URL blocked");
+                    logger.error("SECURITY: Invalid or unsafe download URL blocked. Use a valid HTTPS public URL.");
                     // Continue to retry mechanism (maybe file will be uploaded manually)
                 } else {
-                    logger.info("📥 File not found. Attempting to download from: {}", downloadUrl);
-                    System.out.println("📥 Downloading file from: " + downloadUrl);
+                    logger.info("Downloading embeddings file from URL (file not found locally).");
                     
                     try {
                         boolean downloaded = downloadFile(downloadUrl, file);
                         if (!downloaded) {
-                            logger.warn("⚠️  Download failed. Will retry waiting for file...");
+                            logger.warn("Embedding file download failed. Will retry.");
                         }
                     } catch (Exception e) {
-                        logger.error("❌ Error downloading file", e);
+                        logger.error("Error downloading embedding file", e);
                         // Continue to retry mechanism below
                     }
                 }
             } else {
-                logger.info("📥 File not found and IMPORT_EMBEDDINGS_URL not set. Will wait for file...");
+                logger.info("File not found and IMPORT_EMBEDDINGS_URL not set. Will wait for file.");
             }
         }
         
@@ -141,32 +120,18 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         File foundFile = waitForFile(file, maxRetries, retryDelayMs);
         
         if (foundFile == null) {
-            logger.warn("=".repeat(60));
-            logger.warn("⚠️  File not found after {} retries: {}", maxRetries, file.getAbsolutePath());
-            logger.warn("⚠️  Options:");
-            logger.warn("⚠️    1. Set IMPORT_EMBEDDINGS_URL to auto-download on startup");
-            logger.warn("⚠️    2. Set IMPORT_EMBEDDINGS_URLS=url1,url2,... for multiple smaller parts");
-            logger.warn("⚠️    3. Upload the file manually to: {}", file.getAbsolutePath());
-            logger.warn("⚠️  The service will continue running normally.");
-            logger.warn("=".repeat(60));
+            logger.warn("Embeddings file not found after {} retries. Set IMPORT_EMBEDDINGS_URL or IMPORT_EMBEDDINGS_URLS, or upload to {}. Service continues without embeddings.", maxRetries, file.getAbsolutePath());
             return; // Exit gracefully, don't fail startup
         }
 
-        logger.info("✅ File found: {} ({} bytes)", foundFile.getAbsolutePath(), foundFile.length());
+        logger.info("File ready: {} ({} MB). Starting streaming import...", foundFile.getAbsolutePath(), foundFile.length() / (1024 * 1024));
 
         try {
             int imported = embeddingImporterService.importEmbeddings(filePath);
-            
-            logger.info("=".repeat(60));
-            logger.info("✅ Embedding import completed successfully!");
-            logger.info("📊 Imported embeddings for {} verses", imported);
-            logger.info("=".repeat(60));
-            logger.info("⚠️  IMPORTANT: Remove IMPORT_EMBEDDINGS_FILE and IMPORT_EMBEDDINGS_URL");
-            logger.info("=".repeat(60));
+            logger.info("Embedding import completed successfully. Imported {} verses. Remove IMPORT_EMBEDDINGS_FILE and IMPORT_EMBEDDINGS_URL from Render env.", imported);
             
         } catch (Exception e) {
-            logger.error("❌ Error importing embeddings", e);
-            logger.error("Please check the file path and try again.");
+            logger.error("Embedding import failed", e);
             throw e;
         }
     }
@@ -185,8 +150,7 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             tmpDir.mkdirs();
         }
 
-        logger.info("📦 Multi-part import: {} URL(s)", urls.length);
-        System.out.println("📦 Importing from " + urls.length + " part(s)...");
+        logger.info("Multi-part embedding import: {} URL(s)", urls.length);
 
         for (String urlStr : urls) {
             urlStr = urlStr.trim();
@@ -194,36 +158,32 @@ public class EmbeddingImportRunner implements CommandLineRunner {
             partIndex++;
 
             if (!urlValidationService.isValidAndSafe(urlStr)) {
-                logger.error("❌ SECURITY: Invalid or unsafe URL skipped: {}", urlStr);
+                logger.error("Embedding import: invalid or unsafe URL skipped: {}", urlStr);
                 continue;
             }
 
             File partFile = new File(tmpDir, "bible_embeddings_part_" + partIndex + ".json");
             try {
-                logger.info("📥 Part {}/{}: Downloading from URL...", partIndex, urls.length);
-                System.out.println("📥 Part " + partIndex + "/" + urls.length + ": downloading...");
+                logger.info("Part {}/{}: downloading...", partIndex, urls.length);
                 boolean downloaded = downloadFile(urlStr, partFile);
                 if (!downloaded) {
-                    logger.error("❌ Part {} download failed, skipping", partIndex);
+                    logger.error("Embedding part {} download failed, skipping", partIndex);
                     if (partFile.exists()) partFile.delete();
                     continue;
                 }
                 String path = partFile.getAbsolutePath();
                 int imported = embeddingImporterService.importEmbeddings(path);
                 totalImported += imported;
-                logger.info("✅ Part {}/{}: imported {} verses (total so far: {})", partIndex, urls.length, imported, totalImported);
+                logger.info("Part {}/{}: imported {} verses (total: {})", partIndex, urls.length, imported, totalImported);
             } catch (Exception e) {
-                logger.error("❌ Part {} import failed", partIndex, e);
-                throw new RuntimeException("Part " + partIndex + " import failed: " + e.getMessage(), e);
+                logger.error("Embedding part {} import failed", partIndex, e);
+                throw new RuntimeException("Part " + partIndex + " import failed", e);
             } finally {
                 if (partFile.exists()) partFile.delete();
             }
         }
 
-        logger.info("=".repeat(60));
-        logger.info("✅ Multi-part embedding import completed! Total verses: {}", totalImported);
-        logger.info("⚠️  IMPORTANT: Remove IMPORT_EMBEDDINGS_URLS environment variable");
-        logger.info("=".repeat(60));
+        logger.info("Multi-part embedding import completed. Total verses: {}. Remove IMPORT_EMBEDDINGS_URLS from Render env.", totalImported);
     }
 
     /**
@@ -276,13 +236,13 @@ public class EmbeddingImportRunner implements CommandLineRunner {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             if (file.exists() && file.isFile() && file.length() > 0) {
                 if (attempt > 1) {
-                    logger.info("✅ File found on attempt {}/{}", attempt, maxRetries);
+                    logger.info("Embedding file found on attempt {}/{}", attempt, maxRetries);
                 }
                 return file;
             }
             
             if (attempt < maxRetries) {
-                logger.info("⏳ Waiting for file... (attempt {}/{}, retrying in {} seconds)", 
+                logger.info("Waiting for embedding file (attempt {}/{}, retry in {}s)", 
                     attempt, maxRetries, retryDelayMs / 1000);
                 try {
                     Thread.sleep(retryDelayMs);
@@ -315,8 +275,7 @@ public class EmbeddingImportRunner implements CommandLineRunner {
                 parentDir.mkdirs();
             }
 
-            logger.info("📥 Starting download to: {}", targetFile.getAbsolutePath());
-            System.out.println("📥 Downloading " + urlString + " to " + targetFile.getAbsolutePath());
+            logger.info("Downloading to: {}", targetFile.getAbsolutePath());
 
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -336,11 +295,11 @@ public class EmbeddingImportRunner implements CommandLineRunner {
                 // SECURITY: Limit file size to prevent DoS (max 500MB)
                 long maxFileSize = 500 * 1024 * 1024; // 500MB
                 if (contentLength > maxFileSize) {
-                    logger.error("❌ SECURITY: File too large: {} MB (max: 500 MB)", contentLength / (1024 * 1024));
+                    logger.error("Embedding file too large: {} MB (max 500 MB)", contentLength / (1024 * 1024));
                     return false;
                 }
                 
-                logger.info("📥 File size: {} bytes ({} MB)", contentLength, contentLength / (1024 * 1024));
+                logger.info("Download size: {} MB", contentLength / (1024 * 1024));
                 
                 try (InputStream inputStream = connection.getInputStream();
                      FileOutputStream outputStream = new FileOutputStream(targetFile)) {
@@ -348,18 +307,17 @@ public class EmbeddingImportRunner implements CommandLineRunner {
                     byte[] buffer = new byte[8192];
                     long totalBytesRead = 0;
                     int bytesRead;
+                    long lastLoggedMb = 0;
                     
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
                         outputStream.write(buffer, 0, bytesRead);
                         totalBytesRead += bytesRead;
-                        
-                        // Log progress every 10MB
-                        if (totalBytesRead % (10 * 1024 * 1024) == 0) {
-                            long percent = contentLength > 0 ? (totalBytesRead * 100 / contentLength) : 0;
-                            logger.info("📥 Download progress: {} MB / {} MB ({}%)", 
-                                totalBytesRead / (1024 * 1024), 
-                                contentLength / (1024 * 1024),
-                                percent);
+                        long currentMb = totalBytesRead / (1024 * 1024);
+                        // Log progress every 50 MB
+                        if (currentMb >= lastLoggedMb + 50 && contentLength > 0) {
+                            lastLoggedMb = currentMb;
+                            long percent = totalBytesRead * 100 / contentLength;
+                            logger.info("Download progress: {} MB / {} MB ({}%)", currentMb, contentLength / (1024 * 1024), percent);
                         }
                     }
                     
@@ -367,16 +325,15 @@ public class EmbeddingImportRunner implements CommandLineRunner {
                 }
                 
                 long fileSize = targetFile.length();
-                logger.info("✅ Download complete: {} bytes ({} MB)", fileSize, fileSize / (1024 * 1024));
-                System.out.println("✅ Download complete: " + (fileSize / (1024 * 1024)) + " MB");
+                logger.info("Download complete: {} MB", fileSize / (1024 * 1024));
                 return true;
             } else {
-                logger.error("❌ Download failed. HTTP response code: {}", responseCode);
+                logger.error("Embedding file download failed. HTTP {}", responseCode);
                 return false;
             }
             
         } catch (Exception e) {
-            logger.error("❌ Error downloading file from {}: {}", urlString, e.getMessage(), e);
+            logger.error("Error downloading embedding file from {}: {}", LogSanitizer.sanitizeForLogging(urlString), LogSanitizer.sanitize(e.getMessage()), e);
             // Delete partial file if it exists
             if (targetFile.exists()) {
                 targetFile.delete();

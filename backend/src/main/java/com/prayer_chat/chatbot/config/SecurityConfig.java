@@ -114,18 +114,16 @@ public class SecurityConfig {
         // TestSecurityConfig handles security in test profile
         
         if (clientId == null || clientId.trim().isEmpty()) {
-            logger.error("❌ GOOGLE_CLIENT_ID is required but not found!");
-            logger.error("❌ Please set GOOGLE_CLIENT_ID in your .env file.");
+            logger.error("GOOGLE_CLIENT_ID is required but not set");
             throw new IllegalStateException("OAuth2 is required. GOOGLE_CLIENT_ID must be set in .env file or as environment variable.");
         }
         
         if (customOAuth2UserService == null || oAuth2AuthenticationSuccessHandler == null) {
-            logger.error("❌ OAuth2 services are not available!");
-            logger.error("❌ CustomOAuth2UserService or OAuth2AuthenticationSuccessHandler is null.");
+            logger.error("OAuth2 services not available; CustomOAuth2UserService or OAuth2AuthenticationSuccessHandler is null");
             throw new IllegalStateException("OAuth2 services are required but not configured.");
         }
         
-        logger.info("✅ Configuring OAuth2 login with Google (client-id length: {})", clientId.length());
+        logger.info("OAuth2 login with Google configured");
         
         // Configure session management BEFORE OAuth2 to ensure sessions are created for OAuth2 flow
         http

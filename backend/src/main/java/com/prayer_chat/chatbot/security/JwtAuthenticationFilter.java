@@ -54,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String requestUri = request.getRequestURI();
-        logger.debug("🔍 JwtAuthenticationFilter: Processing request URI: {}", requestUri);
+        logger.debug("JwtAuthenticationFilter: Processing request URI: {}", requestUri);
         
         // For permitAll() endpoints, ensure anonymous authentication is set
         // This is a defensive measure to ensure permitAll() endpoints work correctly
@@ -66,7 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                       requestUri.startsWith("/oauth2/") ||
                                       requestUri.equals("/api/plans/limits");
         
-        logger.debug("🔍 JwtAuthenticationFilter: isPermitAllEndpoint={}, currentAuth={}", 
+        logger.debug("JwtAuthenticationFilter: isPermitAllEndpoint={}, currentAuth={}", 
             isPermitAllEndpoint, 
             SecurityContextHolder.getContext().getAuthentication() != null ? 
                 SecurityContextHolder.getContext().getAuthentication().getClass().getSimpleName() : "null");
@@ -76,7 +76,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         // If no JWT token and this is a permitAll() endpoint, ensure anonymous authentication is set
         if (!StringUtils.hasText(jwt) && isPermitAllEndpoint) {
-            logger.debug("🔍 JwtAuthenticationFilter: No JWT token, permitAll() endpoint - ensuring anonymous auth");
+            logger.debug("JwtAuthenticationFilter: No JWT token, permitAll() endpoint - ensuring anonymous auth");
             // Ensure anonymous authentication is set for permitAll() endpoints
             if (SecurityContextHolder.getContext().getAuthentication() == null ||
                 SecurityContextHolder.getContext().getAuthentication() instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
@@ -89,13 +89,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")
                         );
                     SecurityContextHolder.getContext().setAuthentication(anonymousAuth);
-                    logger.debug("🔍 JwtAuthenticationFilter: Set anonymous authentication for permitAll() endpoint");
+                    logger.debug("JwtAuthenticationFilter: Set anonymous authentication for permitAll() endpoint");
                 } else {
-                    logger.debug("🔍 JwtAuthenticationFilter: Anonymous authentication already set");
+                    logger.debug("JwtAuthenticationFilter: Anonymous authentication already set");
                 }
             }
             // Continue with anonymous authentication
-            logger.debug("🔍 JwtAuthenticationFilter: Continuing filter chain with anonymous auth");
+            logger.debug("JwtAuthenticationFilter: Continuing filter chain with anonymous auth");
             filterChain.doFilter(request, response);
             return;
         }
@@ -108,21 +108,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (existingAuth != null && 
                 !(existingAuth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) &&
                 existingAuth.isAuthenticated()) {
-                logger.debug("🔍 JwtAuthenticationFilter: No JWT token, but existing authenticated user found (e.g., @WithMockUser) - preserving authentication");
+                logger.debug("JwtAuthenticationFilter: No JWT token, but existing authenticated user found (e.g., @WithMockUser) - preserving authentication");
                 filterChain.doFilter(request, response);
                 return;
             }
-            logger.debug("🔍 JwtAuthenticationFilter: No JWT token, not permitAll() - continuing with existing auth");
+            logger.debug("JwtAuthenticationFilter: No JWT token, not permitAll() - continuing with existing auth");
             filterChain.doFilter(request, response);
             return;
         }
 
         // There's a JWT token - process it (will override anonymous authentication if present)
-        logger.debug("🔍 JwtAuthenticationFilter: JWT token found, processing authentication");
+        logger.debug("JwtAuthenticationFilter: JWT token found, processing authentication");
         try {
 
             if (StringUtils.hasText(jwt)) {
-                logger.debug("JWT token found in request: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
+                logger.debug("JWT token found in request");
                 boolean isValid = jwtTokenProvider.validateToken(jwt);
                 logger.debug("JWT token validation result: {}", isValid);
                 
@@ -138,10 +138,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails = userDetailsService.loadUserByUsername(username);
                             logger.debug("User loaded successfully: {}", userDetails != null ? LogSanitizer.sanitize(userDetails.getUsername()) : "null");
                         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-                            logger.error("User not found in database for username/email: {}. Error: {}", LogSanitizer.sanitize(username), e.getMessage());
+                            logger.error("User not found in database for username/email: {}. Error: {}", LogSanitizer.sanitize(username), LogSanitizer.sanitize(e.getMessage()));
                             throw e;
                         } catch (Exception e) {
-                            logger.error("Error loading user by username/email: {}. Error: {}", LogSanitizer.sanitize(username), e.getMessage(), e);
+                            logger.error("Error loading user by username/email: {}. Error: {}", LogSanitizer.sanitize(username), LogSanitizer.sanitize(e.getMessage()), e);
                             throw e;
                         }
                         
@@ -169,7 +169,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                             SecurityContextHolder.getContext().setAuthentication(authentication);
-                            logger.debug("Authenticated user: {} as CustomOAuth2User", username);
+                            logger.debug("Authenticated user: {} as CustomOAuth2User", LogSanitizer.sanitize(username));
                         } else {
                             // Fallback for non-User UserDetails (shouldn't happen in our app)
                             UsernamePasswordAuthenticationToken authentication =
@@ -190,7 +190,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context. Exception type: {}, Message: {}", 
-                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+                ex.getClass().getSimpleName(), LogSanitizer.sanitizeException(ex), ex);
             // Log stack trace for debugging
             if (logger.isDebugEnabled()) {
                 logger.debug("Full stack trace:", ex);

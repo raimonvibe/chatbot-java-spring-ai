@@ -134,7 +134,7 @@ public class AdminController {
             }
 
             logger.info("Admin: Starting embedding generation for {} verses...", versesWithoutEmbeddings);
-            logger.warn("⚠️  This will take a long time and cost API credits!");
+            logger.warn("Embedding generation may take a long time and use API credits");
             
             // Generate embeddings (this will take a while)
             int processed = christianContentAnalysisService.generateEmbeddingsForAllVerses();

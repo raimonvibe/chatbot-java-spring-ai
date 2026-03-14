@@ -38,11 +38,8 @@ public class AiConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AiConfiguration.class);
     
-    // Debug: Log when configuration is being processed
     public AiConfiguration() {
-        System.out.println("=".repeat(60));
-        System.out.println("🔧 AiConfiguration constructor called");
-        System.out.println("=".repeat(60));
+        logger.debug("AiConfiguration initialized");
     }
 
     @Value("${spring.ai.anthropic.api-key:${ANTHROPIC_API_KEY:}}")
@@ -98,13 +95,10 @@ public class AiConfiguration {
             logger.info("AnthropicChatModel created successfully.");
             return anthropicChatModel;
         } catch (Exception e) {
-            logger.error("Failed to create AnthropicChatModel manually: {}", e.getMessage(), e);
+            logger.error("Failed to create AnthropicChatModel manually", e);
             return (prompt) -> {
                 throw new IllegalStateException(
-                    "ChatModel configuration error. " +
-                    "ANTHROPIC_API_KEY is set but failed to create AnthropicChatModel. " +
-                    "Error: " + e.getMessage() + ". " +
-                    "Check that spring-ai-anthropic dependency is correct."
+                    "ChatModel configuration error. ANTHROPIC_API_KEY is set but failed to create AnthropicChatModel. Check spring-ai-anthropic dependency."
                 );
             };
         }
@@ -170,26 +164,6 @@ public class AiConfiguration {
             com.prayer_chat.chatbot.service.EmbeddingImporterService embeddingImporterService,
             org.springframework.core.env.Environment environment,
             com.prayer_chat.chatbot.service.UrlValidationService urlValidationService) {
-        System.out.println("=".repeat(60));
-        System.out.println("🔧 @Bean method embeddingImportRunner() CALLED!");
-        System.out.println("🔧 Creating EmbeddingImportRunner bean (will check env var in run method)");
-        
-        // Debug: Check environment variable
-        String envVar = System.getenv("IMPORT_EMBEDDINGS_FILE");
-        String prop = environment.getProperty("IMPORT_EMBEDDINGS_FILE");
-        System.out.println("🔍 System.getenv('IMPORT_EMBEDDINGS_FILE'): " + (envVar != null ? envVar : "null"));
-        System.out.println("🔍 environment.getProperty('IMPORT_EMBEDDINGS_FILE'): " + (prop != null ? prop : "null"));
-        System.out.println("=".repeat(60));
-        
-        logger.info("Creating EmbeddingImportRunner bean");
-        try {
-            EmbeddingImportRunner runner = new EmbeddingImportRunner(embeddingImporterService, environment, urlValidationService);
-            System.out.println("✅ EmbeddingImportRunner bean created successfully");
-            return runner;
-        } catch (Exception e) {
-            System.out.println("❌ Error creating EmbeddingImportRunner: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
+        return new EmbeddingImportRunner(embeddingImporterService, environment, urlValidationService);
     }
 }

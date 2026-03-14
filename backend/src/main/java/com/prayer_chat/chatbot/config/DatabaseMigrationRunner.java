@@ -35,7 +35,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             // Fix NULL values in jesus_teachings_enabled column
             int updated = chatbotRepository.updateNullJesusTeachingsEnabled();
             if (updated > 0) {
-                logger.info("✅ Updated {} chatbot(s) with NULL jesus_teachings_enabled to false", updated);
+                logger.info("Database migration: updated {} chatbot(s) with NULL jesus_teachings_enabled to false", updated);
             } else {
                 logger.debug("No chatbots with NULL jesus_teachings_enabled found");
             }

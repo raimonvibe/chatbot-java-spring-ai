@@ -127,14 +127,12 @@ public class JesusVersesTaggingService {
             // Count total tagged verses
             long totalTagged = bibleVerseRepository.countBySpeaker("Jesus");
 
-            logger.info("✅ Jesus verses tagging completed!");
-            logger.info("📊 Tagged {} new verses as Jesus teachings", taggedCount.get());
-            logger.info("📊 Total Jesus verses in database: {}", totalTagged);
+            logger.info("Jesus verses tagging completed: {} new verses tagged, {} total in database", taggedCount.get(), totalTagged);
 
             return taggedCount.get();
 
         } catch (Exception e) {
-            logger.error("❌ Error tagging Jesus verses", e);
+            logger.error("Error tagging Jesus verses", e);
             throw new RuntimeException("Failed to tag Jesus verses", e);
         }
     }

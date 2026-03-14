@@ -53,13 +53,12 @@ public class BibleDataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // Check if force reload is requested
         if (forceReload) {
-            logger.warn("⚠️  FORCE_RELOAD_BIBLE_DATA is set to true!");
-            logger.warn("⚠️  Deleting all existing Bible verses and reloading...");
+            logger.warn("FORCE_RELOAD_BIBLE_DATA is set; deleting existing Bible verses and reloading");
             try {
                 long deletedCount = bibleVerseRepository.count();
                 // Use optimized native query delete to avoid loading all entities into memory
                 bibleVerseRepository.deleteAllVerses();
-                logger.info("✅ Deleted {} existing Bible verses (using optimized native query)", deletedCount);
+                logger.info("Deleted {} existing Bible verses", deletedCount);
             } catch (InvalidDataAccessResourceUsageException e) {
                 // Table may not exist yet (e.g. first deploy); skip delete and proceed to load
                 if (e.getCause() != null && e.getCause().getMessage() != null
@@ -69,7 +68,7 @@ public class BibleDataInitializer implements CommandLineRunner {
                     throw e;
                 }
             }
-            logger.info("🔄 Reloading Bible data (only New Testament will be loaded if load-old-testament=false)...");
+            logger.info("Reloading Bible data");
         }
 
         if (!autoLoad && !forceReload) {
@@ -89,22 +88,20 @@ public class BibleDataInitializer implements CommandLineRunner {
             long versesWithoutEmbeddings = bibleVerseRepository.countVersesWithoutEmbeddings();
             if (versesWithoutEmbeddings > 0 && autoGenerateEmbeddings) {
                 logger.info("Found {} verses without embeddings. Starting embedding generation...", versesWithoutEmbeddings);
-                logger.warn("⚠️  WARNING: Generating embeddings for {} verses will take a long time and cost API credits!", versesWithoutEmbeddings);
-                logger.warn("⚠️  This is running automatically because app.bible.auto-generate-embeddings=true");
-                logger.warn("⚠️  Consider setting it to false and running manually via admin endpoint");
+                logger.warn("Generating embeddings for {} verses (may take a long time and use API credits); consider disabling auto-generate and using admin endpoint", versesWithoutEmbeddings);
                 
                 // Generate embeddings in background (async would be better, but this is simpler)
                 try {
                     int processed = christianContentAnalysisService.generateEmbeddingsForAllVerses();
-                    logger.info("✅ Successfully generated embeddings for {} verses", processed);
+                    logger.info("Generated embeddings for {} verses", processed);
                 } catch (Exception e) {
-                    logger.error("❌ Error generating embeddings. You can generate them later via admin endpoint.", e);
+                    logger.error("Error generating embeddings; use admin endpoint to retry", e);
                 }
             } else if (versesWithoutEmbeddings > 0) {
                 logger.info("Found {} verses without embeddings. Set app.bible.auto-generate-embeddings=true to generate automatically", versesWithoutEmbeddings);
                 logger.info("Or use admin endpoint to generate embeddings manually");
             } else {
-                logger.info("✅ All verses have embeddings. Bible data is ready to use!");
+                logger.info("Bible data ready; all verses have embeddings");
             }
             
             return;
@@ -116,32 +113,26 @@ public class BibleDataInitializer implements CommandLineRunner {
         
         try {
             int loadedVerses = bibleDataLoaderService.loadBibleData();
-            logger.info("✅ Successfully loaded {} Bible verses into database", loadedVerses);
+            logger.info("Loaded {} Bible verses into database", loadedVerses);
             
             // Optionally generate embeddings automatically
             if (autoGenerateEmbeddings) {
                 logger.info("Starting automatic embedding generation for all verses...");
-                logger.warn("⚠️  WARNING: This will take a VERY long time (30+ minutes) and cost significant API credits!");
-                logger.warn("⚠️  Consider setting app.bible.auto-generate-embeddings=false and running manually");
+                logger.warn("Automatic embedding generation may take 30+ minutes and use significant API credits");
                 
                 try {
                     int processed = christianContentAnalysisService.generateEmbeddingsForAllVerses();
-                    logger.info("✅ Successfully generated embeddings for {} verses", processed);
-                    logger.info("✅ Bible data is now fully ready to use!");
+                    logger.info("Generated embeddings for {} verses; Bible data ready", processed);
                 } catch (Exception e) {
-                    logger.error("❌ Error generating embeddings. Data is loaded but embeddings need to be generated manually.", e);
+                    logger.error("Embedding generation failed; load data is complete but embeddings must be generated via admin endpoint", e);
                     logger.info("You can generate embeddings later via admin endpoint");
                 }
             } else {
-                logger.info("Bible data loaded successfully!");
-                logger.info("⚠️  Note: Embeddings are not generated automatically (app.bible.auto-generate-embeddings=false)");
-                logger.info("⚠️  You need to generate embeddings manually before using Christian Content Analysis");
-                logger.info("⚠️  Use admin endpoint or set app.bible.auto-generate-embeddings=true (not recommended for production)");
+                logger.info("Bible data loaded; embeddings not auto-generated (set app.bible.auto-generate-embeddings or use admin endpoint)");
             }
             
         } catch (Exception e) {
-            logger.error("❌ Failed to load Bible data", e);
-            logger.error("You can try loading it manually via admin endpoint");
+            logger.error("Failed to load Bible data", e);
             throw e; // Fail startup if data loading fails
         }
     }

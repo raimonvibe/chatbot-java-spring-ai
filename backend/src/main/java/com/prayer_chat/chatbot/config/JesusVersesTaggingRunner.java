@@ -44,7 +44,7 @@ public class JesusVersesTaggingRunner implements CommandLineRunner {
         // Check if verses are already tagged
         if (jesusVersesTaggingService.areJesusVersesTagged()) {
             long taggedCount = jesusVersesTaggingService.getJesusVersesCount();
-            logger.info("✅ Jesus verses already tagged: {} verses found in database", taggedCount);
+            logger.info("Jesus verses already tagged: {} verses in database", taggedCount);
             return;
         }
 
@@ -54,13 +54,10 @@ public class JesusVersesTaggingRunner implements CommandLineRunner {
 
         try {
             int taggedCount = jesusVersesTaggingService.tagJesusVerses();
-            logger.info("✅ Successfully tagged {} Jesus verses", taggedCount);
-            logger.info("✅ Jesus verses tagging completed!");
+            logger.info("Jesus verses tagging completed: {} verses tagged", taggedCount);
         } catch (Exception e) {
-            logger.error("❌ Failed to tag Jesus verses", e);
-            logger.error("You can try tagging them manually via admin endpoint");
-            // Don't fail startup - this is not critical
-            logger.warn("⚠️  Service will continue running without Jesus verses tagging");
+            logger.error("Jesus verses tagging failed", e);
+            logger.warn("Service will continue without Jesus verses tagging; use admin endpoint to retry");
         }
     }
 }

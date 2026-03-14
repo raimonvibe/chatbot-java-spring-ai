@@ -28,7 +28,7 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        logger.info("🔧 AnthropicApiKeyEnvironmentPostProcessor running...");
+        logger.debug("AnthropicApiKeyEnvironmentPostProcessor running");
         
         Map<String, Object> properties = new HashMap<>();
         boolean hasProperties = false;
@@ -41,9 +41,9 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
         if (anthropicApiKey != null && !anthropicApiKey.trim().isEmpty()) {
             properties.put("spring.ai.anthropic.api-key", anthropicApiKey);
             hasProperties = true;
-            logger.info("✅ Set spring.ai.anthropic.api-key from ANTHROPIC_API_KEY (length: {})", anthropicApiKey.length());
+            logger.info("Configured spring.ai.anthropic.api-key from ANTHROPIC_API_KEY");
         } else {
-            logger.warn("⚠️  ANTHROPIC_API_KEY not found. Spring AI auto-configuration may not work.");
+            logger.warn("ANTHROPIC_API_KEY not set; Spring AI auto-configuration may not create ChatModel");
         }
         
         // Process JWT_SECRET -> jwt.secret
@@ -54,9 +54,9 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
         if (jwtSecret != null && !jwtSecret.trim().isEmpty()) {
             properties.put("jwt.secret", jwtSecret);
             hasProperties = true;
-            logger.info("✅ Set jwt.secret from JWT_SECRET (length: {})", jwtSecret.length());
+            logger.info("Configured jwt.secret from JWT_SECRET");
         } else {
-            logger.warn("⚠️  JWT_SECRET not found. Application may fail to start.");
+            logger.warn("JWT_SECRET not set; application may fail to start");
         }
         
         // Process COHERE_API_KEY -> spring.ai.cohere.api-key
@@ -67,7 +67,7 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
         if (cohereApiKey != null && !cohereApiKey.trim().isEmpty()) {
             properties.put("spring.ai.cohere.api-key", cohereApiKey);
             hasProperties = true;
-            logger.info("✅ Set spring.ai.cohere.api-key from COHERE_API_KEY (length: {})", cohereApiKey.length());
+            logger.info("Configured spring.ai.cohere.api-key from COHERE_API_KEY");
         }
 
         // Normalize DATABASE_URL for Spring Session JDBC: Render (and others) often give postgresql:// or postgres://
@@ -92,7 +92,7 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
                 }
                 properties.put("spring.datasource.url", jdbcUrl);
                 hasProperties = true;
-                logger.info("✅ Set spring.datasource.url from DATABASE_URL (JDBC format for session/driver detection)");
+                logger.info("Configured spring.datasource.url from DATABASE_URL (JDBC format)");
             }
         }
 
@@ -107,9 +107,9 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
                 "env-vars-override", properties);
             // Add with highest priority so it overrides any empty values
             environment.getPropertySources().addFirst(propertySource);
-            logger.info("✅ EnvironmentPostProcessor completed successfully");
+            logger.debug("EnvironmentPostProcessor applied");
         } else {
-            logger.warn("⚠️  No environment variables processed by EnvironmentPostProcessor");
+            logger.warn("No environment variables processed by EnvironmentPostProcessor");
         }
     }
 
