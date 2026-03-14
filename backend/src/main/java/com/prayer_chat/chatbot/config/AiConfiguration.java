@@ -81,14 +81,10 @@ public class AiConfiguration {
             };
         }
         
-        // If we have an API key but Spring AI didn't auto-configure, manually create AnthropicChatModel
-        logger.warn("ANTHROPIC_API_KEY is set (length: {}) but Spring AI auto-configuration didn't create ChatModel.", apiKey.length());
-        logger.warn("Creating AnthropicChatModel manually as fallback.");
-        logger.warn("This usually means Spring AI auto-configuration didn't detect the property.");
-        logger.warn("Check that 'spring.ai.anthropic.api-key' property is set before Spring AI auto-configuration runs.");
+        // Spring AI auto-config may not run (e.g. env available only after context starts). Create ChatModel manually.
+        logger.info("Creating AnthropicChatModel from API key (Spring AI auto-config did not provide a bean).");
         
         try {
-            // Manually create AnthropicChatModel using the builder pattern
             AnthropicApi anthropicApi = AnthropicApi.builder().apiKey(apiKey).build();
             AnthropicChatOptions options = AnthropicChatOptions.builder()
                     .model("claude-3-haiku-20240307")
@@ -99,7 +95,7 @@ public class AiConfiguration {
                     .anthropicApi(anthropicApi)
                     .defaultOptions(options)
                     .build();
-            logger.info("Successfully created AnthropicChatModel manually.");
+            logger.info("AnthropicChatModel created successfully.");
             return anthropicChatModel;
         } catch (Exception e) {
             logger.error("Failed to create AnthropicChatModel manually: {}", e.getMessage(), e);
