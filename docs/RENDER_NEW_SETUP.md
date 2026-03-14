@@ -34,7 +34,7 @@ Set these in **Render Dashboard → Backend service → Environment**.
 
 | Key | Value / source |
 |-----|----------------|
-| `DATABASE_URL` | From your **PostgreSQL** service: Connect → **Internal Database URL** (or External). Can be `postgresql://user:pass@host:5432/dbname` or `postgres://...` — the app normalizes it to JDBC format for Spring Session. |
+| `DATABASE_URL` | See **[DATABASE_URL explained](DATABASE_URL_EXPLAINED.md)** (what it is, where to get it on Render, format, internal vs external, security). |
 | `DATABASE_DRIVER` | `org.postgresql.Driver` |
 | `HIBERNATE_DIALECT` | `org.hibernate.dialect.PostgreSQLDialect` |
 | `DDL_AUTO` | `update` |
@@ -78,6 +78,39 @@ Failed to determine DatabaseDriver
 - `DATABASE_URL` is the **Internal** (or External) URL from the same Render PostgreSQL service.
 - The backend and database are in the same Render account and the DB is running.
 - Username/password in the URL are correct (Render injects the full URL when you use “Connect” → Internal Database URL).
+
+---
+
+## “Cannot resolve reference to bean 'jpaSharedEM_entityManagerFactory'”
+
+If you see:
+```text
+Error creating bean with name 'jwtAuthenticationFilter' ...
+Unsatisfied dependency ... customUserDetailsService ... userRepository ...
+Cannot resolve reference to bean 'jpaSharedEM_entityManagerFactory' while setting bean property 'entityManager'
+```
+
+**Cause:** The JPA `EntityManagerFactory` was never created, so repositories can’t get an `EntityManager`. This is almost always a **follow-on** of an earlier failure in the same startup (e.g. database connection or session init).
+
+**What to do:**
+
+1. **Find the first exception**  
+   In the Render logs, scroll to the **very first** “Error” or “Exception” (often before the Tomcat / `jwtAuthenticationFilter` message). That’s usually the real cause, e.g.:
+   - Database connection refused or timeout
+   - Authentication failed (wrong user/password in `DATABASE_URL`)
+   - “Failed to determine DatabaseDriver” (fix with Internal URL + JDBC normalization; see above)
+   - SSL required: `FATAL: no pg_hba.conf entry for host ... SSL connection required`
+
+2. **Fix the database connection**
+   - Use the **Internal Database URL** from your Render PostgreSQL service.
+   - Ensure `DATABASE_DRIVER=org.postgresql.Driver` is set.
+   - If the first error mentions SSL, add to the end of `DATABASE_URL`:  
+     - No `?` in URL → add `?sslmode=require`  
+     - Already has `?` → add `&sslmode=require`  
+     Example: `postgresql://user:pass@host:5432/dbname?sslmode=require`
+
+3. **Redeploy**  
+   After fixing env vars, trigger a new deploy so the app starts with a working DB connection; then the `EntityManagerFactory` and repositories should be created and this error will go away.
 
 ---
 

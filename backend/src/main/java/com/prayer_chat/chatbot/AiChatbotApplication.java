@@ -33,6 +33,15 @@ public class AiChatbotApplication {
 
     public static void main(String[] args) {
         System.out.println("🚀 Starting Prayer-Chat AI Chatbot System...");
+        // Set Spring AI properties from env before any config runs, so auto-config can create ChatModel/EmbeddingModel
+        String anthropicKey = System.getenv("ANTHROPIC_API_KEY");
+        if (anthropicKey != null && !anthropicKey.isBlank()) {
+            System.setProperty("spring.ai.anthropic.api-key", anthropicKey);
+        }
+        String cohereKey = System.getenv("COHERE_API_KEY");
+        if (cohereKey != null && !cohereKey.isBlank()) {
+            System.setProperty("spring.ai.cohere.api-key", cohereKey);
+        }
         System.out.println("🔧 Registering EnvironmentVariableConfig listener...");
         
         SpringApplication app = new SpringApplication(AiChatbotApplication.class);

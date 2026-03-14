@@ -85,11 +85,22 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
                 jdbcUrl = "jdbc:" + jdbcUrl;
             }
             if (jdbcUrl.startsWith("jdbc:postgresql://")) {
+                // Render and many cloud Postgres require SSL; add sslmode if URL looks like cloud and none set
+                boolean looksLikeCloud = jdbcUrl.contains(".render.com") || jdbcUrl.contains(".postgres.render.com");
+                if (looksLikeCloud && !jdbcUrl.contains("sslmode=")) {
+                    jdbcUrl = jdbcUrl.contains("?") ? jdbcUrl + "&sslmode=require" : jdbcUrl + "?sslmode=require";
+                }
                 properties.put("spring.datasource.url", jdbcUrl);
                 hasProperties = true;
                 logger.info("✅ Set spring.datasource.url from DATABASE_URL (JDBC format for session/driver detection)");
             }
         }
+
+        // Normalize Bible boolean env vars: empty string from env (e.g. BIBLE_LOAD_OLD_TESTAMENT=) cannot be
+        // converted to boolean and causes "Invalid boolean value []". Always set to "true" or "false".
+        String loadOldTestament = getEnvOrProperty(environment, "BIBLE_LOAD_OLD_TESTAMENT");
+        properties.put("app.bible.load-old-testament", parseBooleanEnv(loadOldTestament, false));
+        hasProperties = true;
 
         if (hasProperties) {
             MapPropertySource propertySource = new MapPropertySource(
@@ -99,6 +110,30 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
             logger.info("✅ EnvironmentPostProcessor completed successfully");
         } else {
             logger.warn("⚠️  No environment variables processed by EnvironmentPostProcessor");
+        }
+    }
+
+    private static String getEnvOrProperty(ConfigurableEnvironment environment, String name) {
+        String value = environment.getProperty(name);
+        if (value == null || value.isBlank()) {
+            value = System.getenv(name);
+        }
+        return value != null ? value.trim() : "";
+    }
+
+    /** Parse env value to "true" or "false"; empty/blank or unknown values become default. */
+    private static String parseBooleanEnv(String value, boolean defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue ? "true" : "false";
+        }
+        switch (value.toLowerCase()) {
+            case "true":
+            case "yes":
+            case "1":
+            case "on":
+                return "true";
+            default:
+                return "false";
         }
     }
 }
