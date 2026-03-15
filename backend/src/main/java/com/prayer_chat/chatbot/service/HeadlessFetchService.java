@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
 import com.prayer_chat.chatbot.util.LogSanitizer;
+import jakarta.annotation.PostConstruct;
 
 /**
  * Fetches a URL using a headless Chrome browser so that client-rendered (SPA) pages
@@ -50,6 +51,16 @@ public class HeadlessFetchService {
 
     public HeadlessFetchService(UrlValidationService urlValidationService) {
         this.urlValidationService = urlValidationService;
+    }
+
+    @PostConstruct
+    public void logHeadlessStatus() {
+        String chromPath = resolveChromeBin().orElse("not found");
+        if (headlessEnabled && "not found".equals(chromPath)) {
+            logger.warn("Headless crawl is enabled but Chromium binary was not found. Vercel/SPA sites will get minimal content. Set CHROME_BIN or ensure the Docker image installs Chromium.");
+        } else {
+            logger.info("Headless crawl: {}, Chromium: {}", headlessEnabled ? "enabled" : "disabled", chromPath);
+        }
     }
 
     /**
