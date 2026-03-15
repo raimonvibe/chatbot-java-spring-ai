@@ -62,8 +62,8 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
         className="fixed inset-0 bg-gradient-to-br from-brown-900/95 via-brown-800/95 to-gold-900/95 backdrop-blur-md z-50 flex items-center justify-center"
       >
         <div className="relative w-full max-w-2xl mx-auto px-8">
-          {/* Animated background circles */}
-          <div className="absolute inset-0 overflow-hidden">
+          {/* Animated background circles - overflow-visible so round shimmer isn't cut off at top/bottom */}
+          <div className="absolute -inset-16 overflow-visible">
             <motion.div
               className="absolute top-1/4 left-1/4 w-64 h-64 bg-gold-500/20 rounded-full blur-3xl"
               animate={{
