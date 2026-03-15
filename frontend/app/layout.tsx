@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     "Create AI-powered chatbots infused with Christian values and biblical wisdom for your ministry or business",
   icons: {
     icon: "/favicon.ico",
+    apple: "/social.png",
   },
   metadataBase: new URL('https://prayer-chat.com'),
   alternates: {
@@ -27,10 +28,10 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/favicon.png',
-        width: 512,
-        height: 512,
-        alt: 'Prayer-Chat Logo',
+        url: '/social.png',
+        width: 1200,
+        height: 630,
+        alt: 'Prayer-Chat - Christian AI Chatbot Platform',
       },
     ],
   },
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "Prayer-Chat - Christian AI Chatbot Platform",
     description: "Create AI-powered chatbots infused with Christian values and biblical wisdom for your ministry or business",
-    images: ['/favicon.png'],
+    images: ['/social.png'],
   },
   robots: {
     index: true,

@@ -5,7 +5,7 @@ export default function StructuredData() {
     name: 'Prayer-Chat',
     legalName: 'RaimonVibe',
     url: 'https://prayer-chat.com',
-    logo: 'https://prayer-chat.com/favicon.png',
+    logo: 'https://prayer-chat.com/social.png',
     foundingDate: '2024',
     address: {
       '@type': 'PostalAddress',
