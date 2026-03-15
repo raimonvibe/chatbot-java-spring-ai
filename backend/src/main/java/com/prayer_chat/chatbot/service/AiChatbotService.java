@@ -82,6 +82,29 @@ public class AiChatbotService {
     }
     
     /**
+     * Remove all vector store documents for a chatbot. Call before re-analyzing or when deleting
+     * the chatbot so a new chatbot reusing the same ID does not inherit previous content.
+     */
+    public void deleteVectorStoreDocumentsForChatbot(Long chatbotId) {
+        if (chatbotId == null) return;
+        try {
+            Chatbot ref = new Chatbot();
+            ref.setId(chatbotId);
+            List<String> ids = websiteContentRepository.findByChatbot(ref).stream()
+                .map(WebsiteContent::getVectorId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+            if (!ids.isEmpty()) {
+                vectorStore.delete(ids);
+                logger.debug("Removed {} vector store documents for chatbot {}", ids.size(), chatbotId);
+            }
+        } catch (Exception e) {
+            logger.warn("Could not remove vector store documents for chatbot {}: {}", chatbotId, e.getMessage());
+        }
+    }
+
+    /**
      * Process a user message and generate a response
      */
     public ChatResponse processMessage(Long chatbotId, String userMessage, String sessionId, 

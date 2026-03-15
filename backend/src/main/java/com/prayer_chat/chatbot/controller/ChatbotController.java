@@ -615,8 +615,7 @@ public class ChatbotController {
                 return accessCheck;
             }
 
-            chatbotRepository.deleteById(id);
-            logger.info("Deleted chatbot: {} for user: {}", id, LogSanitizer.sanitize(user.getEmail()));
+            chatbotService.deleteChatbot(id, user);
             return ResponseEntity.noContent().build();
 
         } catch (Exception e) {
@@ -654,6 +653,14 @@ public class ChatbotController {
                 ));
             }
             
+            // Clear vector store for each chatbot so reused IDs do not inherit old content
+            for (Chatbot c : userChatbots) {
+                try {
+                    aiChatbotService.deleteVectorStoreDocumentsForChatbot(c.getId());
+                } catch (Exception e) {
+                    logger.warn("Could not clear vector store for chatbot {} during bulk delete: {}", c.getId(), e.getMessage());
+                }
+            }
             // Delete all chatbots
             int deletedCount = userChatbots.size();
             chatbotRepository.deleteAll(userChatbots);

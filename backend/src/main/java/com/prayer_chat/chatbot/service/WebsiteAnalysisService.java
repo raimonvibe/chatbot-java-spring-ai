@@ -94,16 +94,20 @@ public class WebsiteAnalysisService {
         "section"
     };
     
+    private final AiChatbotService aiChatbotService;
+
     public WebsiteAnalysisService(WebsiteContentRepository websiteContentRepository,
                                   UrlValidationService urlValidationService,
                                   ChatbotRepository chatbotRepository,
                                   RobotsTxtService robotsTxtService,
-                                  @Autowired(required = false) HeadlessFetchService headlessFetchService) {
+                                  @Autowired(required = false) HeadlessFetchService headlessFetchService,
+                                  @Autowired(required = false) AiChatbotService aiChatbotService) {
         this.websiteContentRepository = websiteContentRepository;
         this.urlValidationService = urlValidationService;
         this.chatbotRepository = chatbotRepository;
         this.robotsTxtService = robotsTxtService;
         this.headlessFetchService = headlessFetchService;
+        this.aiChatbotService = aiChatbotService;
         // Small pool to avoid OOM on Render: crawl + Chromium + post-analysis indexing all share memory
         this.executorService = Executors.newFixedThreadPool(3);
     }
@@ -154,6 +158,16 @@ public class WebsiteAnalysisService {
             // Minimal reference for persistence from async thread (avoids detached-entity issues)
             Chatbot ref = new Chatbot();
             ref.setId(chatbotId);
+
+            // Remove this chatbot's documents from the vector store first (while we still have vector ids in DB).
+            // Otherwise a re-analyze or a new chatbot reusing the same ID would mix with previous content.
+            if (aiChatbotService != null) {
+                try {
+                    aiChatbotService.deleteVectorStoreDocumentsForChatbot(chatbotId);
+                } catch (Exception e) {
+                    logger.warn("Could not clear vector store for chatbot {}: {}", chatbotId, e.getMessage());
+                }
+            }
 
             // Clear previous scan so re-analyze replaces content instead of appending duplicates
             try {

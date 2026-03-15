@@ -37,6 +37,9 @@ public class ChatbotService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired(required = false)
+    private AiChatbotService aiChatbotService;
+
     @Autowired
     private XssSanitizer xssSanitizer;
 
@@ -204,6 +207,15 @@ public class ChatbotService {
         if (!isOwner(user, chatbot)) {
             logger.warn("User {} attempted to delete chatbot {} without authorization", user.getId(), id);
             throw new SecurityException("You are not authorized to delete this chatbot");
+        }
+
+        // Remove this chatbot's documents from the vector store so the ID can be reused without inheriting old content
+        if (aiChatbotService != null) {
+            try {
+                aiChatbotService.deleteVectorStoreDocumentsForChatbot(chatbot.getId());
+            } catch (Exception e) {
+                logger.warn("Could not clear vector store for deleted chatbot {}: {}", id, e.getMessage());
+            }
         }
 
         // Delete the chatbot

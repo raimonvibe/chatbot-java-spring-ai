@@ -56,7 +56,7 @@ class WebsiteAnalysisServiceSecurityTest {
 
     @BeforeEach
     void setUp() {
-        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, chatbotRepository, robotsTxtService, null);
+        analysisService = new WebsiteAnalysisService(websiteContentRepository, urlValidationService, chatbotRepository, robotsTxtService, null, null);
         lenient().when(robotsTxtService.isCrawlAllowed(anyString())).thenReturn(true);
 
         // Configure service with secure defaults
