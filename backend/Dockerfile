@@ -21,8 +21,12 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # Install Chromium from Debian (Jammy's chromium-browser is snap-only and does not work in Docker)
-RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates \
-    && echo 'deb https://deb.debian.org/debian bullseye main' > /etc/apt/sources.list.d/debian-bullseye.list \
+# Add Debian Bullseye archive signing keys so apt trusts the repo
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates gnupg \
+    && mkdir -p /usr/share/keyrings \
+    && gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131 605C66F00D6C9793 \
+    && gpg --batch --export 0E98404D386FA1D9 6ED0E7B82643E131 605C66F00D6C9793 | gpg --batch --dearmor -o /usr/share/keyrings/debian-bullseye-archive.gpg \
+    && echo 'deb [signed-by=/usr/share/keyrings/debian-bullseye-archive.gpg] https://deb.debian.org/debian bullseye main' > /etc/apt/sources.list.d/debian-bullseye.list \
     && echo 'Package: *' > /etc/apt/preferences.d/99-debian-bullseye \
     && echo 'Pin: release n=bullseye' >> /etc/apt/preferences.d/99-debian-bullseye \
     && echo 'Pin-Priority: 100' >> /etc/apt/preferences.d/99-debian-bullseye \
