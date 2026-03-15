@@ -16,11 +16,11 @@ export default function Home() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="text-center max-w-4xl"
+          className="text-center max-w-4xl overflow-visible"
         >
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <Book className="w-16 h-16 text-brown-700" strokeWidth={1.5} />
-            <h1 className="text-6xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700">
+          <div className="flex items-center justify-center gap-3 mb-6 overflow-visible">
+            <Book className="w-16 h-16 text-brown-700 flex-shrink-0" strokeWidth={1.5} />
+            <h1 className="text-6xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700 pb-1 leading-[1.15]">
               Prayer-Chat
             </h1>
           </div>

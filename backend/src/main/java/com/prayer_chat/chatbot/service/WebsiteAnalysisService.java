@@ -77,6 +77,9 @@ public class WebsiteAnalysisService {
     /** Host suffixes that typically serve SPAs (client-rendered); we try headless first for these on the homepage. */
     private static final String[] SPA_HOST_SUFFIXES = { ".vercel.app", ".netlify.app", ".web.app", ".firebaseapp.com" };
 
+    /** Browser-like User-Agent for Jsoup fallback on SPA hosts when headless is unavailable; some servers send richer HTML to browsers. */
+    private static final String BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
     /** Selectors for main content, in priority order. First match with enough text wins. */
     private static final String[] MAIN_CONTENT_SELECTORS = {
         "main",
@@ -177,6 +180,9 @@ public class WebsiteAnalysisService {
                     }
                 }
                 logger.info("Website analysis completed. Extracted {} pages", extractedContent.size());
+                if (extractedContent.isEmpty() && urlToAnalyze != null && urlToAnalyze.contains(".vercel.app")) {
+                    logger.warn("No content extracted for Vercel URL. Preview deployments (e.g. *-xxx-username.vercel.app) often return 401 to crawlers. Use the production URL (e.g. https://your-project.vercel.app) or a custom domain for the chatbot website URL.");
+                }
                 // Persist completed/normalized URL on chatbot so future use has canonical form
                 if (!urlToAnalyze.equals(baseUrl)) {
                     try {
@@ -326,8 +332,35 @@ public class WebsiteAnalysisService {
                 content = extractPageContent(chatbotRef, finalUrl, document);
             }
 
-            // If Jsoup got minimal content (likely SPA) and we have headless budget, retry with headless browser
+            // When headless is unavailable, SPA hosts often return minimal HTML to the crawler UA. Retry once with a browser-like UA.
             boolean minimalFromJsoup = content == null || (content.getContent() != null && content.getContent().length() < 200);
+            if (minimalFromJsoup && isLikelySpaHost(urlToFetch)
+                && (headlessFetchService == null || !headlessFetchService.isHeadlessEnabled())) {
+                try {
+                    Connection.Response browserResponse = Jsoup.connect(urlToFetch)
+                        .userAgent(BROWSER_USER_AGENT)
+                        .timeout(timeoutSeconds * 1000)
+                        .followRedirects(true)
+                        .execute();
+                    String browserFinalUrl = browserResponse.url().toString();
+                    if (urlValidationService.isValidAndSafe(browserFinalUrl)) {
+                        Document browserDoc = browserResponse.parse();
+                        WebsiteContent browserContent = extractPageContent(chatbotRef, browserFinalUrl, browserDoc);
+                        if (browserContent != null && browserContent.getContent() != null
+                            && (content == null || browserContent.getContent().length() > (content.getContent() != null ? content.getContent().length() : 0))) {
+                            content = browserContent;
+                            document = browserDoc;
+                            finalUrl = browserFinalUrl;
+                            logger.debug("Browser User-Agent improved content for SPA host {} ({} chars)", urlToFetch, content.getContent().length());
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Browser UA retry failed for {}: {}", urlToFetch, e.getMessage());
+                }
+            }
+
+            // If Jsoup got minimal content (likely SPA) and we have headless budget, retry with headless browser
+            minimalFromJsoup = content == null || (content.getContent() != null && content.getContent().length() < 200);
             if (minimalFromJsoup && headlessUsed.get() < maxHeadlessPagesPerScan
                 && headlessFetchService != null && headlessFetchService.isHeadlessEnabled() && !tryHeadlessFirst) {
                 Optional<String> renderedHtml = headlessFetchService.fetchRenderedHtml(urlToFetch);

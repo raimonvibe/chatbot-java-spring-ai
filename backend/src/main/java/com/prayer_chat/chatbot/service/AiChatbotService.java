@@ -480,8 +480,15 @@ public class AiChatbotService {
             prompt.append("\n--- No website content is available yet ---\n");
             prompt.append("The scanned website content for this chatbot is not available yet (analysis may still be running or the site could not be crawled). ");
             prompt.append("Do NOT invent or guess information about the site. ");
-            prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), reply that the website content is still being analyzed and they can try again in a minute or two. ");
-            prompt.append("For other questions, answer helpfully but do not claim specific facts about the site.\n");
+            if (websiteUrl.contains(".vercel.app")) {
+                prompt.append("The chatbot's website URL is a Vercel deployment. For Vercel sites, crawlers often get no content (e.g. preview URLs return 401, or the page is a client-rendered app with little crawlable text). ");
+                prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), explain clearly: no pages could be extracted from this site. ");
+                prompt.append("Suggest they ask the chatbot owner to use the production URL (e.g. https://project-name.vercel.app) or a custom domain in the chatbot settings, then run 'Analyze website' again. ");
+                prompt.append("Do not say to 'try again in a few minutes'—that will not fix a Vercel crawling issue.\n");
+            } else {
+                prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), reply that the website content is still being analyzed and they can try again in a minute or two. ");
+                prompt.append("For other questions, answer helpfully but do not claim specific facts about the site.\n");
+            }
         }
 
         prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");
