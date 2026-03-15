@@ -20,10 +20,13 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-# Install only Chromium and wget (minimal); clear apt cache to reduce image and attack surface
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium-browser \
-    wget \
+# Install Chromium from Debian (Jammy's chromium-browser is snap-only and does not work in Docker)
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates \
+    && echo 'deb https://deb.debian.org/debian bullseye main' > /etc/apt/sources.list.d/debian-bullseye.list \
+    && echo 'Package: *' > /etc/apt/preferences.d/99-debian-bullseye \
+    && echo 'Pin: release n=bullseye' >> /etc/apt/preferences.d/99-debian-bullseye \
+    && echo 'Pin-Priority: 100' >> /etc/apt/preferences.d/99-debian-bullseye \
+    && apt-get update && apt-get install -y --no-install-recommends chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Run as non-root so Chromium is not privileged
@@ -31,7 +34,8 @@ RUN groupadd -r spring && useradd -r -g spring spring
 RUN mkdir -p /app/logs && chown -R spring:spring /app/logs
 USER spring:spring
 
-# Optional: CHROME_BIN must be under /usr/ (validated at runtime). e.g. /usr/bin/chromium-browser
+# Debian chromium installs to /usr/bin/chromium (backend also tries chromium-browser)
+ENV CHROME_BIN=/usr/bin/chromium
 COPY --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080

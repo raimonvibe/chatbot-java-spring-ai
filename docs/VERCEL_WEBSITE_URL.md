@@ -57,6 +57,32 @@ Optional (Spring Boot will use defaults if unset):
 
 To **enable** headless on Render (Docker build): leave `HEADLESS_CRAWL_ENABLED` unset or set to `true`. The backend Dockerfile already includes Chromium. If the instance has too little memory and Chromium is killed, set `HEADLESS_CRAWL_ENABLED=false` to fall back to Jsoup-only (and the browser User-Agent retry for SPA hosts).
 
+## Chatbot only has minimal content (e.g. “frontend” or “frontend. frontend”)
+
+If the chatbot is created but only knows the site title (e.g. “frontend”) and says it has “limited information”, the crawler did **not** get full content. For Vercel/React SPAs that usually means **headless Chromium did not run or failed** on the backend.
+
+**Checklist so Vercel sites get full content:**
+
+1. **Backend is built with the Dockerfile**  
+   On Render, the backend must use **Docker** (not “Native” Maven). The repo Dockerfile installs Chromium. In `render.yaml`, the backend service should have `dockerfilePath: backend/Dockerfile`.
+
+2. **Headless is enabled**  
+   In Render → backend service → Environment, do **not** set `HEADLESS_CRAWL_ENABLED=false`. Leave it unset (default `true`) or set to `true`.
+
+3. **Chromium path**  
+   The Dockerfile sets `CHROME_BIN=/usr/bin/chromium-browser`. The app also tries `/usr/bin/chromium` if the first is missing. If your image uses another path (e.g. some Ubuntu/Jammy setups use snap), set `CHROME_BIN` to the real binary path (must be under `/usr`).
+
+4. **Memory**  
+   Chromium needs roughly 200–400 MB. On very small instances it may be killed; then the crawler falls back to Jsoup and you get minimal content. If you see headless errors or OOM in logs, try a larger instance or set `HEADLESS_CRAWL_ENABLED=false` and accept minimal content for SPAs.
+
+5. **Logs**  
+   When headless fails for a Vercel URL, the backend logs:  
+   `Headless fetch failed for Vercel URL ...` or  
+   `Headless returned no content for Vercel URL ...`  
+   Use that to confirm Chromium isn’t running or isn’t returning content.
+
+After fixing the backend (Docker + headless enabled + Chromium available), **re-run “Analyze website”** for the chatbot so the site is crawled again with headless.
+
 ## Backend log hint
 
 When no content is extracted for a URL containing `.vercel.app`, the backend logs a warning suggesting you use the production URL. Check Render logs for that message if the chatbot still has no website context.

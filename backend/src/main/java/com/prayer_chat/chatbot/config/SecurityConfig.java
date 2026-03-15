@@ -207,7 +207,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Use setAllowedOriginPatterns instead of setAllowedOrigins to support wildcards like https://*.vercel.app
+        // Use setAllowedOriginPatterns to support wildcards. Security: avoid https://*.vercel.app if possible—
+        // it allows any Vercel deployment to call your API. Prefer a tighter pattern, e.g. https://prayer-chat*.vercel.app
+        // for your project's previews only. See docs/CORS_VERCEL_SECURITY.md.
         config.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .toList());

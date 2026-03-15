@@ -14,8 +14,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
+
+import com.prayer_chat.chatbot.util.LogSanitizer;
 
 /**
  * Fetches a URL using a headless Chrome browser so that client-rendered (SPA) pages
@@ -80,10 +83,9 @@ public class HeadlessFetchService {
         File chromeDataDir = null;
         try {
             ChromeOptions options = new ChromeOptions();
-            // Use CHROME_BIN only when set and path is safe (prevents path injection via env)
-            String chromeBin = System.getenv("CHROME_BIN");
-            if (isSafeChromeBinPath(chromeBin)) {
-                options.setBinary(chromeBin);
+            Optional<String> chromeBin = resolveChromeBin();
+            if (chromeBin.isPresent()) {
+                options.setBinary(chromeBin.get());
             }
             // Use writable temp dir for Chrome profile/cache (avoids "Permission denied" when run as non-root e.g. Render)
             // SECURITY: only use path if it stays under canonical tmpdir (prevents escape via java.io.tmpdir)
@@ -136,7 +138,11 @@ public class HeadlessFetchService {
             logger.warn("Headless fetch interrupted for {}", url);
             return Optional.empty();
         } catch (Exception e) {
-            logger.debug("Headless fetch failed for {}: {} (Chrome may not be installed)", url, e.getMessage());
+            if (url != null && url.contains(".vercel.app")) {
+                logger.info("Headless fetch failed for Vercel URL (chatbot will have minimal content). Enable Chromium on the server or set CHROME_BIN. Error: {}", LogSanitizer.sanitize(e.getMessage()));
+            } else {
+                logger.debug("Headless fetch failed for {}: {} (Chrome may not be installed)", LogSanitizer.sanitizeForLogging(url), LogSanitizer.sanitize(e.getMessage()));
+            }
             return Optional.empty();
         } finally {
             headlessPermits.release();
@@ -159,6 +165,24 @@ public class HeadlessFetchService {
 
     public boolean isHeadlessEnabled() {
         return headlessEnabled;
+    }
+
+    /**
+     * Resolve Chromium binary path: CHROME_BIN env if set and exists, else try common /usr paths.
+     * So Vercel/SPA crawls work when the Docker image installs Chromium under /usr.
+     */
+    private Optional<String> resolveChromeBin() {
+        String envBin = System.getenv("CHROME_BIN");
+        if (isSafeChromeBinPath(envBin)) {
+            File f = new File(envBin);
+            if (f.exists() && f.canExecute()) return Optional.of(envBin);
+        }
+        for (String candidate : List.of("/usr/bin/chromium-browser", "/usr/bin/chromium")) {
+            if (!isSafeChromeBinPath(candidate)) continue;
+            File f = new File(candidate);
+            if (f.exists() && f.canExecute()) return Optional.of(candidate);
+        }
+        return Optional.empty();
     }
 
     /**

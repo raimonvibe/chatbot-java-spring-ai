@@ -2,6 +2,7 @@ package com.prayer_chat.chatbot.service;
 
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.WebsiteContent;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
 import org.jsoup.Connection;
@@ -314,6 +315,8 @@ public class WebsiteAnalysisService {
                     } catch (Exception e) {
                         logger.debug("Headless-first parse failed for {}: {}", urlToFetch, e.getMessage());
                     }
+                } else if (urlToFetch != null && urlToFetch.contains(".vercel.app")) {
+                    logger.info("Headless returned no content for Vercel URL {}. Chatbot may have minimal content. Ensure Chromium is installed (Docker build) and HEADLESS_CRAWL_ENABLED is true.", LogSanitizer.sanitizeForLogging(urlToFetch));
                 }
             }
 
