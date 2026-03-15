@@ -33,10 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
     && apt-get update && apt-get install -y --no-install-recommends chromium \
     && rm -rf /var/lib/apt/lists/*
 
-# Run as non-root so Chromium is not privileged
-RUN groupadd -r spring && useradd -r -g spring spring
-RUN mkdir -p /app/logs && chown -R spring:spring /app/logs
+# Run as non-root so Chromium is not privileged. Give spring a writable home so ChromeDriver can use ~/.cache/selenium
+RUN groupadd -r spring && useradd -r -g spring -d /home/spring spring
+RUN mkdir -p /app/logs /home/spring/.cache/selenium && chown -R spring:spring /app/logs /home/spring
 USER spring:spring
+ENV HOME=/home/spring
 
 # Debian chromium installs to /usr/bin/chromium (backend also tries chromium-browser)
 ENV CHROME_BIN=/usr/bin/chromium
