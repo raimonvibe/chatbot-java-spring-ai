@@ -518,10 +518,13 @@ export default function Dashboard() {
               className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border-2 border-brown-300 shadow-2xl my-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-2">
                 <Code className="w-6 h-6 text-brown-700 flex-shrink-0" />
-                <h3 className="text-xl sm:text-2xl font-bold text-brown-800 truncate min-w-0">Embed Code for {selectedChatbot.name}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-brown-800 truncate min-w-0">Embed code for {selectedChatbot.name}</h3>
               </div>
+              <p className="text-brown-700 text-sm mb-3">
+                Paste this snippet just before the closing <code className="bg-brown-200 px-1 rounded">&lt;/body&gt;</code> on your website. A chat button will appear so visitors can ask questions—like planting a small seed of encouragement on your site.
+              </p>
               <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900 text-sm sm:text-base">
                 <code>{embedCode}</code>
               </pre>
@@ -529,12 +532,11 @@ export default function Dashboard() {
                 <button
                   onClick={async () => {
                     await navigator.clipboard.writeText(embedCode);
-                    // Copy successful - no popup needed, user can see the code
                   }}
                   className="flex-1 min-w-0 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   <Copy className="w-4 h-4" />
-                  Copy Code
+                  Copy code
                 </button>
                 <button
                   onClick={() => setEmbedCode('')}

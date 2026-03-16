@@ -26,6 +26,7 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.WebsiteScanAudit;
 import com.prayer_chat.chatbot.util.LogSanitizer;
+import com.prayer_chat.chatbot.util.EmbedSecurity;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -962,18 +963,17 @@ public class ChatbotController {
         }
     }
     
+    private static final String DEFAULT_BASE_URL = "https://chatbot-backend-4mp4.onrender.com";
+
     /**
-     * Generate embed code for chatbot
-     * Security: baseUrl comes from configuration, not user input, so SSRF protection is at config level
+     * Generate embed code for chatbot.
+     * Security: baseUrl is from configuration only (never user input — SSRF safe). It is validated
+     * and escaped so the generated HTML/JS cannot break out of the script context (XSS prevention).
      */
     private String generateEmbedCode(Chatbot chatbot) {
-        // Ensure baseUrl doesn't end with slash
-        String cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        
-        // Security: Sanitize baseUrl to prevent XSS in embed code
-        // Replace any potentially dangerous characters
-        cleanBaseUrl = cleanBaseUrl.replace("'", "\\'").replace("\"", "\\\"");
-        
+        String cleanBaseUrl = EmbedSecurity.validateAndNormalizeBaseUrl(baseUrl, DEFAULT_BASE_URL);
+        String safeForJs = EmbedSecurity.escapeForJsString(cleanBaseUrl);
+        long id = chatbot.getId();
         return String.format("""
             <div id="prayer-chat-chatbot-%d" data-chatbot-id="%d"></div>
             <script>
@@ -991,7 +991,7 @@ public class ChatbotController {
                     document.head.appendChild(script);
                 })();
             </script>
-            """, chatbot.getId(), chatbot.getId(), cleanBaseUrl, chatbot.getId(), cleanBaseUrl);
+            """, id, id, safeForJs, id, safeForJs);
     }
 
     // ============================================================================

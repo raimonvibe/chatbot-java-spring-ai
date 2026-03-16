@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Production Security Configuration
@@ -206,15 +207,25 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // Widget endpoints: allow any origin so the embed works on customer sites (church-example.com, etc.).
+        // No credentials; rate limiting and auth checks protect the API. See docs/EMBED_FLOW_EXPLAINED.md.
+        CorsConfiguration widgetCors = new CorsConfiguration();
+        widgetCors.setAllowedOriginPatterns(List.of("*"));
+        widgetCors.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
+        widgetCors.setAllowedHeaders(Arrays.asList("Content-Type", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        widgetCors.setAllowCredentials(false);
+        widgetCors.setMaxAge(3600L);
+        source.registerCorsConfiguration("/api/chat/**", widgetCors);
+        source.registerCorsConfiguration("/js/**", widgetCors);
+
+        // Default: strict origins for dashboard, auth, subscription (credentials allowed)
         CorsConfiguration config = new CorsConfiguration();
-        // Use setAllowedOriginPatterns to support wildcards. Security: avoid https://*.vercel.app if possible—
-        // it allows any Vercel deployment to call your API. Prefer a tighter pattern, e.g. https://prayer-chat*.vercel.app
-        // for your project's previews only. See docs/CORS_VERCEL_SECURITY.md.
         config.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .toList());
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
-        // Explicit headers only (defense-in-depth; avoids allowing arbitrary custom headers)
         config.setAllowedHeaders(Arrays.asList(
             "Authorization",
             "Content-Type",
@@ -226,12 +237,9 @@ public class SecurityConfig {
         ));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Register for all paths to ensure CORS headers are always present
         source.registerCorsConfiguration("/**", config);
 
-        logger.info("CORS configured with allowed origin patterns: {}", config.getAllowedOriginPatterns());
+        logger.info("CORS: widget /api/chat and /js allow any origin; other paths use allowed patterns: {}", config.getAllowedOriginPatterns());
         return source;
     }
 

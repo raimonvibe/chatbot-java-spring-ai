@@ -7,6 +7,7 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
+import com.prayer_chat.chatbot.util.EmbedSecurity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -177,16 +179,22 @@ public class ChatController {
     }
     
     /**
-     * Get chatbot by embed code
+     * Get chatbot config for widget: by numeric ID (used by embed snippet) or by string embed code.
      */
-    @GetMapping("/embed/{embedCode}")
-    public ResponseEntity<Map<String, Object>> getChatbotByEmbedCode(@PathVariable String embedCode) {
+    @GetMapping("/embed/{embedCodeOrId}")
+    public ResponseEntity<Map<String, Object>> getChatbotByEmbedCode(@PathVariable String embedCodeOrId) {
         try {
-            Optional<Chatbot> chatbotOpt = chatbotRepository.findByEmbedCode(embedCode);
+            Optional<Chatbot> chatbotOpt;
+            try {
+                Long id = Long.parseLong(embedCodeOrId);
+                chatbotOpt = chatbotRepository.findById(id);
+            } catch (NumberFormatException e) {
+                chatbotOpt = chatbotRepository.findByEmbedCode(embedCodeOrId);
+            }
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
             
             if (!chatbot.getIsActive()) {
@@ -194,20 +202,28 @@ public class ChatController {
                     "error", "Chatbot is not active"
                 ));
             }
-            
+
+            // Only expose safe, non-sensitive fields. Sanitize brandingConfig and strip angle brackets from name/description (XSS defense).
+            String safeBranding = EmbedSecurity.sanitizeBrandingConfig(chatbot.getBrandingConfig());
+            String name = EmbedSecurity.stripAngleBrackets(chatbot.getName() != null ? chatbot.getName() : "");
+            String description = EmbedSecurity.stripAngleBrackets(chatbot.getDescription() != null ? chatbot.getDescription() : "");
+            if (description.length() > 500) description = description.substring(0, 500);
+            String primaryLanguage = chatbot.getPrimaryLanguage() != null ? chatbot.getPrimaryLanguage() : "en";
+            List<String> supportedLanguages = chatbot.getSupportedLanguages() != null ? chatbot.getSupportedLanguages() : List.of();
+
             Map<String, Object> response = Map.of(
                 "chatbotId", chatbot.getId(),
-                "name", chatbot.getName(),
-                "description", chatbot.getDescription() != null ? chatbot.getDescription() : "",
-                "primaryLanguage", chatbot.getPrimaryLanguage(),
-                "supportedLanguages", chatbot.getSupportedLanguages(),
-                "brandingConfig", chatbot.getBrandingConfig() != null ? chatbot.getBrandingConfig() : "{}"
+                "name", name,
+                "description", description,
+                "primaryLanguage", primaryLanguage,
+                "supportedLanguages", supportedLanguages,
+                "brandingConfig", safeBranding
             );
-            
+
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            logger.error("Error retrieving chatbot by embed code {}: {}", LogSanitizer.sanitize(embedCode), LogSanitizer.sanitizeException(e));
+            logger.error("Error retrieving chatbot by embed code/id {}: {}", LogSanitizer.sanitize(embedCodeOrId), LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(500).body(Map.of(
                 "error", "Failed to retrieve chatbot"
             ));

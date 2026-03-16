@@ -1,6 +1,6 @@
 /**
- * Noupe AI Chatbot Widget
- * Embeddable chatbot widget for websites
+ * Prayer-Chat embeddable widget — bring a gentle, Christ-centered chat to your website.
+ * Place the script on your site; visitors see a chat button and can ask questions.
  */
 (function() {
     'use strict';
@@ -361,7 +361,10 @@
                     console.error('Failed to load chatbot config:', data.error);
                     return;
                 }
-                
+                if (data.name) {
+                    var titleEl = document.getElementById('prayer-chat-widget-title');
+                    if (titleEl) titleEl.textContent = data.name;
+                }
                 // Apply branding if available
                 if (data.brandingConfig) {
                     try {

@@ -146,12 +146,11 @@ class ChatbotControllerUrlSecurityTest {
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         String embedCode = (String) body.get("embedCode");
         
-        // Should escape quotes and script tags
+        // Invalid/malicious baseUrl is replaced with default; output must not contain the malicious fragment
         assertNotNull(embedCode);
-        // The malicious script should be escaped, not executed
         assertFalse(embedCode.contains("</script><script>alert('XSS')</script>"));
-        // Quotes should be escaped
-        assertTrue(embedCode.contains("\\'") || embedCode.contains("&quot;"));
+        // Safe default URL is used when configured baseUrl is invalid
+        assertTrue(embedCode.contains("chatbot-backend") || embedCode.contains("render.com"));
     }
 
     @Test
@@ -199,47 +198,41 @@ class ChatbotControllerUrlSecurityTest {
     }
 
     @Test
-    @DisplayName("Should sanitize javascript: URLs in baseUrl")
+    @DisplayName("Should reject javascript: URLs in baseUrl and use default")
     void shouldSanitizeJavascriptUrls() {
-        // Arrange - baseUrl should come from configuration, not user input
-        // But we test that even if somehow a javascript: URL gets in, it's handled safely
+        // Arrange - invalid baseUrl is replaced with default (EmbedSecurity.validateAndNormalizeBaseUrl)
         String javascriptUrl = "javascript:alert('XSS')";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", javascriptUrl);
-        
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
 
-        // Assert
-        // Even if javascript: URL is in baseUrl, the embed code generation should handle it
-        // The URL should be sanitized (quotes escaped)
+        // Assert - embed code must not contain javascript: protocol; must use safe default URL
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         String embedCode = (String) body.get("embedCode");
-        
-        // Quotes should be escaped, making javascript: protocol non-executable
-        assertTrue(embedCode.contains("javascript:") || embedCode.contains("\\'"));
-        // The important thing is that quotes are escaped, preventing script execution
+        assertNotNull(embedCode);
+        assertFalse(embedCode.contains("javascript:"));
+        assertTrue(embedCode.contains("chatbot-backend") || embedCode.contains("render.com"));
     }
 
     @Test
-    @DisplayName("Should escape special characters in baseUrl")
+    @DisplayName("Should reject baseUrl with special characters and use default")
     void shouldEscapeSpecialCharactersInBaseUrl() {
-        // Arrange
+        // Arrange - baseUrl with quotes fails validation and is replaced with default
         String baseUrlWithSpecialChars = "https://example.com/path'with\"quotes";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrlWithSpecialChars);
-        
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
 
-        // Assert
+        // Assert - output must not contain unescaped malicious baseUrl; must use safe default
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         String embedCode = (String) body.get("embedCode");
-        
-        // Quotes should be escaped
-        assertTrue(embedCode.contains("\\'") || embedCode.contains("&quot;"));
+        assertNotNull(embedCode);
+        assertFalse(embedCode.contains("path'with"));
+        assertTrue(embedCode.contains("chatbot-backend") || embedCode.contains("render.com"));
     }
 
     @Test
