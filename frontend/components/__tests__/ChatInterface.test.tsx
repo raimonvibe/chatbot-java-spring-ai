@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ChatInterface from '../ChatInterface'
 import * as api from '@/lib/api'
@@ -11,6 +11,16 @@ jest.mock('@/lib/api', () => ({
 
 const mockSendMessage = api.sendMessage as jest.MockedFunction<typeof api.sendMessage>
 const mockGetQuickReplies = api.getQuickReplies as jest.MockedFunction<typeof api.getQuickReplies>
+
+/** Renders ChatInterface and flushes the initial getQuickReplies() effect so state updates are wrapped in act(). */
+async function renderChatInterface() {
+  const result = render(<ChatInterface />)
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+  return result
+}
 
 describe('ChatInterface Component', () => {
   // Suppress console.error during tests (we test error handling, so errors are expected)
@@ -31,7 +41,7 @@ describe('ChatInterface Component', () => {
 
   describe('Initial Rendering', () => {
     it('should render the chat interface with initial message', async () => {
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       expect(screen.getByText('Prayer-Chat Assistant')).toBeInTheDocument()
       expect(screen.getByText('Hello! How can I help you today?')).toBeInTheDocument()
@@ -42,7 +52,7 @@ describe('ChatInterface Component', () => {
       const mockQuickReplies = ['Hello', 'Help', 'About']
       mockGetQuickReplies.mockResolvedValue(mockQuickReplies)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       await waitFor(() => {
         expect(mockGetQuickReplies).toHaveBeenCalledWith(1)
@@ -53,7 +63,7 @@ describe('ChatInterface Component', () => {
       const mockQuickReplies = ['Hello', 'Help', 'About']
       mockGetQuickReplies.mockResolvedValue(mockQuickReplies)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       await waitFor(() => {
         expect(screen.getByText('Hello')).toBeInTheDocument()
@@ -65,7 +75,7 @@ describe('ChatInterface Component', () => {
     it('should not display quick replies section when empty', async () => {
       mockGetQuickReplies.mockResolvedValue([])
 
-      const { container } = render(<ChatInterface />)
+      const { container } = await renderChatInterface()
 
       await waitFor(() => {
         const quickRepliesContainer = container.querySelector('.flex-wrap')
@@ -85,7 +95,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
       const sendButton = screen.getByRole('button', { name: /send/i })
@@ -109,7 +119,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -123,7 +133,7 @@ describe('ChatInterface Component', () => {
     it('should not send a message with Shift+Enter', async () => {
       const user = userEvent.setup()
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -135,7 +145,7 @@ describe('ChatInterface Component', () => {
     it('should not send empty messages', async () => {
       const user = userEvent.setup()
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const sendButton = screen.getByRole('button', { name: /send/i })
 
@@ -157,7 +167,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
       const sendButton = screen.getByRole('button', { name: /send/i })
@@ -212,7 +222,7 @@ describe('ChatInterface Component', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -280,7 +290,7 @@ describe('ChatInterface Component', () => {
       })
       mockSendMessage.mockReturnValue(messagePromise as any)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...') as HTMLInputElement
       const sendButton = screen.getByRole('button', { name: /send/i })
@@ -310,7 +320,7 @@ describe('ChatInterface Component', () => {
       const user = userEvent.setup()
       mockSendMessage.mockRejectedValue(new Error('Network error'))
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -329,10 +339,10 @@ describe('ChatInterface Component', () => {
           message: 'Success',
           sessionId: 'session_123',
           timestamp: Date.now(),
-          chatbotId: 1,
-        })
+        chatbotId: 1,
+      })
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -366,7 +376,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       await waitFor(() => {
         expect(screen.getByText('Hello')).toBeInTheDocument()
@@ -392,7 +402,7 @@ describe('ChatInterface Component', () => {
       })
       mockSendMessage.mockReturnValue(messagePromise as any)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       await waitFor(() => {
         expect(screen.getByText('Hello')).toBeInTheDocument()
@@ -429,7 +439,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -457,7 +467,7 @@ describe('ChatInterface Component', () => {
           chatbotId: 1,
         })
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -480,8 +490,8 @@ describe('ChatInterface Component', () => {
   })
 
   describe('Accessibility', () => {
-    it('should have proper ARIA labels and roles', () => {
-      render(<ChatInterface />)
+    it('should have proper ARIA labels and roles', async () => {
+      await renderChatInterface()
 
       const input = screen.getByPlaceholderText('Type your message...')
       expect(input).toHaveAttribute('type', 'text')
@@ -500,7 +510,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      await renderChatInterface()
 
       // Tab to input field
       await user.tab()

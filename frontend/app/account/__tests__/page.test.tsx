@@ -13,6 +13,8 @@ jest.mock('lucide-react', () => ({
   FileText: () => <span data-testid="icon-file" />,
   MessageCircle: () => <span data-testid="icon-message" />,
   Loader2: () => <span data-testid="icon-loader" />,
+  Code: () => <span data-testid="icon-code" />,
+  Copy: () => <span data-testid="icon-copy" />,
 }));
 
 const mockReplace = jest.fn();
@@ -20,6 +22,16 @@ const mockCheckAuth = jest.fn();
 const mockGetSubscriptionStatusFromApi = jest.fn();
 const mockLogout = jest.fn();
 const mockCreatePortalSession = jest.fn();
+const mockGetAllChatbots = jest.fn();
+const mockGetEmbedCode = jest.fn();
+
+// Avoid "Not implemented: navigation" when Manage subscription sets window.location.href
+const locationMock = { href: '', assign: jest.fn() };
+beforeAll(() => {
+  // @ts-expect-error - replace location so assigning href doesn't trigger jsdom navigation
+  delete (window as unknown as { location?: unknown }).location;
+  (window as unknown as { location: typeof locationMock }).location = locationMock;
+});
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn(), pathname: '/account', prefetch: jest.fn() }),
@@ -30,6 +42,8 @@ jest.mock('@/lib/api', () => ({
   getSubscriptionStatusFromApi: (...args: unknown[]) => mockGetSubscriptionStatusFromApi(...args),
   logout: (...args: unknown[]) => mockLogout(...args),
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
+  getAllChatbots: (...args: unknown[]) => mockGetAllChatbots(...args),
+  getEmbedCode: (...args: unknown[]) => mockGetEmbedCode(...args),
 }));
 
 describe('Account Page', () => {
@@ -46,6 +60,8 @@ describe('Account Page', () => {
       canUseChatbot: false,
     });
     mockLogout.mockResolvedValue({ message: 'OK' });
+    mockGetAllChatbots.mockResolvedValue([]);
+    mockGetEmbedCode.mockResolvedValue('<script>embed</script>');
   });
 
   describe('Authentication', () => {

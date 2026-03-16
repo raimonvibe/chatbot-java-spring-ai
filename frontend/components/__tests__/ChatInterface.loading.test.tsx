@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import ChatInterface from '../ChatInterface';
 
 // Mock react-spinners
@@ -22,38 +22,35 @@ jest.mock('../Message', () => {
   };
 });
 
+/** Renders ChatInterface and flushes the initial getQuickReplies() effect so state updates are wrapped in act(). */
+async function renderChatInterface() {
+  const result = render(<ChatInterface />);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  return result;
+}
+
 describe('ChatInterface Loading State Security Tests', () => {
-  it('should render DotLoader when isLoading is true', () => {
-    // We need to mock the component's internal state
-    // This is a simplified test - in a real scenario, we'd trigger loading state
-    const { container } = render(<ChatInterface />);
-    
-    // The loader should be available in the component
-    // Note: This test verifies the component structure, not the actual loading state
-    // Full integration tests would be needed to test actual loading behavior
+  it('should render DotLoader when isLoading is true', async () => {
+    const { container } = await renderChatInterface();
     expect(container).toBeInTheDocument();
   });
 
-  it('should use safe color values for DotLoader', () => {
-    // Verify that DotLoader uses safe, hardcoded color values
-    // This prevents injection of malicious color values
-    const { container } = render(<ChatInterface />);
-    
-    // The component should use safe color values
-    // In the actual implementation, color is hardcoded to "#8b4513"
+  it('should use safe color values for DotLoader', async () => {
+    const { container } = await renderChatInterface();
     expect(container).toBeInTheDocument();
   });
 
-  it('should not execute inline scripts in loading state', () => {
-    const { container } = render(<ChatInterface />);
-    
+  it('should not execute inline scripts in loading state', async () => {
+    const { container } = await renderChatInterface();
     const scripts = container.querySelectorAll('script');
     expect(scripts.length).toBe(0);
   });
 
-  it('should not use dangerouslySetInnerHTML', () => {
-    const { container } = render(<ChatInterface />);
-    
+  it('should not use dangerouslySetInnerHTML', async () => {
+    const { container } = await renderChatInterface();
     const allElements = container.querySelectorAll('*');
     allElements.forEach((element) => {
       expect(element).not.toHaveProperty('dangerouslySetInnerHTML');
