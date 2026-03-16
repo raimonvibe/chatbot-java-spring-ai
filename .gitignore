@@ -49,6 +49,9 @@ spring.log
 .DS_Store
 Thumbs.db
 
+# Local copies of other projects (not part of this repo)
+Documents/
+
 # Node (for frontend)
 node_modules/
 npm-debug.log*
