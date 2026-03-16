@@ -4,10 +4,10 @@ import { ReactNode } from 'react';
 
 const VIEW_WIDTH = 400;
 const VIEW_HEIGHT = 300;
-/** Border width in viewBox units; visual thickness is relative. */
-const BORDER = 16;
+/** Overall frame stroke width in viewBox units. */
+const FRAME_STROKE = 14;
 /** Inner trim line offset from content edge. */
-const INNER_TRIM = 2;
+const INNER_TRIM = 6;
 
 /**
  * Ornamental frame around the chat window: soft gradient border and thin gold trim.
@@ -23,35 +23,41 @@ export default function CalligraphicFrame({ children, className = '' }: { childr
         aria-hidden
       >
         <defs>
-          {/* Soft outer border: warm gradient, no dense pattern */}
+          {/* Soft outer border: single rounded stroke so lines never overlap at corners */}
           <linearGradient id="frame-outer" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
             <stop offset="0%" stopColor="#b8860b" stopOpacity={0.35} />
-            <stop offset="50%" stopColor="#8b6914" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#a67c52" stopOpacity={0.2} />
+            <stop offset="50%" stopColor="#8b6914" stopOpacity={0.22} />
+            <stop offset="100%" stopColor="#a67c52" stopOpacity={0.18} />
           </linearGradient>
-          {/* Inner gold trim for a clean edge */}
+          {/* Inner gold trim for a clean calm edge */}
           <linearGradient id="frame-trim" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#d4a84b" />
+            <stop offset="0%" stopColor="#e2b862" />
             <stop offset="100%" stopColor="#b8860b" />
           </linearGradient>
         </defs>
 
-        {/* Outer frame: four sides only (border), no fill over content */}
-        <rect x={0} y={0} width={VIEW_WIDTH} height={BORDER} fill="url(#frame-outer)" />
-        <rect x={VIEW_WIDTH - BORDER} y={0} width={BORDER} height={VIEW_HEIGHT} fill="url(#frame-outer)" />
-        <rect x={0} y={VIEW_HEIGHT - BORDER} width={VIEW_WIDTH} height={BORDER} fill="url(#frame-outer)" />
-        <rect x={0} y={0} width={BORDER} height={VIEW_HEIGHT} fill="url(#frame-outer)" />
+        {/* Outer frame: single rounded rectangle stroke, no overlapping segments */}
+        <rect
+          x={FRAME_STROKE / 2}
+          y={FRAME_STROKE / 2}
+          width={VIEW_WIDTH - FRAME_STROKE}
+          height={VIEW_HEIGHT - FRAME_STROKE}
+          fill="none"
+          stroke="url(#frame-outer)"
+          strokeWidth={FRAME_STROKE}
+          rx={28}
+        />
 
         {/* Inner trim: thin line just inside the border for definition */}
         <rect
-          x={BORDER + INNER_TRIM}
-          y={BORDER + INNER_TRIM}
-          width={VIEW_WIDTH - 2 * (BORDER + INNER_TRIM)}
-          height={VIEW_HEIGHT - 2 * (BORDER + INNER_TRIM)}
+          x={FRAME_STROKE + INNER_TRIM}
+          y={FRAME_STROKE + INNER_TRIM}
+          width={VIEW_WIDTH - 2 * (FRAME_STROKE + INNER_TRIM)}
+          height={VIEW_HEIGHT - 2 * (FRAME_STROKE + INNER_TRIM)}
           fill="none"
           stroke="url(#frame-trim)"
-          strokeWidth={0.8}
-          rx={BORDER * 0.2}
+          strokeWidth={1}
+          rx={22}
           opacity={0.9}
         />
       </svg>
