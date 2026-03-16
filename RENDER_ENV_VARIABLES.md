@@ -37,9 +37,12 @@ GOOGLE_CLIENT_SECRET=<jouw-google-client-secret>
 STRIPE_SECRET_KEY=<jouw-stripe-secret-key>
 STRIPE_WEBHOOK_SECRET=<jouw-stripe-webhook-secret>
 STRIPE_PRICE_ID=<jouw-stripe-price-id>
-STRIPE_SUCCESS_URL=https://jouw-domein.com/dashboard?session_id={CHECKOUT_SESSION_ID}
-STRIPE_CANCEL_URL=https://jouw-domein.com/pricing
+STRIPE_SUCCESS_URL=https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://www.prayer-chat.com/pricing
 ```
+
+**Stripe redirect security (Render):**  
+The backend validates `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` at startup: the URL host must be in the allowed list. The default allowed list includes `https://www.prayer-chat.com`, so the URL above is **secure to set on Render**. Do **not** set these to a third-party domain. If you use a different domain, set `STRIPE_ALLOWED_REDIRECT_ORIGINS` to a comma-separated list that includes that host (e.g. `https://www.prayer-chat.com,https://prayer-chat.com`); otherwise the app will fail to start with a clear error.
 
 ### 🗄️ Database (PostgreSQL op Render)
 ```

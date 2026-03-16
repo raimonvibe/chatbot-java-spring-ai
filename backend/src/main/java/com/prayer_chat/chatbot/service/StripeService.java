@@ -58,11 +58,14 @@ public class StripeService {
     @Value("${stripe.product-name:Prayer-Chat Monthly Subscription}")
     private String productName;
 
-    @Value("${stripe.success-url:http://localhost:3000/dashboard}")
+    @Value("${stripe.success-url:http://localhost:3000/account?payment=success&session_id={CHECKOUT_SESSION_ID}}")
     private String successUrl;
 
     @Value("${stripe.cancel-url:http://localhost:3000/pricing}")
     private String cancelUrl;
+
+    @Value("${stripe.allowed-redirect-origins:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com}")
+    private String allowedRedirectOrigins;
 
     @Value("${stripe.grace-period-days:7}")
     private int gracePeriodDays;
@@ -78,9 +81,68 @@ public class StripeService {
         if (stripeApiKey != null && !stripeApiKey.isEmpty()) {
             Stripe.apiKey = stripeApiKey;
             logger.info("Stripe API initialized");
+            validateRedirectUrls();
         } else {
             logger.warn("Stripe API key not configured - payment features will be disabled");
         }
+    }
+
+    /**
+     * Validates that success and cancel URLs belong to allowed redirect origins (prevents open redirect via misconfiguration).
+     * @throws IllegalStateException if URLs are not allowed
+     */
+    private void validateRedirectUrls() {
+        if (successUrl == null || successUrl.isBlank() || cancelUrl == null || cancelUrl.isBlank()) {
+            throw new IllegalStateException("Stripe success-url and cancel-url must be set when Stripe is configured.");
+        }
+        if (!isAllowedRedirectUrl(successUrl)) {
+            throw new IllegalStateException(
+                "Stripe success-url must point to an allowed origin. Set STRIPE_SUCCESS_URL to your app domain (e.g. https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}) and STRIPE_ALLOWED_REDIRECT_ORIGINS to match.");
+        }
+        if (!isAllowedRedirectUrl(cancelUrl)) {
+            throw new IllegalStateException(
+                "Stripe cancel-url must point to an allowed origin. Set STRIPE_CANCEL_URL to your app domain and STRIPE_ALLOWED_REDIRECT_ORIGINS to match.");
+        }
+    }
+
+    /**
+     * Returns true if the given redirect URL (may contain {CHECKOUT_SESSION_ID}) has scheme and host in allowed origins.
+     * Used at startup to validate success/cancel URLs; exposed for tests.
+     */
+    public boolean isAllowedRedirectUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String normalized = url.trim().replace("{CHECKOUT_SESSION_ID}", "cs_test");
+        String lower = normalized.toLowerCase();
+        if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:") || lower.startsWith("file:")) {
+            return false;
+        }
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(normalized);
+        } catch (Exception e) {
+            return false;
+        }
+        String scheme = uri.getScheme();
+        if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))) {
+            return false;
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) return false;
+        if (allowedRedirectOrigins == null || allowedRedirectOrigins.isBlank()) {
+            return "http".equalsIgnoreCase(scheme) && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host));
+        }
+        for (String origin : allowedRedirectOrigins.split(",")) {
+            String base = origin.trim();
+            if (base.isEmpty()) continue;
+            try {
+                java.net.URI baseUri = java.net.URI.create(base);
+                String baseHost = baseUri.getHost();
+                if (baseHost != null && baseHost.equalsIgnoreCase(host)) return true;
+            } catch (Exception ignored) {
+                // continue
+            }
+        }
+        return false;
     }
 
     /**

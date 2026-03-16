@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   User,
   Mail,
@@ -30,6 +30,7 @@ import {
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ id: number; username: string; email?: string; authProvider?: string; picture?: string } | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatusApi | null | 'error'>(null);
@@ -38,6 +39,7 @@ export default function AccountPage() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [embedCode, setEmbedCode] = useState<string | null>(null);
   const [embedLoading, setEmbedLoading] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -58,6 +60,23 @@ export default function AccountPage() {
     };
     load();
   }, [router]);
+
+  // After payment redirect: refetch subscription once (webhook may have just run) and show success message
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const payment = searchParams.get('payment');
+    if (!sessionId && payment !== 'success') return;
+    if (payment === 'success') setPaymentSuccess(true);
+    const t = setTimeout(async () => {
+      try {
+        const sub = await getSubscriptionStatusFromApi();
+        setSubscription(sub ?? 'error');
+      } catch {
+        // keep current state
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [searchParams]);
 
   useEffect(() => {
     if (subscription && subscription !== 'error' && subscription.canUseChatbot) {
@@ -139,6 +158,23 @@ export default function AccountPage() {
           </h1>
           <p className="text-brown-300 mt-1">Manage your profile and subscription</p>
         </motion.div>
+
+        {paymentSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl bg-emerald-900/40 border border-emerald-700/60 text-emerald-100 px-4 py-3 flex items-center justify-between gap-3"
+          >
+            <span>Payment successful. Get your embed code in &quot;Share your chatbot&quot; below.</span>
+            <button
+              type="button"
+              onClick={() => setPaymentSuccess(false)}
+              className="text-emerald-200 hover:text-emerald-100 text-sm underline"
+            >
+              Dismiss
+            </button>
+          </motion.div>
+        )}
 
         {/* Profile */}
         <motion.section

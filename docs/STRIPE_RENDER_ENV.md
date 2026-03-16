@@ -8,8 +8,13 @@ Set these in **Render → your Backend Service → Environment** so “Subscribe
 |----------|-------------|--------|
 | **STRIPE_SECRET_KEY** | Stripe secret key (Dashboard → Developers → API keys) | `sk_live_...` or `sk_test_...` |
 | **STRIPE_PRICE_ID** | Default Stripe Price ID (one plan) | `price_xxxxxxxxxxxxx` |
-| **STRIPE_SUCCESS_URL** | Where to send user after payment | `https://prayer-chat.com/dashboard?session_id={CHECKOUT_SESSION_ID}` |
+| **STRIPE_SUCCESS_URL** | Where to send user after payment (use `/account` so they see “Share your chatbot” / embed script) | `https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}` |
 | **STRIPE_CANCEL_URL** | Where to send user if they cancel | `https://prayer-chat.com/pricing` |
+
+Copy-paste one line (Render → Backend → Environment, Key / Value):
+
+- **Key:** `STRIPE_SUCCESS_URL`  
+- **Value:** `https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}`
 
 ### How to set STRIPE_PRICE_ID
 
@@ -45,6 +50,17 @@ For each product: open it in Stripe → **Pricing** section → open the recurri
 |----------|-------------|
 | STRIPE_WEBHOOK_SECRET | From Stripe Dashboard → Webhooks → your endpoint → Signing secret |
 
+## Stripe redirect security (Render)
+
+Setting **STRIPE_SUCCESS_URL** to  
+`https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}`  
+on Render is **secure**:
+
+- **Server-side only** – Success and cancel URLs are read from environment variables only; the client cannot supply redirect URLs, so there is no open-redirect from checkout.
+- **Startup validation** – When Stripe is configured, the backend checks that the host of `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` is in the allowed list. If not, the app fails to start with an explicit error. The default allowed list includes `https://www.prayer-chat.com` and `https://prayer-chat.com`.
+- **HTTPS** – Use `https://` in production so the redirect is encrypted.
+- **Your domain only** – Never set `STRIPE_SUCCESS_URL` or `STRIPE_CANCEL_URL` to another site's domain. If you use a custom domain, add it to **STRIPE_ALLOWED_REDIRECT_ORIGINS** (comma-separated, e.g. `https://www.prayer-chat.com,https://prayer-chat.com`); otherwise leave it unset to use the default list.
+
 ## Notes
 
 - **500** when clicking Subscribe: usually missing `STRIPE_SECRET_KEY` or wrong/missing Price ID.
@@ -63,7 +79,7 @@ When the server returns **500** and the frontend shows “Failed to create check
 |----------|------------------|
 | **STRIPE_SECRET_KEY** | Missing, or typo (e.g. `STRIPE_API_KEY` instead of `STRIPE_SECRET_KEY`). Must be the **secret** key (`sk_live_...` or `sk_test_...`), not the publishable key. Key must belong to the same Stripe account as the Price IDs. |
 | **STRIPE_PRICE_ID** | Missing or wrong. If you only use per-plan IDs (e.g. `STRIPE_PRICE_ID_BASIC`), the code still needs at least one price: set `STRIPE_PRICE_ID` to your default price (e.g. same as `STRIPE_PRICE_ID_BASIC`). |
-| **STRIPE_SUCCESS_URL** | Must be a valid HTTPS URL (or HTTP only for localhost). Include `{CHECKOUT_SESSION_ID}` if you use it (e.g. `https://prayer-chat.com/dashboard?session_id={CHECKOUT_SESSION_ID}`). |
+| **STRIPE_SUCCESS_URL** | Must be a valid HTTPS URL (or HTTP only for localhost). Recommended: `/account?payment=success&session_id={CHECKOUT_SESSION_ID}` so users land on the page with the embed script. |
 | **STRIPE_CANCEL_URL** | Same: valid URL back to your site (e.g. `https://prayer-chat.com/pricing`). |
 
 If the secret key is missing or empty, the app usually returns **503** “Payment provider not configured”, not 500. So a **500** typically means the key is set but something else fails (e.g. Stripe API error).

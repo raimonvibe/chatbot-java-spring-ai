@@ -272,8 +272,11 @@ stripe:
   price-amount: 498  # $4.98 in cents (fallback when no price ID)
   price-currency: usd
   product-name: "Prayer-Chat Monthly Subscription"
-  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/dashboard?session_id={CHECKOUT_SESSION_ID}}
+  # After payment, user lands on Account page where "Share your chatbot" (embed script) is shown
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/account?payment=success&session_id={CHECKOUT_SESSION_ID}}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/pricing}
+  # Allowed hosts for success/cancel URLs (prevents open redirect via misconfiguration)
+  allowed-redirect-origins: ${STRIPE_ALLOWED_REDIRECT_ORIGINS:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com}
   grace-period-days: 7
   max-retry-attempts: 3
 

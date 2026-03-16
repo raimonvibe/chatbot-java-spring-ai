@@ -45,6 +45,9 @@ jwt:
 stripe:
   api-key: sk_test_mock
   webhook-secret: whsec_test_mock
+  success-url: http://localhost:3000/account?payment=success&session_id={CHECKOUT_SESSION_ID}
+  cancel-url: http://localhost:3000/pricing
+  allowed-redirect-origins: http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com
   price-id: ${STRIPE_PRICE_ID:price_test_default}
   price-id-basic: price_test_basic
   price-id-pro: price_test_pro

@@ -440,4 +440,82 @@ class StripeServiceTest {
         verify(subscriptionRepository, never()).findByStripeSubscriptionId(any());
         verify(subscriptionRepository, never()).save(any(Subscription.class));
     }
+
+    // --- Success/cancel URL validation (open-redirect prevention) ---
+
+    @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl returns true for localhost")
+    void security_isAllowedRedirectUrl_allowsLocalhost() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000,https://www.prayer-chat.com");
+        assertThat(stripeService.isAllowedRedirectUrl("http://localhost:3000/account")).isTrue();
+        assertThat(stripeService.isAllowedRedirectUrl("http://localhost:3000/account?payment=success&session_id=cs_123")).isTrue();
+        assertThat(stripeService.isAllowedRedirectUrl("http://localhost:3000/account?payment=success&session_id={CHECKOUT_SESSION_ID}")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl returns true for configured origin hosts")
+    void security_isAllowedRedirectUrl_allowsConfiguredOrigins() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "https://www.prayer-chat.com,https://prayer-chat.com");
+        assertThat(stripeService.isAllowedRedirectUrl("https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}")).isTrue();
+        assertThat(stripeService.isAllowedRedirectUrl("https://prayer-chat.com/pricing")).isTrue();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl returns false for evil host")
+    void security_isAllowedRedirectUrl_rejectsEvilHost() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000,https://www.prayer-chat.com");
+        assertThat(stripeService.isAllowedRedirectUrl("https://evil.com/phishing")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("https://evil.com/account?session_id={CHECKOUT_SESSION_ID}")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl returns false for javascript: and data:")
+    void security_isAllowedRedirectUrl_rejectsDangerousSchemes() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000");
+        assertThat(stripeService.isAllowedRedirectUrl("javascript:alert(1)")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("data:text/html,<script>alert(1)</script>")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("vbscript:execute")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("file:///etc/passwd")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl returns false for null or blank")
+    void security_isAllowedRedirectUrl_rejectsNullOrBlank() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000");
+        assertThat(stripeService.isAllowedRedirectUrl(null)).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("   ")).isFalse();
+    }
+
+    @Test
+    @DisplayName("SECURITY: validateRedirectUrls throws when success URL not in allowed origins")
+    void security_validateRedirectUrls_throwsWhenSuccessUrlNotAllowed() throws Exception {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        ReflectionTestUtils.setField(stripeService, "successUrl", "https://evil.com/account");
+        ReflectionTestUtils.setField(stripeService, "cancelUrl", "http://localhost:3000/pricing");
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000");
+
+        java.lang.reflect.Method init = StripeService.class.getDeclaredMethod("init");
+        init.setAccessible(true);
+        Throwable thrown = catchThrowable(() -> init.invoke(stripeService));
+        assertThat(thrown).isInstanceOf(java.lang.reflect.InvocationTargetException.class);
+        assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class);
+        assertThat(thrown.getCause().getMessage()).contains("success-url");
+    }
+
+    @Test
+    @DisplayName("SECURITY: validateRedirectUrls throws when cancel URL not in allowed origins")
+    void security_validateRedirectUrls_throwsWhenCancelUrlNotAllowed() throws Exception {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");
+        ReflectionTestUtils.setField(stripeService, "successUrl", "http://localhost:3000/account");
+        ReflectionTestUtils.setField(stripeService, "cancelUrl", "https://evil.com/pricing");
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "http://localhost:3000");
+
+        java.lang.reflect.Method init = StripeService.class.getDeclaredMethod("init");
+        init.setAccessible(true);
+        Throwable thrown = catchThrowable(() -> init.invoke(stripeService));
+        assertThat(thrown).isInstanceOf(java.lang.reflect.InvocationTargetException.class);
+        assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class);
+        assertThat(thrown.getCause().getMessage()).contains("cancel-url");
+    }
 }

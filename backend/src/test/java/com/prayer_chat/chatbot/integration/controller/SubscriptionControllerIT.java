@@ -348,6 +348,20 @@ class SubscriptionControllerIT {
     }
 
     @Test
+    @DisplayName("SECURITY: Portal session rejects overlong returnUrl")
+    void security_portalSession_rejectsOverlongReturnUrl() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        String longUrl = "https://www.prayer-chat.com/account?" + "x".repeat(600);
+        mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"returnUrl\": \"" + longUrl + "\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid return URL")));
+        verify(stripeService, never()).createBillingPortalSession(any(User.class), any());
+    }
+
+    @Test
     @DisplayName("Should cancel active subscription")
     void shouldCancelActiveSubscription() throws Exception {
         // Arrange
@@ -526,6 +540,25 @@ class SubscriptionControllerIT {
         verify(stripeService, times(1)).createCheckoutSession(userCaptor.capture(), any());
         assertEquals(testUser.getId(), userCaptor.getValue().getId(),
             "Checkout must be for authenticated user only, not any ID from request body");
+    }
+
+    @Test
+    @DisplayName("SECURITY: createCheckoutSession ignores client-supplied successUrl/cancelUrl (no open redirect)")
+    void security_createCheckoutSession_ignoresClientRedirectUrls() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(stripeService.createCheckoutSession(any(User.class), any()))
+            .thenReturn("https://checkout.stripe.com/c/test");
+
+        mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"plan\": \"BASIC\", \"successUrl\": \"https://evil.com/phish\", \"cancelUrl\": \"https://evil.com/cancel\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.checkoutUrl", equalTo("https://checkout.stripe.com/c/test")));
+
+        verify(stripeService, times(1)).createCheckoutSession(any(User.class), eq("BASIC"));
+        // Success/cancel URLs are server-side only; controller does not pass them from request body
     }
 
     @Test
