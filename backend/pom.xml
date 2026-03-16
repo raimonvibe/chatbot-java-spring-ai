@@ -35,7 +35,7 @@
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.9.Final</netty.version>
         <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
-        <spring-framework.version>6.2.16</spring-framework.version>
+        <spring-framework.version>6.2.17</spring-framework.version>
         <!-- Security: Dependabot #23 - jackson-core async parser maxNumberLength bypass DoS. Fixed in 2.18.6 -->
         <jackson-bom.version>2.18.6</jackson-bom.version>
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
