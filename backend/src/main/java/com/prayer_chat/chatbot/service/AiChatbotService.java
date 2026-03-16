@@ -540,9 +540,10 @@ public class AiChatbotService {
                 }
             }
 
-            // Gentle ending style guidance
+            // Gentle, diverse ending style guidance
             prompt.append("\nEnding style:\n");
             prompt.append("- For personal or spiritual questions, end with something gentle: a short blessing, a kind question, or a simple \"I'm here if you want to share more.\"\n");
+            prompt.append("- Vary your blessings so they do not sound the same every time (e.g., \"God bless you\", \"Grace and peace to you\", \"May the Lord give you strength\", \"Jesus be near to you today\").\n");
             prompt.append("- For purely technical or business questions, it is fine to end plainly without a blessing.\n");
         }
 

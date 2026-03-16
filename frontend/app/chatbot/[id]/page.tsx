@@ -237,13 +237,13 @@ export default function ChatbotPreview() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="px-4 pb-3 pt-0 text-sm text-brown-700">
-                  <p className="mb-2">
+                <div className="px-4 pb-3 pt-1 text-sm text-brown-700">
+                  <p className="mb-3 max-w-3xl text-xs md:text-sm">
                     This chatbot weaves in gentle inspiration from Jesus&apos;s teachings and relevant Bible verses.
                   </p>
 
                   {/* Tabs */}
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     <button
                       type="button"
                       onClick={() => setJesusActiveTab('verse')}
@@ -268,45 +268,47 @@ export default function ChatbotPreview() {
                     </button>
                   </div>
 
-                  {/* Tab content */}
-                  {jesusActiveTab === 'verse' ? (
-                    chatbot?.bibleVerse ? (
-                      <blockquote className="pl-3 border-l-4 border-gold-500 italic bg-white/60 rounded-r-lg py-1.5 pr-3">
-                        {chatbot.bibleVerse}
-                      </blockquote>
-                    ) : (
-                      <p className="text-xs text-brown-600">
-                        No specific verse has been attached yet. On your dashboard, run the Christian Content analysis to
-                        generate a verse connected to this site.
-                      </p>
-                    )
-                  ) : jesusPreviewLoading ? (
-                    <p className="text-xs text-brown-600">Loading teachings…</p>
-                  ) : jesusPreviewError ? (
-                    <p className="text-xs text-red-600">{jesusPreviewError}</p>
-                  ) : jesusPreview && jesusPreview.topTeachings.length > 0 ? (
-                    <div className="space-y-2">
-                      {jesusPreview.topTeachings.slice(0, 2).map((t, idx) => (
-                        <div
-                          key={`${t.reference}-${idx}`}
-                          className="bg-white/70 rounded-lg border border-brown-200 px-3 py-2"
-                        >
-                          <div className="text-xs font-semibold text-gold-800">{t.reference}</div>
-                          <div className="text-xs text-brown-700 mt-1 line-clamp-3">{t.text}</div>
-                        </div>
-                      ))}
-                      {jesusPreview.topTeachings.length > 2 && (
-                        <p className="text-[11px] text-brown-600 mt-1">
-                          More teachings are available in your dashboard under &quot;What Jesus Would Say&quot;.
+                  {/* Tab content container with max height for responsiveness */}
+                  <div className="max-h-40 md:max-h-48 overflow-y-auto pr-1 space-y-2">
+                    {jesusActiveTab === 'verse' ? (
+                      chatbot?.bibleVerse ? (
+                        <blockquote className="pl-3 border-l-4 border-gold-500 italic bg-white/70 rounded-r-lg py-1.5 pr-3 text-xs md:text-sm">
+                          {chatbot.bibleVerse}
+                        </blockquote>
+                      ) : (
+                        <p className="text-[11px] md:text-xs text-brown-600">
+                          No specific verse has been attached yet. On your dashboard, run the Christian Content analysis
+                          to generate a verse connected to this site.
                         </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-brown-600">
-                      No specific teachings preview is available yet. You can enable and preview &quot;What Jesus Would
-                      Say&quot; from the dashboard settings.
-                    </p>
-                  )}
+                      )
+                    ) : jesusPreviewLoading ? (
+                      <p className="text-[11px] md:text-xs text-brown-600">Loading teachings…</p>
+                    ) : jesusPreviewError ? (
+                      <p className="text-[11px] md:text-xs text-red-600">{jesusPreviewError}</p>
+                    ) : jesusPreview && jesusPreview.topTeachings.length > 0 ? (
+                      <>
+                        {jesusPreview.topTeachings.slice(0, 2).map((t, idx) => (
+                          <div
+                            key={`${t.reference}-${idx}`}
+                            className="bg-white/80 rounded-lg border border-brown-200 px-3 py-2"
+                          >
+                            <div className="text-xs font-semibold text-gold-800">{t.reference}</div>
+                            <div className="text-[11px] md:text-xs text-brown-700 mt-1 line-clamp-3">{t.text}</div>
+                          </div>
+                        ))}
+                        {jesusPreview.topTeachings.length > 2 && (
+                          <p className="text-[11px] text-brown-600 mt-1">
+                            More teachings are available in your dashboard under &quot;What Jesus Would Say&quot;.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[11px] md:text-xs text-brown-600">
+                        No specific teachings preview is available yet. You can enable and preview &quot;What Jesus
+                        Would Say&quot; from the dashboard settings.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
