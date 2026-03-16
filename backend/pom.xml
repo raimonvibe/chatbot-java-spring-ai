@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.13</version>
+        <version>4.0.3</version>
         <!-- 4.0.x pulls tools.jackson:jackson-bom which is not in Maven Central; stay on 3.3.x until 4.x is stable -->
         <relativePath/>
     </parent>
