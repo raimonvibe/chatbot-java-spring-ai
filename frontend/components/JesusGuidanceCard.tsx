@@ -28,7 +28,7 @@ export default function JesusGuidanceCard({
   return (
     <motion.div
       initial={false}
-      className="flex-shrink-0 border-b border-brown-200/60 bg-gradient-to-r from-brown-50/80 to-amber-50/50"
+      className="flex-shrink-0 border-b border-brown-200/60 bg-gradient-to-r from-brown-50/80 to-amber-50/50 mb-1 md:mb-2"
     >
       <button
         type="button"
