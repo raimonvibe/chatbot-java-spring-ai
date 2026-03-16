@@ -57,6 +57,10 @@ jest.mock('@/lib/api', () => ({
   logout: (...args: unknown[]) => mockLogout(...args),
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
   updateChatbot: (...args: unknown[]) => mockUpdateChatbot(...args),
+  isApiError: (e: unknown): e is Error & { status?: number; upgradeRequired?: boolean } =>
+    e instanceof Error && 'status' in e,
+  getSafeErrorMessage: (e: unknown, fallback: string) =>
+    e instanceof Error && typeof e.message === 'string' && e.message ? e.message.slice(0, 500) : fallback,
 }));
 
 const minimalChatbot = {
