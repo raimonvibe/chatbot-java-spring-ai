@@ -220,10 +220,11 @@ public class SecurityConfig {
 
         // Widget endpoints: allow any origin so the embed works on customer sites (church-example.com, etc.).
         // No credentials; rate limiting and auth checks protect the API. See docs/EMBED_FLOW_EXPLAINED.md.
+        // Include Authorization so dashboard (www.prayer-chat.com) can send JWT; chat API does not require it but preflight must allow the header.
         CorsConfiguration widgetCors = new CorsConfiguration();
         widgetCors.setAllowedOriginPatterns(List.of("*"));
         widgetCors.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
-        widgetCors.setAllowedHeaders(Arrays.asList("Content-Type", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        widgetCors.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
         widgetCors.setAllowCredentials(false);
         widgetCors.setMaxAge(3600L);
         source.registerCorsConfiguration("/api/chat/**", widgetCors);
