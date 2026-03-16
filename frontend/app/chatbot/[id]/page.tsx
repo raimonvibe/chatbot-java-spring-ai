@@ -188,7 +188,7 @@ export default function ChatbotPreview() {
   return (
     <main className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50">
       {/* Compact header: fixed height so chat window gets the rest */}
-      <header className="flex-shrink-0 p-3 md:p-4 border-b border-brown-200/60 bg-white/50 backdrop-blur-sm">
+      <header className="flex-shrink-0 p-2 md:p-3 border-b border-brown-200/60 bg-white/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-600 to-gold-600 truncate">
@@ -207,7 +207,7 @@ export default function ChatbotPreview() {
         </div>
       </header>
 
-      {/* Optional Jesus card: collapsible to save space */}
+      {/* Optional Jesus card: collapsible, compact so chat keeps most of the height */}
       {hasJesusFeature && (
         <motion.div
           initial={false}
@@ -317,13 +317,13 @@ export default function ChatbotPreview() {
       )}
 
       {/* Chat window: takes remaining space, no page scroll — only inner chat scrolls */}
-      <div className="flex-1 min-h-0 flex flex-col p-3 md:p-4 max-w-4xl w-full mx-auto">
+      <div className="flex-1 min-h-0 flex flex-col p-2 md:p-3 max-w-4xl w-full mx-auto">
         <CalligraphicFrame className="flex-1 min-h-0 rounded-3xl overflow-hidden shadow-2xl border-2 border-brown-200/80 bg-white/95 backdrop-blur-sm">
-          <div className="h-full flex flex-col rounded-3xl overflow-hidden p-5 md:p-6">
+          <div className="h-full flex flex-col rounded-3xl overflow-hidden p-4 md:p-5">
             {/* Scrollable messages area — only this scrolls; horizontal padding keeps book/user icons inside frame */}
-            <div
+                <div
               ref={messagesContainerRef}
-              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1 py-3 md:px-2 md:py-4 bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1 py-2 md:px-2 md:py-3 bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
             >
               <AnimatePresence mode="popLayout">
                 {messages.map((message, index) => (

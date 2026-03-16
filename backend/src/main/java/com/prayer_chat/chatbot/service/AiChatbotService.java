@@ -540,11 +540,11 @@ public class AiChatbotService {
                 }
             }
 
-            // Gentle, diverse ending style guidance
+            // Gentle, diverse ending style guidance – ALWAYS add a short Christian encouragement
             prompt.append("\nEnding style:\n");
-            prompt.append("- For personal or spiritual questions, end with something gentle: a short blessing, a kind question, or a simple \"I'm here if you want to share more.\"\n");
-            prompt.append("- Vary your blessings so they do not sound the same every time (e.g., \"God bless you\", \"Grace and peace to you\", \"May the Lord give you strength\", \"Jesus be near to you today\").\n");
-            prompt.append("- For purely technical or business questions, it is fine to end plainly without a blessing.\n");
+            prompt.append("- End each response with a brief Christian blessing or encouragement (for example: \"God bless you\", \"Grace and peace to you\", \"May the Lord give you strength\", \"Jesus be near to you today\", \"The Lord be with you\").\n");
+            prompt.append("- Vary your blessings so they do not sound the same every time.\n");
+            prompt.append("- You may also end with a gentle question or a simple \"I'm here if you want to share more\" together with the blessing when it fits the conversation.\n");
         }
 
         // NEW: Add Jesus's teachings section if enabled
