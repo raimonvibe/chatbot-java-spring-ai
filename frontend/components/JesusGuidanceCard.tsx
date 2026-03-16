@@ -85,8 +85,8 @@ export default function JesusGuidanceCard({
                 </button>
               </div>
 
-              {/* Tab content container with max height for responsiveness */}
-              <div className="max-h-40 md:max-h-48 overflow-y-auto pr-1 space-y-2">
+              {/* Tab content container with max height for responsiveness (keep card compact so chat stays tall) */}
+              <div className="max-h-32 md:max-h-40 overflow-y-auto pr-1 space-y-2">
                 {jesusActiveTab === 'verse' ? (
                   chatbot?.bibleVerse ? (
                     <blockquote className="pl-3 border-l-4 border-gold-500 italic bg-white/70 rounded-r-lg py-1.5 pr-3 text-xs md:text-sm">

@@ -186,8 +186,8 @@ export default function ChatbotPreview() {
   }
 
   return (
-    <main className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50">
-      {/* Compact header: fixed height so chat window gets the rest */}
+    <main className="h-screen flex flex-col overflow-hidden md:h-auto md:min-h-[180vh] md:overflow-y-auto bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50">
+      {/* Compact header; on desktop the whole page scrolls so the chat area is taller */}
       <header className="flex-shrink-0 p-2 md:p-3 border-b border-brown-200/60 bg-white/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
