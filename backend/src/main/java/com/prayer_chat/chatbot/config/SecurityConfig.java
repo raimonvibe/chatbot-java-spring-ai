@@ -21,12 +21,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Profile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
@@ -146,21 +146,30 @@ public class SecurityConfig {
             )
             .successHandler(oAuth2AuthenticationSuccessHandler)
             .failureHandler((request, response, exception) -> {
-                // Log the error with more details
                 logger.error("OAuth2 authentication failed: {}", exception.getMessage(), exception);
                 logger.error("Request URI: {}", request.getRequestURI());
                 logger.error("Query String: {}", request.getQueryString());
                 logger.error("Session ID: {}", request.getSession(false) != null ? request.getSession(false).getId() : "No session");
-                
-                // Redirect to frontend with error
-                String errorUrl = allowedOrigins.split(",")[0].trim() + "/login?error=oauth2_failed&message=" 
-                    + java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+
+                // Only redirect to an allowed origin to prevent open redirect
+                String safeBase = getAllowedLoginRedirectBase();
+                String errorUrl = safeBase != null
+                    ? safeBase + "/login?error=oauth2_failed&message="
+                        + java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8)
+                    : null;
                 try {
-                    response.sendRedirect(errorUrl);
+                    if (errorUrl != null) {
+                        response.sendRedirect(errorUrl);
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"oauth2_failed\",\"message\":\"Authentication failed.\"}");
+                    }
                 } catch (Exception e) {
                     logger.error("Failed to redirect after OAuth2 failure", e);
                     response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                    response.getWriter().write("{\"error\":\"oauth2_failed\",\"message\":\"" + exception.getMessage() + "\"}");
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"oauth2_failed\",\"message\":\"Authentication failed.\"}");
                 }
             })
         )
@@ -241,6 +250,25 @@ public class SecurityConfig {
 
         logger.info("CORS: widget /api/chat and /js allow any origin; other paths use allowed patterns: {}", config.getAllowedOriginPatterns());
         return source;
+    }
+
+    /**
+     * Returns the first allowed origin that is a valid http(s) base URL, for OAuth failure redirect.
+     * Prevents open redirect by only using configured CORS origins.
+     */
+    private String getAllowedLoginRedirectBase() {
+        if (allowedOrigins == null || allowedOrigins.isBlank()) return null;
+        List<String> origins = Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+        for (String base : origins) {
+            try {
+                URI uri = URI.create(base);
+                if (("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))
+                    && uri.getHost() != null && !uri.getHost().isEmpty()) {
+                    return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+                }
+            } catch (Exception ignored) { }
+        }
+        return null;
     }
 
     @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
