@@ -1,3 +1,32 @@
+/** Error thrown by API calls that may include status (e.g. 402) and upgradeRequired for paywall handling */
+export interface ApiError extends Error {
+  status?: number;
+  upgradeRequired?: boolean;
+}
+
+/** Maximum length for user-facing error messages to avoid UI abuse or huge strings */
+const MAX_ERROR_MESSAGE_LENGTH = 500;
+
+function sanitizeErrorMessage(value: unknown): string {
+  if (value == null) return '';
+  const s = typeof value === 'string' ? value : String(value);
+  if (s === '[object Object]') return '';
+  return s.slice(0, MAX_ERROR_MESSAGE_LENGTH).trim();
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof Error && 'status' in error;
+}
+
+/** Returns a safe, truncated string for display; never exposes stack or object dump */
+export function getSafeErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && typeof error.message === 'string' && error.message) {
+    const msg = sanitizeErrorMessage(error.message);
+    return msg || fallback;
+  }
+  return fallback;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -194,10 +223,11 @@ export async function sendMessage(
   sessionId?: string,
   language: string = 'en'
 ): Promise<ChatResponse> {
+  // credentials: 'omit' so request works from dashboard and embedded widget (backend CORS for /api/chat/** allows any origin, no credentials)
   const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chat/${chatbotId}`, {
     method: 'POST',
-    credentials: 'include',
+    credentials: 'omit',
     headers,
     body: JSON.stringify({
       message,
@@ -207,8 +237,9 @@ export async function sendMessage(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+    const errorData = await response.json().catch(() => ({}));
+    const raw = errorData?.error != null ? errorData.error : `HTTP ${response.status}: ${response.statusText}`;
+    const errorMessage = sanitizeErrorMessage(raw) || 'Failed to send message. Please try again.';
     throw new Error(errorMessage);
   }
 
@@ -519,7 +550,21 @@ export async function analyzeWebsite(chatbotId: number, websiteUrl: string): Pro
   });
 
   if (!response.ok) {
-    throw new Error('Failed to analyze website');
+    let errorData: { error?: unknown } = {};
+    try {
+      if (typeof response.json === 'function') {
+        errorData = await response.json();
+      }
+    } catch {
+      // Ignore parse errors; use fallback message
+    }
+    const message = sanitizeErrorMessage(errorData?.error) || 'Failed to analyze website';
+    const err = new Error(message) as ApiError;
+    if (response.status === 402) {
+      err.status = 402;
+      err.upgradeRequired = true;
+    }
+    throw err;
   }
 
   return response.json();

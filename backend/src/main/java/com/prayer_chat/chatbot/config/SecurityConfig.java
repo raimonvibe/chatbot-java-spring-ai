@@ -146,16 +146,16 @@ public class SecurityConfig {
             )
             .successHandler(oAuth2AuthenticationSuccessHandler)
             .failureHandler((request, response, exception) -> {
+                // Log full details server-side only; never expose exception details to client redirect
                 logger.error("OAuth2 authentication failed: {}", exception.getMessage(), exception);
                 logger.error("Request URI: {}", request.getRequestURI());
                 logger.error("Query String: {}", request.getQueryString());
                 logger.error("Session ID: {}", request.getSession(false) != null ? request.getSession(false).getId() : "No session");
 
-                // Only redirect to an allowed origin to prevent open redirect
+                // Redirect only to an allowed origin; use fixed message to avoid leaking internal details via URL
                 String safeBase = getAllowedLoginRedirectBase();
                 String errorUrl = safeBase != null
-                    ? safeBase + "/login?error=oauth2_failed&message="
-                        + java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8)
+                    ? safeBase + "/login?error=oauth2_failed&message=authentication_failed"
                     : null;
                 try {
                     if (errorUrl != null) {
@@ -254,7 +254,7 @@ public class SecurityConfig {
 
     /**
      * Returns the first allowed origin that is a valid http(s) base URL, for OAuth failure redirect.
-     * Prevents open redirect by only using configured CORS origins.
+     * Prevents open redirect by only using configured CORS origins. Invalid entries are skipped.
      */
     private String getAllowedLoginRedirectBase() {
         if (allowedOrigins == null || allowedOrigins.isBlank()) return null;
@@ -266,7 +266,9 @@ public class SecurityConfig {
                     && uri.getHost() != null && !uri.getHost().isEmpty()) {
                     return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
                 }
-            } catch (Exception ignored) { }
+            } catch (IllegalArgumentException ignored) {
+                // Skip malformed origin entry
+            }
         }
         return null;
     }

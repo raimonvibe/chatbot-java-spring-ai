@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
@@ -51,7 +51,7 @@ export default function Dashboard() {
         currentChatbotCount: chatbots.length,
       };
       setSubscriptionStatus(status);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading subscription status:', error);
     }
   };
@@ -75,11 +75,10 @@ export default function Dashboard() {
         maxChatbots: 1,
         currentChatbotCount: data.length,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading chatbots:', error);
-      // If unauthorized (401) or network error (CORS), show login prompt
-      const status = (error as any).status;
-      if (status === 401 || status === 0 || !status) {
+      const status = isApiError(error) ? error.status : undefined;
+      if (status === 401 || status === 0 || status === undefined) {
         // 401 = Unauthorized, 0 or undefined = Network/CORS error
         setAuthenticated(false);
         // Don't redirect automatically - let user click the button
@@ -98,8 +97,15 @@ export default function Dashboard() {
     try {
       await analyzeWebsite(chatbotId, websiteUrl);
       // Website analysis started; Christian content will be enabled automatically when ready
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error analyzing website:', error);
+      if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
+        setUpgradeMessage(getSafeErrorMessage(error, 'Website analysis limit reached. Upgrade to analyze more.'));
+        setPaywallFeature('general');
+        setShowUpgradeModal(true);
+      } else {
+        alert(getSafeErrorMessage(error, 'Failed to analyze website. Please try again.'));
+      }
     } finally {
       setAnalyzingChatbotId(null);
     }
@@ -110,15 +116,15 @@ export default function Dashboard() {
       const code = await getEmbedCode(chatbotId);
       setEmbedCode(code);
       setSelectedChatbot(chatbots.find(c => c.id === chatbotId) || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error getting embed code:', error);
-      // Check if it's a payment required error
-      if (error.message && error.message.includes('Upgrade')) {
-        setUpgradeMessage(error.message);
+      const msg = getSafeErrorMessage(error, 'Failed to get embed code. Please try again.');
+      if (msg.includes('Upgrade')) {
+        setUpgradeMessage(msg);
         setPaywallFeature('integration-script');
         setShowUpgradeModal(true);
       } else {
-        alert(error.message || 'Failed to get embed code. Please try again.');
+        alert(msg);
       }
     }
   };
@@ -139,26 +145,23 @@ export default function Dashboard() {
       setWebsiteUrl('');
       setShowCreateForm(false);
       setCreating(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating chatbot:', error);
-      setCreating(false); // Hide loader on error
-      
-      // Check if it's a payment required error (402) - website size limit
-      if (error.status === 402 || error.upgradeRequired) {
-        setUpgradeMessage(error.message || 'Website too large for preview mode. Upgrade to continue.');
+      setCreating(false);
+      const msg = getSafeErrorMessage(error, 'Failed to create chatbot. Please try again.');
+
+      if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
+        setUpgradeMessage(msg || 'Website too large for preview mode. Upgrade to continue.');
         setPaywallFeature('general');
         setShowUpgradeModal(true);
         return;
       }
-      
-      // Check if it's a limit reached error
-      if (error.message && (error.message.includes('limit') || error.message.includes('Upgrade'))) {
-        setUpgradeMessage(error.message || 'One chatbot per account limit reached. Upgrade to create more.');
+      if (msg.includes('limit') || msg.includes('Upgrade')) {
+        setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
         setShowUpgradeModal(true);
       } else {
-        // Show error message without alert popup
-        setUpgradeMessage(error.message || 'Failed to create chatbot. Please try again.');
+        setUpgradeMessage(msg);
         setShowUpgradeModal(true);
       }
     }
@@ -180,10 +183,8 @@ export default function Dashboard() {
         maxChatbots: 1,
         currentChatbotCount: updatedCount,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting chatbot:', error);
-      // Error is logged, user can see it in console if needed
-      // No popup needed - deletion is already confirmed via confirm dialog
     }
   };
 
@@ -203,9 +204,9 @@ export default function Dashboard() {
         currentChatbotCount: 0,
       });
       alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting all chatbots:', error);
-      alert('Failed to delete all chatbots. Please try again.');
+      alert(getSafeErrorMessage(error, 'Failed to delete all chatbots. Please try again.'));
     }
   };
 
@@ -224,9 +225,8 @@ export default function Dashboard() {
       
       // Force reload to clear all state
       window.location.href = '/login';
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error logging out:', error);
-      // Even if logout fails, try to redirect
       router.push('/login');
       window.location.href = '/login';
     }
