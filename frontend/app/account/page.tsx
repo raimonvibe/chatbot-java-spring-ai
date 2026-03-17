@@ -50,6 +50,7 @@ function AccountPageContent() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [embedCode, setEmbedCode] = useState<string | null>(null);
   const [embedLoading, setEmbedLoading] = useState(false);
+  const [selectedChatbotId, setSelectedChatbotId] = useState<number | ''>('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const embedSectionRef = useRef<HTMLElement | null>(null);
 
@@ -73,7 +74,8 @@ function AccountPageContent() {
     load();
   }, [router]);
 
-  // After payment redirect: refetch subscription (webhook may have just run), show success message, scroll to embed section
+  // After payment redirect: refetch subscription (webhook may have just run), show success message, scroll to embed section.
+  // Security: URL params (payment, session_id) are used only for UX (message, refetch). No authorization or data is derived from them.
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const payment = searchParams.get('payment');
@@ -111,6 +113,23 @@ function AccountPageContent() {
         .catch(() => setChatbots([]));
     }
   }, [subscription]);
+
+  // When user has one or more chatbots, auto-select first and load its embed code so the script is visible.
+  // Security: we only request embed code for chatbot IDs that came from our own list (backend also enforces ownership).
+  const canUseChatbot = subscription && subscription !== 'error' && subscription.canUseChatbot;
+  useEffect(() => {
+    if (!canUseChatbot || chatbots.length === 0) return;
+    const first = chatbots[0];
+    const id = first?.id;
+    if (!id || !chatbots.some((c) => c.id === id)) return;
+    setSelectedChatbotId(id);
+    setEmbedLoading(true);
+    setEmbedCode(null);
+    getEmbedCode(id)
+      .then(setEmbedCode)
+      .catch(() => setEmbedCode(null))
+      .finally(() => setEmbedLoading(false));
+  }, [canUseChatbot, chatbots.length]);
 
   /** Only redirect to Stripe billing portal domains (prevent open redirect / phishing). */
   const isAllowedPortalUrl = (url: string): boolean => {
@@ -330,13 +349,17 @@ function AccountPageContent() {
               <div className="space-y-3">
                 <label className="text-sm text-brown-400 block">Choose a chatbot</label>
                 <select
+                  value={selectedChatbotId}
                   className="w-full rounded-xl bg-brown-900/60 border border-brown-600 text-brown-100 px-4 py-2.5 focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                   onChange={async (e) => {
-                    const id = Number(e.target.value);
+                    const id = e.target.value === '' ? '' : Number(e.target.value);
+                    setSelectedChatbotId(id);
                     if (!id) {
                       setEmbedCode(null);
                       return;
                     }
+                    // Only request embed code for IDs we received from our chatbots list (defense in depth; backend enforces ownership)
+                    if (!chatbots.some((c) => c.id === id)) return;
                     setEmbedLoading(true);
                     setEmbedCode(null);
                     try {
@@ -390,15 +413,35 @@ function AccountPageContent() {
                 Create a chatbot and get embed code <ExternalLink className="w-4 h-4" />
               </Link>
             ) : (
-              <div className="rounded-xl bg-brown-900/60 border border-brown-600 p-4 text-brown-200 text-sm">
-                <p className="font-medium text-gold-200 mb-2">Your subscription is activating…</p>
-                <p className="mb-3">If the embed code does not appear in a few seconds, refresh this page or go to the Dashboard to create a chatbot and get your embed code.</p>
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium hover:from-gold-600 hover:to-gold-700"
-                >
-                  Open Dashboard to create chatbot & get embed code <ExternalLink className="w-4 h-4" />
-                </Link>
+              <div className="rounded-xl bg-brown-900/60 border border-brown-600 p-4 text-brown-200 text-sm space-y-4">
+                <p className="font-medium text-gold-200">Your subscription is activating…</p>
+                <p>The embed script will appear in this section once activation is complete. You may need to:</p>
+                <ol className="list-decimal list-inside space-y-1 text-brown-300">
+                  <li>Create a chatbot on the Dashboard (if you don&apos;t have one yet).</li>
+                  <li>Click &quot;Refresh to check status&quot; below or reload this page — then the script will show here.</li>
+                </ol>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const sub = await getSubscriptionStatusFromApi();
+                        setSubscription(sub ?? 'error');
+                      } catch {
+                        setSubscription('error');
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-brown-700/80 text-brown-100 font-medium hover:bg-brown-600 border border-brown-600"
+                  >
+                    Refresh to check status
+                  </button>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium hover:from-gold-600 hover:to-gold-700"
+                  >
+                    Open Dashboard <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
             )}
           </motion.section>
