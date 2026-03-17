@@ -45,6 +45,7 @@ const mockLogout = jest.fn();
 const mockDeleteChatbot = jest.fn();
 const mockGetEmbedCode = jest.fn();
 const mockUpdateChatbot = jest.fn();
+const mockGetSubscriptionStatusFromApi = jest.fn();
 
 jest.mock('@/lib/api', () => ({
   getAllChatbots: (...args: unknown[]) => mockGetAllChatbots(...args),
@@ -57,6 +58,7 @@ jest.mock('@/lib/api', () => ({
   logout: (...args: unknown[]) => mockLogout(...args),
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
   updateChatbot: (...args: unknown[]) => mockUpdateChatbot(...args),
+  getSubscriptionStatusFromApi: (...args: unknown[]) => mockGetSubscriptionStatusFromApi(...args),
   isApiError: (e: unknown): e is Error & { status?: number; upgradeRequired?: boolean } =>
     e instanceof Error && 'status' in e,
   getSafeErrorMessage: (e: unknown, fallback: string) =>
@@ -78,6 +80,13 @@ describe('Dashboard Page', () => {
     jest.clearAllMocks();
     mockGetAllChatbots.mockResolvedValue([minimalChatbot]);
     mockLogout.mockResolvedValue({});
+    mockGetSubscriptionStatusFromApi.mockResolvedValue({
+      hasSubscription: true,
+      status: 'active',
+      plan: 'BASIC',
+      isActive: true,
+      canUseChatbot: true,
+    });
   });
 
   describe('Authentication security', () => {
