@@ -7,6 +7,9 @@ import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -78,13 +81,8 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
             databaseUrl = System.getenv("DATABASE_URL");
         }
         if (databaseUrl != null && !databaseUrl.isBlank()) {
-            String jdbcUrl = databaseUrl.trim();
-            if (jdbcUrl.startsWith("postgres://")) {
-                jdbcUrl = "jdbc:postgresql://" + jdbcUrl.substring("postgres://".length());
-            } else if (jdbcUrl.startsWith("postgresql://") && !jdbcUrl.startsWith("jdbc:")) {
-                jdbcUrl = "jdbc:" + jdbcUrl;
-            }
-            if (jdbcUrl.startsWith("jdbc:postgresql://")) {
+            String jdbcUrl = toJdbcUrl(databaseUrl.trim());
+            if (jdbcUrl != null && jdbcUrl.startsWith("jdbc:postgresql://")) {
                 // Render and many cloud Postgres require SSL; add sslmode if URL looks like cloud and none set
                 boolean looksLikeCloud = jdbcUrl.contains(".render.com") || jdbcUrl.contains(".postgres.render.com");
                 if (looksLikeCloud && !jdbcUrl.contains("sslmode=")) {
@@ -135,6 +133,86 @@ public class AnthropicApiKeyEnvironmentPostProcessor implements EnvironmentPostP
             default:
                 return "false";
         }
+    }
+
+    /**
+     * Convert platform DATABASE_URL values to a JDBC URL that Spring can use to detect the driver.
+     * Supports:
+     * - jdbc:postgresql://... (no change)
+     * - postgresql://user:pass@host:port/db?x=y
+     * - postgres://user:pass@host:port/db?x=y
+     *
+     * Security: never log the input; it may contain credentials.
+     */
+    static String toJdbcUrl(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+        if (s.startsWith("jdbc:")) return s;
+
+        String lower = s.toLowerCase();
+        if (!lower.startsWith("postgres://") && !lower.startsWith("postgresql://")) {
+            return null;
+        }
+
+        URI uri;
+        try {
+            uri = URI.create(s);
+        } catch (Exception e) {
+            return null;
+        }
+
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) return null;
+        int port = uri.getPort(); // -1 if absent
+        String path = uri.getPath();
+        if (path == null || path.isBlank() || "/".equals(path)) return null;
+
+        StringBuilder jdbc = new StringBuilder();
+        jdbc.append("jdbc:postgresql://").append(host);
+        if (port > 0) jdbc.append(":").append(port);
+        jdbc.append(path);
+
+        // Preserve existing query; add user/password from userInfo if present.
+        String query = uri.getQuery();
+        String userInfo = uri.getUserInfo();
+        String user = null;
+        String pass = null;
+        if (userInfo != null && !userInfo.isBlank()) {
+            int idx = userInfo.indexOf(':');
+            if (idx >= 0) {
+                user = userInfo.substring(0, idx);
+                pass = userInfo.substring(idx + 1);
+            } else {
+                user = userInfo;
+            }
+            // decode percent-encoded user/pass if present
+            user = user != null ? URLDecoder.decode(user, StandardCharsets.UTF_8) : null;
+            pass = pass != null ? URLDecoder.decode(pass, StandardCharsets.UTF_8) : null;
+        }
+
+        StringBuilder q = new StringBuilder();
+        if (query != null && !query.isBlank()) {
+            q.append(query);
+        }
+        // Only add if not already present in query
+        if (user != null && !user.isBlank() && (query == null || !query.contains("user="))) {
+            if (q.length() > 0) q.append("&");
+            q.append("user=").append(urlEncode(user));
+        }
+        if (pass != null && !pass.isBlank() && (query == null || !query.contains("password="))) {
+            if (q.length() > 0) q.append("&");
+            q.append("password=").append(urlEncode(pass));
+        }
+
+        if (q.length() > 0) {
+            jdbc.append("?").append(q);
+        }
+        return jdbc.toString();
+    }
+
+    private static String urlEncode(String s) {
+        // Minimal encoding for query values
+        return java.net.URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 }
 
