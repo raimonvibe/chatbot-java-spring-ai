@@ -24,7 +24,29 @@ Copy-paste one line (Render → Backend → Environment, Key / Value):
 4. On the product page, under **Pricing**, open the price and copy the **Price ID** (starts with `price_`).
 5. **Render** → your Backend service → **Environment** → Add variable: **Key** `STRIPE_PRICE_ID`, **Value** paste the ID (e.g. `price_1ABC123...`). Save and redeploy.
 
-If you use per-plan prices, repeat for Basic/Pro/Enterprise and set `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PRO`, `STRIPE_PRICE_ID_ENTERPRISE`. Set `STRIPE_PRICE_ID` to your default (e.g. same as Basic).
+### Three plans (Basic, Pro, Enterprise) — what to set on Render
+
+If you have three products in Stripe (e.g. Prayer-Chat Basic $12/mo, Pro $29/mo, Enterprise $79/mo), set **all four** so checkout and webhook work for every plan:
+
+| Variable | What to set | Why |
+|----------|-------------|-----|
+| **STRIPE_PRICE_ID** | The **Price ID** of your default plan (e.g. Basic) | Used when the user clicks “Subscribe” without choosing a plan, or as fallback. Must be a valid `price_xxx` from Stripe. |
+| **STRIPE_PRICE_ID_BASIC** | Price ID of “Prayer-Chat Basic” ($12/mo) | So checkout and webhook map this price → BASIC plan. |
+| **STRIPE_PRICE_ID_PRO** | Price ID of “Prayer-Chat Pro” ($29/mo) | So checkout and webhook map this price → PRO plan. |
+| **STRIPE_PRICE_ID_ENTERPRISE** | Price ID of “Prayer-Chat Enterprise” ($79/mo) | So checkout and webhook map this price → ENTERPRISE plan. |
+
+**How to get each Price ID (Test mode):**
+
+1. Stripe Dashboard → **Test mode** (top-right).
+2. **Products** → open **Prayer-Chat Basic** → under **Pricing** click the recurring price (e.g. US$ 12,00/month) → copy **Price ID** (`price_...`).
+3. Repeat for Pro and Enterprise.
+4. In **Render** → Backend → **Environment**, add:
+   - `STRIPE_PRICE_ID` = Basic’s Price ID (default).
+   - `STRIPE_PRICE_ID_BASIC` = same as above.
+   - `STRIPE_PRICE_ID_PRO` = Pro’s Price ID.
+   - `STRIPE_PRICE_ID_ENTERPRISE` = Enterprise’s Price ID.
+
+Redeploy after changing env vars. Different usage (Basic vs Pro vs Enterprise) is chosen by the frontend when creating the checkout session; the backend uses these IDs to create the correct Stripe price and to set the plan when the webhook runs.
 
 ### Is it safe for production?
 
@@ -68,6 +90,17 @@ In **Render** → your Backend service → **Environment**:
 | **STRIPE_WEBHOOK_SECRET** | Paste the Signing secret from the webhook you just created |
 
 Redeploy the backend after adding it. Then run a test payment again; the account page should show the paid plan and embed code after you click “Refresh to check status” or reload.
+
+**Embed still not showing after successful test payment?**
+
+Test payments use the real Stripe API (test mode); the only reason the embed stays hidden is that the **backend never marks the subscription active** because it never receives (or never successfully processes) the webhook. Check:
+
+1. **Webhook endpoint** — In Stripe Dashboard → **Webhooks**, the endpoint URL must be your **backend** URL, e.g. `https://your-backend.onrender.com/stripe/webhook` (not the frontend). Use **Test mode** when using `sk_test_` keys.
+2. **Events** — The endpoint must listen for at least: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`.
+3. **Signing secret** — After adding the endpoint, open it and copy the **Signing secret** (`whsec_...`). Set **STRIPE_WEBHOOK_SECRET** on Render to **that** value. The secret is different for each endpoint and for Test vs Live; if you use test keys, the webhook must be created in Test mode and its secret used.
+4. **Redeploy** — After changing `STRIPE_WEBHOOK_SECRET`, redeploy the backend so it picks up the new value.
+
+Then run another test payment and click “Refresh to check status” on the account page; the embed section and script should appear.
 
 ### Security
 
