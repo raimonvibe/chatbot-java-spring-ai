@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedChatbot, setSelectedChatbot] = useState<Chatbot | null>(null);
   const [embedCode, setEmbedCode] = useState('');
+  const [embedCopyFeedback, setEmbedCopyFeedback] = useState<'idle' | 'success' | 'error'>('idle');
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
