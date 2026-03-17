@@ -5,6 +5,7 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.service.StripeService;
+import com.stripe.model.checkout.Session;
 import com.stripe.exception.StripeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -21,6 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -525,5 +528,120 @@ class StripeServiceTest {
         assertThat(thrown).isInstanceOf(java.lang.reflect.InvocationTargetException.class);
         assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class);
         assertThat(thrown.getCause().getMessage()).contains("cancel-url");
+    }
+
+    // --- syncSubscriptionFromCheckoutSession: input validation and ownership (Stripe: validate client_reference_id server-side) ---
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects null session_id")
+    void security_syncFromSession_rejectsNullSessionId() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession(null, 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("session_id and user ID are required");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects blank session_id")
+    void security_syncFromSession_rejectsBlankSessionId() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("session_id and user ID are required");
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("   ", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("session_id and user ID are required");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects null user ID")
+    void security_syncFromSession_rejectsNullUserId() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("cs_test_abcdefghij1234567890", null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("session_id and user ID are required");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session_id longer than 255")
+    void security_syncFromSession_rejectsSessionIdTooLong() {
+        String longId = "cs_test_" + "a".repeat(250);
+        assertThat(longId.length()).isGreaterThan(255);
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession(longId, 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid session ID format");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session_id with wrong format (too short after cs_)")
+    void security_syncFromSession_rejectsSessionIdTooShort() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("cs_short", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid session ID format");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session_id with invalid characters")
+    void security_syncFromSession_rejectsInvalidCharacters() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("cs_test_<script>alert(1)</script>", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid session ID format");
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("cs_test_../../../etc/passwd", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid session ID format");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session_id not starting with cs_")
+    void security_syncFromSession_rejectsWrongPrefix() {
+        assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession("sub_abcdefghij12345678901234", 1L))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid session ID format");
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session when client_reference_id does not match user")
+    void security_syncFromSession_rejectsWrongUser() {
+        String validSessionId = "cs_test_abcdefghij1234567890";
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            when(mockSession.getClientReferenceId()).thenReturn("user_999");
+            sessionMock.when(() -> Session.retrieve(eq(validSessionId))).thenReturn(mockSession);
+
+            assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession(validSessionId, 1L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Session does not belong to this user");
+
+            verify(subscriptionRepository, never()).save(any(Subscription.class));
+        }
+    }
+
+    @Test
+    @DisplayName("SECURITY: syncSubscriptionFromCheckoutSession rejects session when client_reference_id is null")
+    void security_syncFromSession_rejectsNullClientReferenceId() {
+        String validSessionId = "cs_test_abcdefghij1234567890";
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            when(mockSession.getClientReferenceId()).thenReturn(null);
+            sessionMock.when(() -> Session.retrieve(eq(validSessionId))).thenReturn(mockSession);
+
+            assertThatThrownBy(() -> stripeService.syncSubscriptionFromCheckoutSession(validSessionId, 1L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Session does not belong to this user");
+        }
+    }
+
+    @Test
+    @DisplayName("syncSubscriptionFromCheckoutSession returns false when session mode is not subscription")
+    void syncFromSession_returnsFalse_whenModeNotSubscription() throws StripeException {
+        String validSessionId = "cs_test_abcdefghij1234567890";
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            when(mockSession.getClientReferenceId()).thenReturn("user_1");
+            when(mockSession.getMode()).thenReturn("payment");
+            sessionMock.when(() -> Session.retrieve(eq(validSessionId))).thenReturn(mockSession);
+
+            boolean result = stripeService.syncSubscriptionFromCheckoutSession(validSessionId, 1L);
+
+            assertThat(result).isFalse();
+            verify(subscriptionRepository, never()).save(any(Subscription.class));
+        }
     }
 }

@@ -604,6 +604,29 @@ export async function getSubscriptionStatusFromApi(): Promise<SubscriptionStatus
   }
 }
 
+/**
+ * Sync subscription from Stripe checkout session (e.g. after payment redirect when webhook hasn't run yet).
+ * Backend validates session belongs to current user. Returns updated subscription status.
+ */
+export async function syncSubscriptionFromCheckoutSession(
+  sessionId: string
+): Promise<SubscriptionStatusApi | null> {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/subscription/sync-from-session`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data as SubscriptionStatusApi & { synced?: boolean };
+  } catch {
+    return null;
+  }
+}
+
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   try {
     // Try to get user info which includes subscription status

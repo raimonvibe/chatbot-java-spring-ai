@@ -80,6 +80,64 @@ public class SubscriptionController {
     }
 
     /**
+     * Sync subscription from a Stripe checkout session (e.g. after payment redirect when webhook hasn't run yet).
+     * Validates that the session belongs to the current user via client_reference_id.
+     */
+    @PostMapping("/sync-from-session")
+    public ResponseEntity<Map<String, Object>> syncFromCheckoutSession(
+            @AuthenticationPrincipal CustomOAuth2User currentUser,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        if (currentUser == null || currentUser.getUser() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String sessionId = body != null ? body.get("session_id") : null;
+        if (sessionId == null || sessionId.isBlank()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "session_id is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        }
+        String trimmed = sessionId.trim();
+        if (trimmed.length() > 255) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "Invalid session ID format");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        }
+        try {
+            boolean synced = stripeService.syncSubscriptionFromCheckoutSession(trimmed, currentUser.getUser().getId());
+            Optional<Subscription> subOpt = subscriptionRepository.findByUserId(currentUser.getUser().getId());
+            Map<String, Object> response = new HashMap<>();
+            if (subOpt.isPresent()) {
+                Subscription s = subOpt.get();
+                response.put("hasSubscription", true);
+                response.put("status", s.getStatus());
+                response.put("plan", s.getPlan());
+                response.put("isActive", s.isActive());
+                response.put("canUseChatbot", s.canUseChatbot());
+                response.put("currentPeriodEnd", s.getCurrentPeriodEnd());
+                if (s.getCanceledAt() != null) response.put("canceledAt", s.getCanceledAt());
+            } else {
+                response.put("hasSubscription", false);
+                response.put("status", "FREE");
+                response.put("plan", "FREE");
+                response.put("isActive", false);
+                response.put("canUseChatbot", false);
+            }
+            response.put("synced", synced);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        } catch (StripeException e) {
+            logger.warn("Sync from session failed: {}", LogSanitizer.sanitizeException(e));
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "Invalid or expired session");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+        }
+    }
+
+    /**
      * Create a Stripe checkout session for subscription
      */
     @PostMapping("/create-checkout-session")

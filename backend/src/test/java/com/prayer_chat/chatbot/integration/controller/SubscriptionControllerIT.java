@@ -361,6 +361,128 @@ class SubscriptionControllerIT {
         verify(stripeService, never()).createBillingPortalSession(any(User.class), any());
     }
 
+    // --- sync-from-session (post-payment redirect: sync subscription from checkout session; security: validate ownership) ---
+
+    @Test
+    @DisplayName("SECURITY: sync-from-session returns 401 when unauthenticated")
+    void syncFromSession_returns401_whenUnauthenticated() throws Exception {
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"cs_test_abcdefghij1234567890\"}"))
+            .andExpect(status().isUnauthorized());
+        verify(stripeService, never()).syncSubscriptionFromCheckoutSession(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("sync-from-session returns 400 when session_id is missing")
+    void syncFromSession_returns400_whenSessionIdMissing() throws Exception {
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("session_id is required")));
+        verify(stripeService, never()).syncSubscriptionFromCheckoutSession(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("sync-from-session returns 400 when session_id is blank")
+    void syncFromSession_returns400_whenSessionIdBlank() throws Exception {
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"   \"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("session_id is required")));
+        verify(stripeService, never()).syncSubscriptionFromCheckoutSession(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: sync-from-session returns 400 when session does not belong to user")
+    void syncFromSession_returns400_whenSessionNotBelongsToUser() throws Exception {
+        String sessionId = "cs_test_abcdefghij1234567890";
+        when(stripeService.syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L)))
+            .thenThrow(new IllegalArgumentException("Session does not belong to this user"));
+
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"" + sessionId + "\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Session does not belong to this user")));
+
+        verify(stripeService, times(1)).syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L));
+    }
+
+    @Test
+    @DisplayName("SECURITY: sync-from-session returns 400 with generic message on StripeException (no info leak)")
+    void syncFromSession_returns400_genericMessage_onStripeException() throws Exception {
+        String sessionId = "cs_test_abcdefghij1234567890";
+        StripeException stripeException = mock(StripeException.class);
+        when(stripeService.syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L)))
+            .thenThrow(stripeException);
+
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"" + sessionId + "\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid or expired session")));
+
+        verify(stripeService, times(1)).syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L));
+    }
+
+    @Test
+    @DisplayName("sync-from-session returns 200 with subscription status when sync succeeds")
+    void syncFromSession_returns200_withSubscriptionStatus_whenSyncSucceeds() throws Exception {
+        String sessionId = "cs_test_abcdefghij1234567890";
+        when(stripeService.syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L))).thenReturn(true);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"" + sessionId + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.synced", equalTo(true)))
+            .andExpect(jsonPath("$.hasSubscription", equalTo(true)))
+            .andExpect(jsonPath("$.canUseChatbot").exists());
+
+        verify(stripeService, times(1)).syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L));
+        verify(subscriptionRepository, times(1)).findByUserId(1L);
+    }
+
+    @Test
+    @DisplayName("sync-from-session returns 200 when sync returns false (e.g. mode not subscription)")
+    void syncFromSession_returns200_whenSyncReturnsFalse() throws Exception {
+        String sessionId = "cs_test_abcdefghij1234567890";
+        when(stripeService.syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L))).thenReturn(false);
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
+
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"" + sessionId + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.synced", equalTo(false)))
+            .andExpect(jsonPath("$.hasSubscription", equalTo(true)));
+
+        verify(stripeService, times(1)).syncSubscriptionFromCheckoutSession(eq(sessionId), eq(1L));
+    }
+
+    @Test
+    @DisplayName("SECURITY: sync-from-session rejects session_id longer than 255")
+    void syncFromSession_rejectsOverlongSessionId() throws Exception {
+        String longId = "cs_test_" + "a".repeat(250);
+        mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"session_id\": \"" + longId + "\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error", equalTo("Invalid session ID format")));
+        verify(stripeService, never()).syncSubscriptionFromCheckoutSession(anyString(), any());
+    }
+
     @Test
     @DisplayName("Should cancel active subscription")
     void shouldCancelActiveSubscription() throws Exception {

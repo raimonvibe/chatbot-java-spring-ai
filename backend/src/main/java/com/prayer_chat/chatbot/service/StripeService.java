@@ -426,6 +426,49 @@ public class StripeService {
     private static final java.util.regex.Pattern STRIPE_SUBSCRIPTION_ID = java.util.regex.Pattern.compile("^sub_[a-zA-Z0-9]{14,}$");
 
     /**
+     * Stripe Checkout Session ID format (cs_test_... or cs_live_...). Per Stripe docs, IDs are alphanumeric + underscore.
+     * Restricts input to prevent injection and arbitrary API calls; min length 20 after prefix to match real IDs.
+     */
+    private static final java.util.regex.Pattern STRIPE_CHECKOUT_SESSION_ID = java.util.regex.Pattern.compile("^cs_[a-zA-Z0-9_]{20,255}$");
+
+    /**
+     * Sync subscription from a checkout session ID (e.g. when user lands on account page with session_id after payment).
+     * Validates that the session belongs to the given user via client_reference_id (Stripe best practice: verify ownership
+     * server-side after retrieve). Use when webhook hasn't run yet.
+     *
+     * @param sessionId Stripe checkout session ID (cs_xxx)
+     * @param userId    current user ID — must match session's client_reference_id ("user_" + userId)
+     * @return true if subscription was synced, false if session has no subscription or mode is not subscription
+     * @throws StripeException        if Stripe API call fails (e.g. invalid session ID)
+     * @throws IllegalArgumentException if session does not belong to this user or session ID format is invalid
+     */
+    public boolean syncSubscriptionFromCheckoutSession(String sessionId, Long userId) throws StripeException {
+        if (sessionId == null || sessionId.isBlank() || userId == null) {
+            throw new IllegalArgumentException("session_id and user ID are required");
+        }
+        String sid = sessionId.trim();
+        if (sid.length() > 255) {
+            throw new IllegalArgumentException("Invalid session ID format");
+        }
+        if (!STRIPE_CHECKOUT_SESSION_ID.matcher(sid).matches()) {
+            throw new IllegalArgumentException("Invalid session ID format");
+        }
+        Session session = Session.retrieve(sid);
+        String ref = session.getClientReferenceId();
+        String expected = "user_" + userId;
+        if (ref == null || !ref.equals(expected)) {
+            logger.warn("Sync from session rejected: client_reference_id does not match user {}", userId);
+            throw new IllegalArgumentException("Session does not belong to this user");
+        }
+        if (!"subscription".equals(session.getMode())) {
+            logger.debug("Sync from session: mode is not subscription, skipping");
+            return false;
+        }
+        handleCheckoutSessionCompleted(session);
+        return true;
+    }
+
+    /**
      * Handle checkout.session.completed: sync subscription from Stripe so the user sees active plan
      * without relying on customer.subscription.created (which may be delayed or not configured).
      * Security: only process subscription-mode sessions; validate subscription ID format before retrieve.

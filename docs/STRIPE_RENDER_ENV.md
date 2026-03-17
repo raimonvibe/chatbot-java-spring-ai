@@ -100,7 +100,9 @@ Test payments use the real Stripe API (test mode); the only reason the embed sta
 3. **Signing secret** — After adding the endpoint, open it and copy the **Signing secret** (`whsec_...`). Set **STRIPE_WEBHOOK_SECRET** on Render to **that** value. The secret is different for each endpoint and for Test vs Live; if you use test keys, the webhook must be created in Test mode and its secret used.
 4. **Redeploy** — After changing `STRIPE_WEBHOOK_SECRET`, redeploy the backend so it picks up the new value.
 
-Then run another test payment and click “Refresh to check status” on the account page; the embed section and script should appear.
+Then run another test payment and click “Refresh to check status” on the account page; the embed section and script should appear. The account page now **syncs your subscription from the checkout session** when you land with `?payment=success&session_id=cs_...`, so the script can show even if the webhook has not run yet.
+
+**If the script still does not show:** Check **Render backend logs** after payment: look for `Synced subscription from checkout.session.completed` or `Subscription created for user` (sync worked); `No subscription found for Stripe customer` (start checkout from our app first); `Sync from session rejected` (wrong user); or no log (webhook URL/events/secret may be wrong).
 
 ### Security
 
@@ -108,6 +110,7 @@ Then run another test payment and click “Refresh to check status” on the acc
 - **Event ID deduplication** prevents the same event from being processed twice (replay or Stripe retries). Event IDs are length-capped to avoid abuse.
 - **Subscription checkouts only**: `checkout.session.completed` is only processed when the session mode is `subscription`; one-time payment sessions are ignored.
 - **Subscription ID validation**: Before calling Stripe’s API, the backend checks that the subscription ID matches Stripe’s format (`sub_xxx`) to avoid passing arbitrary input.
+- **Sync-from-session (POST /api/subscription/sync-from-session)**: Used when the user lands on the account page after payment with `session_id` in the URL. The backend retrieves the Checkout Session from Stripe (server-side only, with your secret key), then validates that `client_reference_id` equals `user_` + current user ID (Stripe’s recommended approach: verify ownership after retrieve). Session ID is validated with a strict format (`cs_` + alphanumeric/underscore, 20–255 chars) before any Stripe call. On Stripe errors the API returns a generic message (“Invalid or expired session”) to avoid leaking details.
 - Optional **STRIPE_WEBHOOK_IP_ALLOWLIST** (comma-separated IPs) can restrict which IPs can call the webhook; leave unset to allow Stripe’s IPs (signature verification is the primary control).
 - In **test mode** you use **test** API keys and the **test** webhook endpoint’s signing secret; no real money is charged. Test mode is safe for development and QA.
 

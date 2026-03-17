@@ -22,6 +22,7 @@ import {
   logout,
   createPortalSession,
   getSubscriptionStatusFromApi,
+  syncSubscriptionFromCheckoutSession,
   getAllChatbots,
   getEmbedCode,
   type SubscriptionStatusApi,
@@ -98,22 +99,28 @@ function AccountPageContent() {
     load();
   }, [router]);
 
-  // After payment redirect: persist payment success, refetch subscription (webhook may have just run), show embed section.
-  // Security: URL params (payment, session_id) are used only for UX. No authorization or data is derived from them.
+  // After payment redirect: sync subscription from session (so script shows even if webhook hasn't run), then refetch.
+  // Security: URL params (payment, session_id) are UX only; backend validates session belongs to current user.
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const payment = searchParams.get('payment');
     if (payment === 'success') {
       setPaymentSuccess(true);
       try {
-        // Store only timestamp; key is fixed (no user input). Used for UX only, not authorization.
         sessionStorage.setItem(PAYMENT_SUCCESS_KEY, JSON.stringify({ at: Date.now() }));
       } catch {
         // ignore
       }
     }
-    if (!sessionId && payment !== 'success') return;
-    const refetch = async () => {
+    if (!sessionId || payment !== 'success') return;
+    const run = async () => {
+      try {
+        // Sync from checkout session so subscription activates even when webhook hasn't run yet
+        const synced = await syncSubscriptionFromCheckoutSession(sessionId);
+        if (synced) setSubscription(synced);
+      } catch {
+        // ignore
+      }
       try {
         const sub = await getSubscriptionStatusFromApi();
         setSubscription(sub ?? 'error');
@@ -121,8 +128,23 @@ function AccountPageContent() {
         // keep current state
       }
     };
-    const t1 = setTimeout(refetch, 1500);
-    const t2 = setTimeout(refetch, 5000); // second refetch in case webhook was slow
+    run(); // run immediately
+    const t1 = setTimeout(async () => {
+      try {
+        const sub = await getSubscriptionStatusFromApi();
+        setSubscription(sub ?? 'error');
+      } catch {
+        // keep current state
+      }
+    }, 1500);
+    const t2 = setTimeout(async () => {
+      try {
+        const sub = await getSubscriptionStatusFromApi();
+        setSubscription(sub ?? 'error');
+      } catch {
+        // keep current state
+      }
+    }, 5000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
