@@ -20,6 +20,12 @@ import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
  * left unchanged because H2 does not support ON CONFLICT. The placeholder
  * {@code %TABLE_NAME%} is replaced by the configured session table name
  * (e.g. SPRING_SESSION).
+ * <p>
+ * Security: The SQL uses only the framework-controlled {@code %TABLE_NAME%}
+ * placeholder and bound parameters (?, ?, ?); no user input is concatenated
+ * into the query. The upsert updates only the same (SESSION_PRIMARY_ID,
+ * ATTRIBUTE_NAME) row, so it does not allow one session to overwrite another's
+ * attributes.
  */
 @Configuration
 public class SessionRepositoryConfig {
