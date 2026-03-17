@@ -52,7 +52,31 @@ function AccountPageContent() {
   const [embedLoading, setEmbedLoading] = useState(false);
   const [selectedChatbotId, setSelectedChatbotId] = useState<number | ''>('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [refreshingSubscription, setRefreshingSubscription] = useState(false);
   const embedSectionRef = useRef<HTMLElement | null>(null);
+
+  // SessionStorage key for "recent payment" UX only (not used for auth). Fixed key to avoid injection.
+  const PAYMENT_SUCCESS_KEY = 'account_payment_success';
+  const PAYMENT_SUCCESS_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
+
+  // Restore "recent payment success" from sessionStorage so embed section stays visible when user returns to /account.
+  // Security: we only read our own key, validate at is a number and within age; no PII or tokens stored.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = sessionStorage.getItem(PAYMENT_SUCCESS_KEY);
+      if (!raw || raw.length > 200) return; // cap length to avoid JSON bomb
+      const parsed = JSON.parse(raw) as { at?: unknown };
+      const at = typeof parsed?.at === 'number' ? parsed.at : NaN;
+      if (Number.isNaN(at) || at > Date.now() || Date.now() - at > PAYMENT_SUCCESS_MAX_AGE_MS) {
+        sessionStorage.removeItem(PAYMENT_SUCCESS_KEY);
+        return;
+      }
+      setPaymentSuccess(true);
+    } catch {
+      sessionStorage.removeItem(PAYMENT_SUCCESS_KEY);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -74,13 +98,21 @@ function AccountPageContent() {
     load();
   }, [router]);
 
-  // After payment redirect: refetch subscription (webhook may have just run), show success message, scroll to embed section.
-  // Security: URL params (payment, session_id) are used only for UX (message, refetch). No authorization or data is derived from them.
+  // After payment redirect: persist payment success, refetch subscription (webhook may have just run), show embed section.
+  // Security: URL params (payment, session_id) are used only for UX. No authorization or data is derived from them.
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const payment = searchParams.get('payment');
+    if (payment === 'success') {
+      setPaymentSuccess(true);
+      try {
+        // Store only timestamp; key is fixed (no user input). Used for UX only, not authorization.
+        sessionStorage.setItem(PAYMENT_SUCCESS_KEY, JSON.stringify({ at: Date.now() }));
+      } catch {
+        // ignore
+      }
+    }
     if (!sessionId && payment !== 'success') return;
-    if (payment === 'success') setPaymentSuccess(true);
     const refetch = async () => {
       try {
         const sub = await getSubscriptionStatusFromApi();
@@ -96,6 +128,17 @@ function AccountPageContent() {
       clearTimeout(t2);
     };
   }, [searchParams]);
+
+  // When subscription is active, clear persisted payment-success so we rely on canUseChatbot for showing the section
+  useEffect(() => {
+    if (subscription && subscription !== 'error' && subscription.canUseChatbot && typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem(PAYMENT_SUCCESS_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [subscription]);
 
   // Scroll to embed section when we landed after payment so user sees where to get the script
   useEffect(() => {
@@ -424,16 +467,27 @@ function AccountPageContent() {
                   <button
                     type="button"
                     onClick={async () => {
+                      setRefreshingSubscription(true);
                       try {
                         const sub = await getSubscriptionStatusFromApi();
                         setSubscription(sub ?? 'error');
                       } catch {
                         setSubscription('error');
+                      } finally {
+                        setRefreshingSubscription(false);
                       }
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-brown-700/80 text-brown-100 font-medium hover:bg-brown-600 border border-brown-600"
+                    disabled={refreshingSubscription}
+                    className="px-4 py-2.5 rounded-xl bg-brown-700/80 text-brown-100 font-medium hover:bg-brown-600 border border-brown-600 disabled:opacity-60"
                   >
-                    Refresh to check status
+                    {refreshingSubscription ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                        Checking…
+                      </>
+                    ) : (
+                      'Refresh to check status'
+                    )}
                   </button>
                   <Link
                     href="/dashboard"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
@@ -41,18 +41,30 @@ export default function Dashboard() {
     }
   }, [loading, authenticated, router]);
 
-  const loadSubscriptionStatus = async () => {
+  /** Fetch real subscription from API so dashboard shows "Get Embed Code" when user has paid (canUseChatbot).
+   *  Security: subscription is from authenticated API only; embed access is enforced by backend on GET /embed. */
+  const loadSubscriptionStatus = async (chatbotCountOverride?: number) => {
     try {
-      // Determine preview mode based on chatbot count and embed access
-      const status: SubscriptionStatus = {
-        isPreviewMode: chatbots.length >= 1, // If user has 1 chatbot, likely preview mode
-        canAccessIntegrationScript: false, // Will be determined when trying to access embed
-        maxChatbots: 1,
-        currentChatbotCount: chatbots.length,
-      };
-      setSubscriptionStatus(status);
+      const api = await getSubscriptionStatusFromApi();
+      const canUse = !!api?.canUseChatbot;
+      const count = typeof chatbotCountOverride === 'number' && chatbotCountOverride >= 0 ? chatbotCountOverride : chatbots.length;
+      setSubscriptionStatus({
+        isPreviewMode: !canUse,
+        canAccessIntegrationScript: canUse,
+        maxChatbots: canUse ? 10 : 1,
+        currentChatbotCount: count,
+        plan: api?.plan,
+      });
     } catch (error: unknown) {
       console.error('Error loading subscription status:', error);
+      const fallbackCount = typeof chatbotCountOverride === 'number' && chatbotCountOverride >= 0 ? chatbotCountOverride : chatbots.length;
+      setSubscriptionStatus({
+        isPreviewMode: true,
+        canAccessIntegrationScript: false,
+        maxChatbots: 1,
+        currentChatbotCount: fallbackCount,
+        plan: undefined,
+      });
     }
   };
 
@@ -61,20 +73,23 @@ export default function Dashboard() {
       const data = await getAllChatbots();
       setChatbots(data);
       setAuthenticated(true);
-      
+
+      // Refetch subscription from API so embed button shows correctly (Get Embed Code vs Upgrade)
+      const api = await getSubscriptionStatusFromApi();
+      const canUse = !!api?.canUseChatbot;
+      setSubscriptionStatus({
+        isPreviewMode: !canUse,
+        canAccessIntegrationScript: canUse,
+        maxChatbots: canUse ? 10 : 1,
+        currentChatbotCount: data.length,
+        plan: api?.plan,
+      });
+
       // If user has no chatbots, redirect to onboarding
       if (data.length === 0) {
         router.push('/onboarding');
         return;
       }
-      
-      // Update subscription status after loading chatbots
-      setSubscriptionStatus({
-        isPreviewMode: data.length >= 1, // Heuristic: if user has 1 chatbot, likely preview mode
-        canAccessIntegrationScript: false,
-        maxChatbots: 1,
-        currentChatbotCount: data.length,
-      });
     } catch (error: unknown) {
       console.error('Error loading chatbots:', error);
       const status = isApiError(error) ? error.status : undefined;
@@ -145,6 +160,8 @@ export default function Dashboard() {
       setWebsiteUrl('');
       setShowCreateForm(false);
       setCreating(false);
+      // Refetch subscription so "Get Embed Code" appears if user has paid (e.g. just created first chatbot after payment)
+      loadSubscriptionStatus(chatbots.length + 1);
     } catch (error: unknown) {
       console.error('Error creating chatbot:', error);
       setCreating(false);
@@ -175,14 +192,7 @@ export default function Dashboard() {
     try {
       await deleteChatbot(chatbotId);
       setChatbots(chatbots.filter(c => c.id !== chatbotId));
-      // Update subscription status after deletion
-      const updatedCount = chatbots.length - 1;
-      setSubscriptionStatus({
-        isPreviewMode: updatedCount >= 1,
-        canAccessIntegrationScript: false,
-        maxChatbots: 1,
-        currentChatbotCount: updatedCount,
-      });
+      loadSubscriptionStatus(chatbots.length - 1);
     } catch (error: unknown) {
       console.error('Error deleting chatbot:', error);
     }
@@ -196,13 +206,7 @@ export default function Dashboard() {
     try {
       const result = await deleteAllChatbots();
       setChatbots([]);
-      // Update subscription status after deletion
-      setSubscriptionStatus({
-        isPreviewMode: false,
-        canAccessIntegrationScript: false,
-        maxChatbots: 1,
-        currentChatbotCount: 0,
-      });
+      loadSubscriptionStatus(0);
       alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);
     } catch (error: unknown) {
       console.error('Error deleting all chatbots:', error);
