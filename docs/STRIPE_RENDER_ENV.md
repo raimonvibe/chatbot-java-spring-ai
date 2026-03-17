@@ -102,7 +102,7 @@ Test payments use the real Stripe API (test mode); the only reason the embed sta
 
 Then run another test payment and click “Refresh to check status” on the account page; the embed section and script should appear. The account page now **syncs your subscription from the checkout session** when you land with `?payment=success&session_id=cs_...`, so the script can show even if the webhook has not run yet.
 
-**If the script still does not show:** Check **Render backend logs** after payment: look for `Synced subscription from checkout.session.completed` or `Subscription created for user` (sync worked); `No subscription found for Stripe customer` (start checkout from our app first); `Sync from session rejected` (wrong user); or no log (webhook URL/events/secret may be wrong).
+**If the script still does not show:** (1) After payment, check the browser URL on the account page — it must contain `session_id=cs_...` (Stripe replaces `{CHECKOUT_SESSION_ID}`). If there is no `session_id`, set **STRIPE_SUCCESS_URL** on Render to include `&session_id={CHECKOUT_SESSION_ID}` exactly, redeploy, and run a new test payment. (2) Check **Render backend logs**: `Synced subscription from checkout.session.completed` or `Subscription created for user` (sync worked); `No subscription found for Stripe customer` (start checkout from our app first); `Sync from session rejected` (wrong user); or no log (webhook URL/events/secret may be wrong). The account page now shows a short error if sync fails (e.g. "Session does not belong to this user" or "Invalid session ID format").
 
 ### Security
 

@@ -53,6 +53,7 @@ function AccountPageContent() {
   const [embedLoading, setEmbedLoading] = useState(false);
   const [selectedChatbotId, setSelectedChatbotId] = useState<number | ''>('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [refreshingSubscription, setRefreshingSubscription] = useState(false);
   const embedSectionRef = useRef<HTMLElement | null>(null);
 
@@ -99,7 +100,7 @@ function AccountPageContent() {
     load();
   }, [router]);
 
-  // After payment redirect: sync subscription from session (so script shows even if webhook hasn't run), then refetch.
+  // After payment redirect: sync subscription from session once auth is ready (so script shows even if webhook hasn't run).
   // Security: URL params (payment, session_id) are UX only; backend validates session belongs to current user.
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
@@ -112,14 +113,15 @@ function AccountPageContent() {
         // ignore
       }
     }
-    if (!sessionId || payment !== 'success') return;
+    if (!sessionId || payment !== 'success' || loading) return;
+    setSyncError(null);
     const run = async () => {
-      try {
-        // Sync from checkout session so subscription activates even when webhook hasn't run yet
-        const synced = await syncSubscriptionFromCheckoutSession(sessionId);
-        if (synced) setSubscription(synced);
-      } catch {
-        // ignore
+      const result = await syncSubscriptionFromCheckoutSession(sessionId);
+      if (result.ok) {
+        setSubscription(result.data);
+        setSyncError(null);
+      } else {
+        setSyncError(result.error);
       }
       try {
         const sub = await getSubscriptionStatusFromApi();
@@ -128,7 +130,7 @@ function AccountPageContent() {
         // keep current state
       }
     };
-    run(); // run immediately
+    run();
     const t1 = setTimeout(async () => {
       try {
         const sub = await getSubscriptionStatusFromApi();
@@ -149,11 +151,12 @@ function AccountPageContent() {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [searchParams]);
+  }, [searchParams, loading]);
 
-  // When subscription is active, clear persisted payment-success so we rely on canUseChatbot for showing the section
+  // When subscription is active, clear persisted payment-success and sync error
   useEffect(() => {
     if (subscription && subscription !== 'error' && subscription.canUseChatbot && typeof window !== 'undefined') {
+      setSyncError(null);
       try {
         sessionStorage.removeItem(PAYMENT_SUCCESS_KEY);
       } catch {
@@ -479,7 +482,14 @@ function AccountPageContent() {
               </Link>
             ) : (
               <div className="rounded-xl bg-brown-900/60 border border-brown-600 p-4 text-brown-200 text-sm space-y-4">
-                <p className="font-medium text-gold-200">Your subscription is activating…</p>
+                {syncError ? (
+                  <p className="font-medium text-amber-200">Activation didn&apos;t complete: {syncError}</p>
+                ) : (
+                  <p className="font-medium text-gold-200">Your subscription is activating…</p>
+                )}
+                {!searchParams.get('session_id') && paymentSuccess && (
+                  <p className="text-amber-200/90 text-xs">Your success URL may be missing the session ID. Set STRIPE_SUCCESS_URL to include <code className="bg-brown-800 px-1 rounded">&amp;session_id=&#123;CHECKOUT_SESSION_ID&#125;</code>, then click Refresh.</p>
+                )}
                 <p>The embed script will appear in this section once activation is complete. You may need to:</p>
                 <ol className="list-decimal list-inside space-y-1 text-brown-300">
                   <li>Create a chatbot on the Dashboard (if you don&apos;t have one yet).</li>
@@ -490,6 +500,7 @@ function AccountPageContent() {
                     type="button"
                     onClick={async () => {
                       setRefreshingSubscription(true);
+                      setSyncError(null);
                       try {
                         const sub = await getSubscriptionStatusFromApi();
                         setSubscription(sub ?? 'error');

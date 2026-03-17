@@ -604,13 +604,18 @@ export async function getSubscriptionStatusFromApi(): Promise<SubscriptionStatus
   }
 }
 
+/** Result of sync-from-session: success with data, or failure with error message for UI */
+export type SyncFromSessionResult =
+  | { ok: true; data: SubscriptionStatusApi & { synced?: boolean } }
+  | { ok: false; error: string };
+
 /**
  * Sync subscription from Stripe checkout session (e.g. after payment redirect when webhook hasn't run yet).
- * Backend validates session belongs to current user. Returns updated subscription status.
+ * Backend validates session belongs to current user. Returns result with data or error message for UI.
  */
 export async function syncSubscriptionFromCheckoutSession(
   sessionId: string
-): Promise<SubscriptionStatusApi | null> {
+): Promise<SyncFromSessionResult> {
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/subscription/sync-from-session`, {
@@ -619,11 +624,14 @@ export async function syncSubscriptionFromCheckoutSession(
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId }),
     });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data as SubscriptionStatusApi & { synced?: boolean };
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      return { ok: true, data: data as SubscriptionStatusApi & { synced?: boolean } };
+    }
+    const message = typeof data?.error === 'string' ? data.error : 'Activation failed. Try Refresh or contact support.';
+    return { ok: false, error: message };
   } catch {
-    return null;
+    return { ok: false, error: 'Network error. Check your connection and try Refresh.' };
   }
 }
 
