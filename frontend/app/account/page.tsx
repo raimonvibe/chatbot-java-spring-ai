@@ -16,6 +16,7 @@ import {
   Loader2,
   Code,
   Copy,
+  CheckCircle,
 } from 'lucide-react';
 import {
   checkAuth,
@@ -28,6 +29,7 @@ import {
   type SubscriptionStatusApi,
   type Chatbot,
 } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 function AccountPageFallback() {
   return (
@@ -51,6 +53,7 @@ function AccountPageContent() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [embedCode, setEmbedCode] = useState<string | null>(null);
   const [embedLoading, setEmbedLoading] = useState(false);
+  const [embedCopyFeedback, setEmbedCopyFeedback] = useState<'idle' | 'success' | 'error'>('idle');
   const [selectedChatbotId, setSelectedChatbotId] = useState<number | ''>('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -457,12 +460,16 @@ function AccountPageContent() {
                     </pre>
                     <button
                       type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(embedCode);
+                      onClick={async () => {
+                        if (!embedCode) return;
+                        const ok = await copyTextToClipboard(embedCode);
+                        setEmbedCopyFeedback(ok ? 'success' : 'error');
+                        setTimeout(() => setEmbedCopyFeedback('idle'), 2000);
                       }}
                       className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium flex items-center gap-2 hover:from-gold-600 hover:to-gold-700"
                     >
-                      <Copy className="w-4 h-4" /> Copy code
+                      {embedCopyFeedback === 'success' ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {embedCopyFeedback === 'success' ? 'Copied!' : embedCopyFeedback === 'error' ? 'Copy failed' : 'Copy code'}
                     </button>
                   </>
                 )}

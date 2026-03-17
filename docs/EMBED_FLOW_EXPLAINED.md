@@ -83,7 +83,7 @@ If you pasted the embed code but the chat button does not appear:
 
 1. **Open the browser console** (F12 → Console). Look for:
    - **Blocked script** – Your site’s **Content-Security-Policy (CSP)** may be blocking the widget. See below for what to add.
-   - **404** – The script URL may be wrong. Ensure it matches your backend (e.g. `https://your-backend.onrender.com/js/chatbot-widget.js`).
+   - **404** – The script URL may be wrong, or the backend may be waking up. On Render free tier, the first request after spin-down can return 404 (`x-render-routing: no-server`) until the instance is ready; wait a minute and reload, or open `https://your-backend.onrender.com/actuator/health` to wake the service, then reload your page. The backend serves the widget at both `/js/chatbot-widget.js` and `/chatbot-widget.js`.
    - **CORS or network errors** – The backend allows any origin for `/api/chat/**` and `/js/**`; if you use a proxy or custom domain, ensure it forwards requests correctly.
 
 ### Why add CSP for the embed?

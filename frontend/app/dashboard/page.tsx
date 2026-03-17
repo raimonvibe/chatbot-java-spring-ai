@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
@@ -534,13 +535,16 @@ export default function Dashboard() {
               </pre>
               <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                 <button
+                  type="button"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(embedCode);
+                    const ok = await copyTextToClipboard(embedCode);
+                    setEmbedCopyFeedback(ok ? 'success' : 'error');
+                    setTimeout(() => setEmbedCopyFeedback('idle'), 2000);
                   }}
                   className="flex-1 min-w-0 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >
-                  <Copy className="w-4 h-4" />
-                  Copy code
+                  {embedCopyFeedback === 'success' ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {embedCopyFeedback === 'success' ? 'Copied!' : embedCopyFeedback === 'error' ? 'Copy failed' : 'Copy code'}
                 </button>
                 <button
                   onClick={() => setEmbedCode('')}
