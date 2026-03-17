@@ -44,11 +44,39 @@ If you have separate products/prices for Basic, Pro, Enterprise (e.g. in **Strip
 
 For each product: open it in Stripe → **Pricing** section → open the recurring price → copy the **Price ID** (`price_...`) into the matching env var on Render.
 
-## Webhook (for subscription status updates)
+## Webhook (required so account page shows paid plan after payment)
+
+Without the webhook, the account page will keep showing **FREE** after a successful test payment because the backend never receives the event that activates the subscription.
+
+### 1. Create the webhook in Stripe
+
+1. **Stripe Dashboard** → [Webhooks](https://dashboard.stripe.com/webhooks) (use **Test** mode if you use `sk_test_` keys).
+2. **Add endpoint**. URL: `https://<your-backend-host>/stripe/webhook` (e.g. `https://your-app.onrender.com/stripe/webhook`).
+3. **Select events** to listen for:
+   - `checkout.session.completed` (so the subscription is activated as soon as the user completes payment)
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+4. **Add endpoint** → copy the **Signing secret** (starts with `whsec_`).
+
+### 2. Set the secret on Render
+
+In **Render** → your Backend service → **Environment**:
 
 | Variable | Description |
 |----------|-------------|
-| STRIPE_WEBHOOK_SECRET | From Stripe Dashboard → Webhooks → your endpoint → Signing secret |
+| **STRIPE_WEBHOOK_SECRET** | Paste the Signing secret from the webhook you just created |
+
+Redeploy the backend after adding it. Then run a test payment again; the account page should show the paid plan and embed code after you click “Refresh to check status” or reload.
+
+### Security
+
+- The backend **verifies the Stripe-Signature** header using this secret; Stripe’s SDK validates the HMAC and timestamp, so forged or replayed payloads are rejected. Never expose the webhook secret.
+- **Event ID deduplication** prevents the same event from being processed twice (replay or Stripe retries). Event IDs are length-capped to avoid abuse.
+- **Subscription checkouts only**: `checkout.session.completed` is only processed when the session mode is `subscription`; one-time payment sessions are ignored.
+- **Subscription ID validation**: Before calling Stripe’s API, the backend checks that the subscription ID matches Stripe’s format (`sub_xxx`) to avoid passing arbitrary input.
+- Optional **STRIPE_WEBHOOK_IP_ALLOWLIST** (comma-separated IPs) can restrict which IPs can call the webhook; leave unset to allow Stripe’s IPs (signature verification is the primary control).
+- In **test mode** you use **test** API keys and the **test** webhook endpoint’s signing secret; no real money is charged. Test mode is safe for development and QA.
 
 ## Stripe redirect security (Render)
 
@@ -60,6 +88,12 @@ on Render is **secure**:
 - **Startup validation** – When Stripe is configured, the backend checks that the host of `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` is in the allowed list. If not, the app fails to start with an explicit error. The default allowed list includes `https://www.prayer-chat.com` and `https://prayer-chat.com`.
 - **HTTPS** – Use `https://` in production so the redirect is encrypted.
 - **Your domain only** – Never set `STRIPE_SUCCESS_URL` or `STRIPE_CANCEL_URL` to another site's domain. If you use a custom domain, add it to **STRIPE_ALLOWED_REDIRECT_ORIGINS** (comma-separated, e.g. `https://www.prayer-chat.com,https://prayer-chat.com`); otherwise leave it unset to use the default list.
+
+## Test payments (test mode)
+
+- **Test payment is not mocked** – It uses Stripe’s **test mode**: real Stripe API, **test** secret key (`sk_test_...`), and **test** cards (e.g. `4242 4242 4242 4242`). No real money is charged. The flow (checkout → webhook → subscription active) is the same as production.
+- **Use test mode for development**: In Stripe Dashboard, turn **Test mode** on (top-right). Create a **test** webhook and use its **Signing secret** for `STRIPE_WEBHOOK_SECRET` so the backend receives events. Use **test** Price IDs and `sk_test_...` so the account page updates to the paid plan after payment.
+- **Security**: Never use **live** keys or **live** webhook secret when testing. Keep test and live credentials separate; only use live keys and live webhook in production.
 
 ## Notes
 

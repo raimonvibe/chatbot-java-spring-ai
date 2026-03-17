@@ -422,6 +422,33 @@ public class StripeService {
         return "resource_missing".equals(code) && msg.contains("No such customer");
     }
 
+    /** Stripe subscription ID format (sub_xxx) to avoid passing arbitrary strings to Stripe.retrieve(). */
+    private static final java.util.regex.Pattern STRIPE_SUBSCRIPTION_ID = java.util.regex.Pattern.compile("^sub_[a-zA-Z0-9]{14,}$");
+
+    /**
+     * Handle checkout.session.completed: sync subscription from Stripe so the user sees active plan
+     * without relying on customer.subscription.created (which may be delayed or not configured).
+     * Security: only process subscription-mode sessions; validate subscription ID format before retrieve.
+     */
+    public void handleCheckoutSessionCompleted(Session session) throws StripeException {
+        if (session == null) return;
+        Object subRef = session.getSubscription();
+        if (subRef == null) return;
+        com.stripe.model.Subscription stripeSubscription;
+        if (subRef instanceof com.stripe.model.Subscription) {
+            stripeSubscription = (com.stripe.model.Subscription) subRef;
+        } else {
+            String subscriptionId = subRef.toString().trim();
+            if (subscriptionId.isEmpty() || !STRIPE_SUBSCRIPTION_ID.matcher(subscriptionId).matches()) {
+                logger.warn("Checkout session completed with invalid or missing subscription ID format, skipping");
+                return;
+            }
+            stripeSubscription = com.stripe.model.Subscription.retrieve(subscriptionId);
+        }
+        handleSubscriptionCreated(stripeSubscription);
+        logger.info("Synced subscription from checkout.session.completed for subscription: {}", stripeSubscription.getId());
+    }
+
     /**
      * Handle successful subscription creation
      */

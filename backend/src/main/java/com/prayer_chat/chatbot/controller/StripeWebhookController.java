@@ -4,6 +4,7 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
+import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.prayer_chat.chatbot.service.SecurityAlertService;
 import com.prayer_chat.chatbot.service.StripeService;
@@ -23,13 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Controller for handling Stripe webhook events
+ * Controller for handling Stripe webhook events.
+ * Security: (1) Signature verification (Webhook.constructEvent) prevents forgery and rejects replayed payloads
+ * outside Stripe's timestamp tolerance. (2) Event ID deduplication prevents duplicate processing. (3) Optional
+ * IP allowlist adds defense in depth. Never log raw payload or webhook secret.
  */
 @RestController
 @RequestMapping("/stripe")
 public class StripeWebhookController {
 
     private static final Logger logger = LoggerFactory.getLogger(StripeWebhookController.class);
+
+    /** Max length for event ID to avoid memory exhaustion in dedup map. Stripe IDs are short (e.g. evt_xxx). */
+    private static final int MAX_EVENT_ID_LENGTH = 255;
 
     @Value("${stripe.webhook-secret}")
     private String webhookSecret;
@@ -109,11 +116,13 @@ public class StripeWebhookController {
         }
 
         // Idempotency: do not process the same event twice (replay or Stripe retry).
-        // We return 200 so Stripe stops retrying. In-memory map is atomic per key but under high
-        // concurrency two requests can both pass the check before either writes; for production
-        // at scale consider a DB table with UNIQUE(event_id) and insert-before-process.
+        // We return 200 so Stripe stops retrying. Cap event ID length to avoid unbounded map keys.
         String eventId = event.getId();
         if (eventId != null && !eventId.isBlank()) {
+            if (eventId.length() > MAX_EVENT_ID_LENGTH) {
+                logger.warn("Stripe webhook event ID too long, rejecting");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid event id");
+            }
             if (processedEventIds().putIfAbsent(eventId, System.currentTimeMillis()) != null) {
                 logger.info("Stripe webhook event already processed, skipping: {}", eventId);
                 return ResponseEntity.ok("Webhook received");
@@ -134,6 +143,17 @@ public class StripeWebhookController {
 
         try {
             switch (event.getType()) {
+                case "checkout.session.completed":
+                    Session checkoutSession = (Session) stripeObject;
+                    // Only process subscription checkouts; ignore one-time payment sessions
+                    if ("subscription".equals(checkoutSession.getMode())) {
+                        stripeService.handleCheckoutSessionCompleted(checkoutSession);
+                        logger.info("Handled checkout.session.completed event");
+                    } else {
+                        logger.debug("Ignoring checkout.session.completed for non-subscription mode: {}", checkoutSession.getMode());
+                    }
+                    break;
+
                 case "customer.subscription.created":
                     com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
                     stripeService.handleSubscriptionCreated(subscription);
