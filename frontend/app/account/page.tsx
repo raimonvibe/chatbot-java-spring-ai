@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -51,6 +51,7 @@ function AccountPageContent() {
   const [embedCode, setEmbedCode] = useState<string | null>(null);
   const [embedLoading, setEmbedLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const embedSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -72,22 +73,36 @@ function AccountPageContent() {
     load();
   }, [router]);
 
-  // After payment redirect: refetch subscription once (webhook may have just run) and show success message
+  // After payment redirect: refetch subscription (webhook may have just run), show success message, scroll to embed section
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const payment = searchParams.get('payment');
     if (!sessionId && payment !== 'success') return;
     if (payment === 'success') setPaymentSuccess(true);
-    const t = setTimeout(async () => {
+    const refetch = async () => {
       try {
         const sub = await getSubscriptionStatusFromApi();
         setSubscription(sub ?? 'error');
       } catch {
         // keep current state
       }
-    }, 1500);
-    return () => clearTimeout(t);
+    };
+    const t1 = setTimeout(refetch, 1500);
+    const t2 = setTimeout(refetch, 5000); // second refetch in case webhook was slow
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [searchParams]);
+
+  // Scroll to embed section when we landed after payment so user sees where to get the script
+  useEffect(() => {
+    if (!paymentSuccess || !embedSectionRef.current) return;
+    const t = setTimeout(() => {
+      embedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [paymentSuccess, subscription]);
 
   useEffect(() => {
     if (subscription && subscription !== 'error' && subscription.canUseChatbot) {
@@ -176,7 +191,7 @@ function AccountPageContent() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 rounded-xl bg-emerald-900/40 border border-emerald-700/60 text-emerald-100 px-4 py-3 flex items-center justify-between gap-3"
           >
-            <span>Payment successful. Get your embed code in &quot;Share your chatbot&quot; below.</span>
+            <span>Payment successful. Scroll down to &quot;Share your chatbot&quot; to get your embed code and how to use it.</span>
             <button
               type="button"
               onClick={() => setPaymentSuccess(false)}
@@ -290,9 +305,10 @@ function AccountPageContent() {
           </div>
         </motion.section>
 
-        {/* Embed code — only for paid subscribers */}
-        {subscription && subscription !== 'error' && subscription.canUseChatbot && (
+        {/* Embed code — show for paid subscribers, or when user just paid (so they see where to get it) */}
+        {(subscription && subscription !== 'error' && subscription.canUseChatbot) || paymentSuccess ? (
           <motion.section
+            ref={embedSectionRef}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.12 }}
@@ -302,15 +318,15 @@ function AccountPageContent() {
               <div className="p-2 rounded-xl bg-brown-700/80">
                 <Code className="w-6 h-6 text-gold-300" />
               </div>
-              <h2 className="text-xl font-semibold text-brown-100">Share your chatbot</h2>
+              <h2 className="text-xl font-semibold text-brown-100">Share your chatbot — get embed code & how to use it</h2>
             </div>
             <p className="text-brown-300 text-sm mb-4">
               Put your chatbot on your website so visitors can ask questions. As we&apos;re called to share the good news, this script brings a gentle, Christ-centered presence to your site.
             </p>
             <p className="text-brown-400 text-xs mb-4">
-              Paste the code just before the closing <code className="bg-brown-900/60 px-1 rounded">&lt;/body&gt;</code> tag of your page. A chat button will appear; visitors can click to open the conversation.
+              <strong>How to use:</strong> Paste the code below just before the closing <code className="bg-brown-900/60 px-1 rounded">&lt;/body&gt;</code> tag of your page. A chat button will appear; visitors can click to open the conversation.
             </p>
-            {chatbots.length > 0 ? (
+            {subscription && subscription !== 'error' && subscription.canUseChatbot ? chatbots.length > 0 ? (
               <div className="space-y-3">
                 <label className="text-sm text-brown-400 block">Choose a chatbot</label>
                 <select
@@ -373,9 +389,20 @@ function AccountPageContent() {
               >
                 Create a chatbot and get embed code <ExternalLink className="w-4 h-4" />
               </Link>
+            ) : (
+              <div className="rounded-xl bg-brown-900/60 border border-brown-600 p-4 text-brown-200 text-sm">
+                <p className="font-medium text-gold-200 mb-2">Your subscription is activating…</p>
+                <p className="mb-3">If the embed code does not appear in a few seconds, refresh this page or go to the Dashboard to create a chatbot and get your embed code.</p>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium hover:from-gold-600 hover:to-gold-700"
+                >
+                  Open Dashboard to create chatbot & get embed code <ExternalLink className="w-4 h-4" />
+                </Link>
+              </div>
             )}
           </motion.section>
-        )}
+        ) : null}
 
         {/* Security & session */}
         <motion.section
