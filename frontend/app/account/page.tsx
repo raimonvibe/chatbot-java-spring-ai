@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -28,7 +28,18 @@ import {
   type Chatbot,
 } from '@/lib/api';
 
-export default function AccountPage() {
+function AccountPageFallback() {
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-brown-900 via-brown-800 to-brown-900 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-brown-100">
+        <Loader2 className="w-10 h-10 animate-spin" />
+        <p className="text-brown-200">Loading account…</p>
+      </div>
+    </main>
+  );
+}
+
+function AccountPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -438,5 +449,13 @@ export default function AccountPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<AccountPageFallback />}>
+      <AccountPageContent />
+    </Suspense>
   );
 }
