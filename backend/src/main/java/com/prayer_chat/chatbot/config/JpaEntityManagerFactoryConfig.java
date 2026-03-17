@@ -1,20 +1,40 @@
 package com.prayer_chat.chatbot.config;
 
-import jakarta.persistence.EntityManagerFactory;
-import org.springframework.context.annotation.Bean;
+import java.util.Arrays;
+
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Exposes the primary EntityManagerFactory under the bean name
- * "jpaSharedEM_entityManagerFactory" so that Spring Data JPA repository beans
- * that resolve this name (e.g. when Spring Session JDBC and JPA are both active
- * on Render) can find the EMF and the application starts successfully.
+ * Registers an alias so that the primary JPA EntityManagerFactory bean
+ * ("entityManagerFactory", created by Spring Boot auto-configuration) is also
+ * visible under the name "jpaSharedEM_entityManagerFactory".
+ *
+ * This avoids startup failures in tests or environments where repository
+ * configuration still tries to resolve "jpaSharedEM_entityManagerFactory",
+ * without creating a second EntityManagerFactory bean or changing security
+ * behavior.
  */
 @Configuration
-public class JpaEntityManagerFactoryConfig {
+public class JpaEntityManagerFactoryConfig implements BeanFactoryPostProcessor {
 
-    @Bean(name = "jpaSharedEM_entityManagerFactory")
-    public EntityManagerFactory jpaSharedEMEntityManagerFactory(EntityManagerFactory entityManagerFactory) {
-        return entityManagerFactory;
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        if (!beanFactory.containsBeanDefinition("entityManagerFactory")) {
+            return;
+        }
+
+        // If an explicit jpaSharedEM_entityManagerFactory bean/alias already exists, don't override it.
+        if (beanFactory.containsBeanDefinition("jpaSharedEM_entityManagerFactory")) {
+            return;
+        }
+
+        String[] aliases = beanFactory.getAliases("entityManagerFactory");
+        boolean alreadyAliased = Arrays.asList(aliases).contains("jpaSharedEM_entityManagerFactory");
+        if (!alreadyAliased) {
+            beanFactory.registerAlias("entityManagerFactory", "jpaSharedEM_entityManagerFactory");
+        }
     }
 }
