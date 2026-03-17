@@ -74,3 +74,20 @@ All from the **visitor’s IP**, with **Origin** = the site where the script is 
 | Visitor sends message | Customer’s site | POST your-server/api/chat/{id} with message + sessionId |
 
 So **yes, the script works when embedded** on any site. Widget traffic is allowed from any origin; the rest of the app still uses the strict CORS list.
+
+---
+
+## Troubleshooting: Widget not visible on my site
+
+If you pasted the embed code but the chat button does not appear:
+
+1. **Open the browser console** (F12 → Console). Look for:
+   - **Blocked script** – Your site’s **Content-Security-Policy** may be blocking the widget script or API calls. Add your backend URL to:
+     - `script-src` (e.g. `https://chatbot-backend-4mp4.onrender.com`)
+     - `connect-src` (so the widget can call `/api/chat/...`)
+   - **404** – The script URL may be wrong. Ensure it matches your backend (e.g. `https://your-backend.onrender.com/js/chatbot-widget.js`).
+   - **CORS or network errors** – The backend allows any origin for `/api/chat/**` and `/js/**`; if you use a proxy or custom domain, ensure it forwards requests correctly.
+
+2. **Place the snippet** just before `</body>` so the placeholder `<div>` is in the DOM when the script runs.
+
+3. **HTTPS** – Use `https://` in the script and API URLs when your site is on HTTPS.

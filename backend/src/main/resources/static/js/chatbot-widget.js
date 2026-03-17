@@ -181,8 +181,12 @@
         widgetContainer.appendChild(chatContainer);
         widgetContainer.appendChild(toggleButton);
         
-        // Add to page
-        document.body.appendChild(widgetContainer);
+        // Mount in placeholder div if present (so widget appears where the user placed the embed), else body
+        const placeholderId = 'prayer-chat-chatbot-' + config.chatbotId;
+        const placeholderById = document.getElementById(placeholderId);
+        const placeholderByData = document.querySelector('[data-chatbot-id="' + config.chatbotId + '"]');
+        const mountPoint = placeholderById || placeholderByData || document.body;
+        mountPoint.appendChild(widgetContainer);
         
         // Get references to interactive elements
         inputField = document.getElementById('prayer-chat-message-input');
