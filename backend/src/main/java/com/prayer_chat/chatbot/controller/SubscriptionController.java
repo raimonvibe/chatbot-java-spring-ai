@@ -226,19 +226,19 @@ public class SubscriptionController {
         } catch (Exception e) {
             return false;
         }
+        if (uri.getUserInfo() != null && !uri.getUserInfo().isEmpty()) return false;
         String scheme = uri.getScheme();
         if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))) {
             return false;
         }
         String host = uri.getHost();
-        if (host == null || host.isBlank()) {
-            return false;
-        }
+        if (host == null || host.isBlank()) return false;
+        if (!isValidHostForRedirect(host)) return false;
         if (allowedOrigins == null || allowedOrigins.isBlank()) {
             return ("http".equalsIgnoreCase(scheme) && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host)));
         }
         for (String origin : allowedOrigins.split(",")) {
-            String base = origin.trim();
+            String base = origin.trim().replace("\r", "").replace("\n", "");
             if (base.isEmpty()) continue;
             try {
                 java.net.URI baseUri = java.net.URI.create(base);
@@ -248,17 +248,23 @@ public class SubscriptionController {
                 if (basePath == null) basePath = "";
                 String path = uri.getPath();
                 if (path == null) path = "";
-                if (basePath.isEmpty() || basePath.equals("/")) {
-                    return true;
-                }
-                if (path.equals(basePath) || path.startsWith(basePath + "/")) {
-                    return true;
-                }
+                if (basePath.isEmpty() || basePath.equals("/")) return true;
+                if (path.equals(basePath) || path.startsWith(basePath + "/")) return true;
             } catch (Exception ignored) {
                 continue;
             }
         }
         return false;
+    }
+
+    private static boolean isValidHostForRedirect(String host) {
+        if (host == null || host.isEmpty()) return false;
+        for (int i = 0; i < host.length(); i++) {
+            char c = host.charAt(i);
+            if (c <= 32 || c >= 127) return false;
+            if (c == '/' || c == '\\' || c == '@' || c == '?' || c == '#' || c == '[' || c == ']') return false;
+        }
+        return true;
     }
 
     /**

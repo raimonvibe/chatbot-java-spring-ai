@@ -309,45 +309,46 @@ public class AuthController {
     }
 
     /**
-     * Security: Validate redirect URI to prevent open redirect attacks
-     * Only allow redirect URIs that match allowed origins
+     * Security: Validate redirect URI to prevent open redirect attacks.
+     * Only allow redirect URIs whose host exactly matches an allowed origin (no subdomain bypass).
      */
     private boolean isValidRedirectUri(String redirectUri) {
         if (redirectUri == null || redirectUri.trim().isEmpty()) {
             return false;
         }
+        String trimmed = redirectUri.trim();
+        if (trimmed.length() > 2048) return false;
 
-        // Security: Must be HTTPS in production (except localhost)
-        if (!redirectUri.startsWith("http://localhost") && 
-            !redirectUri.startsWith("http://127.0.0.1") &&
-            !redirectUri.startsWith("https://")) {
+        if (!trimmed.startsWith("http://localhost") && !trimmed.startsWith("http://127.0.0.1") && !trimmed.startsWith("https://")) {
             return false;
         }
+        if (!trimmed.contains("/auth/callback")) return false;
 
-        // Security: Validate against allowed origins
+        java.net.URI redirectUriParsed;
+        try {
+            redirectUriParsed = java.net.URI.create(trimmed);
+        } catch (Exception e) {
+            return false;
+        }
+        String redirectHost = redirectUriParsed.getHost();
+        if (redirectHost == null || redirectHost.isBlank()) return false;
+        if (redirectUriParsed.getUserInfo() != null && !redirectUriParsed.getUserInfo().isEmpty()) return false;
+
         if (allowedOrigins == null || allowedOrigins.trim().isEmpty()) {
-            // Fallback: Allow localhost for development
-            return redirectUri.startsWith("http://localhost") || redirectUri.startsWith("http://127.0.0.1");
+            return "localhost".equalsIgnoreCase(redirectHost) || "127.0.0.1".equals(redirectHost);
         }
 
-        String[] origins = allowedOrigins.split(",");
-        for (String origin : origins) {
-            String trimmedOrigin = origin.trim();
-            if (trimmedOrigin.isEmpty()) continue;
-
-            // Remove protocol if present for comparison
-            String originWithoutProtocol = trimmedOrigin.replaceFirst("^https?://", "");
-            String redirectWithoutProtocol = redirectUri.replaceFirst("^https?://", "");
-
-            // Check if redirect URI starts with allowed origin
-            if (redirectWithoutProtocol.startsWith(originWithoutProtocol)) {
-                // Additional check: ensure it's the callback path
-                if (redirectWithoutProtocol.contains("/auth/callback")) {
-                    return true;
-                }
+        for (String origin : allowedOrigins.split(",")) {
+            String base = origin.trim();
+            if (base.isEmpty()) continue;
+            try {
+                java.net.URI originUri = java.net.URI.create(base);
+                String originHost = originUri.getHost();
+                if (originHost != null && originHost.equalsIgnoreCase(redirectHost)) return true;
+            } catch (Exception ignored) {
+                continue;
             }
         }
-
         return false;
     }
 

@@ -25,16 +25,22 @@ const mockCreatePortalSession = jest.fn();
 const mockGetAllChatbots = jest.fn();
 const mockGetEmbedCode = jest.fn();
 
-// Avoid "Not implemented: navigation" when Manage subscription sets window.location.href
+// Mock location to avoid "Not implemented: navigation" when Manage subscription sets window.location.href.
 const locationMock = { href: '', assign: jest.fn() };
 beforeAll(() => {
-  // @ts-expect-error - replace location so assigning href doesn't trigger jsdom navigation
-  delete (window as unknown as { location?: unknown }).location;
-  (window as unknown as { location: typeof locationMock }).location = locationMock;
+  try {
+    delete (window as unknown as { location?: unknown }).location;
+    Object.defineProperty(window, 'location', { value: locationMock, writable: true, configurable: true });
+  } catch {
+    // location not configurable; tests that set location.href may log a navigation error
+  }
 });
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn(), pathname: '/account', prefetch: jest.fn() }),
+  useSearchParams: () => ({
+    get: jest.fn((_key: string) => null),
+  }),
 }));
 
 jest.mock('@/lib/api', () => ({

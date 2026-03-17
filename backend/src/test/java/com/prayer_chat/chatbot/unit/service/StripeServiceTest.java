@@ -488,6 +488,14 @@ class StripeServiceTest {
     }
 
     @Test
+    @DisplayName("SECURITY: isAllowedRedirectUrl rejects URL with userinfo (user@host bypass)")
+    void security_isAllowedRedirectUrl_rejectsUserinfo() {
+        ReflectionTestUtils.setField(stripeService, "allowedRedirectOrigins", "https://www.prayer-chat.com");
+        assertThat(stripeService.isAllowedRedirectUrl("https://evil@www.prayer-chat.com/account")).isFalse();
+        assertThat(stripeService.isAllowedRedirectUrl("https://user:pass@www.prayer-chat.com/account")).isFalse();
+    }
+
+    @Test
     @DisplayName("SECURITY: validateRedirectUrls throws when success URL not in allowed origins")
     void security_validateRedirectUrls_throwsWhenSuccessUrlNotAllowed() throws Exception {
         ReflectionTestUtils.setField(stripeService, "stripeApiKey", "sk_test_xxx");

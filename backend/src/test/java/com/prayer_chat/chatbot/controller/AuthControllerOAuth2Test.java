@@ -244,6 +244,21 @@ class AuthControllerOAuth2Test {
     }
 
     @Test
+    @DisplayName("SECURITY: Reject redirect URI subdomain bypass (www.prayer-chat.com.evil.com)")
+    void security_rejectRedirectUriSubdomainBypass() throws Exception {
+        Map<String, String> request = Map.of(
+                "code", validCode,
+                "redirect_uri", "https://www.prayer-chat.com.evil.com/auth/callback"
+        );
+
+        mockMvc.perform(post("/api/auth/oauth2/callback")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
     @DisplayName("Should reject request with HTTP redirect URI in production (non-localhost)")
     void shouldRejectHttpRedirectUriInProduction() throws Exception {
         Map<String, String> request = Map.of(

@@ -95,13 +95,32 @@ public class StripeService {
         if (successUrl == null || successUrl.isBlank() || cancelUrl == null || cancelUrl.isBlank()) {
             throw new IllegalStateException("Stripe success-url and cancel-url must be set when Stripe is configured.");
         }
-        if (!isAllowedRedirectUrl(successUrl)) {
+        String effectiveOrigins = (allowedRedirectOrigins == null || allowedRedirectOrigins.isBlank())
+            ? "http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com" : allowedRedirectOrigins.trim();
+        if (!isAllowedRedirectUrl(successUrl, effectiveOrigins)) {
+            String host = getHostFromUrl(successUrl);
             throw new IllegalStateException(
-                "Stripe success-url must point to an allowed origin. Set STRIPE_SUCCESS_URL to your app domain (e.g. https://www.prayer-chat.com/account?payment=success&session_id={CHECKOUT_SESSION_ID}) and STRIPE_ALLOWED_REDIRECT_ORIGINS to match.");
+                "Stripe success-url host [" + host + "] is not in STRIPE_ALLOWED_REDIRECT_ORIGINS. "
+                    + "Set STRIPE_ALLOWED_REDIRECT_ORIGINS to a comma-separated list including your app host (e.g. https://www.prayer-chat.com). "
+                    + "Current allowed origins: " + effectiveOrigins);
         }
-        if (!isAllowedRedirectUrl(cancelUrl)) {
+        if (!isAllowedRedirectUrl(cancelUrl, effectiveOrigins)) {
+            String host = getHostFromUrl(cancelUrl);
             throw new IllegalStateException(
-                "Stripe cancel-url must point to an allowed origin. Set STRIPE_CANCEL_URL to your app domain and STRIPE_ALLOWED_REDIRECT_ORIGINS to match.");
+                "Stripe cancel-url host [" + host + "] is not in STRIPE_ALLOWED_REDIRECT_ORIGINS. "
+                    + "Set STRIPE_ALLOWED_REDIRECT_ORIGINS to include your app host. Current allowed origins: " + effectiveOrigins);
+        }
+    }
+
+    private static String getHostFromUrl(String url) {
+        if (url == null || url.isBlank()) return "(empty)";
+        String normalized = url.trim().replace("{CHECKOUT_SESSION_ID}", "cs_test");
+        try {
+            java.net.URI uri = java.net.URI.create(normalized);
+            String host = uri.getHost();
+            return host != null ? host : "(no host)";
+        } catch (Exception e) {
+            return "(invalid URL)";
         }
     }
 
@@ -110,6 +129,10 @@ public class StripeService {
      * Used at startup to validate success/cancel URLs; exposed for tests.
      */
     public boolean isAllowedRedirectUrl(String url) {
+        return isAllowedRedirectUrl(url, allowedRedirectOrigins);
+    }
+
+    private static boolean isAllowedRedirectUrl(String url, String allowedOrigins) {
         if (url == null || url.isBlank()) return false;
         String normalized = url.trim().replace("{CHECKOUT_SESSION_ID}", "cs_test");
         String lower = normalized.toLowerCase();
@@ -122,17 +145,19 @@ public class StripeService {
         } catch (Exception e) {
             return false;
         }
+        if (uri.getUserInfo() != null && !uri.getUserInfo().isEmpty()) return false;
         String scheme = uri.getScheme();
         if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))) {
             return false;
         }
         String host = uri.getHost();
         if (host == null || host.isBlank()) return false;
-        if (allowedRedirectOrigins == null || allowedRedirectOrigins.isBlank()) {
+        if (!isValidHost(host)) return false;
+        if (allowedOrigins == null || allowedOrigins.isBlank()) {
             return "http".equalsIgnoreCase(scheme) && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host));
         }
-        for (String origin : allowedRedirectOrigins.split(",")) {
-            String base = origin.trim();
+        for (String origin : allowedOrigins.split(",")) {
+            String base = origin.trim().replace("\r", "").replace("\n", "");
             if (base.isEmpty()) continue;
             try {
                 java.net.URI baseUri = java.net.URI.create(base);
@@ -143,6 +168,17 @@ public class StripeService {
             }
         }
         return false;
+    }
+
+    /** Reject hosts with control chars or unexpected content that could indicate bypass attempts. */
+    private static boolean isValidHost(String host) {
+        if (host == null || host.isEmpty()) return false;
+        for (int i = 0; i < host.length(); i++) {
+            char c = host.charAt(i);
+            if (c <= 32 || c >= 127) return false;
+            if (c == '/' || c == '\\' || c == '@' || c == '?' || c == '#' || c == '[' || c == ']') return false;
+        }
+        return true;
     }
 
     /**
