@@ -44,31 +44,53 @@
     }
     
     /**
+     * Show a visible error in the placeholder or on the page (so user knows embed failed).
+     * Security: uses textContent only (no innerHTML) so message is never interpreted as HTML.
+     * Callers must pass a safe string; only hardcoded messages are used in this script.
+     */
+    function showEmbedError(message) {
+        try {
+            var placeholderId = 'prayer-chat-chatbot-' + (config && config.chatbotId);
+            var el = (placeholderId && document.getElementById(placeholderId)) || document.querySelector('[data-chatbot-id="' + (config && config.chatbotId) + '"]');
+            if (!el) el = document.body;
+            var p = document.createElement('p');
+            p.style.cssText = 'padding:12px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;font-family:sans-serif;font-size:14px;margin:8px;';
+            p.textContent = (typeof message === 'string' ? message : null) || 'Chat failed to load. Open console (F12) for details.';
+            el.appendChild(p);
+        } catch (e) {
+            console.error('PrayerChat embed error:', e);
+        }
+    }
+
+    /**
      * Initialize the chatbot widget
      */
     function init(options) {
-        config = Object.assign(config, options);
-        
-        if (!config.chatbotId) {
-            console.error('PrayerChat Chatbot: chatbotId is required');
+        try {
+            config = Object.assign(config, options || {});
+        } catch (e) {
+            console.error('PrayerChat Chatbot: invalid options', e);
+            showEmbedError('Chat config error. Check console (F12).');
             return;
         }
-        
-        ensureFontAwesome();
-        
-        // Generate session ID using cryptographically secure random values
-        const randomValues = new Uint8Array(16);
-        crypto.getRandomValues(randomValues);
-        const randomString = Array.from(randomValues, byte => byte.toString(16).padStart(2, '0')).join('');
-        sessionId = 'session_' + Date.now() + '_' + randomString;
-        
-        // Create widget
-        createWidget();
-        
-        // Load chatbot configuration
-        loadChatbotConfig();
-        
-        console.log('PrayerChat Chatbot initialized:', config);
+        if (!config.chatbotId) {
+            console.error('PrayerChat Chatbot: chatbotId is required');
+            showEmbedError('Chat: chatbotId is required.');
+            return;
+        }
+        try {
+            ensureFontAwesome();
+            var randomValues = new Uint8Array(16);
+            crypto.getRandomValues(randomValues);
+            var randomString = Array.from(randomValues, function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+            sessionId = 'session_' + Date.now() + '_' + randomString;
+            createWidget();
+            loadChatbotConfig();
+            console.log('PrayerChat Chatbot initialized:', config);
+        } catch (e) {
+            console.error('PrayerChat Chatbot init error:', e);
+            showEmbedError('Chat failed to start. Open console (F12) for details.');
+        }
     }
     
     /**
@@ -119,7 +141,7 @@
                     AI Assistant
                 </h6>
             </div>
-            <button id="prayer-chat-close-btn" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
+            <button type="button" id="prayer-chat-close-btn" name="prayer-chat-close" aria-label="Close chat" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">
                 <i class="fas fa-times"></i>
             </button>
         `;
@@ -144,9 +166,9 @@
         `;
         inputArea.innerHTML = `
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="prayer-chat-message-input" placeholder="Type your message..." 
-                       style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
-                <button id="prayer-chat-send-btn" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                <input type="text" id="prayer-chat-message-input" name="prayer-chat-message" placeholder="Type your message..." 
+                       aria-label="Chat message" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
+                <button type="button" id="prayer-chat-send-btn" name="prayer-chat-send" aria-label="Send message" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -154,7 +176,9 @@
         
         // Create toggle button
         toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
         toggleButton.id = 'prayer-chat-toggle-btn';
+        toggleButton.name = 'prayer-chat-toggle';
         toggleButton.style.cssText = `
             width: 60px;
             height: 60px;

@@ -82,11 +82,25 @@ So **yes, the script works when embedded** on any site. Widget traffic is allowe
 If you pasted the embed code but the chat button does not appear:
 
 1. **Open the browser console** (F12 → Console). Look for:
-   - **Blocked script** – Your site’s **Content-Security-Policy** may be blocking the widget script or API calls. Add your backend URL to:
-     - `script-src` (e.g. `https://chatbot-backend-4mp4.onrender.com`)
-     - `connect-src` (so the widget can call `/api/chat/...`)
+   - **Blocked script** – Your site’s **Content-Security-Policy (CSP)** may be blocking the widget. See below for what to add.
    - **404** – The script URL may be wrong. Ensure it matches your backend (e.g. `https://your-backend.onrender.com/js/chatbot-widget.js`).
    - **CORS or network errors** – The backend allows any origin for `/api/chat/**` and `/js/**`; if you use a proxy or custom domain, ensure it forwards requests correctly.
+
+### Why add CSP for the embed?
+
+If your site sends a **Content-Security-Policy** header, the browser enforces where scripts and network requests can come from. The embed does two things that CSP can block:
+
+| CSP directive | What it controls | Why the widget needs it |
+|---------------|-------------------|--------------------------|
+| **script-src** | Where JavaScript files may be loaded from | The embed loads the widget from your backend, e.g. `https://chatbot-backend-4mp4.onrender.com/js/chatbot-widget.js`. If that origin is not in `script-src`, the browser blocks the script and the chat never runs. |
+| **connect-src** | Where the page can send `fetch()` / XHR requests | After the script loads, the widget calls your API (e.g. `GET /api/chat/embed/3`, `POST /api/chat/3`). Those requests go to the same backend origin. If that origin is not in `connect-src`, the browser blocks the requests and the chat can’t load config or send messages. |
+
+**What to add:** Include your backend origin (no path) in both directives, for example:
+
+- `script-src ... https://chatbot-backend-4mp4.onrender.com`
+- `connect-src ... https://chatbot-backend-4mp4.onrender.com`
+
+Use your real backend URL if it’s different. After redeploying your site with the updated CSP, the widget should load and work.
 
 2. **Place the snippet** just before `</body>` so the placeholder `<div>` is in the DOM when the script runs.
 
