@@ -32,6 +32,18 @@
     let toggleButton = null;
     
     /**
+     * Ensure Font Awesome is loaded so icons display on any host site
+     */
+    function ensureFontAwesome() {
+        if (document.querySelector('link[href*="fontawesome"]') || document.querySelector('link[href*="font-awesome"]')) return;
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+    }
+    
+    /**
      * Initialize the chatbot widget
      */
     function init(options) {
@@ -41,6 +53,8 @@
             console.error('PrayerChat Chatbot: chatbotId is required');
             return;
         }
+        
+        ensureFontAwesome();
         
         // Generate session ID using cryptographically secure random values
         const randomValues = new Uint8Array(16);
@@ -65,10 +79,10 @@
         widgetContainer = document.createElement('div');
         widgetContainer.id = 'prayer-chat-chatbot-widget';
         widgetContainer.style.cssText = `
-            position: fixed;
+            position: fixed !important;
             ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
             ${config.position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
-            z-index: 9999;
+            z-index: 2147483647;
             font-family: ${config.fontFamily};
         `;
         
@@ -100,7 +114,7 @@
         `;
         header.innerHTML = `
             <div>
-                <h6 style="margin: 0; font-weight: 600;">
+                <h6 id="prayer-chat-widget-title" style="margin: 0; font-weight: 600;">
                     <i class="fas fa-robot" style="margin-right: 8px;"></i>
                     AI Assistant
                 </h6>
@@ -156,7 +170,8 @@
             font-size: 24px;
             transition: all 0.3s ease;
         `;
-        toggleButton.innerHTML = '<i class="fas fa-comments"></i>';
+        toggleButton.innerHTML = '<i class="fas fa-comments" aria-hidden="true"></i><span class="prayer-chat-btn-label" style="display:none;">Chat</span>';
+        toggleButton.setAttribute('aria-label', 'Open chat');
         
         // Assemble widget
         chatContainer.appendChild(header);

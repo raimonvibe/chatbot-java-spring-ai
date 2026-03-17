@@ -18,7 +18,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 /**
  * Security tests for the public embed config endpoint GET /api/chat/embed/{id}.
@@ -135,5 +138,22 @@ class ChatControllerEmbedSecurityTest {
 
         ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("999");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("SECURITY: Embed path longer than 255 returns 400 (DoS prevention)")
+    void embedPathTooLongReturns400() {
+        String longId = "a".repeat(256);
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode(longId);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(chatbotRepository, never()).findById(any());
+        verify(chatbotRepository, never()).findByEmbedCode(any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: Embed path empty or blank returns 400")
+    void embedPathEmptyReturns400() {
+        assertThat(chatController.getChatbotByEmbedCode("").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(chatController.getChatbotByEmbedCode("   ").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

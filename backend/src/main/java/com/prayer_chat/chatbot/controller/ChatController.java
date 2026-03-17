@@ -8,6 +8,9 @@ import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -18,10 +21,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * REST Controller for chat interactions
@@ -30,9 +35,15 @@ import java.util.UUID;
 @RequestMapping("/api/chat")
 @Validated
 public class ChatController {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
-    
+
+    /** Per-IP per-chatbot limit for embed chat: 30 messages per hour to prevent one visitor from exhausting quota. */
+    private static final int EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT = 30;
+    private static final Duration EMBED_CHAT_REFILL_PERIOD = Duration.ofHours(1);
+
+    private final Map<String, Bucket> embedChatBuckets = new ConcurrentHashMap<>();
+
     private final AiChatbotService aiChatbotService;
     private final ChatbotRepository chatbotRepository;
     private final RateLimitingService rateLimitingService;
@@ -74,15 +85,28 @@ public class ChatController {
                 ));
             }
             
+            // SECURITY: Per-IP per-chatbot rate limit (embed abuse prevention): one visitor cannot exhaust owner quota
+            String clientIp = getClientIpAddress(httpRequest);
+            String embedBucketKey = "embed:" + clientIp + ":" + chatbotId;
+            Bucket bucket = embedChatBuckets.computeIfAbsent(embedBucketKey, k -> Bucket.builder()
+                .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
+                .build());
+            if (!bucket.tryConsume(1)) {
+                logger.warn("Embed chat rate limit exceeded for IP {} chatbot {}", clientIp, chatbotId);
+                return ResponseEntity.status(429).body(Map.of(
+                    "error", "Too many messages. Please try again later."
+                ));
+            }
+
             // SECURITY: Check rate limit if chatbot has an owner
             // Note: Rate limiting is per chatbot owner, not per end-user sending messages
             // This prevents abuse by chatbot owners, not by end-users
             if (chatbot.getOwner() != null) {
                 User owner = chatbot.getOwner();
                 RateLimitingService.RateLimitResult rateLimitResult = rateLimitingService.checkMessageLimit(owner);
-                
+
                 if (!rateLimitResult.isAllowed()) {
-                    logger.warn("User {} attempted to send message but rate limit reached (current: {}, limit: {})", 
+                    logger.warn("User {} attempted to send message but rate limit reached (current: {}, limit: {})",
                         owner.getId(), rateLimitResult.getCurrent(), rateLimitResult.getLimit());
                     return ResponseEntity.status(429).body(Map.of(
                         "error", rateLimitResult.getErrorMessage(),
@@ -92,7 +116,7 @@ public class ChatController {
                     ));
                 }
             }
-            
+
             // Extract and validate request data
             String message = request.getMessage();
             String sessionId = request.getSessionId();
@@ -178,18 +202,29 @@ public class ChatController {
         }
     }
     
+    /** Max length for embed code or ID path variable to prevent DoS / abuse. */
+    private static final int MAX_EMBED_CODE_OR_ID_LENGTH = 255;
+
     /**
      * Get chatbot config for widget: by numeric ID (used by embed snippet) or by string embed code.
+     * Security: path length capped to prevent abuse; only active chatbots; response sanitized (EmbedSecurity).
      */
     @GetMapping("/embed/{embedCodeOrId}")
     public ResponseEntity<Map<String, Object>> getChatbotByEmbedCode(@PathVariable String embedCodeOrId) {
         try {
+            if (embedCodeOrId == null || embedCodeOrId.length() > MAX_EMBED_CODE_OR_ID_LENGTH) {
+                return ResponseEntity.badRequest().build();
+            }
+            String trimmed = embedCodeOrId.trim();
+            if (trimmed.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
             Optional<Chatbot> chatbotOpt;
             try {
-                Long id = Long.parseLong(embedCodeOrId);
+                Long id = Long.parseLong(trimmed);
                 chatbotOpt = chatbotRepository.findById(id);
             } catch (NumberFormatException e) {
-                chatbotOpt = chatbotRepository.findByEmbedCode(embedCodeOrId);
+                chatbotOpt = chatbotRepository.findByEmbedCode(trimmed);
             }
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
