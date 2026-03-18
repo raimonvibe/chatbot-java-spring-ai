@@ -97,7 +97,7 @@
      * Create the widget HTML structure
      */
     function createWidget() {
-        // Create main container
+        // Create main container (mobile overrides in injected <style> use 100dvw so it fits phone viewport)
         widgetContainer = document.createElement('div');
         widgetContainer.id = 'prayer-chat-chatbot-widget';
         widgetContainer.style.cssText = `
@@ -108,9 +108,10 @@
             font-family: ${config.fontFamily};
             max-width: calc(100vw - 24px);
             max-height: calc(100dvh - 24px);
+            box-sizing: border-box;
         `;
         
-        // Create chat container (sized for desktop; overridden to full viewport on mobile via CSS)
+        // Create chat container (sized for desktop; overridden to bottom sheet on mobile via CSS)
         chatContainer = document.createElement('div');
         chatContainer.id = 'prayer-chat-chat-container';
         chatContainer.style.cssText = `
@@ -126,6 +127,7 @@
             flex-direction: column;
             position: relative;
             box-sizing: border-box;
+            min-width: 0;
         `;
         
         // Create header
@@ -158,8 +160,10 @@
         messageContainer.style.cssText = `
             flex: 1;
             min-height: 0;
+            min-width: 0;
             padding: 15px;
             overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             background: #f8f9fa;
         `;
@@ -347,9 +351,11 @@
         const bubble = document.createElement('div');
         bubble.style.cssText = `
             max-width: 80%;
+            min-width: 0;
             padding: 10px 15px;
             border-radius: 18px;
             word-wrap: break-word;
+            overflow-wrap: break-word;
             ${type === 'user' 
                 ? `background: ${config.primaryColor}; color: white;` 
                 : 'background: white; color: #333; border: 1px solid #e0e0e0;'
@@ -481,16 +487,19 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
-        /* Mobile: bottom sheet (under half of screen), no full-screen; prevent right overflow */
+        /* Mobile: bottom sheet (bottom half of screen), fit viewport width — no horizontal overflow */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
-                left: auto !important;
-                right: max(12px, env(safe-area-inset-right)) !important;
-                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
                 top: auto !important;
-                max-width: calc(100vw - 24px) !important;
+                width: 100dvw !important;
+                max-width: 100dvw !important;
                 padding: 0 !important;
+                margin: 0 !important;
                 box-sizing: border-box !important;
+                overflow-x: hidden !important;
             }
             #prayer-chat-chat-container {
                 position: fixed !important;
@@ -498,27 +507,33 @@
                 left: 0 !important;
                 right: 0 !important;
                 top: auto !important;
-                width: 100% !important;
-                max-width: 100vw !important;
+                width: 100dvw !important;
+                max-width: 100dvw !important;
                 height: 72dvh !important;
                 max-height: 72dvh !important;
                 border-radius: 16px 16px 0 0 !important;
                 box-sizing: border-box !important;
                 overflow-x: hidden !important;
                 overflow-y: hidden !important;
+                margin: 0 !important;
             }
             #prayer-chat-chat-container #prayer-chat-messages {
                 overflow-y: auto !important;
+                overflow-x: hidden !important;
+                min-width: 0 !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
-                margin-left: auto;
-                margin-right: 0;
+                position: fixed !important;
+                right: max(12px, env(safe-area-inset-right)) !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                left: auto !important;
             }
             .prayer-chat-widget-header {
                 padding-top: max(15px, env(safe-area-inset-top)) !important;
             }
             .prayer-chat-input-area {
                 padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
+                box-sizing: border-box !important;
             }
         }
     `;
