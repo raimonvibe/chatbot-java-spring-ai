@@ -626,7 +626,9 @@ export default function Dashboard() {
                         merged.primaryColor = theme.primaryColor;
                         merged.secondaryColor = theme.secondaryColor;
                         if (theme.borderRadius) merged.borderRadius = theme.borderRadius;
+                        // Send full entity so backend @Valid passes (name, websiteUrl required); only brandingConfig is changed; values are preset-only (no user input).
                         const updated = await updateChatbot(chatbot.id, {
+                          ...chatbot,
                           brandingConfig: JSON.stringify(merged),
                         });
                         setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
