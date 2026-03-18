@@ -79,7 +79,7 @@ So **yes, the script works when embedded** on any site. Widget traffic is allowe
 
 ## Mobile / responsive behavior
 
-On viewports **≤ 768px**, the chat panel opens **full viewport** (covers the screen) so it stays within the window on phones and small tablets. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
+On viewports **≤ 768px**, the chat panel opens as a **bottom sheet** (about 72% of viewport height from the bottom), so it does not cover the whole screen and stays within the window; width is limited to the viewport so it never sticks out on the right. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
 
 ---
 

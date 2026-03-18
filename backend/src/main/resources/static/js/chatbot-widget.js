@@ -464,33 +464,34 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
-        /* Mobile: chat panel full viewport, toggle with safe insets */
+        /* Mobile: bottom sheet (under half of screen), no full-screen; prevent right overflow */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
+                left: auto !important;
+                right: max(12px, env(safe-area-inset-right)) !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
                 top: auto !important;
-                max-width: none;
-                max-height: none;
-                padding: 0;
-                padding-right: max(12px, env(safe-area-inset-right));
-                padding-bottom: max(12px, env(safe-area-inset-bottom));
-                padding-left: env(safe-area-inset-left);
-                box-sizing: border-box;
+                max-width: calc(100vw - 24px) !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
             }
             #prayer-chat-chat-container {
                 position: fixed !important;
-                top: 0 !important;
+                bottom: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
-                bottom: 0 !important;
+                top: auto !important;
                 width: 100% !important;
-                height: 100% !important;
-                max-width: none !important;
-                max-height: 100dvh !important;
-                border-radius: 0 !important;
-                box-sizing: border-box;
+                max-width: 100vw !important;
+                height: 72dvh !important;
+                max-height: 72dvh !important;
+                border-radius: 16px 16px 0 0 !important;
+                box-sizing: border-box !important;
+                overflow-x: hidden !important;
+                overflow-y: hidden !important;
+            }
+            #prayer-chat-chat-container #prayer-chat-messages {
+                overflow-y: auto !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
                 margin-left: auto;
