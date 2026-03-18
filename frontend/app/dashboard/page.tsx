@@ -364,7 +364,7 @@ export default function Dashboard() {
 
         {/* Mobile overview card (Option A) */}
         <section className="sm:hidden mb-6">
-          <div className="rounded-2xl border border-brown-300 bg-brown-50/80 shadow-sm p-4">
+          <div className="rounded-2xl border border-brown-100 bg-brown-50/80 shadow-sm p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wide text-brown-600 font-semibold">Overview</p>
@@ -462,7 +462,7 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-brown-200 max-w-xl mx-auto"
+            className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow p-8 mb-8 border border-brown-100 max-w-xl mx-auto"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -517,7 +517,7 @@ export default function Dashboard() {
                 key={chatbot.id}
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all border border-brown-200"
+                className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-sm p-6 hover:shadow transition-all border border-brown-100"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -669,7 +669,7 @@ export default function Dashboard() {
             onClick={() => setEmbedCode('')}
           >
             <div
-              className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border-2 border-brown-300 shadow-2xl my-auto"
+              className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border border-brown-200 shadow-lg my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 mb-2">
