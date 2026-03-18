@@ -442,19 +442,36 @@
      * Update widget styling based on branding
      */
     function updateWidgetStyling() {
-        // Update colors
-        const elements = [
-            { selector: '#prayer-chat-close-btn', style: 'color' },
-            { selector: '#prayer-chat-send-btn', style: 'background' },
-            { selector: '#prayer-chat-toggle-btn', style: 'background' }
-        ];
-        
-        elements.forEach(({ selector, style }) => {
-            const element = document.querySelector(selector);
-            if (element) {
-                element.style[style] = config.primaryColor;
-            }
-        });
+        // Apply branding after config loads.
+        // Security: we only set styles from the sanitized brandingConfig we already validated server-side.
+        const header = document.querySelector('.prayer-chat-widget-header');
+        if (header) header.style.background = config.primaryColor;
+
+        const chatContainerEl = document.getElementById('prayer-chat-chat-container');
+        if (chatContainerEl && config.borderRadius) {
+            chatContainerEl.style.borderRadius = config.borderRadius;
+        }
+
+        const inputAreaEl = document.querySelector('.prayer-chat-input-area');
+        if (inputAreaEl && config.borderRadius) {
+            // Keep only the bottom corners rounded.
+            inputAreaEl.style.borderRadius = `0 0 ${config.borderRadius} ${config.borderRadius}`;
+        }
+
+        // Update colors for interactive controls.
+        const sendBtn = document.getElementById('prayer-chat-send-btn');
+        if (sendBtn) sendBtn.style.background = config.primaryColor;
+
+        const toggleBtn = document.getElementById('prayer-chat-toggle-btn');
+        if (toggleBtn) toggleBtn.style.background = config.primaryColor;
+
+        // Keep the close icon readable (header button uses no background).
+        const closeBtn = document.getElementById('prayer-chat-close-btn');
+        if (closeBtn) closeBtn.style.color = '#ffffff';
+
+        if (widgetContainer && config.fontFamily) {
+            widgetContainer.style.fontFamily = config.fontFamily;
+        }
     }
     
     // Add CSS animations and mobile-responsive overrides

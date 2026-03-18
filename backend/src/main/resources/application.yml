@@ -187,7 +187,7 @@ management:
 # =============================================================================
 app:
   # Base URLs for integration script and frontend redirects
-  base-url: ${APP_BASE_URL:https://chatbot-backend-4mp4.onrender.com}
+  base-url: ${APP_BASE_URL:https://chatbot-java-spring-ai.onrender.com}
   frontend-url: ${FRONTEND_URL:https://prayer-chat.com}
 
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry

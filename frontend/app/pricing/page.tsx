@@ -11,8 +11,8 @@ function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') return 'https://chatbot-backend-4mp4.onrender.com';
-    if (hostname.includes('vercel.app')) return 'https://chatbot-backend-4mp4.onrender.com';
+    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') return 'https://chatbot-java-spring-ai.onrender.com';
+    if (hostname.includes('vercel.app')) return 'https://chatbot-java-spring-ai.onrender.com';
   }
   return 'http://localhost:8081';
 }

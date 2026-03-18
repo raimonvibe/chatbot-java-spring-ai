@@ -98,13 +98,13 @@ If your site sends a **Content-Security-Policy** header, the browser enforces wh
 
 | CSP directive | What it controls | Why the widget needs it |
 |---------------|-------------------|--------------------------|
-| **script-src** | Where JavaScript files may be loaded from | The embed loads the widget from your backend, e.g. `https://chatbot-backend-4mp4.onrender.com/js/chatbot-widget.js`. If that origin is not in `script-src`, the browser blocks the script and the chat never runs. |
+| **script-src** | Where JavaScript files may be loaded from | The embed loads the widget from your backend, e.g. `https://chatbot-java-spring-ai.onrender.com/js/chatbot-widget.js`. If that origin is not in `script-src`, the browser blocks the script and the chat never runs. |
 | **connect-src** | Where the page can send `fetch()` / XHR requests | After the script loads, the widget calls your API (e.g. `GET /api/chat/embed/3`, `POST /api/chat/3`). Those requests go to the same backend origin. If that origin is not in `connect-src`, the browser blocks the requests and the chat can’t load config or send messages. |
 
 **What to add:** Include your backend origin (no path) in both directives, for example:
 
-- `script-src ... https://chatbot-backend-4mp4.onrender.com`
-- `connect-src ... https://chatbot-backend-4mp4.onrender.com`
+- `script-src ... https://chatbot-java-spring-ai.onrender.com`
+- `connect-src ... https://chatbot-java-spring-ai.onrender.com`
 
 Use your real backend URL if it’s different. After redeploying your site with the updated CSP, the widget should load and work.
 

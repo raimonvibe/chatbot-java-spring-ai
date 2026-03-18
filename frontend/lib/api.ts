@@ -101,11 +101,11 @@ function getApiBaseUrl(): string {
     const hostname = window.location.hostname;
     // Production domains - use Render backend
     if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
-      return 'https://chatbot-backend-4mp4.onrender.com';
+      return 'https://chatbot-java-spring-ai.onrender.com';
     }
     // Vercel preview/test deployments
     if (hostname.includes('vercel.app')) {
-      return 'https://chatbot-backend-4mp4.onrender.com';
+      return 'https://chatbot-java-spring-ai.onrender.com';
     }
   }
   

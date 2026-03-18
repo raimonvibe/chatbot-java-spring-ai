@@ -38,7 +38,7 @@ export default function Message({ message, index }: MessageProps) {
         {/* Message Content */}
         <div
           className={`
-            rounded-2xl px-4 py-3 shadow-md
+            rounded-2xl px-4 py-3 shadow-sm
             ${
               isUser
                 ? 'bg-gradient-to-br from-brown-600 to-gold-600 text-white border-2 border-brown-700'

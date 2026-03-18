@@ -386,7 +386,7 @@ export default function ChatbotPreview() {
             )}
 
             {/* Input: fixed at bottom, fully inside frame; slightly narrower row on desktop */}
-            <div className="flex-shrink-0 pt-3 px-2 pb-0 md:px-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50">
+            <div className="flex-shrink-0 pt-3 px-2 pb-0 md:px-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50 relative z-10">
               <div className="flex gap-2 min-w-0 max-w-3xl mx-auto">
                 <input
                   type="text"
