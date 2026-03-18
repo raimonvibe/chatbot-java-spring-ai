@@ -3,10 +3,26 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Sparkles, Zap, Heart } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Book, Sparkles, Zap, Heart, LayoutDashboard, User } from 'lucide-react';
+import { checkAuth } from '@/lib/api';
 
 export default function Home() {
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Auth state is server-validated via checkAuth() (JWT sent to backend); we only use the boolean, no PII
+  useEffect(() => {
+    let cancelled = false;
+    checkAuth().then((auth) => {
+      if (!cancelled) {
+        setAuthChecked(true);
+        setIsLoggedIn(!!auth.authenticated);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden">{/* Background handled by globals.css */}
@@ -37,19 +53,46 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <button
-              onClick={() => router.push('/login')}
-              className="px-8 py-4 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-semibold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
-            >
-              <Book className="w-5 h-5" />
-              Get Started
-            </button>
-            <Link
-              href="/pricing"
-              className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all"
-            >
-              View Pricing
-            </Link>
+            {authChecked && isLoggedIn ? (
+              <>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="px-8 py-4 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-semibold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  Go to Dashboard
+                </button>
+                <Link
+                  href="/account"
+                  className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <User className="w-5 h-5" />
+                  Account
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all"
+                >
+                  View Pricing
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/login')}
+                  className="px-8 py-4 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-semibold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <Book className="w-5 h-5" />
+                  Get Started
+                </button>
+                <Link
+                  href="/pricing"
+                  className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all"
+                >
+                  View Pricing
+                </Link>
+              </>
+            )}
           </motion.div>
 
           <motion.div

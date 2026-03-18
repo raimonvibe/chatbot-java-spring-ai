@@ -197,7 +197,7 @@ export async function analyzeChristianContent(
   return response.json();
 }
 
-// Check if user is authenticated
+// Check if user is authenticated (server-validated; only trust this for UI state)
 export async function checkAuth(): Promise<{ authenticated: boolean; user?: any }> {
   try {
     const headers = getAuthHeaders();
@@ -210,6 +210,14 @@ export async function checkAuth(): Promise<{ authenticated: boolean; user?: any 
     if (response.ok) {
       const user = await response.json();
       return { authenticated: true, user };
+    }
+    // Server rejected auth (e.g. 401 expired/invalid token) — clear stale token so we don't keep sending it
+    if (response.status === 401 && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('authToken');
+      } catch {
+        // ignore localStorage errors (e.g. private browsing)
+      }
     }
     return { authenticated: false };
   } catch (error) {

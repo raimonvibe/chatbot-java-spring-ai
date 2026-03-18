@@ -4,32 +4,7 @@ import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
-
-// Auto-detect backend URL based on environment
-function getApiBaseUrl(): string {
-  // Use explicit environment variable if set
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
-  // Auto-detect production domain
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Production domains - use Render backend
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
-    // Vercel preview/test deployments
-    if (hostname.includes('vercel.app')) {
-      return 'https://chatbot-backend-4mp4.onrender.com';
-    }
-  }
-  
-  // Default to localhost for local development
-  return 'http://localhost:8081';
-}
-
-const API_BASE_URL = getApiBaseUrl();
+import { checkAuth } from '@/lib/api';
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -37,23 +12,18 @@ function LoginContent() {
   const message = searchParams.get('message');
   const router = useRouter();
 
-  // Check if user is already authenticated (e.g., from OAuth callback)
+  // Redirect only when server validates JWT (checkAuth calls /api/auth/me with Bearer token)
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (response.ok) {
-          // User is already authenticated, redirect to dashboard
-          router.replace('/dashboard');
-        }
-      } catch (error) {
-        // Not authenticated, stay on login page
+    let cancelled = false;
+    const run = async () => {
+      const auth = await checkAuth();
+      if (cancelled) return;
+      if (auth.authenticated) {
+        router.replace('/dashboard');
       }
     };
-    checkAuth();
+    run();
+    return () => { cancelled = true; };
   }, [router]);
 
   const handleGoogleLogin = () => {
