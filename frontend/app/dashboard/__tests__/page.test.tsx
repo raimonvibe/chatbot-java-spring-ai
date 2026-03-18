@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import Dashboard from '../page';
 
 jest.mock('framer-motion', () => ({
@@ -170,7 +170,9 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
       await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
 
-      const subButton = screen.getByRole('button', { name: /Subscription/i });
+      // Mobile overview card also includes a "Subscription" button; scope to top nav to avoid ambiguity.
+      const nav = screen.getByRole('navigation');
+      const subButton = within(nav).getByRole('button', { name: /Subscription/i });
       fireEvent.click(subButton);
 
       await waitFor(() => {
