@@ -345,6 +345,100 @@ export default function Dashboard() {
           </div>
         </nav>
 
+        {/* Mobile overview card (Option A) */}
+        <section className="sm:hidden mb-6">
+          <div className="rounded-2xl border border-brown-300 bg-brown-50/80 shadow-sm p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-brown-600 font-semibold">Overview</p>
+                <p className="text-brown-900 font-bold text-lg leading-tight">Your Dashboard</p>
+                <p className="text-brown-700 text-sm mt-1">
+                  {subscriptionStatus?.isPreviewMode
+                    ? 'Preview mode: embed is locked until subscription is active.'
+                    : 'Manage chatbots and copy your embed code.'}
+                </p>
+              </div>
+              <Link
+                href="/account"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-brown-200 text-brown-800 text-sm font-medium"
+                aria-label="Open account"
+              >
+                <User className="w-4 h-4" /> Account
+              </Link>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-white border border-brown-200 p-3">
+                <p className="text-[11px] text-brown-600 font-semibold">Plan</p>
+                <p className="text-brown-900 font-bold text-sm truncate">
+                  {subscriptionStatus?.plan || (subscriptionStatus?.isPreviewMode ? 'Preview' : 'Active')}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white border border-brown-200 p-3">
+                <p className="text-[11px] text-brown-600 font-semibold">Chatbots</p>
+                <p className="text-brown-900 font-bold text-sm">
+                  {chatbots.length}
+                  {typeof subscriptionStatus?.maxChatbots === 'number' ? ` / ${subscriptionStatus.maxChatbots}` : ''}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white border border-brown-200 p-3">
+                <p className="text-[11px] text-brown-600 font-semibold">Embed</p>
+                <p className="text-brown-900 font-bold text-sm">
+                  {subscriptionStatus?.canAccessIntegrationScript ? 'Ready' : 'Locked'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="w-full px-4 py-3 rounded-2xl bg-gradient-to-r from-brown-600 to-gold-600 text-white font-semibold flex items-center justify-center gap-2"
+              >
+                {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                {showCreateForm ? 'Cancel' : 'New chatbot'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setPortalLoading(true);
+                  try {
+                    const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+                    const url = await createPortalSession(returnUrl);
+                    const allowed = (u: string) => {
+                      try {
+                        const o = new URL(u);
+                        return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
+                      } catch {
+                        return false;
+                      }
+                    };
+                    if (!url || typeof url !== 'string' || !allowed(url)) {
+                      alert('Invalid billing portal URL. Please try again or contact support.');
+                      return;
+                    }
+                    window.location.href = url;
+                  } catch (e) {
+                    const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
+                    if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
+                      alert(msg);
+                    } else {
+                      alert('Something went wrong. Please try again or contact support.');
+                    }
+                  } finally {
+                    setPortalLoading(false);
+                  }
+                }}
+                disabled={portalLoading}
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-brown-200 text-brown-900 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                <CreditCard className="w-5 h-5" />
+                {portalLoading ? 'Opening…' : 'Subscription'}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {showCreateForm && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
