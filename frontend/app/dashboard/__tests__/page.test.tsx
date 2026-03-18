@@ -25,6 +25,7 @@ jest.mock('lucide-react', () => ({
   LogOut: () => <span data-testid="icon-logout" />,
   CreditCard: () => <span data-testid="icon-creditcard" />,
   User: () => <span data-testid="icon-user" />,
+  Palette: () => <span data-testid="icon-palette" />,
 }));
 
 jest.mock('@/components/ChatbotCreationLoader', () => () => null);

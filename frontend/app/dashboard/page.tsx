@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
+import ThemePicker, { type PastelTheme } from '@/components/ThemePicker';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
   const [portalLoading, setPortalLoading] = useState(false);
   const [jesusTogglingId, setJesusTogglingId] = useState<number | null>(null);
+  const [themeApplyingId, setThemeApplyingId] = useState<number | null>(null);
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
@@ -599,6 +601,39 @@ export default function Dashboard() {
                       {chatbot.bibleVerse}
                     </p>
                   )}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-brown-200">
+                  <ThemePicker
+                    currentBrandingConfig={chatbot.brandingConfig ?? '{}'}
+                    applying={themeApplyingId === chatbot.id}
+                    onApply={async (theme: PastelTheme) => {
+                      setThemeApplyingId(chatbot.id);
+                      try {
+                        const merged: Record<string, string> = {};
+                        if (chatbot.brandingConfig) {
+                          try {
+                            const existing = JSON.parse(chatbot.brandingConfig) as Record<string, unknown>;
+                            if (typeof existing.fontFamily === 'string') merged.fontFamily = existing.fontFamily;
+                          } catch {
+                            /* ignore */
+                          }
+                        }
+                        merged.primaryColor = theme.primaryColor;
+                        merged.secondaryColor = theme.secondaryColor;
+                        if (theme.borderRadius) merged.borderRadius = theme.borderRadius;
+                        const updated = await updateChatbot(chatbot.id, {
+                          brandingConfig: JSON.stringify(merged),
+                        });
+                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                      } catch (err) {
+                        console.error('Failed to apply theme:', err);
+                        alert(getSafeErrorMessage(err, 'Failed to save theme. Please try again.'));
+                      } finally {
+                        setThemeApplyingId(null);
+                      }
+                    }}
+                  />
                 </div>
               </motion.div>
             ))}

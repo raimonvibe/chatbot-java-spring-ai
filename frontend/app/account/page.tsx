@@ -416,6 +416,9 @@ function AccountPageContent() {
             <p className="text-brown-400 text-xs mb-4">
               <strong>How to use:</strong> Paste the code below just before the closing <code className="bg-brown-900/60 px-1 rounded">&lt;/body&gt;</code> tag of your page. A chat button will appear; visitors can click to open the conversation.
             </p>
+            <p className="text-brown-400 text-xs mb-4">
+              Match your site: choose a pastel theme per chatbot on the <Link href="/dashboard" className="text-gold-400 hover:text-gold-300 underline">Dashboard</Link> so the widget fits your brand.
+            </p>
             {subscription && subscription !== 'error' && subscription.canUseChatbot ? chatbots.length > 0 ? (
               <div className="space-y-3">
                 <label className="text-sm text-brown-400 block">Choose a chatbot</label>
