@@ -1,6 +1,13 @@
 /**
  * Prayer-Chat embeddable widget — bring a gentle, Christ-centered chat to your website.
  * Place the script on your site; visitors see a chat button and can ask questions.
+ *
+ * Integration safety (does not interfere with client code):
+ * - Only adds window.PrayerChat; all other state is in closure.
+ * - Injected CSS is scoped to #prayer-chat-chatbot-widget so host styles are unaffected.
+ * - DOM queries are scoped to our container; we never modify host elements.
+ * - Document click listener does not call preventDefault/stopPropagation so host events work as usual.
+ * - We only append our widget to the placeholder or body; we do not remove or replace host content.
  */
 (function() {
     'use strict';
@@ -32,11 +39,14 @@
     let toggleButton = null;
     
     /**
-     * Ensure Font Awesome is loaded so icons display on any host site
+     * Ensure Font Awesome is loaded so icons display on any host site.
+     * Uses a named link id so we never add a duplicate; skips if host already has FA.
      */
     function ensureFontAwesome() {
+        if (document.getElementById('prayer-chat-fa')) return;
         if (document.querySelector('link[href*="fontawesome"]') || document.querySelector('link[href*="font-awesome"]')) return;
         var link = document.createElement('link');
+        link.id = 'prayer-chat-fa';
         link.rel = 'stylesheet';
         link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
         link.crossOrigin = 'anonymous';
@@ -225,9 +235,9 @@
         const mountPoint = placeholderById || placeholderByData || document.body;
         mountPoint.appendChild(widgetContainer);
         
-        // Get references to interactive elements
-        inputField = document.getElementById('prayer-chat-message-input');
-        sendButton = document.getElementById('prayer-chat-send-btn');
+        // Get references to interactive elements (scoped to our widget so we never touch host DOM)
+        inputField = widgetContainer.querySelector('#prayer-chat-message-input');
+        sendButton = widgetContainer.querySelector('#prayer-chat-send-btn');
         
         // Add event listeners
         setupEventListeners();
@@ -243,8 +253,9 @@
         // Toggle button
         toggleButton.addEventListener('click', toggleChat);
         
-        // Close button
-        document.getElementById('prayer-chat-close-btn').addEventListener('click', closeChat);
+        // Close button (scoped to our widget)
+        var closeBtnEl = widgetContainer && widgetContainer.querySelector('#prayer-chat-close-btn');
+        if (closeBtnEl) closeBtnEl.addEventListener('click', closeChat);
         
         // Send button
         sendButton.addEventListener('click', sendMessage);
@@ -256,9 +267,9 @@
             }
         });
         
-        // Click outside to close
+        // Click outside to close — we do not preventDefault or stopPropagation so host page behavior is unchanged
         document.addEventListener('click', function(e) {
-            if (isOpen && !widgetContainer.contains(e.target)) {
+            if (isOpen && widgetContainer && !widgetContainer.contains(e.target)) {
                 closeChat();
             }
         });
@@ -388,9 +399,9 @@
         `;
         typingDiv.innerHTML = `
             <div style="background: white; padding: 10px 15px; border-radius: 18px; border: 1px solid #e0e0e0;">
-                <i class="fas fa-circle fa-xs" style="animation: pulse 1s infinite;"></i>
-                <i class="fas fa-circle fa-xs" style="animation: pulse 1s infinite 0.2s;"></i>
-                <i class="fas fa-circle fa-xs" style="animation: pulse 1s infinite 0.4s;"></i>
+                <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite;"></i>
+                <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.2s;"></i>
+                <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.4s;"></i>
                 AI is typing...
             </div>
         `;
@@ -402,7 +413,7 @@
      * Hide typing indicator
      */
     function hideTypingIndicator() {
-        const typingDiv = document.getElementById('prayer-chat-typing');
+        const typingDiv = messageContainer ? messageContainer.querySelector('#prayer-chat-typing') : null;
         if (typingDiv) {
             typingDiv.remove();
         }
@@ -419,8 +430,8 @@
                     console.error('Failed to load chatbot config:', data.error);
                     return;
                 }
-                if (data.name) {
-                    var titleEl = document.getElementById('prayer-chat-widget-title');
+                if (data.name && widgetContainer) {
+                    var titleEl = widgetContainer.querySelector('#prayer-chat-widget-title');
                     if (titleEl) titleEl.textContent = data.name;
                 }
                 // Apply branding if available
@@ -448,45 +459,45 @@
      * Update widget styling based on branding
      */
     function updateWidgetStyling() {
-        // Apply branding after config loads.
+        // Apply branding after config loads. All queries scoped to our widget so we never touch host DOM.
         // Security: we only set styles from the sanitized brandingConfig we already validated server-side.
-        const header = document.querySelector('.prayer-chat-widget-header');
+        if (!widgetContainer) return;
+        const header = widgetContainer.querySelector('.prayer-chat-widget-header');
         if (header) header.style.background = config.primaryColor;
 
-        const chatContainerEl = document.getElementById('prayer-chat-chat-container');
+        const chatContainerEl = widgetContainer.querySelector('#prayer-chat-chat-container');
         if (chatContainerEl && config.borderRadius) {
             chatContainerEl.style.borderRadius = config.borderRadius;
         }
 
-        const inputAreaEl = document.querySelector('.prayer-chat-input-area');
+        const inputAreaEl = widgetContainer.querySelector('.prayer-chat-input-area');
         if (inputAreaEl && config.borderRadius) {
-            // Keep only the bottom corners rounded.
             inputAreaEl.style.borderRadius = `0 0 ${config.borderRadius} ${config.borderRadius}`;
         }
 
-        // Update colors for interactive controls.
-        const sendBtn = document.getElementById('prayer-chat-send-btn');
+        const sendBtn = widgetContainer.querySelector('#prayer-chat-send-btn');
         if (sendBtn) sendBtn.style.background = config.primaryColor;
 
-        const toggleBtn = document.getElementById('prayer-chat-toggle-btn');
+        const toggleBtn = widgetContainer.querySelector('#prayer-chat-toggle-btn');
         if (toggleBtn) toggleBtn.style.background = config.primaryColor;
 
-        // Keep the close icon readable (header button uses no background).
-        const closeBtn = document.getElementById('prayer-chat-close-btn');
+        const closeBtn = widgetContainer.querySelector('#prayer-chat-close-btn');
         if (closeBtn) closeBtn.style.color = '#ffffff';
 
-        if (widgetContainer && config.fontFamily) {
+        if (config.fontFamily) {
             widgetContainer.style.fontFamily = config.fontFamily;
         }
     }
     
     // Add CSS animations and mobile-responsive overrides
     const style = document.createElement('style');
+    style.id = 'prayer-chat-widget-styles';
     style.textContent = `
-        @keyframes pulse {
+        @keyframes prayer-chat-pulse {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
+        /* All rules scoped under our widget root so host page is never styled */
         /* Mobile: bottom sheet (bottom half of screen), fit viewport width — no horizontal overflow */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
@@ -501,7 +512,7 @@
                 box-sizing: border-box !important;
                 overflow-x: hidden !important;
             }
-            #prayer-chat-chat-container {
+            #prayer-chat-chatbot-widget #prayer-chat-chat-container {
                 position: fixed !important;
                 bottom: 0 !important;
                 left: 0 !important;
@@ -517,7 +528,7 @@
                 overflow-y: hidden !important;
                 margin: 0 !important;
             }
-            #prayer-chat-chat-container #prayer-chat-messages {
+            #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-messages {
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 min-width: 0 !important;
@@ -528,10 +539,10 @@
                 bottom: max(12px, env(safe-area-inset-bottom)) !important;
                 left: auto !important;
             }
-            .prayer-chat-widget-header {
+            #prayer-chat-chatbot-widget .prayer-chat-widget-header {
                 padding-top: max(15px, env(safe-area-inset-top)) !important;
             }
-            .prayer-chat-input-area {
+            #prayer-chat-chatbot-widget .prayer-chat-input-area {
                 padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
                 box-sizing: border-box !important;
             }
