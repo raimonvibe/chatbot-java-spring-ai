@@ -77,6 +77,12 @@ So **yes, the script works when embedded** on any site. Widget traffic is allowe
 
 ---
 
+## Mobile / responsive behavior
+
+On viewports **≤ 768px**, the chat panel opens **full viewport** (covers the screen) so it stays within the window on phones and small tablets. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
+
+---
+
 ## Troubleshooting: Widget not visible on my site
 
 If you pasted the embed code but the chat button does not appear:

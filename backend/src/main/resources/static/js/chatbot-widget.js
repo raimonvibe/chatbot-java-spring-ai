@@ -106,25 +106,31 @@
             ${config.position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
             z-index: 2147483647;
             font-family: ${config.fontFamily};
+            max-width: calc(100vw - 24px);
+            max-height: calc(100dvh - 24px);
         `;
         
-        // Create chat container
+        // Create chat container (sized for desktop; overridden to full viewport on mobile via CSS)
         chatContainer = document.createElement('div');
         chatContainer.id = 'prayer-chat-chat-container';
         chatContainer.style.cssText = `
             display: none;
             width: 350px;
+            max-width: calc(100vw - 24px);
             height: 500px;
+            max-height: calc(100dvh - 24px);
             background: white;
             border-radius: ${config.borderRadius};
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             border: 1px solid #e0e0e0;
             flex-direction: column;
             position: relative;
+            box-sizing: border-box;
         `;
         
         // Create header
         const header = document.createElement('div');
+        header.className = 'prayer-chat-widget-header';
         header.style.cssText = `
             background: ${config.primaryColor};
             color: white;
@@ -151,13 +157,16 @@
         messageContainer.id = 'prayer-chat-messages';
         messageContainer.style.cssText = `
             flex: 1;
+            min-height: 0;
             padding: 15px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             background: #f8f9fa;
         `;
         
         // Create input area
         const inputArea = document.createElement('div');
+        inputArea.className = 'prayer-chat-input-area';
         inputArea.style.cssText = `
             padding: 15px;
             background: white;
@@ -448,12 +457,51 @@
         });
     }
     
-    // Add CSS animations
+    // Add CSS animations and mobile-responsive overrides
     const style = document.createElement('style');
     style.textContent = `
         @keyframes pulse {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
+        }
+        /* Mobile: chat panel full viewport, toggle with safe insets */
+        @media (max-width: 768px) {
+            #prayer-chat-chatbot-widget {
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+                max-width: none;
+                max-height: none;
+                padding: 0;
+                padding-right: max(12px, env(safe-area-inset-right));
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
+                padding-left: env(safe-area-inset-left);
+                box-sizing: border-box;
+            }
+            #prayer-chat-chat-container {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                max-width: none !important;
+                max-height: 100dvh !important;
+                border-radius: 0 !important;
+                box-sizing: border-box;
+            }
+            #prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
+                margin-left: auto;
+                margin-right: 0;
+            }
+            .prayer-chat-widget-header {
+                padding-top: max(15px, env(safe-area-inset-top)) !important;
+            }
+            .prayer-chat-input-area {
+                padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
+            }
         }
     `;
     document.head.appendChild(style);
