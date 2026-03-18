@@ -653,7 +653,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setShowCreateForm(true)}
-              className="w-full max-w-sm mx-auto px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+              className="w-fit max-w-xs mx-auto px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium hover:shadow-lg transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
             >
               <Plus className="w-5 h-5 flex-shrink-0" />
               Create Your First Chatbot
