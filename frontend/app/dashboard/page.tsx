@@ -331,14 +331,16 @@ export default function Dashboard() {
               <CreditCard className="w-4 h-4 flex-shrink-0" />
               <span className="hidden sm:inline">{portalLoading ? 'Opening…' : 'Subscription'}</span>
             </button>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-3 py-2 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 min-w-0"
-              aria-label={showCreateForm ? 'Cancel' : 'New Chatbot'}
-            >
-              {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              <span className="hidden sm:inline">{showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
-            </button>
+            {chatbots.length > 0 || showCreateForm ? (
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex-shrink-0 min-w-0"
+                aria-label={showCreateForm ? 'Cancel' : 'New Chatbot'}
+              >
+                {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                <span className="hidden sm:inline">{showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
+              </button>
+            ) : null}
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
@@ -405,14 +407,16 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="w-full px-4 py-3 rounded-2xl bg-gradient-to-r from-brown-600 to-gold-600 text-white font-semibold flex items-center justify-center gap-2"
-              >
-                {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                {showCreateForm ? 'Cancel' : 'New chatbot'}
-              </button>
+              {chatbots.length > 0 || showCreateForm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(!showCreateForm)}
+                  className="w-full px-4 py-3 rounded-2xl bg-gradient-to-r from-brown-600 to-gold-600 text-white font-semibold flex items-center justify-center gap-2"
+                >
+                  {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                  {showCreateForm ? 'Cancel' : 'New chatbot'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={async () => {
