@@ -275,11 +275,22 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 md:gap-6 text-sm font-medium">
-            <Link href="/dashboard" className="text-brown-700 hover:text-brown-900 transition-colors whitespace-nowrap py-1">
+            {/* On mobile, hide the redundant "Dashboard" text link to keep the nav compact. */}
+            <Link
+              href="/dashboard"
+              className="hidden sm:inline-flex text-brown-700 hover:text-brown-900 transition-colors whitespace-nowrap py-1"
+            >
               Dashboard
             </Link>
-            <Link href="/account" className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 whitespace-nowrap py-1" aria-label="Account">
-              <User className="w-4 h-4 flex-shrink-0" /> Account
+
+            {/* Mobile-first: icon button with larger tap target; label on sm+ */}
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
+              aria-label="Account"
+            >
+              <User className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Account</span>
             </Link>
             <button
               onClick={async () => {
@@ -312,10 +323,11 @@ export default function Dashboard() {
                 }
               }}
               disabled={portalLoading}
-              className="text-brown-700 hover:text-brown-900 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap py-1"
+              className="inline-flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
               aria-label="Subscription"
             >
-              <CreditCard className="w-4 h-4 flex-shrink-0" /> <span className="hidden sm:inline">{portalLoading ? 'Opening…' : 'Subscription'}</span>
+              <CreditCard className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">{portalLoading ? 'Opening…' : 'Subscription'}</span>
             </button>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
@@ -327,11 +339,12 @@ export default function Dashboard() {
             </button>
             <button
               onClick={handleLogout}
-              className="text-brown-600 hover:text-brown-900 transition-colors flex items-center gap-1.5 whitespace-nowrap py-1"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
               title="Log out"
               aria-label="Log out"
             >
-              <LogOut className="w-4 h-4 flex-shrink-0" /> <span className="hidden sm:inline">Logout</span>
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              <span>Logout</span>
             </button>
             {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
               <button

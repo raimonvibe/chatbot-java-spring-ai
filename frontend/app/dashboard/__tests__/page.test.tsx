@@ -143,8 +143,12 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
       await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
 
-      expect(screen.getByRole('link', { name: /Dashboard/i })).toHaveAttribute('href', '/dashboard');
-      expect(screen.getByRole('link', { name: /Account/i })).toHaveAttribute('href', '/account');
+      // Use href-based selection to avoid ambiguity (mobile overview card adds an "Open account" link)
+      const links = screen.getAllByRole('link');
+      const dashboardLink = links.find((a) => a.getAttribute('href') === '/dashboard');
+      const accountLink = links.find((a) => a.getAttribute('href') === '/account');
+      expect(dashboardLink).toBeTruthy();
+      expect(accountLink).toBeTruthy();
     });
 
     it('should build chatbot preview link with numeric id only (no path traversal)', async () => {
@@ -182,7 +186,8 @@ describe('Dashboard Page', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
+        const links = screen.getAllByRole('link');
+        expect(links.some((a) => a.getAttribute('href') === '/dashboard')).toBe(true);
       });
     });
   });
