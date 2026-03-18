@@ -23,7 +23,7 @@ This document describes the security design of the Prayer-Chat embeddable widget
 
 ## Configuration
 
-- **app.base-url**: Must be the public base URL of this backend (e.g. `https://chatbot-backend-4mp4.onrender.com`). Used only in generated embed snippets. If missing or invalid, a hardcoded default is used.
+- **app.base-url**: Must be the public base URL of this backend (e.g. `https://chatbot-java-spring-ai.onrender.com`). Used only in generated embed snippets. If missing or invalid, a hardcoded default is used.
 - **CORS**: Widget endpoints are public; CORS is configured at the application level. No need to allowlist customer domains for the widget API, since the script and API are on the same backend origin from the browser’s perspective when the script is loaded from our server.
 
 ## Widget Script

@@ -17,10 +17,10 @@ They add the embed code (from Dashboard or Account) just before `</body>` on a p
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chatbot-backend-4mp4.onrender.com/js/chatbot-widget.js';
+    script.src = 'https://chatbot-java-spring-ai.onrender.com/js/chatbot-widget.js';
     script.async = true;
     script.onload = function() {
-      PrayerChat.init({ chatbotId: 123, apiUrl: 'https://chatbot-backend-4mp4.onrender.com/api', theme: 'default' });
+      PrayerChat.init({ chatbotId: 123, apiUrl: 'https://chatbot-java-spring-ai.onrender.com/api', theme: 'default' });
     };
     document.head.appendChild(script);
   })();

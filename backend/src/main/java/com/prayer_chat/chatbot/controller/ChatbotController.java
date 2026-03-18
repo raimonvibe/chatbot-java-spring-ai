@@ -70,7 +70,7 @@ public class ChatbotController {
     private final AccessControlService accessControlService;
     private final RateLimitingService rateLimitingService;
 
-    @Value("${app.base-url:https://chatbot-backend-4mp4.onrender.com}")
+    @Value("${app.base-url:https://chatbot-java-spring-ai.onrender.com}")
     private String baseUrl;
 
     @Autowired
@@ -963,7 +963,7 @@ public class ChatbotController {
         }
     }
     
-    private static final String DEFAULT_BASE_URL = "https://chatbot-backend-4mp4.onrender.com";
+    private static final String DEFAULT_BASE_URL = "https://chatbot-java-spring-ai.onrender.com";
 
     /**
      * Generate embed code for chatbot.
