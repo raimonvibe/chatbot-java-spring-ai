@@ -67,6 +67,15 @@ class EmbedSecurityTest {
             assertThat(EmbedSecurity.validateAndNormalizeBaseUrl("", DEFAULT_URL)).isEqualTo(DEFAULT_URL);
             assertThat(EmbedSecurity.validateAndNormalizeBaseUrl("   ", DEFAULT_URL)).isEqualTo(DEFAULT_URL);
         }
+
+        @Test
+        @DisplayName("Invalid defaultUrl is not used; internal fallback is returned")
+        void invalidDefaultUsesInternalFallback() {
+            String internalFallback = "https://chatbot-java-spring-ai.onrender.com";
+            assertThat(EmbedSecurity.validateAndNormalizeBaseUrl(null, "javascript:alert(1)")).isEqualTo(internalFallback);
+            assertThat(EmbedSecurity.validateAndNormalizeBaseUrl("", "https://evil.com'")).isEqualTo(internalFallback);
+            assertThat(EmbedSecurity.validateAndNormalizeBaseUrl("  ", "not-a-url")).isEqualTo(internalFallback);
+        }
     }
 
     @Nested

@@ -35,28 +35,40 @@ public final class EmbedSecurity {
     /** Characters that must not appear in a value we inject into a JS string (single-quoted). */
     private static final Pattern UNSAFE_JS = Pattern.compile("[\"'\\\\\\r\\n<>]");
 
+    /** Hardcoded fallback when both baseUrl and defaultUrl are invalid; never user or config controlled. */
+    private static final String INTERNAL_FALLBACK_BASE_URL = "https://chatbot-java-spring-ai.onrender.com";
+
     private EmbedSecurity() {}
 
     /**
      * Validates and returns a base URL safe for use in embed code.
-     * Rejects empty, malformed, or script-injectable values.
+     * Rejects empty, malformed, or script-injectable values. If the provided defaultUrl
+     * is itself invalid, returns a hardcoded safe fallback (defense in depth).
      *
      * @param baseUrl configured base URL (e.g. from app.base-url)
      * @param defaultUrl fallback if baseUrl is invalid (e.g. production backend URL)
-     * @return validated URL without trailing slash, or defaultUrl if invalid
+     * @return validated URL without trailing slash; never returns an unvalidated URL
      */
     public static String validateAndNormalizeBaseUrl(String baseUrl, String defaultUrl) {
+        String safeDefault = isSafeBaseUrl(defaultUrl) ? normalizeNoTrailingSlash(defaultUrl.trim()) : INTERNAL_FALLBACK_BASE_URL;
         if (baseUrl == null || baseUrl.isBlank()) {
-            return normalizeNoTrailingSlash(defaultUrl);
+            return safeDefault;
         }
         String trimmed = baseUrl.trim();
         if (!SAFE_BASE_URL.matcher(trimmed).matches()) {
-            return normalizeNoTrailingSlash(defaultUrl);
+            return safeDefault;
         }
         if (UNSAFE_JS.matcher(trimmed).find()) {
-            return normalizeNoTrailingSlash(defaultUrl);
+            return safeDefault;
         }
         return normalizeNoTrailingSlash(trimmed);
+    }
+
+    /** Returns true if the string is a safe base URL (pattern and no unsafe JS chars). */
+    private static boolean isSafeBaseUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String t = url.trim();
+        return SAFE_BASE_URL.matcher(t).matches() && !UNSAFE_JS.matcher(t).find();
     }
 
     /**
