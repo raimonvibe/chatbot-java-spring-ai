@@ -18,7 +18,7 @@ export default function Header() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-3 flex items-center">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-brown-700 hover:text-gold-700 transition-colors font-medium text-sm"
+          className="inline-flex items-center gap-2 text-brown-700 hover:text-gold-700 transition-colors font-medium text-sm leading-none h-9"
         >
           <Home className="w-5 h-5 flex-shrink-0" />
           <span>Back to Home</span>

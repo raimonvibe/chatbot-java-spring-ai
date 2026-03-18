@@ -596,12 +596,12 @@ export default function Dashboard() {
                           setJesusTogglingId(null);
                         }
                       }}
-                      className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                      className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500 cursor-pointer flex-shrink-0 mt-0.5"
                     />
-                    <span className="text-sm font-medium text-brown-700">Include &quot;What Jesus Would Say&quot;</span>
+                    <span className="text-sm font-medium text-brown-700 leading-5">Include &quot;What Jesus Would Say&quot;</span>
                   </label>
                   {chatbot.bibleVerse && (
-                    <p className="text-xs text-brown-600 italic pl-6 line-clamp-2" title={chatbot.bibleVerse}>
+                    <p className="text-xs text-brown-600 italic pl-0 line-clamp-2" title={chatbot.bibleVerse}>
                       {chatbot.bibleVerse}
                     </p>
                   )}
