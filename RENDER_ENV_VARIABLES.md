@@ -56,9 +56,11 @@ DATABASE_PASSWORD=<password>
 ```
 PORT=10000
 CORS_ALLOWED_ORIGINS=https://prayer-chat.com,https://www.prayer-chat.com,https://prayer-chat*.vercel.app,http://localhost:3000
-APP_BASE_URL=https://chatbot-backend-4mp4.onrender.com
+APP_BASE_URL=https://chatbot-java-spring-ai.onrender.com
 FRONTEND_URL=https://prayer-chat.com
 ```
+
+**Embed code / backend URL:** Use `APP_BASE_URL=https://chatbot-java-spring-ai.onrender.com` so the “Get embed code” snippet uses the current backend. If you still have the old value (`chatbot-backend-4mp4.onrender.com`), set it to the URL above and redeploy; the backend also forces the new URL in generated embed snippets when the old one is configured.
 
 **CRITICAL FOR OAUTH:** Ensure `CORS_ALLOWED_ORIGINS` includes all frontend domains where users will log in.
 The backend CORS configuration reads this environment variable dynamically. Prefer a project-specific Vercel pattern (e.g. `https://prayer-chat*.vercel.app`) instead of `https://*.vercel.app`; see `docs/CORS_VERCEL_SECURITY.md`.
