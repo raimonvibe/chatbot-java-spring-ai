@@ -121,7 +121,7 @@ spring:
 # SERVER CONFIGURATION
 # =============================================================================
 server:
-  port: ${PORT:8081}
+  port: ${PORT:8080}
   address: 0.0.0.0  # Required for Docker/Render deployments
   # Forward headers for OAuth2 (important when behind proxy)
   forward-headers-strategy: framework
