@@ -64,24 +64,31 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
               key={theme.id}
               type="button"
               disabled={applying}
-              onClick={() => onApply(theme)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onApply(theme);
+              }}
+              onPointerDown={(e) => e.currentTarget.setPointerCapture?.(e.pointerId)}
               aria-label={`Theme ${theme.name}`}
               title={theme.name}
               className={`
-                flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all min-w-0
+                flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all min-w-0
+                min-h-[44px] sm:min-h-0
                 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:ring-offset-1
-                disabled:opacity-50 disabled:cursor-not-allowed
+                disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer touch-manipulation
                 ${isSelected
                   ? 'border-brown-600 bg-brown-50'
-                  : 'border-brown-200 hover:border-brown-400 hover:bg-brown-50/50'
+                  : 'border-brown-200 hover:border-brown-400 hover:bg-brown-50/50 active:bg-brown-100'
                 }
               `}
+              style={{ touchAction: 'manipulation' }}
             >
               <span
-                className="w-8 h-8 rounded-full flex-shrink-0 border border-brown-200 shadow-inner"
+                className="w-8 h-8 rounded-full flex-shrink-0 border border-brown-200 shadow-inner pointer-events-none"
                 style={{ backgroundColor: theme.primaryColor }}
               />
-              <span className="text-[10px] sm:text-xs font-medium text-brown-700 truncate w-full text-center">
+              <span className="text-[10px] sm:text-xs font-medium text-brown-700 truncate w-full text-center pointer-events-none">
                 {theme.name}
               </span>
             </button>
