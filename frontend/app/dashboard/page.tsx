@@ -220,23 +220,15 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      const result = await logout();
-      
-      // Redirect to Google logout to clear OAuth session
-      if (result.googleLogoutUrl) {
-        // Open Google logout in new window, then redirect
-        window.open(result.googleLogoutUrl, '_blank');
-      }
-      
-      // Redirect to login page
-      router.push('/login');
-      
-      // Force reload to clear all state
-      window.location.href = '/login';
+      await logout();
+
+      // App logout only (session/JWT). Do NOT auto-log the user out of Google.
+      router.replace('/');
+      window.location.href = '/';
     } catch (error: unknown) {
       console.error('Error logging out:', error);
-      router.push('/login');
-      window.location.href = '/login';
+      router.replace('/');
+      window.location.href = '/';
     }
   };
 
