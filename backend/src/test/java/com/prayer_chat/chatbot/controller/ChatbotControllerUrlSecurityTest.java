@@ -180,10 +180,9 @@ class ChatbotControllerUrlSecurityTest {
     @Test
     @DisplayName("Should use production URL from configuration")
     void shouldUseProductionUrlFromConfiguration() {
-        // Arrange
-        String productionUrl = "https://chatbot-backend-4mp4.onrender.com";
+        // Arrange - current production URL (deprecated one is overridden in controller)
+        String productionUrl = "https://chatbot-java-spring-ai.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", productionUrl);
-        
 
         // Act
         ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);

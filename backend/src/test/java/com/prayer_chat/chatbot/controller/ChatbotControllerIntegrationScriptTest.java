@@ -125,12 +125,13 @@ class ChatbotControllerIntegrationScriptTest {
         when(customOAuth2User.getUser()).thenReturn(testUser);
     }
 
+    private static final String PRODUCTION_URL = "https://chatbot-java-spring-ai.onrender.com";
+
     @Test
     @DisplayName("Should generate integration script with production base URL")
     void shouldGenerateScriptWithProductionUrl() {
-        // Arrange
-        String productionUrl = "https://chatbot-backend-4mp4.onrender.com";
-        ReflectionTestUtils.setField(chatbotController, "baseUrl", productionUrl);
+        // Arrange - use current production URL (deprecated URL is overridden in controller)
+        ReflectionTestUtils.setField(chatbotController, "baseUrl", PRODUCTION_URL);
         
         when(customOAuth2User.getUser()).thenReturn(testUser);
         when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
@@ -149,7 +150,7 @@ class ChatbotControllerIntegrationScriptTest {
         String embedCode = body.get("embedCode");
         
         assertNotNull(embedCode);
-        assertTrue(embedCode.contains(productionUrl), "Embed code should contain production URL");
+        assertTrue(embedCode.contains(PRODUCTION_URL), "Embed code should contain production URL");
         assertTrue(embedCode.contains("/js/chatbot-widget.js"), "Embed code should contain widget script path");
         assertTrue(embedCode.contains("/api"), "Embed code should contain API path");
         assertFalse(embedCode.contains("localhost:8080"), "Embed code should not contain localhost:8080");
@@ -217,32 +218,32 @@ class ChatbotControllerIntegrationScriptTest {
     @Test
     @DisplayName("Should use environment-based base URL")
     void shouldUseEnvironmentBasedUrl() {
-        // Arrange - Simulate different environments
-        String[] testUrls = {
-            "https://chatbot-backend-4mp4.onrender.com",
-            "http://localhost:8081",
-            "https://staging-backend.example.com"
+        // Configured URL -> expected URL in embed (deprecated URL is overridden to current production)
+        String[][] cases = {
+            { "https://chatbot-backend-4mp4.onrender.com", "https://chatbot-java-spring-ai.onrender.com" },
+            { "http://localhost:8081", "http://localhost:8081" },
+            { "https://staging-backend.example.com", "https://staging-backend.example.com" }
         };
 
-        for (String testUrl : testUrls) {
-            ReflectionTestUtils.setField(chatbotController, "baseUrl", testUrl);
+        for (String[] pair : cases) {
+            String configuredUrl = pair[0];
+            String expectedInEmbed = pair[1];
+            ReflectionTestUtils.setField(chatbotController, "baseUrl", configuredUrl);
             
             when(customOAuth2User.getUser()).thenReturn(testUser);
             when(chatbotRepository.findById(100L)).thenReturn(Optional.of(testChatbot));
             when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
             when(accessControlService.canAccessIntegrationScript(testUser)).thenReturn(true);
 
-            // Act
             ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
 
-            // Assert
             assertEquals(HttpStatus.OK, response.getStatusCode());
             @SuppressWarnings("unchecked")
             Map<String, String> body = (Map<String, String>) response.getBody();
             String embedCode = body.get("embedCode");
             
-            assertTrue(embedCode.contains(testUrl.replaceAll("/$", "")), 
-                "Embed code should contain base URL: " + testUrl);
+            assertTrue(embedCode.contains(expectedInEmbed), 
+                "Embed code should contain base URL: " + expectedInEmbed + " (configured: " + configuredUrl + ")");
         }
     }
 
