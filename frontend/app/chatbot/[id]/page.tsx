@@ -11,6 +11,7 @@ import {
   pollUntilAnalysisReady,
   previewJesusTeachings,
   logout,
+  AVATAR_IDS,
   type Message as MessageType,
   type Chatbot,
   type JesusTeachingsPreviewResponse,
@@ -235,13 +236,26 @@ export default function ChatbotPreview() {
       {/* Compact header; on desktop the whole page scrolls so the chat area is taller */}
       <header className="flex-shrink-0 p-2 md:p-3 border-b border-brown-200/60 bg-white/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-600 to-gold-600 truncate">
-              {chatbot?.name ?? 'Loading...'}
-            </h1>
-            <p className="text-brown-700 text-sm truncate max-w-[min(100%,320px)] md:max-w-none">
-              {chatbot?.description}
-            </p>
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+            {chatbot?.avatarId && AVATAR_IDS.includes(chatbot.avatarId as (typeof AVATAR_IDS)[number]) && (
+              <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 border-brown-200 bg-brown-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/${chatbot.avatarId}.png`}
+                  alt=""
+                  role="presentation"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-600 to-gold-600 truncate">
+                {chatbot?.name ?? 'Loading...'}
+              </h1>
+              <p className="text-brown-700 text-sm truncate max-w-[min(100%,320px)] md:max-w-none">
+                {chatbot?.description}
+              </p>
+            </div>
           </div>
           <Link
             href="/dashboard"

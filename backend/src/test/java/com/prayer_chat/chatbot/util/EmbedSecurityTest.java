@@ -209,4 +209,31 @@ class EmbedSecurityTest {
             assertThat(EmbedSecurity.stripAngleBrackets(null)).isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("validateAvatarId")
+    class ValidateAvatarId {
+
+        @ParameterizedTest
+        @ValueSource(strings = { "1", "2", "3", "4", "5", "6" })
+        @DisplayName("Accepts allowed avatar ids 1-6")
+        void acceptsAllowedIds(String id) {
+            assertThat(EmbedSecurity.validateAvatarId(id)).isEqualTo(id);
+        }
+
+        @Test
+        @DisplayName("Null or blank returns null")
+        void nullOrBlankReturnsNull() {
+            assertThat(EmbedSecurity.validateAvatarId(null)).isNull();
+            assertThat(EmbedSecurity.validateAvatarId("")).isNull();
+            assertThat(EmbedSecurity.validateAvatarId("   ")).isNull();
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = { "0", "7", "10", "../1", "1;", "1'", "1.png", "a", "01" })
+        @DisplayName("Rejects invalid or path-traversal values")
+        void rejectsInvalid(String input) {
+            assertThat(EmbedSecurity.validateAvatarId(input)).isNull();
+        }
+    }
 }

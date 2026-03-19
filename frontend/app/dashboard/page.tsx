@@ -10,7 +10,9 @@ import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, L
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
 import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/ThemePicker';
+import AvatarPicker from '@/components/AvatarPicker';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
+import { type AvatarId } from '@/lib/api';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function Dashboard() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [jesusTogglingId, setJesusTogglingId] = useState<number | null>(null);
   const [themeApplyingId, setThemeApplyingId] = useState<number | null>(null);
+  const [avatarApplyingId, setAvatarApplyingId] = useState<number | null>(null);
 
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
@@ -566,6 +569,28 @@ export default function Dashboard() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-brown-200">
+                  <AvatarPicker
+                    currentAvatarId={chatbot.avatarId ?? ''}
+                    onSelect={async (avatarId: '' | AvatarId) => {
+                      setAvatarApplyingId(chatbot.id);
+                      try {
+                        const payload = {
+                          ...chatbot,
+                          name: (chatbot.name && chatbot.name.trim()) || 'Chatbot',
+                          websiteUrl: (chatbot.websiteUrl && chatbot.websiteUrl.trim()) || 'https://example.com',
+                          avatarId: avatarId || null,
+                        };
+                        const updated = await updateChatbot(chatbot.id, payload);
+                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                      } catch (err) {
+                        console.error('Failed to save avatar:', err);
+                        alert(getSafeErrorMessage(err, 'Failed to save avatar. Please try again.'));
+                      } finally {
+                        setAvatarApplyingId(null);
+                      }
+                    }}
+                    disabled={avatarApplyingId === chatbot.id}
+                  />
                   <ThemePicker
                     currentBrandingConfig={chatbot.brandingConfig ?? '{}'}
                     applying={themeApplyingId === chatbot.id}

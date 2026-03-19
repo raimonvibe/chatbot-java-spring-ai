@@ -139,4 +139,16 @@ public final class EmbedSecurity {
         if (text == null) return "";
         return text.replace("<", "").replace(">", "");
     }
+
+    /** Allowed avatar ids for chatbot avatar images (no path traversal / injection). */
+    private static final java.util.Set<String> ALLOWED_AVATAR_IDS = java.util.Set.of("1", "2", "3", "4", "5", "6");
+
+    /**
+     * Validates avatar id for storage and embed API. Returns null if input is null, blank, or not in 1-6.
+     */
+    public static String validateAvatarId(String avatarId) {
+        if (avatarId == null || avatarId.isBlank()) return null;
+        String trimmed = avatarId.trim();
+        return ALLOWED_AVATAR_IDS.contains(trimmed) ? trimmed : null;
+    }
 }

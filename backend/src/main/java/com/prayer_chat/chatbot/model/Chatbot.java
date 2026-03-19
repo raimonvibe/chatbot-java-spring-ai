@@ -53,6 +53,10 @@ public class Chatbot {
     @Column(columnDefinition = "TEXT")
     private String brandingConfig;
 
+    /** Optional avatar id: "1".."6" for static images, or null/blank for no avatar. Validated on update. */
+    @Column(name = "avatar_id", length = 2)
+    private String avatarId;
+
     // NEW FEATURE: Webhook Integration
     @Column(length = 500)
     private String webhookUrl;
@@ -190,6 +194,14 @@ public class Chatbot {
     
     public void setBrandingConfig(String brandingConfig) {
         this.brandingConfig = brandingConfig;
+    }
+
+    public String getAvatarId() {
+        return avatarId;
+    }
+
+    public void setAvatarId(String avatarId) {
+        this.avatarId = avatarId;
     }
     
     public Boolean getIsActive() {

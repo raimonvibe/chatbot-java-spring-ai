@@ -468,6 +468,26 @@
                     var titleEl = widgetContainer.querySelector('#prayer-chat-widget-title');
                     if (titleEl) titleEl.textContent = data.name;
                 }
+                // Avatar: only allow ids 1-6 (server already validates; defense in depth)
+                var allowedAvatarIds = ['1', '2', '3', '4', '5', '6'];
+                var avatarId = data.avatar && allowedAvatarIds.indexOf(String(data.avatar)) !== -1 ? String(data.avatar) : null;
+                if (avatarId && widgetContainer) {
+                    var headerEl = widgetContainer.querySelector('.prayer-chat-widget-header');
+                    var headerFirstDiv = headerEl && headerEl.querySelector('div');
+                    if (headerFirstDiv) {
+                        headerFirstDiv.style.display = 'flex';
+                        headerFirstDiv.style.alignItems = 'center';
+                        headerFirstDiv.style.minWidth = '0';
+                        var baseUrl = (config.apiUrl || '').replace(/\/api\/?$/, '');
+                        var avatarSrc = baseUrl + '/images/avatars/' + avatarId + '.png';
+                        var img = document.createElement('img');
+                        img.src = avatarSrc;
+                        img.alt = '';
+                        img.setAttribute('role', 'presentation');
+                        img.style.cssText = 'width:40px;height:40px;border-radius:50%;object-fit:cover;margin-right:10px;flex-shrink:0;border:2px solid rgba(255,255,255,0.5);';
+                        headerFirstDiv.insertBefore(img, headerFirstDiv.firstChild);
+                    }
+                }
                 // Apply branding if available (API may return string or already-parsed object)
                 if (data.brandingConfig) {
                     try {

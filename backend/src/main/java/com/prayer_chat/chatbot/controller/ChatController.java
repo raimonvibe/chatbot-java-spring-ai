@@ -245,15 +245,19 @@ public class ChatController {
             if (description.length() > 500) description = description.substring(0, 500);
             String primaryLanguage = chatbot.getPrimaryLanguage() != null ? chatbot.getPrimaryLanguage() : "en";
             List<String> supportedLanguages = chatbot.getSupportedLanguages() != null ? chatbot.getSupportedLanguages() : List.of();
+            String safeAvatarId = EmbedSecurity.validateAvatarId(chatbot.getAvatarId());
 
-            Map<String, Object> response = Map.of(
+            Map<String, Object> response = new java.util.HashMap<>(Map.of(
                 "chatbotId", chatbot.getId(),
                 "name", name,
                 "description", description,
                 "primaryLanguage", primaryLanguage,
                 "supportedLanguages", supportedLanguages,
                 "brandingConfig", safeBranding
-            );
+            ));
+            if (safeAvatarId != null) {
+                response.put("avatar", safeAvatarId);
+            }
 
             return ResponseEntity.ok(response);
             

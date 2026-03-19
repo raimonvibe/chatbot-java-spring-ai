@@ -141,6 +141,45 @@ class ChatControllerEmbedSecurityTest {
     }
 
     @Test
+    @DisplayName("Embed returns avatar when chatbot has valid avatarId 1-6")
+    void embedReturnsAvatarWhenValid() {
+        Chatbot bot = new Chatbot();
+        bot.setId(6L);
+        bot.setName("Avatar Bot");
+        bot.setWebsiteUrl("https://example.com");
+        bot.setDescription("Desc");
+        bot.setIsActive(true);
+        bot.setPrimaryLanguage("en");
+        bot.setSupportedLanguages(List.of());
+        bot.setAvatarId("3");
+        when(chatbotRepository.findById(6L)).thenReturn(Optional.of(bot));
+
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("6");
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(res.getBody()).containsKey("avatar");
+        assertThat(res.getBody().get("avatar")).isEqualTo("3");
+    }
+
+    @Test
+    @DisplayName("Embed omits avatar when chatbot has invalid avatarId (path traversal / invalid)")
+    void embedOmitsAvatarWhenInvalid() {
+        Chatbot bot = new Chatbot();
+        bot.setId(7L);
+        bot.setName("Invalid Avatar Bot");
+        bot.setWebsiteUrl("https://example.com");
+        bot.setDescription("Desc");
+        bot.setIsActive(true);
+        bot.setPrimaryLanguage("en");
+        bot.setSupportedLanguages(List.of());
+        bot.setAvatarId("../1");
+        when(chatbotRepository.findById(7L)).thenReturn(Optional.of(bot));
+
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("7");
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(res.getBody()).doesNotContainKey("avatar");
+    }
+
+    @Test
     @DisplayName("Inactive chatbot returns 403")
     void inactiveChatbotReturns403() {
         Chatbot bot = new Chatbot();

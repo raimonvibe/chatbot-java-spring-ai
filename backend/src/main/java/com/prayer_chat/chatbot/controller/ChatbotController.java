@@ -583,6 +583,7 @@ public class ChatbotController {
             chatbot.setBibleVerse(chatbotDetails.getBibleVerse());
             chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
             chatbot.setJesusTeachingsEnabled(chatbotDetails.getJesusTeachingsEnabled()); // NEW: Jesus Teachings feature
+            chatbot.setAvatarId(com.prayer_chat.chatbot.util.EmbedSecurity.validateAvatarId(chatbotDetails.getAvatarId()));
 
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
             logger.info("Updated chatbot: {}", LogSanitizer.sanitize(updatedChatbot.getName()));
