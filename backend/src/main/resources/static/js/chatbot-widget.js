@@ -467,17 +467,19 @@
                     var titleEl = widgetContainer.querySelector('#prayer-chat-widget-title');
                     if (titleEl) titleEl.textContent = data.name;
                 }
-                // Apply branding if available
+                // Apply branding if available (API may return string or already-parsed object)
                 if (data.brandingConfig) {
                     try {
-                        const branding = JSON.parse(data.brandingConfig);
-                        if (branding.primaryColor) config.primaryColor = branding.primaryColor;
-                        if (branding.secondaryColor) config.secondaryColor = branding.secondaryColor;
-                        if (branding.fontFamily) config.fontFamily = branding.fontFamily;
-                        if (branding.borderRadius) config.borderRadius = branding.borderRadius;
-                        
-                        // Update widget styling
-                        updateWidgetStyling();
+                        var branding = typeof data.brandingConfig === 'string'
+                            ? JSON.parse(data.brandingConfig)
+                            : data.brandingConfig;
+                        if (branding && typeof branding === 'object') {
+                            if (branding.primaryColor) config.primaryColor = branding.primaryColor;
+                            if (branding.secondaryColor) config.secondaryColor = branding.secondaryColor;
+                            if (branding.fontFamily) config.fontFamily = branding.fontFamily;
+                            if (branding.borderRadius) config.borderRadius = branding.borderRadius;
+                            updateWidgetStyling();
+                        }
                     } catch (e) {
                         console.warn('Invalid branding config:', e);
                     }

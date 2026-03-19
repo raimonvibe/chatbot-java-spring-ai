@@ -118,6 +118,29 @@ class ChatControllerEmbedSecurityTest {
     }
 
     @Test
+    @DisplayName("Embed returns theme colors when chatbot has valid brandingConfig (widget colors work)")
+    void embedReturnsThemeColorsFromBrandingConfig() {
+        String themeJson = "{\"primaryColor\":\"#7D9B69\",\"secondaryColor\":\"#B5C9A8\",\"borderRadius\":\"8px\"}";
+        Chatbot bot = new Chatbot();
+        bot.setId(5L);
+        bot.setName("Theme Bot");
+        bot.setWebsiteUrl("https://example.com");
+        bot.setDescription("Desc");
+        bot.setIsActive(true);
+        bot.setPrimaryLanguage("en");
+        bot.setSupportedLanguages(List.of());
+        bot.setBrandingConfig(themeJson);
+        when(chatbotRepository.findById(5L)).thenReturn(Optional.of(bot));
+
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("5");
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Object branding = res.getBody().get("brandingConfig");
+        assertThat(branding).isNotNull();
+        String brandingStr = branding.toString();
+        assertThat(brandingStr).contains("#7D9B69").contains("#B5C9A8").contains("8px");
+    }
+
+    @Test
     @DisplayName("Inactive chatbot returns 403")
     void inactiveChatbotReturns403() {
         Chatbot bot = new Chatbot();

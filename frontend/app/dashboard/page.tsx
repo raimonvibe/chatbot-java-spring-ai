@@ -621,11 +621,11 @@ export default function Dashboard() {
                         merged.primaryColor = theme.primaryColor;
                         merged.secondaryColor = theme.secondaryColor;
                         if (theme.borderRadius) merged.borderRadius = theme.borderRadius;
-                        // Backend expects full Chatbot for @Valid (name, websiteUrl required). Send full entity with updated brandingConfig only.
+                        // Backend @Valid requires non-blank name and websiteUrl. Blank causes 400 and theme is not saved.
                         const payload = {
                           ...chatbot,
-                          name: chatbot.name ?? 'Chatbot',
-                          websiteUrl: chatbot.websiteUrl ?? '',
+                          name: (chatbot.name && chatbot.name.trim()) || 'Chatbot',
+                          websiteUrl: (chatbot.websiteUrl && chatbot.websiteUrl.trim()) || 'https://example.com',
                           brandingConfig: JSON.stringify(merged),
                         };
                         const updated = await updateChatbot(chatbot.id, payload);

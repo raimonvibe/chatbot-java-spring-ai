@@ -183,6 +183,39 @@ describe('Dashboard Page', () => {
     });
   });
 
+  describe('Theme / color apply', () => {
+    it('should call updateChatbot with non-blank name and websiteUrl when applying theme (backend @Valid)', async () => {
+      const botWithoutWebsiteUrl = {
+        ...minimalChatbot,
+        id: 1,
+        name: 'My Bot',
+        websiteUrl: undefined as unknown as string,
+      };
+      mockGetAllChatbots.mockResolvedValueOnce([botWithoutWebsiteUrl]);
+      mockUpdateChatbot.mockResolvedValueOnce({ ...minimalChatbot, brandingConfig: '{"primaryColor":"#7D9B69","secondaryColor":"#B5C9A8","borderRadius":"8px"}' });
+
+      render(<Dashboard />);
+      await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
+
+      const themeButton = screen.getByRole('button', { name: /Theme Sage/i });
+      fireEvent.click(themeButton);
+
+      await waitFor(() => {
+        expect(mockUpdateChatbot).toHaveBeenCalledWith(1, expect.any(Object));
+      });
+      const payload = mockUpdateChatbot.mock.calls[0][1];
+      expect(payload.name).toBeTruthy();
+      expect(String(payload.name).trim()).not.toBe('');
+      expect(payload.websiteUrl).toBeTruthy();
+      expect(String(payload.websiteUrl).trim()).not.toBe('');
+      expect(JSON.parse(payload.brandingConfig)).toMatchObject({
+        primaryColor: '#7D9B69',
+        secondaryColor: '#B5C9A8',
+        borderRadius: '8px',
+      });
+    });
+  });
+
   describe('Smoke', () => {
     it('should show dashboard title and nav when authenticated with chatbots', async () => {
       render(<Dashboard />);
