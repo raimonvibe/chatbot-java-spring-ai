@@ -191,10 +191,10 @@
             border-radius: 0 0 ${config.borderRadius} ${config.borderRadius};
         `;
         inputArea.innerHTML = `
-            <div style="display: flex; gap: 10px;">
+            <div class="prayer-chat-input-row" style="display: flex; gap: 10px; align-items: center;">
                 <input type="text" id="prayer-chat-message-input" name="prayer-chat-message" placeholder="Type your message..." 
-                       aria-label="Chat message" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 16px;">
-                <button type="button" id="prayer-chat-send-btn" name="prayer-chat-send" aria-label="Send message" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
+                       aria-label="Chat message" style="flex: 1; min-width: 0; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 16px;">
+                <button type="button" id="prayer-chat-send-btn" name="prayer-chat-send" aria-label="Send message" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; min-width: 40px; min-height: 40px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -435,7 +435,7 @@
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite;"></i>
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.2s;"></i>
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.4s;"></i>
-                AI is typing...
+                Prayer-Chat is typing...
             </div>
         `;
         messageContainer.appendChild(typingDiv);
@@ -593,6 +593,18 @@
             }
             #prayer-chat-chatbot-widget #prayer-chat-chat-container {
                 touch-action: manipulation;
+            }
+            /* Send button: responsive, never shrinks on mobile (min 44px touch target) */
+            #prayer-chat-chatbot-widget .prayer-chat-input-row {
+                flex-wrap: nowrap;
+                min-width: 0;
+            }
+            #prayer-chat-chatbot-widget #prayer-chat-send-btn {
+                flex-shrink: 0 !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                width: 44px !important;
+                height: 44px !important;
             }
         }
     `;
