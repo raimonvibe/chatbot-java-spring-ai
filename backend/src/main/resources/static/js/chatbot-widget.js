@@ -190,7 +190,7 @@
         inputArea.innerHTML = `
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="prayer-chat-message-input" name="prayer-chat-message" placeholder="Type your message..." 
-                       aria-label="Chat message" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none;">
+                       aria-label="Chat message" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 16px;">
                 <button type="button" id="prayer-chat-send-btn" name="prayer-chat-send" aria-label="Send message" style="background: ${config.primaryColor}; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer;">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -286,28 +286,46 @@
         }
     }
     
+    var savedScrollY = 0;
+    
     /**
-     * Open chat
+     * Open chat.
+     * On mobile: use position fixed + save scroll to avoid iOS viewport jump; input is 16px to prevent Safari zoom on focus.
      */
     function openChat() {
         chatContainer.style.display = 'flex';
         toggleButton.style.display = 'none';
         isOpen = true;
-        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches && document.body) {
+            savedScrollY = window.scrollY || window.pageYOffset || 0;
+            document.body.style.position = 'fixed';
+            document.body.style.top = '-' + savedScrollY + 'px';
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+        } else if (document.body) {
             document.body.style.overflow = 'hidden';
         }
-        if (inputField) inputField.focus();
+        if (inputField) {
+            setTimeout(function() { inputField.focus(); }, 100);
+        }
     }
     
     /**
-     * Close chat
+     * Close chat and restore body/scroll on mobile.
      */
     function closeChat() {
         chatContainer.style.display = 'none';
         toggleButton.style.display = 'flex';
         isOpen = false;
         if (typeof document !== 'undefined' && document.body) {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
             document.body.style.overflow = '';
+            if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches && savedScrollY !== undefined) {
+                window.scrollTo(0, savedScrollY);
+            }
         }
     }
     
@@ -557,6 +575,13 @@
             #prayer-chat-chatbot-widget .prayer-chat-input-area {
                 padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
                 box-sizing: border-box !important;
+            }
+            /* 16px input prevents iOS Safari auto-zoom on focus (Apple a11y threshold); avoids viewport "pop" */
+            #prayer-chat-chatbot-widget #prayer-chat-message-input {
+                font-size: max(16px, 1em) !important;
+            }
+            #prayer-chat-chatbot-widget #prayer-chat-chat-container {
+                touch-action: manipulation;
             }
         }
     `;
