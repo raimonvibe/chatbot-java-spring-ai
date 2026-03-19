@@ -7,10 +7,10 @@ type AvatarId = (typeof AVATAR_IDS)[number];
 
 const AVATAR_LABELS: Record<string, string> = {
   '1': 'Virgin Mary (Mother of Jesus)',
-  '2': 'Queen Esther',
+  '2': 'Saint Joseph',
   '3': 'Jesus Christ',
-  '4': 'Mary / Saint Monica',
-  '5': 'Saint Joseph',
+  '4': 'Queen Esther',
+  '5': 'Mary / Saint Monica',
   '6': 'Saint Martin de Porres',
 };
 
