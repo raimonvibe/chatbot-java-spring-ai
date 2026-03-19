@@ -77,6 +77,18 @@ So **yes, the script works when embedded** on any site. Widget traffic is allowe
 
 ---
 
+## Host page compatibility (theme toggles, dark mode, links)
+
+The widget is designed so it **does not interfere** with your site’s own behavior:
+
+- **Theme / dark mode toggles** — The overlay behind the chat panel uses `pointer-events: none`, so clicks and touches pass through to your page. Buttons like a dark-mode toggle, nav links, or other controls keep working even while the chat is open. This applies to any site (static HTML, React, etc.).
+- **No `body` or `html` changes** — The widget never sets `document.body.style` or classes on `body`/`html`, so your existing theme or layout logic is unchanged.
+- **Scoped styles** — All widget CSS is scoped under `#prayer-chat-chatbot-widget`, so it does not affect your global styles.
+
+If you previously saw a theme toggle (or similar control) stop working after adding the embed, ensure you are using the latest widget script; the overlay was updated so host controls remain clickable.
+
+---
+
 ## Mobile / responsive behavior
 
 On viewports **≤ 768px**, the chat panel opens as a **bottom sheet** (about 72% of viewport height from the bottom), so it does not cover the whole screen and stays within the window; width is limited to the viewport so it never sticks out on the right. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.

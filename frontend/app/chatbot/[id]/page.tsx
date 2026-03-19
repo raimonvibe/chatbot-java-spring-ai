@@ -133,7 +133,8 @@ export default function ChatbotPreview() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessage(chatbotId as number, messageToSend, sessionId);
+      const userLanguage = typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || 'en') : 'en';
+      const response = await sendMessage(chatbotId as number, messageToSend, sessionId, userLanguage);
 
       if (response.sessionId && !sessionId) {
         setSessionId(response.sessionId);

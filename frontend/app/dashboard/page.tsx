@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -10,6 +10,7 @@ import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, L
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
 import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/ThemePicker';
+import { useSetDashboardNav } from '@/context/DashboardNavContext';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -232,6 +233,64 @@ export default function Dashboard() {
     }
   };
 
+  const openSubscription = useCallback(async () => {
+    setPortalLoading(true);
+    try {
+      const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+      const url = await createPortalSession(returnUrl);
+      const allowed = (u: string) => {
+        try {
+          const o = new URL(u);
+          return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
+        } catch {
+          return false;
+        }
+      };
+      if (!url || typeof url !== 'string' || !allowed(url)) {
+        alert('Invalid billing portal URL. Please try again or contact support.');
+        return;
+      }
+      window.location.href = url;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
+      if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
+        alert(msg);
+      } else {
+        alert('Something went wrong. Please try again or contact support.');
+      }
+    } finally {
+      setPortalLoading(false);
+    }
+  }, []);
+
+  const setNav = useSetDashboardNav();
+  useEffect(() => {
+    if (!authenticated || loading) {
+      setNav(null);
+      return;
+    }
+    setNav({
+      openSubscription,
+      logout: handleLogout,
+      toggleCreateForm: () => setShowCreateForm((s) => !s),
+      showCreateForm,
+      hasChatbots: chatbots.length > 0,
+      isPreviewMode: subscriptionStatus?.isPreviewMode ?? true,
+      onDeleteAllChatbots: handleDeleteAllChatbots,
+      portalLoading,
+    });
+    return () => setNav(null);
+  }, [
+    authenticated,
+    loading,
+    openSubscription,
+    showCreateForm,
+    chatbots.length,
+    subscriptionStatus?.isPreviewMode,
+    portalLoading,
+    setNav,
+  ]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -255,104 +314,11 @@ export default function Dashboard() {
     <main className="min-h-screen p-4 sm:p-6 md:p-8">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <div className="max-w-4xl mx-auto min-w-0">
-        {/* Responsive top navbar: title full-width on mobile, nav wraps */}
-        <nav className="flex flex-col gap-4 mb-6 pb-4 border-b border-brown-200">
-          <div className="flex items-center gap-3 min-w-0">
-            <Book className="w-8 h-8 text-brown-700 flex-shrink-0" strokeWidth={1.5} />
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-brown-800 truncate">
-                Prayer-Chat Dashboard
-              </h1>
-              {subscriptionStatus?.isPreviewMode && (
-                <span className="text-xs text-brown-600 font-medium">Preview Mode</span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 md:gap-6 text-sm font-medium">
-            {/* On mobile, hide the redundant "Dashboard" text link to keep the nav compact. */}
-            <Link
-              href="/dashboard"
-              className="hidden sm:inline-flex text-brown-700 hover:text-brown-900 transition-colors whitespace-nowrap py-1"
-            >
-              Dashboard
-            </Link>
-
-            {/* Mobile-first: icon button with larger tap target; label on sm+ */}
-            <Link
-              href="/account"
-              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
-              aria-label="Account"
-            >
-              <User className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Account</span>
-            </Link>
-            <button
-              onClick={async () => {
-                setPortalLoading(true);
-                try {
-                  const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
-                  const url = await createPortalSession(returnUrl);
-                  const allowed = (u: string) => {
-                    try {
-                      const o = new URL(u);
-                      return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
-                    } catch {
-                      return false;
-                    }
-                  };
-                  if (!url || typeof url !== 'string' || !allowed(url)) {
-                    alert('Invalid billing portal URL. Please try again or contact support.');
-                    return;
-                  }
-                  window.location.href = url;
-                } catch (e) {
-                  const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
-                  if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
-                    alert(msg);
-                  } else {
-                    alert('Something went wrong. Please try again or contact support.');
-                  }
-                } finally {
-                  setPortalLoading(false);
-                }
-              }}
-              disabled={portalLoading}
-              className="inline-flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
-              aria-label="Subscription"
-            >
-              <CreditCard className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">{portalLoading ? 'Opening…' : 'Subscription'}</span>
-            </button>
-            {chatbots.length > 0 || showCreateForm ? (
-              <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all flex-shrink-0 min-w-0"
-                aria-label={showCreateForm ? 'Cancel' : 'New Chatbot'}
-              >
-                {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                <span className="hidden sm:inline">{showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
-              </button>
-            ) : null}
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors"
-              title="Log out"
-              aria-label="Log out"
-            >
-              <LogOut className="w-4 h-4 flex-shrink-0" />
-              <span>Logout</span>
-            </button>
-            {chatbots.length > 0 && subscriptionStatus?.isPreviewMode && (
-              <button
-                onClick={handleDeleteAllChatbots}
-                className="text-red-600 hover:text-red-700 text-xs whitespace-nowrap py-1"
-                title="Delete all chatbots (preview only)"
-              >
-                Delete All
-              </button>
-            )}
-          </div>
-        </nav>
+        <h1 className="sr-only">Prayer-Chat Dashboard</h1>
+        {/* Optional Preview Mode badge when nav is in header */}
+        {subscriptionStatus?.isPreviewMode && (
+          <p className="mb-4 text-xs text-brown-600 font-medium">Preview Mode</p>
+        )}
 
         {/* Mobile overview card (Option A) */}
         <section className="sm:hidden mb-6">

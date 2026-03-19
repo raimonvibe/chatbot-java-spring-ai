@@ -140,16 +140,13 @@ describe('Dashboard Page', () => {
   });
 
   describe('Navigation and links', () => {
-    it('should have Dashboard and Account links with correct hrefs', async () => {
+    it('should have Account link and dashboard heading (nav is in header)', async () => {
       render(<Dashboard />);
       await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
 
-      // Use href-based selection to avoid ambiguity (mobile overview card adds an "Open account" link)
-      const links = screen.getAllByRole('link');
-      const dashboardLink = links.find((a) => a.getAttribute('href') === '/dashboard');
-      const accountLink = links.find((a) => a.getAttribute('href') === '/account');
-      expect(dashboardLink).toBeTruthy();
-      expect(accountLink).toBeTruthy();
+      // Dashboard/Account/Subscription/Logout are in the top navbar (Header); page has Account in mobile overview card
+      const accountLink = screen.getByRole('link', { name: /Open account|Account/i });
+      expect(accountLink).toHaveAttribute('href', '/account');
     });
 
     it('should build chatbot preview link with numeric id only (no path traversal)', async () => {
@@ -171,9 +168,8 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
       await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
 
-      // Mobile overview card also includes a "Subscription" button; scope to top nav to avoid ambiguity.
-      const nav = screen.getByRole('navigation');
-      const subButton = within(nav).getByRole('button', { name: /Subscription/i });
+      // Subscription button is in mobile overview card (nav links are in Header)
+      const subButton = screen.getByRole('button', { name: /Subscription/i });
       fireEvent.click(subButton);
 
       await waitFor(() => {
@@ -217,13 +213,12 @@ describe('Dashboard Page', () => {
   });
 
   describe('Smoke', () => {
-    it('should show dashboard title and nav when authenticated with chatbots', async () => {
+    it('should show dashboard title and account link when authenticated with chatbots', async () => {
       render(<Dashboard />);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument();
-        const links = screen.getAllByRole('link');
-        expect(links.some((a) => a.getAttribute('href') === '/dashboard')).toBe(true);
+        expect(screen.getByRole('link', { name: /Open account|Account/i })).toHaveAttribute('href', '/account');
       });
     });
   });

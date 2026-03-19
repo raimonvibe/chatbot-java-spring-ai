@@ -5,7 +5,7 @@
  * Integration safety (does not interfere with client code):
  * - Only adds window.PrayerChat; all other state is in closure.
  * - We never modify document.body or document.documentElement (preserves host dark mode, theme toggles, etc.).
- * - Scroll lock uses a transparent backdrop div only; no body overflow/position changes.
+ * - Scroll lock uses a transparent backdrop; backdrop has pointer-events: none so host controls (theme toggles, links, etc.) still work.
  * - Injected CSS is scoped to #prayer-chat-chatbot-widget so host styles are unaffected.
  * - DOM queries are scoped to our container; we never modify host elements.
  * - Document click listener does not call preventDefault/stopPropagation so host events work as usual.
@@ -281,14 +281,15 @@
     
     /**
      * Create a full-screen backdrop so we never modify document.body (preserves host dark mode, theme, etc.).
-     * Backdrop blocks background scroll via touch-action: none and pointer-events; no body styles.
+     * Backdrop uses pointer-events: none so clicks and touches pass through to the host page — theme toggles,
+     * links, and other controls keep working on any site. Click-outside-to-close still works via document listener.
      */
     function createBackdrop() {
         if (backdropElement && backdropElement.parentNode) return;
         var backdrop = document.createElement('div');
         backdrop.id = 'prayer-chat-widget-backdrop';
         backdrop.setAttribute('aria-hidden', 'true');
-        backdrop.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:transparent;pointer-events:auto;touch-action:none;';
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:transparent;pointer-events:none;';
         var parent = widgetContainer && widgetContainer.parentNode;
         if (parent) {
             parent.insertBefore(backdrop, widgetContainer);
