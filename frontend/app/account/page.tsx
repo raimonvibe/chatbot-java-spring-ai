@@ -30,6 +30,7 @@ import {
   type Chatbot,
 } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
+import { useSetDashboardNav } from '@/context/DashboardNavContext';
 
 function AccountPageFallback() {
   return (
@@ -248,6 +249,25 @@ function AccountPageContent() {
       setLogoutLoading(false);
     }
   };
+
+  const setNav = useSetDashboardNav();
+  useEffect(() => {
+    if (loading || !user) {
+      setNav(null);
+      return;
+    }
+    setNav({
+      openSubscription: handleManageSubscription,
+      logout: handleLogout,
+      toggleCreateForm: () => router.push('/dashboard'),
+      showCreateForm: false,
+      hasChatbots: chatbots.length > 0,
+      isPreviewMode: false,
+      onDeleteAllChatbots: () => {},
+      portalLoading,
+    });
+    return () => setNav(null);
+  }, [loading, user, portalLoading, chatbots.length, setNav]);
 
   if (loading) {
     return (

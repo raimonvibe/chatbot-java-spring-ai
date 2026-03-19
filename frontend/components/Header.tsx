@@ -3,17 +3,23 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu } from 'lucide-react';
+import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu, BookOpen } from 'lucide-react';
 import { useDashboardNav } from '@/context/DashboardNavContext';
+
+const NAV_LINK_BASE = 'inline-flex items-center justify-center gap-1.5 h-9 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap min-h-[36px]';
 
 export default function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
   const isDashboardPage = pathname === '/dashboard';
+  const isAccountPage = pathname === '/account';
+  const isChatbotPreviewPage = pathname.startsWith('/chatbot/');
   const isPricingPage = pathname === '/pricing';
   const nav = useDashboardNav();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const showAppNav = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && nav;
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -34,30 +40,35 @@ export default function Header() {
     };
   }, [mobileMenuOpen]);
 
-  // Don't show header on home page
   if (isHomePage) {
     return null;
   }
 
-  const showDashboardNav = isDashboardPage && nav;
+  const getLeftLabel = () => {
+    if (isDashboardPage) return { icon: LayoutDashboard, text: 'Prayer-Chat Dashboard' };
+    if (isAccountPage) return { icon: User, text: 'Account' };
+    if (isChatbotPreviewPage) return { icon: BookOpen, text: 'Chatbot Preview' };
+    return null;
+  };
+
+  const leftLabel = getLeftLabel();
 
   return (
     <header className="bg-gradient-to-r from-brown-50 to-gold-50 border-b border-brown-200 sticky top-0 z-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between gap-3">
-        {/* Left: page title / back link */}
-        <div className="flex items-center gap-2 min-w-0">
-          {isDashboardPage ? (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between gap-3 min-h-[52px]">
+        {/* Left: page title — no truncation; fixed height */}
+        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+          {leftLabel ? (
             <>
-              <LayoutDashboard className="w-5 h-5 text-brown-700 flex-shrink-0" />
-              <span className="text-brown-700 font-medium text-sm truncate hidden sm:inline">
-                Prayer-Chat Dashboard
+              <leftLabel.icon className="w-5 h-5 text-brown-700 flex-shrink-0" aria-hidden />
+              <span className="text-brown-700 font-medium text-sm whitespace-nowrap">
+                {leftLabel.text}
               </span>
-              <span className="text-brown-700 font-medium text-sm truncate inline sm:hidden">Dashboard</span>
             </>
           ) : (
             <Link
               href="/"
-              className="inline-flex items-center gap-2 text-brown-700 hover:text-gold-700 transition-colors font-medium text-sm leading-none h-9"
+              className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 transition-colors bg-transparent border-0`}
             >
               <Home className="w-5 h-5 flex-shrink-0" />
               <span>Back to Home</span>
@@ -65,57 +76,61 @@ export default function Header() {
           )}
         </div>
 
-        {/* Right: Pricing page - Dashboard button only */}
+        {/* Pricing: single Dashboard button */}
         {isPricingPage && (
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-brown-200 text-brown-800 hover:bg-brown-50 transition-colors text-sm font-medium h-9 whitespace-nowrap"
+            className={`${NAV_LINK_BASE} bg-white border border-brown-200 text-brown-800 hover:bg-brown-50 transition-colors`}
           >
             <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
             <span>Dashboard</span>
           </Link>
         )}
 
-        {/* Right: Dashboard nav - desktop inline */}
-        {showDashboardNav && (
+        {/* App nav (Dashboard / Account / Chatbot preview): one row, same height */}
+        {showAppNav && (
           <>
-            <div className="hidden md:flex items-center gap-2 flex-wrap justify-end">
+            <nav className="hidden md:flex items-center gap-2 flex-wrap justify-end min-h-[36px]" aria-label="Main">
               <Link
                 href="/dashboard"
-                className="text-brown-700 hover:text-brown-900 transition-colors whitespace-nowrap py-1.5 px-1 text-sm font-medium"
+                className={`${NAV_LINK_BASE} text-brown-700 hover:text-brown-900 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 transition-colors`}
               >
-                Dashboard
+                <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                <span>Dashboard</span>
               </Link>
               <Link
                 href="/account"
-                className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors text-sm font-medium"
+                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors`}
                 aria-label="Account"
               >
                 <User className="w-4 h-4 flex-shrink-0" />
                 <span>Account</span>
               </Link>
               <button
+                type="button"
                 onClick={nav.openSubscription}
                 disabled={nav.portalLoading}
-                className="inline-flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors text-sm font-medium"
+                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors disabled:opacity-50`}
                 aria-label="Subscription"
               >
                 <CreditCard className="w-4 h-4 flex-shrink-0" />
                 <span>{nav.portalLoading ? 'Opening…' : 'Subscription'}</span>
               </button>
-              {nav.hasChatbots || nav.showCreateForm ? (
+              {(nav.hasChatbots || nav.showCreateForm) && (
                 <button
+                  type="button"
                   onClick={nav.toggleCreateForm}
-                  className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-lg bg-gradient-to-r from-brown-600 to-gold-600 text-white hover:from-brown-700 hover:to-gold-700 transition-all text-sm font-medium"
+                  className={`${NAV_LINK_BASE} text-white bg-gradient-to-r from-brown-600 to-gold-600 hover:from-brown-700 hover:to-gold-700 transition-all border-0`}
                   aria-label={nav.showCreateForm ? 'Cancel' : 'New Chatbot'}
                 >
                   {nav.showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   <span>{nav.showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
                 </button>
-              ) : null}
+              )}
               <button
+                type="button"
                 onClick={nav.logout}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 rounded-xl bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 hover:text-brown-900 transition-colors text-sm font-medium"
+                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors`}
                 title="Log out"
                 aria-label="Log out"
               >
@@ -124,8 +139,9 @@ export default function Header() {
               </button>
               {nav.hasChatbots && nav.isPreviewMode && (
                 <button
+                  type="button"
                   onClick={nav.onDeleteAllChatbots}
-                  className="text-red-600 hover:text-red-700 text-xs whitespace-nowrap py-1 font-medium"
+                  className={`${NAV_LINK_BASE} text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent border border-transparent text-xs`}
                   title="Delete all chatbots (preview only)"
                 >
                   Delete All
@@ -133,19 +149,19 @@ export default function Header() {
               )}
               <Link
                 href="/"
-                className="inline-flex items-center gap-2 text-brown-700 hover:text-gold-700 transition-colors font-medium text-sm leading-none h-9 whitespace-nowrap ml-1"
+                className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0`}
               >
                 <Home className="w-4 h-4 flex-shrink-0" />
                 <span>Back to Home</span>
               </Link>
-            </div>
+            </nav>
 
             {/* Mobile: hamburger + dropdown */}
-            <div className="md:hidden relative" ref={menuRef}>
+            <div className="md:hidden relative flex-shrink-0" ref={menuRef}>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((o) => !o)}
-                className="p-2 rounded-xl border border-brown-200 bg-brown-100/70 text-brown-800 hover:bg-brown-100 transition-colors"
+                className={`${NAV_LINK_BASE} bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 transition-colors`}
                 aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={mobileMenuOpen}
               >
@@ -158,20 +174,20 @@ export default function Header() {
                 >
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
                     role="menuitem"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <LayoutDashboard className="w-4 h-4" />
+                    <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
                     Dashboard
                   </Link>
                   <Link
                     href="/account"
-                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
                     role="menuitem"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <User className="w-4 h-4" />
+                    <User className="w-4 h-4 flex-shrink-0" />
                     Account
                   </Link>
                   <button
@@ -181,10 +197,10 @@ export default function Header() {
                       setMobileMenuOpen(false);
                     }}
                     disabled={nav.portalLoading}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium disabled:opacity-50 text-left"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] disabled:opacity-50 text-left"
                     role="menuitem"
                   >
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-4 h-4 flex-shrink-0" />
                     {nav.portalLoading ? 'Opening…' : 'Subscription'}
                   </button>
                   {(nav.hasChatbots || nav.showCreateForm) && (
@@ -194,7 +210,7 @@ export default function Header() {
                         nav.toggleCreateForm();
                         setMobileMenuOpen(false);
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium text-left"
+                      className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] text-left"
                       role="menuitem"
                     >
                       {nav.showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -207,10 +223,10 @@ export default function Header() {
                       nav.logout();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium text-left"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] text-left"
                     role="menuitem"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-4 h-4 flex-shrink-0" />
                     Logout
                   </button>
                   {nav.hasChatbots && nav.isPreviewMode && (
@@ -220,20 +236,20 @@ export default function Header() {
                         nav.onDeleteAllChatbots();
                         setMobileMenuOpen(false);
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium text-left"
+                      className="flex w-full items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium min-h-[44px] text-left"
                       role="menuitem"
                     >
                       Delete All
                     </button>
                   )}
-                  <div className="border-t border-brown-100 my-2" />
+                  <div className="border-t border-brown-100 my-2" aria-hidden />
                   <Link
                     href="/"
-                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
                     role="menuitem"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <Home className="w-4 h-4" />
+                    <Home className="w-4 h-4 flex-shrink-0" />
                     Back to Home
                   </Link>
                 </div>
@@ -242,14 +258,25 @@ export default function Header() {
           </>
         )}
 
-        {/* Right: back-to-home only when on dashboard but nav not yet set (loading) */}
+        {/* Dashboard loading: show Back to Home until nav is set */}
         {isDashboardPage && !nav && (
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-brown-700 hover:text-gold-700 transition-colors font-medium text-sm leading-none h-9 whitespace-nowrap"
+            className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0 md:flex`}
           >
             <Home className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Back to Home</span>
+            <span>Back to Home</span>
+          </Link>
+        )}
+
+        {/* Account / Preview loading: show Back to Home until nav is set */}
+        {(isAccountPage || isChatbotPreviewPage) && !nav && (
+          <Link
+            href="/"
+            className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0 md:flex`}
+          >
+            <Home className="w-4 h-4 flex-shrink-0" />
+            <span>Back to Home</span>
           </Link>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Message from '@/components/Message';
 import {
   sendMessage,
@@ -10,6 +10,7 @@ import {
   getQuickReplies,
   pollUntilAnalysisReady,
   previewJesusTeachings,
+  logout,
   type Message as MessageType,
   type Chatbot,
   type JesusTeachingsPreviewResponse,
@@ -18,6 +19,7 @@ import Link from 'next/link';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import CalligraphicFrame from '@/components/CalligraphicFrame';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
+import { useSetDashboardNav } from '@/context/DashboardNavContext';
 
 /** Validates and parses chatbot ID from URL. Returns a positive integer or null if invalid (no API calls with bad ID). */
 function parseChatbotId(raw: string | string[] | undefined): number | null {
@@ -31,8 +33,10 @@ function parseChatbotId(raw: string | string[] | undefined): number | null {
 
 export default function ChatbotPreview() {
   const params = useParams();
+  const router = useRouter();
   const chatbotId = useMemo(() => parseChatbotId(params?.id), [params?.id]);
   const isValidId = chatbotId !== null;
+  const setNav = useSetDashboardNav();
 
   const [chatbot, setChatbot] = useState<Chatbot | null>(null);
   const [messages, setMessages] = useState<MessageType[]>([]);
@@ -101,6 +105,35 @@ export default function ChatbotPreview() {
 
     return () => { cancelled = true; };
   }, [chatbotId, isValidId]);
+
+  // Provide nav context so header shows Dashboard/Account/Subscription/Logout and mobile menu on preview page
+  useEffect(() => {
+    if (!isValidId) {
+      setNav(null);
+      return;
+    }
+    const handleLogout = async () => {
+      try {
+        await logout();
+        router.replace('/');
+        if (typeof window !== 'undefined') window.location.href = '/';
+      } catch {
+        router.replace('/');
+        if (typeof window !== 'undefined') window.location.href = '/';
+      }
+    };
+    setNav({
+      openSubscription: async () => { router.push('/dashboard'); },
+      logout: handleLogout,
+      toggleCreateForm: () => router.push('/dashboard'),
+      showCreateForm: false,
+      hasChatbots: true,
+      isPreviewMode: false,
+      onDeleteAllChatbots: () => {},
+      portalLoading: false,
+    });
+    return () => setNav(null);
+  }, [isValidId, setNav, router]);
 
   // Scroll messages container to bottom when messages change (sends/receives)
   useEffect(() => {
