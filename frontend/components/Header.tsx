@@ -87,77 +87,9 @@ export default function Header() {
           </Link>
         )}
 
-        {/* App nav (Dashboard / Account / Chatbot preview): one row, same height */}
+        {/* App nav: hamburger + dropdown on all screen sizes (desktop and mobile) */}
         {showAppNav && (
-          <>
-            <nav className="hidden md:flex items-center gap-2 flex-wrap justify-end min-h-[36px]" aria-label="Main">
-              <Link
-                href="/dashboard"
-                className={`${NAV_LINK_BASE} text-brown-700 hover:text-brown-900 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 transition-colors`}
-              >
-                <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                href="/account"
-                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors`}
-                aria-label="Account"
-              >
-                <User className="w-4 h-4 flex-shrink-0" />
-                <span>Account</span>
-              </Link>
-              <button
-                type="button"
-                onClick={nav.openSubscription}
-                disabled={nav.portalLoading}
-                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors disabled:opacity-50`}
-                aria-label="Subscription"
-              >
-                <CreditCard className="w-4 h-4 flex-shrink-0" />
-                <span>{nav.portalLoading ? 'Opening…' : 'Subscription'}</span>
-              </button>
-              {(nav.hasChatbots || nav.showCreateForm) && (
-                <button
-                  type="button"
-                  onClick={nav.toggleCreateForm}
-                  className={`${NAV_LINK_BASE} text-white bg-gradient-to-r from-brown-600 to-gold-600 hover:from-brown-700 hover:to-gold-700 transition-all border-0`}
-                  aria-label={nav.showCreateForm ? 'Cancel' : 'New Chatbot'}
-                >
-                  {nav.showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                  <span>{nav.showCreateForm ? 'Cancel' : 'New Chatbot'}</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={nav.logout}
-                className={`${NAV_LINK_BASE} text-brown-800 bg-brown-100/70 border border-brown-200 hover:bg-brown-100 hover:text-brown-900 transition-colors`}
-                title="Log out"
-                aria-label="Log out"
-              >
-                <LogOut className="w-4 h-4 flex-shrink-0" />
-                <span>Logout</span>
-              </button>
-              {nav.hasChatbots && nav.isPreviewMode && (
-                <button
-                  type="button"
-                  onClick={nav.onDeleteAllChatbots}
-                  className={`${NAV_LINK_BASE} text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent border border-transparent text-xs`}
-                  title="Delete all chatbots (preview only)"
-                >
-                  Delete All
-                </button>
-              )}
-              <Link
-                href="/"
-                className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0`}
-              >
-                <Home className="w-4 h-4 flex-shrink-0" />
-                <span>Back to Home</span>
-              </Link>
-            </nav>
-
-            {/* Mobile: hamburger + dropdown */}
-            <div className="md:hidden relative flex-shrink-0" ref={menuRef}>
+          <div className="relative flex-shrink-0" ref={menuRef} aria-label="Main">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((o) => !o)}
@@ -254,8 +186,7 @@ export default function Header() {
                   </Link>
                 </div>
               )}
-            </div>
-          </>
+          </div>
         )}
 
         {/* Dashboard loading: show Back to Home until nav is set */}
