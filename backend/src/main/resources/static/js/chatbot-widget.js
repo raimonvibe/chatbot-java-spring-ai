@@ -554,7 +554,7 @@
             50% { opacity: 1; }
         }
         /* All rules scoped under our widget root so host page is never styled */
-        /* Mobile: bottom sheet 50% height, 90% width, centered — does not push viewport */
+        /* Mobile: bottom sheet 50% height, 95% width, centered — does not push viewport */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
                 left: 0 !important;
@@ -574,11 +574,11 @@
                 pointer-events: auto !important;
                 position: fixed !important;
                 bottom: max(12px, env(safe-area-inset-bottom)) !important;
-                left: 5% !important;
-                right: 5% !important;
+                left: 2.5% !important;
+                right: 2.5% !important;
                 top: auto !important;
-                width: 90% !important;
-                max-width: 90vw !important;
+                width: 95% !important;
+                max-width: 95vw !important;
                 height: 50dvh !important;
                 max-height: 50dvh !important;
                 min-height: 200px !important;
