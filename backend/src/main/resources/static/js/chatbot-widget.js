@@ -293,7 +293,10 @@
         chatContainer.style.display = 'flex';
         toggleButton.style.display = 'none';
         isOpen = true;
-        inputField.focus();
+        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+            document.body.style.overflow = 'hidden';
+        }
+        if (inputField) inputField.focus();
     }
     
     /**
@@ -303,6 +306,9 @@
         chatContainer.style.display = 'none';
         toggleButton.style.display = 'flex';
         isOpen = false;
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.style.overflow = '';
+        }
     }
     
     /**
@@ -498,37 +504,40 @@
             50% { opacity: 1; }
         }
         /* All rules scoped under our widget root so host page is never styled */
-        /* Mobile: bottom sheet ~1/3 screen height, anchored to bottom, no overflow */
+        /* Mobile: bottom sheet 50% height, 90% width, centered — does not push viewport */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
                 top: auto !important;
-                width: 100dvw !important;
-                max-width: 100dvw !important;
-                max-height: 100dvh !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: none !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 box-sizing: border-box !important;
-                overflow-x: hidden !important;
+                overflow: visible !important;
+                pointer-events: none !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-chat-container {
+                pointer-events: auto !important;
                 position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
+                bottom: max(12px, env(safe-area-inset-bottom)) !important;
+                left: 5% !important;
+                right: 5% !important;
                 top: auto !important;
-                width: 100dvw !important;
-                max-width: 100dvw !important;
-                height: 33dvh !important;
-                max-height: 33dvh !important;
-                min-height: 180px !important;
-                border-radius: 16px 16px 0 0 !important;
+                width: 90% !important;
+                max-width: 90vw !important;
+                height: 50dvh !important;
+                max-height: 50dvh !important;
+                min-height: 200px !important;
+                border-radius: 16px 16px 16px 16px !important;
                 box-sizing: border-box !important;
                 overflow-x: hidden !important;
                 overflow-y: hidden !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
+                box-shadow: 0 -4px 24px rgba(0,0,0,0.15) !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-messages {
                 overflow-y: auto !important;
@@ -536,6 +545,7 @@
                 min-width: 0 !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
+                pointer-events: auto !important;
                 position: fixed !important;
                 right: max(12px, env(safe-area-inset-right)) !important;
                 bottom: max(12px, env(safe-area-inset-bottom)) !important;

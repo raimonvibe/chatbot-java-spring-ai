@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import PaywallModal from '@/components/PaywallModal';
-import ThemePicker, { type PastelTheme } from '@/components/ThemePicker';
+import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/ThemePicker';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -604,6 +604,9 @@ export default function Dashboard() {
                     currentBrandingConfig={chatbot.brandingConfig ?? '{}'}
                     applying={themeApplyingId === chatbot.id}
                     onApply={async (theme: PastelTheme) => {
+                      if (!PASTEL_PRESETS.some((p) => p.primaryColor === theme.primaryColor && p.secondaryColor === theme.secondaryColor)) {
+                        return;
+                      }
                       setThemeApplyingId(chatbot.id);
                       try {
                         const merged: Record<string, string> = {};
@@ -618,11 +621,14 @@ export default function Dashboard() {
                         merged.primaryColor = theme.primaryColor;
                         merged.secondaryColor = theme.secondaryColor;
                         if (theme.borderRadius) merged.borderRadius = theme.borderRadius;
-                        // Send full entity so backend @Valid passes (name, websiteUrl required); only brandingConfig is changed; values are preset-only (no user input).
-                        const updated = await updateChatbot(chatbot.id, {
+                        // Backend expects full Chatbot for @Valid (name, websiteUrl required). Send full entity with updated brandingConfig only.
+                        const payload = {
                           ...chatbot,
+                          name: chatbot.name ?? 'Chatbot',
+                          websiteUrl: chatbot.websiteUrl ?? '',
                           brandingConfig: JSON.stringify(merged),
-                        });
+                        };
+                        const updated = await updateChatbot(chatbot.id, payload);
                         setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
                       } catch (err) {
                         console.error('Failed to apply theme:', err);
