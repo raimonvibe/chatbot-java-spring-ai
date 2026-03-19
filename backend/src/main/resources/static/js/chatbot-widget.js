@@ -4,6 +4,8 @@
  *
  * Integration safety (does not interfere with client code):
  * - Only adds window.PrayerChat; all other state is in closure.
+ * - We never modify document.body or document.documentElement (preserves host dark mode, theme toggles, etc.).
+ * - Scroll lock uses a transparent backdrop div only; no body overflow/position changes.
  * - Injected CSS is scoped to #prayer-chat-chatbot-widget so host styles are unaffected.
  * - DOM queries are scoped to our container; we never modify host elements.
  * - Document click listener does not call preventDefault/stopPropagation so host events work as usual.
@@ -37,6 +39,7 @@
     let inputField = null;
     let sendButton = null;
     let toggleButton = null;
+    let backdropElement = null;
     
     /**
      * Ensure Font Awesome is loaded so icons display on any host site.
@@ -267,12 +270,37 @@
             }
         });
         
-        // Click outside to close — we do not preventDefault or stopPropagation so host page behavior is unchanged
+        // Click outside to close — we do not preventDefault or stopPropagation so host page behavior is unchanged.
+        // Backdrop click also closes (backdrop is not inside widgetContainer).
         document.addEventListener('click', function(e) {
             if (isOpen && widgetContainer && !widgetContainer.contains(e.target)) {
                 closeChat();
             }
         });
+    }
+    
+    /**
+     * Create a full-screen backdrop so we never modify document.body (preserves host dark mode, theme, etc.).
+     * Backdrop blocks background scroll via touch-action: none and pointer-events; no body styles.
+     */
+    function createBackdrop() {
+        if (backdropElement && backdropElement.parentNode) return;
+        var backdrop = document.createElement('div');
+        backdrop.id = 'prayer-chat-widget-backdrop';
+        backdrop.setAttribute('aria-hidden', 'true');
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:transparent;pointer-events:auto;touch-action:none;';
+        var parent = widgetContainer && widgetContainer.parentNode;
+        if (parent) {
+            parent.insertBefore(backdrop, widgetContainer);
+            backdropElement = backdrop;
+        }
+    }
+    
+    function removeBackdrop() {
+        if (backdropElement && backdropElement.parentNode) {
+            backdropElement.parentNode.removeChild(backdropElement);
+        }
+        backdropElement = null;
     }
     
     /**
@@ -286,47 +314,28 @@
         }
     }
     
-    var savedScrollY = 0;
-    
     /**
-     * Open chat.
-     * On mobile: use position fixed + save scroll to avoid iOS viewport jump; input is 16px to prevent Safari zoom on focus.
+     * Open chat. We never modify document.body so host page (dark mode, theme toggle, etc.) is unaffected.
+     * A transparent backdrop blocks background scroll via touch-action and pointer-events only.
      */
     function openChat() {
         chatContainer.style.display = 'flex';
         toggleButton.style.display = 'none';
         isOpen = true;
-        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches && document.body) {
-            savedScrollY = window.scrollY || window.pageYOffset || 0;
-            document.body.style.position = 'fixed';
-            document.body.style.top = '-' + savedScrollY + 'px';
-            document.body.style.left = '0';
-            document.body.style.right = '0';
-        } else if (document.body) {
-            document.body.style.overflow = 'hidden';
-        }
+        createBackdrop();
         if (inputField) {
             setTimeout(function() { inputField.focus(); }, 100);
         }
     }
     
     /**
-     * Close chat and restore body/scroll on mobile.
+     * Close chat. Remove only our backdrop; leave document.body untouched.
      */
     function closeChat() {
         chatContainer.style.display = 'none';
         toggleButton.style.display = 'flex';
         isOpen = false;
-        if (typeof document !== 'undefined' && document.body) {
-            document.body.style.position = '';
-            document.body.style.top = '';
-            document.body.style.left = '';
-            document.body.style.right = '';
-            document.body.style.overflow = '';
-            if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches && savedScrollY !== undefined) {
-                window.scrollTo(0, savedScrollY);
-            }
-        }
+        removeBackdrop();
     }
     
     /**
