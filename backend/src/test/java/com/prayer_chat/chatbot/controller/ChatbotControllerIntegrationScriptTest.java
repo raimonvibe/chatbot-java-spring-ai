@@ -28,6 +28,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -297,9 +299,14 @@ class ChatbotControllerIntegrationScriptTest {
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         String embedCode = body.get("embedCode");
-        
-        assertTrue(embedCode.contains("prayer-chat-chatbot-prayer-chat-bot-100"));
-        assertTrue(embedCode.contains("var embedCode = 'prayer-chat-bot-100'"));
+
+        String expectedEmbedCode = testChatbot.getEmbedCode();
+        Matcher m = Pattern.compile("var embedCode = '([^']+)'").matcher(embedCode);
+        assertTrue(m.find(), "Embed snippet must declare var embedCode");
+        assertEquals(expectedEmbedCode, m.group(1));
+
+        assertTrue(embedCode.contains("id=\"prayer-chat-chatbot-" + expectedEmbedCode + "\""));
+        assertTrue(embedCode.contains("data-embed-code=\"" + expectedEmbedCode + "\""));
     }
 }
 
