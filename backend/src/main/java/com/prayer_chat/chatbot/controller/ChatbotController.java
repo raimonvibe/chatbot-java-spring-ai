@@ -357,7 +357,7 @@ public class ChatbotController {
             chatbot.setPrimaryLanguage("en");
             chatbot.setChristianMessagingEnabled(true); // Pre-configured
             chatbot.setIsActive(true);
-            chatbot.setEmbedCode(String.format("prayer-chat-bot-%d", System.currentTimeMillis()));
+            chatbot.setEmbedCode(com.prayer_chat.chatbot.model.Chatbot.generateNewEmbedCode());
 
             // Create with lock so onboarding is only for first chatbot (max 1)
             Chatbot savedChatbot = chatbotService.createChatbotEnforcingLimit(chatbot, user, 1);
@@ -522,7 +522,7 @@ public class ChatbotController {
             chatbot.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
             // Generate unique embed code
-            chatbot.setEmbedCode(String.format("prayer-chat-bot-%d", System.currentTimeMillis()));
+            chatbot.setEmbedCode(com.prayer_chat.chatbot.model.Chatbot.generateNewEmbedCode());
 
             // Create with pessimistic lock to prevent race condition on chatbot limit
             int maxAllowed = accessControlService.getMaxChatbotsAllowed(user);
@@ -743,8 +743,7 @@ public class ChatbotController {
             }
             
             // Check if user is in preview mode (for other checks)
-            boolean isPreviewMode = costTrackingService.isPreviewMode(user);
-            
+            // (intentionally not stored; preview mode is already included in scanLimitResult)
             // 2. Estimate website size BEFORE scanning (prevents costs for large sites)
             int estimatedPages = websiteSizeEstimator.estimateSize(chatbot.getWebsiteUrl());
             int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));

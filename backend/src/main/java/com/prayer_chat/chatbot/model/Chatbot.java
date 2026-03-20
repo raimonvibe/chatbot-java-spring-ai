@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Size;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -120,7 +122,23 @@ public class Chatbot {
     
     // Helper method to generate unique embed code
     private String generateEmbedCode() {
-        return String.format("prayer-chat-bot-%d", System.currentTimeMillis());
+        return generateNewEmbedCode();
+    }
+
+    /**
+     * Generate a cryptographically-random embed code.
+     * Embed codes are used by the public widget endpoints to prevent numeric ID swapping.
+     *
+     * Format: prayer-chat-bot-<base64url>
+     */
+    public static String generateNewEmbedCode() {
+        // 18 bytes -> ~24 base64url chars (no padding).
+        byte[] randomBytes = new byte[18];
+        SecureRandom secureRandom = new SecureRandom();
+        secureRandom.nextBytes(randomBytes);
+
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        return "prayer-chat-bot-" + token;
     }
     
     // Getters and Setters
