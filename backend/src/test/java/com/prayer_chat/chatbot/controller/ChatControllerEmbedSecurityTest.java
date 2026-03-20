@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 
 /**
- * Security tests for the public embed config endpoint GET /api/chat/embed/{id}.
+ * Security tests for the public embed config endpoint GET /api/chat/embed/{embedCode}.
  * Ensures no sensitive data is exposed and XSS vectors (name, description, brandingConfig) are sanitized.
  */
 @ExtendWith(MockitoExtension.class)
@@ -52,15 +52,16 @@ class ChatControllerEmbedSecurityTest {
     void embedResponseMustNotContainSensitiveData() {
         Chatbot bot = new Chatbot();
         bot.setId(1L);
+        // embedCode lookup is independent of bot.getId(); repository uses embedCode string.
         bot.setName("Safe Bot");
         bot.setDescription("A bot");
         bot.setIsActive(true);
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of("en"));
         bot.setBrandingConfig("{}");
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-1")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("1");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-1");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         String bodyStr = res.getBody().toString();
         assertThat(bodyStr).doesNotContain("api_key").doesNotContain("apiKey")
@@ -79,9 +80,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of());
         bot.setBrandingConfig("{}");
-        when(chatbotRepository.findById(2L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-2")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("2");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-2");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).containsKey("name").containsKey("description");
         String name = (String) res.getBody().get("name");
@@ -105,9 +106,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of());
         bot.setBrandingConfig(maliciousBranding);
-        when(chatbotRepository.findById(3L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-3")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("3");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-3");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         Object branding = res.getBody().get("brandingConfig");
         assertThat(branding).isNotNull();
@@ -130,9 +131,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of());
         bot.setBrandingConfig(themeJson);
-        when(chatbotRepository.findById(5L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-5")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("5");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-5");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         Object branding = res.getBody().get("brandingConfig");
         assertThat(branding).isNotNull();
@@ -152,9 +153,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of());
         bot.setAvatarId("3");
-        when(chatbotRepository.findById(6L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-6")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("6");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-6");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).containsKey("avatar");
         assertThat(res.getBody().get("avatar")).isEqualTo("3");
@@ -172,9 +173,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setPrimaryLanguage("en");
         bot.setSupportedLanguages(List.of());
         bot.setAvatarId("../1");
-        when(chatbotRepository.findById(7L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-7")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("7");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-7");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).doesNotContainKey("avatar");
     }
@@ -186,9 +187,9 @@ class ChatControllerEmbedSecurityTest {
         bot.setId(4L);
         bot.setName("Inactive");
         bot.setIsActive(false);
-        when(chatbotRepository.findById(4L)).thenReturn(Optional.of(bot));
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-4")).thenReturn(Optional.of(bot));
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("4");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-4");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(res.getBody()).containsKey("error");
     }
@@ -196,10 +197,33 @@ class ChatControllerEmbedSecurityTest {
     @Test
     @DisplayName("Unknown embed id returns 404")
     void unknownEmbedIdReturns404() {
-        when(chatbotRepository.findById(999L)).thenReturn(Optional.empty());
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-999")).thenReturn(Optional.empty());
 
-        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("999");
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("prayer-chat-bot-999");
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("SECURITY: Numeric-looking embed codes must not use numeric ID lookup")
+    void numericLookingEmbedCodeDoesNotUseIdLookup() {
+        when(chatbotRepository.findByEmbedCode("100")).thenReturn(Optional.empty());
+
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("100");
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Endpoint should not fall back to findById (prevents ID swapping).
+        verify(chatbotRepository, never()).findById(any());
+        verify(chatbotRepository).findByEmbedCode("100");
+    }
+
+    @Test
+    @DisplayName("SECURITY: Embed codes with unsafe characters are rejected")
+    void embedInvalidCharactersReturn400() {
+        ResponseEntity<Map<String, Object>> res = chatController.getChatbotByEmbedCode("../1");
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(chatbotRepository, never()).findById(any());
+        verify(chatbotRepository, never()).findByEmbedCode(any());
     }
 
     @Test

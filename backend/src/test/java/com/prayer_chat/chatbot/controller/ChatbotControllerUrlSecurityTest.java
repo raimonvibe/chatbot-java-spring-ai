@@ -25,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -96,6 +95,7 @@ class ChatbotControllerUrlSecurityTest {
 
         testChatbot = new Chatbot();
         testChatbot.setId(100L);
+        testChatbot.setEmbedCode("prayer-chat-bot-100");
         testChatbot.setName("Test Chatbot");
         testChatbot.setOwner(testUser);
         testChatbot.setIsActive(true);
@@ -235,8 +235,8 @@ class ChatbotControllerUrlSecurityTest {
     }
 
     @Test
-    @DisplayName("Should include chatbot ID in embed code")
-    void shouldIncludeChatbotIdInEmbedCode() {
+    @DisplayName("Should include embed code in embed code")
+    void shouldIncludeEmbedCodeInEmbedCode() {
         // Arrange
         String baseUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrl);
@@ -250,8 +250,8 @@ class ChatbotControllerUrlSecurityTest {
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         String embedCode = (String) body.get("embedCode");
         
-        assertTrue(embedCode.contains("prayer-chat-chatbot-100"));
-        assertTrue(embedCode.contains("chatbotId: 100"));
+        assertTrue(embedCode.contains("prayer-chat-chatbot-prayer-chat-bot-100"));
+        assertTrue(embedCode.contains("var embedCode = 'prayer-chat-bot-100'"));
     }
 
     @Test

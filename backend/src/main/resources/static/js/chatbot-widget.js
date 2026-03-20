@@ -16,6 +16,9 @@
     
     // Configuration
     let config = {
+        // SECURITY: widget uses opaque embedCode (not numeric ids) to prevent embed ID swapping.
+        embedCode: null,
+        // Deprecated: kept only so older widget init calls don't crash before showing an error.
         chatbotId: null,
         apiUrl: 'http://localhost:8080/api',
         theme: 'default',
@@ -63,8 +66,11 @@
      */
     function showEmbedError(message) {
         try {
-            var placeholderId = 'prayer-chat-chatbot-' + (config && config.chatbotId);
-            var el = (placeholderId && document.getElementById(placeholderId)) || document.querySelector('[data-chatbot-id="' + (config && config.chatbotId) + '"]');
+            var embedCode = config && config.embedCode;
+            var placeholderId = 'prayer-chat-chatbot-' + embedCode;
+            var el =
+                (placeholderId && document.getElementById(placeholderId)) ||
+                (embedCode ? document.querySelector('[data-embed-code="' + embedCode + '"]') : null);
             if (!el) el = document.body;
             var p = document.createElement('p');
             p.style.cssText = 'padding:12px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;font-family:sans-serif;font-size:14px;margin:8px;';
@@ -86,9 +92,15 @@
             showEmbedError('Chat config error. Check console (F12).');
             return;
         }
-        if (!config.chatbotId) {
-            console.error('PrayerChat Chatbot: chatbotId is required');
-            showEmbedError('Chat: chatbotId is required.');
+        if (!config.embedCode) {
+            if (config.chatbotId) {
+                // Old embed snippet passed chatbotId; we no longer accept it for security.
+                console.error('PrayerChat Chatbot: embedCode is required (old snippet detected)');
+                showEmbedError('Chat embed is outdated. Please regenerate your embed code.');
+            } else {
+                console.error('PrayerChat Chatbot: embedCode is required');
+                showEmbedError('Chat: embedCode is required.');
+            }
             return;
         }
         try {
@@ -232,9 +244,9 @@
         widgetContainer.appendChild(toggleButton);
         
         // Mount in placeholder div if present (so widget appears where the user placed the embed), else body
-        const placeholderId = 'prayer-chat-chatbot-' + config.chatbotId;
+        const placeholderId = 'prayer-chat-chatbot-' + config.embedCode;
         const placeholderById = document.getElementById(placeholderId);
-        const placeholderByData = document.querySelector('[data-chatbot-id="' + config.chatbotId + '"]');
+        const placeholderByData = document.querySelector('[data-embed-code="' + config.embedCode + '"]');
         const mountPoint = placeholderById || placeholderByData || document.body;
         mountPoint.appendChild(widgetContainer);
         
@@ -354,7 +366,7 @@
         showTypingIndicator();
         
         // Send to API
-        fetch(`${config.apiUrl}/chat/${config.chatbotId}`, {
+        fetch(`${config.apiUrl}/chat/embed/${encodeURIComponent(config.embedCode)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -457,7 +469,7 @@
      * Load chatbot configuration
      */
     function loadChatbotConfig() {
-        fetch(`${config.apiUrl}/chat/embed/${config.chatbotId}`)
+        fetch(`${config.apiUrl}/chat/embed/${encodeURIComponent(config.embedCode)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.error) {

@@ -31,7 +31,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -100,6 +99,7 @@ class ChatbotControllerIntegrationScriptTest {
 
         testChatbot = new Chatbot();
         testChatbot.setId(100L);
+        testChatbot.setEmbedCode("prayer-chat-bot-100");
         testChatbot.setName("Test Chatbot");
         testChatbot.setOwner(testUser);
         testChatbot.setIsActive(true);
@@ -279,8 +279,8 @@ class ChatbotControllerIntegrationScriptTest {
     }
 
     @Test
-    @DisplayName("Should include chatbot ID in embed code")
-    void shouldIncludeChatbotId() {
+    @DisplayName("Should include embed code in embed code")
+    void shouldIncludeEmbedCode() {
         // Arrange
         String baseUrl = "https://chatbot-backend-4mp4.onrender.com";
         ReflectionTestUtils.setField(chatbotController, "baseUrl", baseUrl);
@@ -298,8 +298,8 @@ class ChatbotControllerIntegrationScriptTest {
         Map<String, String> body = (Map<String, String>) response.getBody();
         String embedCode = body.get("embedCode");
         
-        assertTrue(embedCode.contains("prayer-chat-chatbot-100"));
-        assertTrue(embedCode.contains("chatbotId: 100"));
+        assertTrue(embedCode.contains("prayer-chat-chatbot-prayer-chat-bot-100"));
+        assertTrue(embedCode.contains("var embedCode = 'prayer-chat-bot-100'"));
     }
 }
 
