@@ -982,32 +982,40 @@ public class ChatbotController {
         }
         String cleanBaseUrl = EmbedSecurity.validateAndNormalizeBaseUrl(configured, DEFAULT_BASE_URL);
         String safeForJs = EmbedSecurity.escapeForJsString(cleanBaseUrl);
-        long id = chatbot.getId();
+        String embedCode = chatbot.getEmbedCode();
+        if (embedCode == null || embedCode.isBlank()) {
+            throw new IllegalStateException("Chatbot embedCode is missing");
+        }
+        embedCode = embedCode.trim();
+        if (!embedCode.matches("^[a-zA-Z0-9_-]+$")) {
+            throw new IllegalStateException("Chatbot embedCode contains unsafe characters");
+        }
+        String safeEmbedForJs = EmbedSecurity.escapeForJsString(embedCode);
         return String.format("""
-            <div id="prayer-chat-chatbot-%d" data-chatbot-id="%d"></div>
+            <div id="prayer-chat-chatbot-%s" data-embed-code="%s"></div>
             <script>
             (function() {
-                var embedChatbotId = %d;
+                var embedCode = '%s';
                 var baseUrl = '%s';
                 var script = document.createElement('script');
                 script.src = baseUrl + '/js/chatbot-widget.js';
                 script.async = true;
                 script.onerror = function() {
-                    var el = document.getElementById('prayer-chat-chatbot-' + embedChatbotId) || document.querySelector('[data-chatbot-id="' + embedChatbotId + '"]');
+                    var el = document.getElementById('prayer-chat-chatbot-' + embedCode) || document.querySelector('[data-embed-code=\"' + embedCode + '\"]');
                     if (el) el.innerHTML = '<p style="padding:12px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-family:sans-serif;font-size:14px;">Chat could not load. Check browser console (F12) or Content-Security-Policy.</p>';
                 };
                 script.onload = function() {
                     if (typeof PrayerChat !== 'undefined' && PrayerChat.init) {
-                        PrayerChat.init({ chatbotId: %d, apiUrl: baseUrl + '/api', theme: 'default' });
+                        PrayerChat.init({ embedCode: embedCode, apiUrl: baseUrl + '/api', theme: 'default' });
                     } else {
-                        var el = document.getElementById('prayer-chat-chatbot-' + embedChatbotId) || document.querySelector('[data-chatbot-id="' + embedChatbotId + '"]');
+                        var el = document.getElementById('prayer-chat-chatbot-' + embedCode) || document.querySelector('[data-embed-code=\"' + embedCode + '\"]');
                         if (el) el.innerHTML = '<p style="padding:12px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;font-family:sans-serif;font-size:14px;">Chat failed to start. Open console (F12) for details.</p>';
                     }
                 };
                 document.head.appendChild(script);
             })();
             </script>
-            """, id, id, id, safeForJs, id);
+            """, embedCode, embedCode, safeEmbedForJs, safeForJs);
     }
 
     // ============================================================================

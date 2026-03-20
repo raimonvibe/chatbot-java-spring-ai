@@ -13,14 +13,14 @@ Yes. The backend is configured so that **widget endpoints** (`/api/chat/**` and 
 They add the embed code (from Dashboard or Account) just before `</body>` on a page, e.g.:
 
 ```html
-<div id="prayer-chat-chatbot-123" data-chatbot-id="123"></div>
+<div id="prayer-chat-chatbot-prayer-chat-bot-123" data-embed-code="prayer-chat-bot-123"></div>
 <script>
   (function() {
     var script = document.createElement('script');
     script.src = 'https://chatbot-java-spring-ai.onrender.com/js/chatbot-widget.js';
     script.async = true;
     script.onload = function() {
-      PrayerChat.init({ chatbotId: 123, apiUrl: 'https://chatbot-java-spring-ai.onrender.com/api', theme: 'default' });
+      PrayerChat.init({ embedCode: 'prayer-chat-bot-123', apiUrl: 'https://chatbot-java-spring-ai.onrender.com/api', theme: 'default' });
     };
     document.head.appendChild(script);
   })();
@@ -33,11 +33,11 @@ They add the embed code (from Dashboard or Account) just before `</body>` on a p
 ### 2. When the page loads
 
 1. The script tag runs; the browser fetches **`/js/chatbot-widget.js`** from your server (no CORS issue — it’s a normal script load).
-2. After load, `PrayerChat.init({ chatbotId: 123, apiUrl: '.../api' })` runs.
+2. After load, `PrayerChat.init({ embedCode: 'prayer-chat-bot-123', apiUrl: '.../api' })` runs.
 3. The widget creates the UI (floating button, chat panel) on the customer’s page.
 4. It generates a **session ID** (e.g. `session_1738...`) in the browser for that visitor.
 5. It calls **your backend**:  
-   **`GET https://your-backend.onrender.com/api/chat/embed/123`**  
+   **`GET https://your-backend.onrender.com/api/chat/embed/prayer-chat-bot-123`**  
    to get the chatbot’s name and branding.  
    - This is a **cross-origin** request (origin = customer’s domain, e.g. `https://church-example.com`).  
    - The browser sends an `Origin` header. Your server must respond with `Access-Control-Allow-Origin` for that origin (or `*` for widget) or the browser will block the response and the widget can’t show the name/branding (or may fail to proceed).
@@ -46,7 +46,7 @@ They add the embed code (from Dashboard or Account) just before `</body>` on a p
 
 1. The widget shows the message in the chat and a “typing” state.
 2. It sends a **POST** to your backend:  
-   **`POST https://your-backend.onrender.com/api/chat/123`**  
+   **`POST https://your-backend.onrender.com/api/chat/embed/prayer-chat-bot-123`**  
    Body: `{ "message": "what are your opening hours?", "sessionId": "session_...", "language": "en" }`  
    Again, origin is the **customer’s domain** (e.g. `https://church-example.com`).
 3. **On your end (backend):**
@@ -59,8 +59,8 @@ They add the embed code (from Dashboard or Account) just before `</body>` on a p
 
 So **on your end** when a user uses the embedded script you see:
 
-- **GET /api/chat/embed/{chatbotId}** — once per widget load (config + name).
-- **POST /api/chat/{chatbotId}** — one request per message sent.  
+- **GET /api/chat/embed/{embedCode}** — once per widget load (config + name).
+- **POST /api/chat/embed/{embedCode}** — one request per message sent.  
 All from the **visitor’s IP**, with **Origin** = the site where the script is embedded (the customer’s domain). You don’t see the customer’s domain in the path, only in the `Origin` header. You apply rate limits and subscription limits as you already do.
 
 ---
@@ -70,8 +70,8 @@ All from the **visitor’s IP**, with **Origin** = the site where the script is 
 | Step | Where it runs | Request to your backend |
 |------|----------------|--------------------------|
 | Load widget script | Customer’s site | GET your-server/js/chatbot-widget.js |
-| Init + load config | Customer’s site | GET your-server/api/chat/embed/{id} |
-| Visitor sends message | Customer’s site | POST your-server/api/chat/{id} with message + sessionId |
+| Init + load config | Customer’s site | GET your-server/api/chat/embed/{embedCode} |
+| Visitor sends message | Customer’s site | POST your-server/api/chat/embed/{embedCode} with message + sessionId |
 
 So **yes, the script works when embedded** on any site. Widget traffic is allowed from any origin; the rest of the app still uses the strict CORS list.
 
@@ -91,7 +91,7 @@ If you previously saw a theme toggle (or similar control) stop working after add
 
 ## Mobile / responsive behavior
 
-On viewports **≤ 768px**, the chat panel opens as a **bottom sheet** (about 72% of viewport height from the bottom), so it does not cover the whole screen and stays within the window; width is limited to the viewport so it never sticks out on the right. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
+On viewports **≤ 768px**, the chat panel opens as a **bottom sheet** using `height: 50dvh` and `width: 95%`, so it does not cover the whole screen and stays within the window; the panel stays centered and won’t pop out of the viewport. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
 
 ---
 
@@ -111,7 +111,7 @@ If your site sends a **Content-Security-Policy** header, the browser enforces wh
 | CSP directive | What it controls | Why the widget needs it |
 |---------------|-------------------|--------------------------|
 | **script-src** | Where JavaScript files may be loaded from | The embed loads the widget from your backend, e.g. `https://chatbot-java-spring-ai.onrender.com/js/chatbot-widget.js`. If that origin is not in `script-src`, the browser blocks the script and the chat never runs. |
-| **connect-src** | Where the page can send `fetch()` / XHR requests | After the script loads, the widget calls your API (e.g. `GET /api/chat/embed/3`, `POST /api/chat/3`). Those requests go to the same backend origin. If that origin is not in `connect-src`, the browser blocks the requests and the chat can’t load config or send messages. |
+| **connect-src** | Where the page can send `fetch()` / XHR requests | After the script loads, the widget calls your API (e.g. `GET /api/chat/embed/prayer-chat-bot-3`, `POST /api/chat/embed/prayer-chat-bot-3`). Those requests go to the same backend origin. If that origin is not in `connect-src`, the browser blocks the requests and the chat can’t load config or send messages. |
 
 **What to add:** Include your backend origin (no path) in both directives, for example:
 

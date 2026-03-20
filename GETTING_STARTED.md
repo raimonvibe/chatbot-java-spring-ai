@@ -143,7 +143,7 @@ Open your browser and navigate to:
 2. **Add to Your Website**
    ```html
    <!-- Add this to your website's HTML -->
-   <div id="prayer-chat-chatbot-1" data-chatbot-id="1"></div>
+  <div id="prayer-chat-chatbot-prayer-chat-bot-EXAMPLE" data-embed-code="prayer-chat-bot-EXAMPLE"></div>
    <script>
        (function() {
            var script = document.createElement('script');
@@ -151,7 +151,7 @@ Open your browser and navigate to:
            script.async = true;
            script.onload = function() {
                PrayerChat.init({
-                   chatbotId: 1,
+                  embedCode: 'prayer-chat-bot-EXAMPLE',
                    apiUrl: 'http://localhost:8081/api',
                    theme: 'default'
                });
@@ -271,8 +271,8 @@ GET /api/chatbots/{id}/analytics
 ### Chat API
 
 ```bash
-# Send message
-POST /api/chat/{chatbotId}
+# Send message (embed flow)
+POST /api/chat/embed/{embedCode}
 {
   "message": "Hello!",
   "sessionId": "session_123",
@@ -291,7 +291,7 @@ Customize the chatbot widget appearance:
 
 ```javascript
 PrayerChat.init({
-    chatbotId: 1,
+    embedCode: 'prayer-chat-bot-EXAMPLE',
     apiUrl: 'http://localhost:8081/api',
     theme: 'custom',
     primaryColor: '#007bff',
