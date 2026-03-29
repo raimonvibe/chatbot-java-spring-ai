@@ -1,0 +1,14 @@
+# Local development profile configuration
+# This profile enables admin endpoints and local-only features
+# 
+# To run with this profile:
+#   java -jar app.jar --spring.profiles.active=local
+#   or set SPRING_PROFILES_ACTIVE=local environment variable
+#
+# Note: Do NOT set spring.profiles.active in this file - it's a profile-specific config file
+
+# Enable admin endpoints for local development
+app:
+  admin:
+    enabled: true
+

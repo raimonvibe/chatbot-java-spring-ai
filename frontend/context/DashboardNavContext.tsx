@@ -1,0 +1,36 @@
+'use client';
+
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+
+export interface DashboardNavValue {
+  openSubscription: () => Promise<void>;
+  logout: () => void;
+  toggleCreateForm: () => void;
+  showCreateForm: boolean;
+  hasChatbots: boolean;
+  isPreviewMode: boolean;
+  onDeleteAllChatbots: () => void;
+  portalLoading: boolean;
+}
+
+const DashboardNavContext = createContext<{
+  nav: DashboardNavValue | null;
+  setNav: (value: DashboardNavValue | null) => void;
+}>({ nav: null, setNav: () => {} });
+
+export function DashboardNavProvider({ children }: { children: ReactNode }) {
+  const [nav, setNav] = useState<DashboardNavValue | null>(null);
+  return (
+    <DashboardNavContext.Provider value={{ nav, setNav }}>
+      {children}
+    </DashboardNavContext.Provider>
+  );
+}
+
+export function useDashboardNav() {
+  return useContext(DashboardNavContext).nav;
+}
+
+export function useSetDashboardNav() {
+  return useContext(DashboardNavContext).setNav;
+}
