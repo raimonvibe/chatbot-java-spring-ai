@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn:*)",
+      "Bash(npm --version:*)",
+      "Bash(ls:*)",
+      "Bash(test:*)",
+      "Bash(npm install)",
+      "Bash(npm run test:ci:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npm run test:e2e:pages:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)"
+    ]
+  }
+}
