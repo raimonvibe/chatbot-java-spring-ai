@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Stay on 3.3.x: Spring Boot 4.0.x BOM imports tools.jackson:jackson-bom in ways that fail CI resolution; upgrade only after verifying Jackson coordinates on Central. -->
-        <version>3.3.13</version>
+        <version>4.0.5</version>
         <relativePath/>
     </parent>
 
