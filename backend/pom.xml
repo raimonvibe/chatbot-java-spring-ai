@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Stay on 3.3.x: Spring Boot 4.0.x BOM imports tools.jackson:jackson-bom in ways that fail CI resolution; upgrade only after verifying Jackson coordinates on Central. -->
-        <version>4.0.5</version>
+        <version>3.4.4</version>
         <relativePath/>
     </parent>
 
@@ -23,8 +23,6 @@
         <java.version>17</java.version>
         <!-- 1.1.3: CVE-2026-22729 JSONPath injection in vector-store FilterExpressionConverter -->
         <spring-ai.version>1.1.4</spring-ai.version>
-        <!-- Tomcat 10.1.x only with Spring Boot 3.3.x — 11.x breaks TomcatWebServerFactoryCustomizer (setRejectIllegalHeader). CVE-2025-66614: 10.1.50+; Dependabot #37 / improper input validation: 10.1.52+. -->
-        <tomcat.version>11.0.20</tomcat.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
         <logback.version>1.5.32</logback.version>
         <!-- Spring Security version managed by Spring Boot 3.3.13 (7.x requires Spring Framework 6.4+ / HttpMessageConverters$ClientBuilder) -->
@@ -428,22 +426,6 @@
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-test</artifactId>
                 <version>${spring-framework.version}</version>
-            </dependency>
-            <!-- Security: CVE-2025-55754 (tomcat-juli), CVE-2025-55752 etc - force all Tomcat modules -->
-            <dependency>
-                <groupId>org.apache.tomcat</groupId>
-                <artifactId>tomcat-juli</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat</groupId>
-                <artifactId>tomcat-catalina</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-core</artifactId>
-                <version>${tomcat.version}</version>
             </dependency>
             <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects -->
             <dependency>
