@@ -48,7 +48,7 @@ spring:
   
   h2:
     console:
-      enabled: ${H2_CONSOLE_ENABLED:true}
+      enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
   
   # =============================================================================
@@ -148,9 +148,9 @@ server:
       max: 200
       min-spare: 10
   error:
-    include-message: always
-    include-binding-errors: always
-    include-stacktrace: on_param
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
     include-exception: false
 
 # =============================================================================
@@ -162,6 +162,8 @@ management:
       exposure:
         include: health,info,metrics
       base-path: /actuator
+  cloudfoundry:
+    enabled: false
   endpoint:
     health:
       show-details: when-authorized
@@ -180,7 +182,7 @@ management:
       system: true
   info:
     env:
-      enabled: true
+      enabled: false
 
 # =============================================================================
 # APPLICATION CUSTOM CONFIGURATION

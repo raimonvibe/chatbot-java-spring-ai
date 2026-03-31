@@ -70,6 +70,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/").permitAll() // Root path returns JSON API info (RootController)
                 .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
+                // Restrict non-health actuator endpoints to administrators only.
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/auth/me").authenticated() // Only /me endpoint requires auth
                 .requestMatchers("/api/auth/oauth2/callback").permitAll() // Hybrid OAuth callback endpoint
                 .requestMatchers("/login/**", "/oauth2/**").permitAll() // OAuth2 endpoints (legacy server-side flow)
