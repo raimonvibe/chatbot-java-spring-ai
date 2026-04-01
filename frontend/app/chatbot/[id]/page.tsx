@@ -23,7 +23,6 @@ import {
 } from '@/lib/api';
 import Link from 'next/link';
 import { BookOpen, ChevronDown, ChevronUp, Menu } from 'lucide-react';
-import CalligraphicFrame from '@/components/CalligraphicFrame';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
@@ -66,15 +65,23 @@ function getHostname(url: string | undefined): string {
 }
 
 function getSafeWebsitePreviewUrl(url: string | undefined): string | null {
-  if (!url) return null;
+  if (!url?.trim()) return null;
+  const trimmed = url.trim();
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(withScheme);
     const protocol = parsed.protocol.toLowerCase();
     if (protocol !== 'http:' && protocol !== 'https:') return null;
+    if (!parsed.hostname) return null;
     return parsed.toString();
   } catch {
     return null;
   }
+}
+
+function chatbotIdMatchesRoute(chatbot: Chatbot, routeId: number): boolean {
+  const cid = typeof chatbot.id === 'number' ? chatbot.id : Number(chatbot.id);
+  return Number.isFinite(cid) && cid === routeId;
 }
 
 export default function ChatbotPreview() {
@@ -201,7 +208,7 @@ export default function ChatbotPreview() {
   }, [chatbotId]);
 
   useEffect(() => {
-    if (chatbotId == null || !chatbot || chatbot.id !== chatbotId) return;
+    if (chatbotId == null || !chatbot || !chatbotIdMatchesRoute(chatbot, chatbotId)) return;
     if (sceneDefaultAppliedRef.current) return;
     const safe = getSafeWebsitePreviewUrl(chatbot.websiteUrl);
     setSceneMode(safe ? 'website' : 'plain');
@@ -648,12 +655,12 @@ export default function ChatbotPreview() {
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-            <div className="h-full w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40">
+            <div className="h-full w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
                   title="Website preview background"
-                  className="absolute inset-0 w-full h-full"
+                  className="absolute inset-0 z-0 w-full h-full border-0"
                   sandbox="allow-scripts allow-forms allow-popups"
                   referrerPolicy="no-referrer"
                   loading="lazy"
@@ -661,7 +668,7 @@ export default function ChatbotPreview() {
                 />
               )}
               {sceneMode === 'website' && websiteFrameLikelyBlocked && !websiteFrameLoaded && (
-                <div className="absolute inset-0 bg-white/95">
+                <div className="absolute inset-0 z-[5] bg-white/95">
                   <div className="h-full w-full p-3 md:p-5 flex flex-col gap-3 md:gap-4">
                     <div className="h-12 rounded-xl border border-brown-200/80 bg-white flex items-center px-3 md:px-4">
                       <div
@@ -721,13 +728,13 @@ export default function ChatbotPreview() {
                 </div>
               )}
               {sceneMode === 'website' && (
-                <div className="absolute inset-0 bg-white/40 pointer-events-none" />
+                <div className="absolute inset-0 z-10 bg-white/40 pointer-events-none" aria-hidden />
               )}
-              <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 z-[11] pointer-events-none">
                 <div className="w-full h-12 border-b border-brown-100/80 bg-white/60" />
               </div>
               {sceneMode === 'website' && websiteFrameLikelyBlocked && !websiteFrameLoaded && (
-                <div className="absolute top-2 left-1/2 z-20 max-w-[min(100%-1rem,20rem)] -translate-x-1/2 px-3 py-1.5 text-center text-pretty rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[11px] sm:text-xs leading-snug">
+                <div className="absolute top-2 left-1/2 z-[15] max-w-[min(100%-1rem,20rem)] -translate-x-1/2 px-3 py-1.5 text-center text-pretty rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[11px] sm:text-xs leading-snug">
                   Website blocked iframe preview. Showing widget only.
                 </div>
               )}
@@ -735,7 +742,7 @@ export default function ChatbotPreview() {
               {isWidgetOpen && (
                 <div
                   data-testid="preview-widget-panel"
-                  className="absolute shadow-2xl border border-brown-200/80 bg-white/95 backdrop-blur-sm overflow-hidden"
+                  className="absolute z-20 shadow-2xl border border-brown-200/80 bg-white/95 backdrop-blur-sm overflow-hidden"
                   style={
                     isMobilePreview
                       ? {
@@ -852,7 +859,7 @@ export default function ChatbotPreview() {
                   data-testid="preview-widget-toggle"
                   type="button"
                   onClick={() => setIsWidgetOpen(true)}
-                  className="absolute text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center"
+                  className="absolute z-20 text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center"
                   style={{
                     width: isMobilePreview ? 50 : 60,
                     height: isMobilePreview ? 50 : 60,
