@@ -94,7 +94,7 @@ export default function ChatbotPreview() {
   /** When true, we are still waiting for website analysis so the chatbot can answer about the site. */
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [screenPreview, setScreenPreview] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('fit');
+  const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('actual');
   const [sceneMode, setSceneMode] = useState<'plain' | 'website'>('plain');
   const [isWidgetOpen, setIsWidgetOpen] = useState(true);
   const [showScreenMenu, setShowScreenMenu] = useState(false);
@@ -263,6 +263,31 @@ export default function ChatbotPreview() {
   const hasJesusFeature = chatbot?.jesusTeachingsEnabled || chatbot?.bibleVerse;
   const selectedScreenWidth = SCREEN_WIDTHS[screenPreview];
   const isMobilePreview = screenPreview === 'mobile';
+
+  /** Shorter than legacy 500px so desktop/tablet previews feel balanced; maxHeight avoids clipping the scene on short viewports. */
+  const desktopTabletEmbedStyle = useMemo(() => {
+    const borderRadius = parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12;
+    if (screenPreview === 'tablet') {
+      return {
+        width: 308,
+        height: 360,
+        maxHeight: 'min(360px, calc(100% - 36px))',
+        minHeight: 264,
+        right: 14,
+        bottom: 14,
+        borderRadius,
+      } as const;
+    }
+    return {
+      width: 332,
+      height: 384,
+      maxHeight: 'min(384px, calc(100% - 40px))',
+      minHeight: 272,
+      right: 18,
+      bottom: 18,
+      borderRadius,
+    } as const;
+  }, [screenPreview, theme.borderRadius]);
   const websiteHost = getHostname(chatbot?.websiteUrl);
   const websitePreviewUrl = getSafeWebsitePreviewUrl(chatbot?.websiteUrl);
 
@@ -468,7 +493,7 @@ export default function ChatbotPreview() {
       <div className="w-full max-w-4xl mx-auto px-2 md:px-3 pt-2">
         <div className="rounded-xl bg-white/70 border border-brown-200 p-1.5">
           <div className="flex items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
-            {(['fit', 'actual'] as const).map((mode) => (
+            {(['actual', 'fit'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -661,29 +686,21 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Embed uses 50dvh vs the real viewport (chatbot-widget.js). The dashboard preview nests
-                          // the panel inside a shorter frame; pure 50dvh fills ~most of that frame. Use 50% of the
-                          // preview scene with the same max as production so website background stays visible.
+                          // Slightly under half height so website/plain background stays visible; mirrors embed feel.
                           left: '2.5%',
                           right: '2.5%',
                           bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
-                          height: '50%',
-                          maxHeight: '50dvh',
-                          minHeight: 200,
+                          height: '46%',
+                          maxHeight: 'min(48dvh, calc(100% - 24px))',
+                          minHeight: 196,
                           borderRadius: 16,
                         }
-                      : {
-                          width: 350,
-                          height: 500,
-                          right: 20,
-                          bottom: 20,
-                          borderRadius: parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12,
-                        }
+                      : desktopTabletEmbedStyle
                   }
                 >
                   <div className="h-full flex flex-col overflow-hidden">
-                    <div className="flex items-center justify-between px-[15px] py-[15px] text-white" style={{ backgroundColor: theme.primaryColor }}>
+                    <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
                       <div className="font-semibold truncate">{chatbot?.name ?? 'AI Assistant'}</div>
                       <button
                         type="button"
@@ -697,7 +714,7 @@ export default function ChatbotPreview() {
 
                     <div
                       ref={messagesContainerRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[15px] py-[15px] bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-[15px] sm:py-[15px] bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
                     >
                       <AnimatePresence mode="popLayout">
                         {messages.map((message, index) => (
@@ -732,7 +749,7 @@ export default function ChatbotPreview() {
                     </div>
 
                     {quickReplies.length > 0 && (
-                      <div className="flex-shrink-0 px-[15px] py-2 border-t border-brown-200/80 bg-brown-50/60">
+                      <div className="flex-shrink-0 px-3 sm:px-[15px] py-2 border-t border-brown-200/80 bg-brown-50/60">
                         <div className="flex flex-wrap gap-2">
                           {quickReplies.map((reply, index) => (
                             <button
@@ -749,8 +766,8 @@ export default function ChatbotPreview() {
                       </div>
                     )}
 
-                    <div className="flex-shrink-0 px-[15px] py-[15px] border-t border-brown-200/80 bg-white">
-                      <div className="flex gap-[10px] min-w-0 items-center">
+                    <div className="flex-shrink-0 px-3 py-3 sm:px-[15px] sm:py-[15px] border-t border-brown-200/80 bg-white">
+                      <div className="flex gap-2 sm:gap-[10px] min-w-0 items-center">
                         <input
                           type="text"
                           value={input}
