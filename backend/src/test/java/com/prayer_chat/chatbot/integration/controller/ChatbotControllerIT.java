@@ -289,6 +289,48 @@ class ChatbotControllerIT {
     }
 
     @Test
+    @DisplayName("Should reject chatbot creation with javascript scheme URL")
+    void shouldRejectJavascriptSchemeUrlOnCreate() throws Exception {
+        // Arrange
+        ChatbotRequest request = new ChatbotRequest();
+        request.setName("Unsafe JS URL Bot");
+        request.setDescription("Should be rejected");
+        request.setWebsiteUrl("javascript:alert(1)");
+        request.setPrimaryLanguage("en");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/chatbots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest());
+
+        // Validation should fail before service call
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("Should reject chatbot creation with data scheme URL")
+    void shouldRejectDataSchemeUrlOnCreate() throws Exception {
+        // Arrange
+        ChatbotRequest request = new ChatbotRequest();
+        request.setName("Unsafe Data URL Bot");
+        request.setDescription("Should be rejected");
+        request.setWebsiteUrl("data:text/html,<script>alert(1)</script>");
+        request.setPrimaryLanguage("en");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/chatbots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest());
+
+        // Validation should fail before service call
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+    }
+
+    @Test
     @DisplayName("Should prevent unauthorized update of chatbot")
     void shouldPreventUnauthorizedUpdate() throws Exception {
         // Arrange

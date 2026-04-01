@@ -32,19 +32,42 @@ function parseChatbotId(raw: string | string[] | undefined): number | null {
   return n;
 }
 
-function parseBrandingConfig(configJson: string | undefined): { primaryColor: string; secondaryColor: string } {
-  const fallback = { primaryColor: '#8B5E34', secondaryColor: '#E8DCC4' };
+function parseBrandingConfig(configJson: string | undefined): { primaryColor: string; secondaryColor: string; borderRadius: string } {
+  const fallback = { primaryColor: '#8B5E34', secondaryColor: '#E8DCC4', borderRadius: '12px' };
   if (!configJson || !configJson.trim()) return fallback;
   if (configJson.length > 4096) return fallback;
   try {
     const o = JSON.parse(configJson) as Record<string, unknown>;
     const primaryColor = typeof o.primaryColor === 'string' ? o.primaryColor.trim() : fallback.primaryColor;
     const secondaryColor = typeof o.secondaryColor === 'string' ? o.secondaryColor.trim() : fallback.secondaryColor;
+    const borderRadius = typeof o.borderRadius === 'string' ? o.borderRadius.trim() : fallback.borderRadius;
     if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(primaryColor)) return fallback;
     if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(secondaryColor)) return fallback;
-    return { primaryColor, secondaryColor };
+    if (!/^[0-9]+(px|em|rem)?$/.test(borderRadius)) return { primaryColor, secondaryColor, borderRadius: fallback.borderRadius };
+    return { primaryColor, secondaryColor, borderRadius };
   } catch {
     return fallback;
+  }
+}
+
+function getHostname(url: string | undefined): string {
+  if (!url) return 'your-website.com';
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').split('/')[0] || 'your-website.com';
+  }
+}
+
+function getSafeWebsitePreviewUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
   }
 }
 
@@ -70,7 +93,11 @@ export default function ChatbotPreview() {
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [screenPreview, setScreenPreview] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('fit');
+  const [sceneMode, setSceneMode] = useState<'plain' | 'website'>('plain');
+  const [isWidgetOpen, setIsWidgetOpen] = useState(true);
   const [showScreenMenu, setShowScreenMenu] = useState(false);
+  const [websiteFrameLoaded, setWebsiteFrameLoaded] = useState(false);
+  const [websiteFrameLikelyBlocked, setWebsiteFrameLikelyBlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const theme = useMemo(() => parseBrandingConfig(chatbot?.brandingConfig), [chatbot?.brandingConfig]);
@@ -231,6 +258,19 @@ export default function ChatbotPreview() {
 
   const hasJesusFeature = chatbot?.jesusTeachingsEnabled || chatbot?.bibleVerse;
   const selectedScreenWidth = SCREEN_WIDTHS[screenPreview];
+  const isMobilePreview = screenPreview === 'mobile';
+  const websiteHost = getHostname(chatbot?.websiteUrl);
+  const websitePreviewUrl = getSafeWebsitePreviewUrl(chatbot?.websiteUrl);
+
+  useEffect(() => {
+    if (sceneMode !== 'website') return;
+    setWebsiteFrameLoaded(false);
+    setWebsiteFrameLikelyBlocked(false);
+    const id = setTimeout(() => {
+      setWebsiteFrameLikelyBlocked(true);
+    }, 5000);
+    return () => clearTimeout(id);
+  }, [sceneMode, chatbot?.websiteUrl]);
 
   if (!isValidId) {
     return (
@@ -430,6 +470,25 @@ export default function ChatbotPreview() {
               </button>
             ))}
           </div>
+          <div className="flex items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
+            {(['plain', 'website'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setSceneMode(mode)}
+                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
+                style={{
+                  backgroundColor: sceneMode === mode ? theme.primaryColor : '#ffffff',
+                  color: sceneMode === mode ? '#ffffff' : '#5b4634',
+                  borderColor: sceneMode === mode ? theme.primaryColor : '#e8d9c9',
+                }}
+                disabled={mode === 'website' && !websitePreviewUrl}
+                title={mode === 'website' && !websitePreviewUrl ? 'No safe website URL on this chatbot' : undefined}
+              >
+                {mode === 'plain' ? 'Plain background' : 'Website background'}
+              </button>
+            ))}
+          </div>
           <div className="hidden md:flex items-center justify-center gap-2">
             {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
               <button
@@ -486,7 +545,7 @@ export default function ChatbotPreview() {
         </div>
       </div>
 
-      {/* Chat window: takes remaining space, no page scroll — only inner chat scrolls */}
+      {/* Chat window: simulate real embed placement per viewport */}
       <div className="flex-1 min-h-0 w-full p-2 md:p-3">
         <div className={`h-full w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
           <div
@@ -497,113 +556,225 @@ export default function ChatbotPreview() {
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-        <CalligraphicFrame className="h-full rounded-3xl overflow-hidden shadow-2xl border-2 border-brown-200/80 bg-white/95 backdrop-blur-sm">
-          <div className="h-full flex flex-col rounded-3xl overflow-hidden p-4 md:p-5">
-            {/* Scrollable messages area — only this scrolls; horizontal padding keeps book/user icons inside frame */}
-                <div
-              ref={messagesContainerRef}
-              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1 py-2 md:px-2 md:py-3 bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
-            >
-              <AnimatePresence mode="popLayout">
-                {messages.map((message, index) => (
-                  <Message
-                    key={message.id}
-                    message={message}
-                    index={index}
-                    primaryColor={theme.primaryColor}
-                    secondaryColor={theme.secondaryColor}
-                    assistantAvatarId={chatbot?.avatarId}
-                  />
-                ))}
-              </AnimatePresence>
+            <div className="h-full w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40">
+              {sceneMode === 'website' && websitePreviewUrl && (
+                <iframe
+                  src={websitePreviewUrl}
+                  title="Website preview background"
+                  className="absolute inset-0 w-full h-full"
+                  sandbox="allow-scripts allow-forms allow-popups"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  onLoad={() => setWebsiteFrameLoaded(true)}
+                />
+              )}
+              {sceneMode === 'website' && websiteFrameLikelyBlocked && !websiteFrameLoaded && (
+                <div className="absolute inset-0 bg-white/95">
+                  <div className="h-full w-full p-3 md:p-5 flex flex-col gap-3 md:gap-4">
+                    <div className="h-12 rounded-xl border border-brown-200/80 bg-white flex items-center px-3 md:px-4">
+                      <div
+                        className="w-8 h-8 rounded-lg mr-3 flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: theme.primaryColor }}
+                      >
+                        {websiteHost.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs md:text-sm font-semibold text-brown-800 truncate">{websiteHost}</div>
+                        <div className="text-[11px] text-brown-500 truncate">Fallback preview layout (iframe blocked)</div>
+                      </div>
+                    </div>
 
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex justify-start mb-4"
-                >
-                  <div
-                    className="rounded-2xl px-4 py-3 shadow-md border"
-                    style={{ backgroundColor: `${theme.secondaryColor}55`, borderColor: `${theme.secondaryColor}aa` }}
-                  >
-                    <div className="flex space-x-2">
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: theme.primaryColor }}
-                          animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                        />
-                      ))}
+                    <div
+                      className="rounded-2xl border border-brown-200/70 p-4 md:p-6"
+                      style={{ background: `linear-gradient(120deg, ${theme.secondaryColor}33 0%, #ffffff 70%)` }}
+                    >
+                      <div className="text-sm md:text-base font-semibold text-brown-900 mb-2 truncate">
+                        {chatbot?.name ?? 'Your chatbot'} on {websiteHost}
+                      </div>
+                      <div className="text-xs md:text-sm text-brown-700 line-clamp-2">
+                        {chatbot?.description || 'This area simulates a website hero section so you can validate chatbot placement and style even when live framing is blocked.'}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <div className="h-7 rounded-full w-24" style={{ backgroundColor: `${theme.primaryColor}22` }} />
+                        <div className="h-7 rounded-full w-20 bg-brown-100" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 flex-1 min-h-0">
+                      <div className="rounded-xl border border-brown-200/70 bg-white p-3 md:p-4">
+                        <div className="h-3 w-28 rounded bg-brown-200 mb-2" />
+                        <div className="h-2.5 w-full rounded bg-brown-100 mb-1.5" />
+                        <div className="h-2.5 w-[85%] rounded bg-brown-100 mb-1.5" />
+                        <div className="h-2.5 w-[70%] rounded bg-brown-100" />
+                      </div>
+                      <div className="rounded-xl border border-brown-200/70 bg-white p-3 md:p-4">
+                        <div className="h-3 w-32 rounded bg-brown-200 mb-2" />
+                        <div className="h-2.5 w-full rounded bg-brown-100 mb-1.5" />
+                        <div className="h-2.5 w-[80%] rounded bg-brown-100 mb-1.5" />
+                        <div className="h-2.5 w-[75%] rounded bg-brown-100" />
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-brown-600">
+                      Tip: some sites deny iframe embedding via security headers. Optional future upgrade: backend-generated website screenshot fallback.
                     </div>
                   </div>
-                </motion.div>
+                </div>
+              )}
+              {sceneMode === 'website' && (
+                <div className="absolute inset-0 bg-white/40 pointer-events-none" />
+              )}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="w-full h-12 border-b border-brown-100/80 bg-white/60" />
+              </div>
+              {sceneMode === 'website' && websiteFrameLikelyBlocked && !websiteFrameLoaded && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-xs">
+                  Website blocked iframe preview. Showing widget only.
+                </div>
               )}
 
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Quick replies: fixed at bottom of chat panel */}
-            {quickReplies.length > 0 && (
-              <div className="flex-shrink-0 px-2 md:px-3 py-2 border-t border-brown-200/80 bg-brown-50/60">
-                <div className="flex flex-wrap gap-2">
-                  {quickReplies.map((reply, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSendMessage(reply)}
-                      className="px-3 py-1.5 text-sm rounded-full transition-colors border"
-                      style={{ backgroundColor: `${theme.secondaryColor}66`, color: '#4a3828', borderColor: `${theme.secondaryColor}aa` }}
-                      disabled={isLoading}
-                    >
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Input: fixed at bottom, fully inside frame; slightly narrower row on desktop */}
-            <div className="flex-shrink-0 pt-3 px-2 pb-0 md:px-0 md:pt-4 border-t-2 border-brown-200/80 bg-brown-100/50 relative z-10">
-              <div className="flex gap-2 min-w-0 max-w-3xl mx-auto">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
-                  disabled={isLoading}
-                  className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-2 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400"
-                  style={{ borderColor: `${theme.secondaryColor}cc` }}
-                />
-                <button
-                  onClick={() => handleSendMessage()}
-                  disabled={!input.trim() || isLoading}
-                  className="flex-shrink-0 px-4 py-3 md:px-6 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all min-w-[48px]"
-                  style={{ backgroundColor: theme.primaryColor }}
-                  aria-label="Send message"
+              {isWidgetOpen && (
+                <div
+                  data-testid="preview-widget-panel"
+                  className="absolute shadow-2xl border border-brown-200/80 bg-white/95 backdrop-blur-sm overflow-hidden"
+                  style={
+                    isMobilePreview
+                      ? {
+                          left: '2.5%',
+                          right: '2.5%',
+                          bottom: 12,
+                          width: '95%',
+                          height: '50%',
+                          borderRadius: 16,
+                        }
+                      : {
+                          width: 350,
+                          height: 500,
+                          right: 20,
+                          bottom: 20,
+                          borderRadius: parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12,
+                        }
+                  }
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                    className="w-5 h-5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-                    />
-                  </svg>
+                  <div className="h-full flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between px-[15px] py-[15px] text-white" style={{ backgroundColor: theme.primaryColor }}>
+                      <div className="font-semibold truncate">{chatbot?.name ?? 'AI Assistant'}</div>
+                      <button
+                        type="button"
+                        onClick={() => setIsWidgetOpen(false)}
+                        className="text-white/90 hover:text-white text-lg leading-none"
+                        aria-label="Close widget preview"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div
+                      ref={messagesContainerRef}
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[15px] py-[15px] bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
+                    >
+                      <AnimatePresence mode="popLayout">
+                        {messages.map((message, index) => (
+                          <Message
+                            key={message.id}
+                            message={message}
+                            index={index}
+                            primaryColor={theme.primaryColor}
+                            secondaryColor={theme.secondaryColor}
+                            assistantAvatarId={chatbot?.avatarId}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      {isLoading && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-start mb-4">
+                          <div className="rounded-2xl px-4 py-3 shadow-md border" style={{ backgroundColor: `${theme.secondaryColor}55`, borderColor: `${theme.secondaryColor}aa` }}>
+                            <div className="flex space-x-2">
+                              {[0, 1, 2].map((i) => (
+                                <motion.div
+                                  key={i}
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: theme.primaryColor }}
+                                  animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
+                                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {quickReplies.length > 0 && (
+                      <div className="flex-shrink-0 px-[15px] py-2 border-t border-brown-200/80 bg-brown-50/60">
+                        <div className="flex flex-wrap gap-2">
+                          {quickReplies.map((reply, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleSendMessage(reply)}
+                              className="px-3 py-1.5 text-xs rounded-full transition-colors border"
+                              style={{ backgroundColor: `${theme.secondaryColor}66`, color: '#4a3828', borderColor: `${theme.secondaryColor}aa` }}
+                              disabled={isLoading}
+                            >
+                              {reply}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex-shrink-0 px-[15px] py-[15px] border-t border-brown-200/80 bg-white">
+                      <div className="flex gap-[10px] min-w-0 items-center">
+                        <input
+                          type="text"
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          placeholder="Type your message..."
+                          disabled={isLoading}
+                          className="min-w-0 flex-1 px-3 py-2 rounded-[20px] border focus:outline-none focus:ring-2 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400 text-sm"
+                          style={{ borderColor: `${theme.secondaryColor}cc` }}
+                        />
+                        <button
+                          onClick={() => handleSendMessage()}
+                          disabled={!input.trim() || isLoading}
+                          className="flex-shrink-0 text-white rounded-full font-medium disabled:opacity-50 hover:shadow-lg transition-all w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                          style={{ backgroundColor: theme.primaryColor }}
+                          aria-label="Send message"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isWidgetOpen && (
+                <button
+                  data-testid="preview-widget-toggle"
+                  type="button"
+                  onClick={() => setIsWidgetOpen(true)}
+                  className="absolute text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center"
+                  style={{
+                    width: isMobilePreview ? 50 : 60,
+                    height: isMobilePreview ? 50 : 60,
+                    right: isMobilePreview ? 12 : 20,
+                    bottom: isMobilePreview ? 12 : 20,
+                    backgroundColor: theme.primaryColor,
+                  }}
+                  aria-label="Open widget preview"
+                >
+                  💬
                 </button>
-              </div>
+              )}
             </div>
-          </div>
-        </CalligraphicFrame>
+            <p className="mt-2 text-[11px] md:text-xs text-brown-600">
+              Preview limitations: some websites block iframe embedding with security headers. In that case, website background cannot be shown,
+              but widget size/position/theme simulation remains accurate.
+            </p>
           </div>
         </div>
       </div>

@@ -44,3 +44,26 @@ The same prompt and history can still produce different answers (temperature > 0
 | Prompt/history      | Can differ (language + history) | Can differ                  |
 
 To make preview and widget behavior as close as possible, the preview should send the same `language` as the widget (e.g. derived from `navigator.language`).
+
+---
+
+## Visual parity status (updated)
+
+The dashboard preview is now aligned with the embedded widget layout rules:
+
+- **Desktop/Tablet:** floating widget panel at bottom-right (not a centered full-page chat app)
+- **Mobile:** bottom-sheet style panel with near-full width and reduced height
+- **Theme:** selected `primaryColor`/`secondaryColor` and `borderRadius` are applied to key widget UI elements
+- **Avatar:** selected avatar is shown in the assistant chat UI
+
+### Website background mode
+
+Preview now includes an optional **Website background** mode that tries to render the chatbot's website URL behind the widget using an iframe.
+
+- If the website allows embedding, users can see context with the widget overlay.
+- If blocked by `X-Frame-Options` or CSP `frame-ancestors`, preview shows a fallback notice and still renders widget placement/theme accurately.
+
+### Remaining known differences
+
+- Real embed runs on the customer page and can be affected by that page's own CSS/CSP/load behavior.
+- Preview is still a simulator and cannot bypass third-party framing restrictions.

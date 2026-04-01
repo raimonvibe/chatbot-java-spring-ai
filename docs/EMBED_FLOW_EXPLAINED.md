@@ -93,6 +93,16 @@ If you previously saw a theme toggle (or similar control) stop working after add
 
 On viewports **≤ 768px**, the chat panel opens as a **bottom sheet** using `height: 50dvh` and `width: 95%`, so it does not cover the whole screen and stays within the window; the panel stays centered and won’t pop out of the viewport. The floating chat button uses **safe-area insets** so it isn’t hidden by notches or home indicators; the header and input area also respect safe areas. Desktop keeps the original 350×500-style panel.
 
+## Preview parity notes
+
+The dashboard preview now simulates this same geometry:
+
+- Desktop/tablet: floating bottom-right widget style
+- Mobile: bottom-sheet style preview
+- Theme/branding: selected colors and border radius are applied to widget UI in preview
+
+When using "Website background" mode, preview attempts to load the target site in an iframe behind the widget. Some sites block framing via CSP/X-Frame headers; in that case preview shows a fallback message while preserving widget simulation.
+
 ---
 
 ## Troubleshooting: Widget not visible on my site

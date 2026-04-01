@@ -319,4 +319,70 @@ test.describe('Chatbot Preview Page', () => {
     const viewport = page.viewportSize();
     expect(viewport?.width).toBe(375);
   });
+
+  test('should place preview widget bottom-right on desktop', async ({ page }) => {
+    const apiMock = new ApiMock(page);
+    const chatbot = testChatbots[0];
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    await page.route(`**/api/chatbots/${chatbot.id}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(chatbot),
+      });
+    });
+
+    await apiMock.mockChatEndpoints();
+    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.waitForLoadState('networkidle');
+
+    const panel = page.getByTestId('preview-widget-panel');
+    await expect(panel).toBeVisible();
+
+    const panelBox = await panel.boundingBox();
+    const viewport = page.viewportSize();
+    expect(panelBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    if (panelBox && viewport) {
+      expect(viewport.width - (panelBox.x + panelBox.width)).toBeLessThanOrEqual(40);
+      expect(viewport.height - (panelBox.y + panelBox.height)).toBeLessThanOrEqual(40);
+    }
+  });
+
+  test('should render wide bottom-sheet style panel on mobile preview mode', async ({ page }) => {
+    const apiMock = new ApiMock(page);
+    const chatbot = testChatbots[0];
+
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.route(`**/api/chatbots/${chatbot.id}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(chatbot),
+      });
+    });
+
+    await apiMock.mockChatEndpoints();
+    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.waitForLoadState('networkidle');
+
+    // Open mobile screen-size menu and choose Mobile to apply mobile widget geometry.
+    await page.getByRole('button', { name: /Screen size:/i }).click();
+    await page.getByRole('button', { name: 'Mobile' }).click();
+
+    const panel = page.getByTestId('preview-widget-panel');
+    await expect(panel).toBeVisible();
+
+    const panelBox = await panel.boundingBox();
+    const viewport = page.viewportSize();
+    expect(panelBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    if (panelBox && viewport) {
+      expect(panelBox.width).toBeGreaterThanOrEqual(viewport.width * 0.9);
+      expect(viewport.height - (panelBox.y + panelBox.height)).toBeLessThanOrEqual(30);
+    }
+  });
 });
