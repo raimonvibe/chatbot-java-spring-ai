@@ -532,4 +532,77 @@ class UrlValidationServiceTest {
         assertTrue(urlValidationService.completeAndValidate("http://localhost").isEmpty());
         assertTrue(urlValidationService.completeAndValidate("127.0.0.1").isEmpty());
     }
+
+    @Test
+    @DisplayName("completeAndValidate: should return empty for non-http(s) schemes (onboarding / crawl guard)")
+    void completeAndValidate_rejectsDangerousSchemes() {
+        assertTrue(urlValidationService.completeAndValidate("javascript:alert(1)").isEmpty(),
+            "javascript: must not complete to a crawlable http URL");
+        assertTrue(urlValidationService.completeAndValidate("data:text/html,<script>").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("file:///etc/passwd").isEmpty());
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should return empty for cloud metadata hostname (SSRF)")
+    void completeAndValidate_rejectsMetadataHostname() {
+        assertTrue(urlValidationService.completeAndValidate("https://metadata.google.internal/").isEmpty());
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should reject URLs with userinfo (credential / parser ambiguity)")
+    void completeAndValidate_rejectsUserinfo() {
+        assertTrue(urlValidationService.completeAndValidate("https://user@example.com/").isEmpty(),
+            "Must not allow username in website URL");
+        assertTrue(urlValidationService.completeAndValidate("https://127.0.0.1@example.com/").isEmpty(),
+            "Must not strip userinfo in a way that hides SSRF intent from the user");
+        assertTrue(urlValidationService.completeAndValidate("https://user:pass@google.com/").isEmpty());
+    }
+
+    @Test
+    @DisplayName("isValidAndSafe: should reject URLs with userinfo")
+    void isValidAndSafe_rejectsUserinfo() {
+        assertFalse(urlValidationService.isValidAndSafe("https://alice:secret@example.com/path"));
+        assertFalse(urlValidationService.isValidAndSafe("http://bob@example.com"));
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should reject inputs over max length")
+    void completeAndValidate_rejectsExcessLength() {
+        String tooLong = "a".repeat(UrlValidationService.MAX_URL_LENGTH + 1);
+        assertTrue(urlValidationService.completeAndValidate(tooLong).isEmpty());
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should accept input at max length when URL is otherwise valid")
+    void completeAndValidate_acceptsMaxLengthValidUrl() {
+        String prefix = "https://example.com/";
+        int pathLen = UrlValidationService.MAX_URL_LENGTH - prefix.length();
+        assertTrue(pathLen > 0);
+        String atMax = prefix + "p".repeat(pathLen);
+        assertEquals(UrlValidationService.MAX_URL_LENGTH, atMax.length());
+        Optional<String> r = urlValidationService.completeAndValidate(atMax);
+        assertTrue(r.isPresent(), "Boundary length public URL should validate");
+        assertTrue(r.get().length() <= UrlValidationService.MAX_URL_LENGTH);
+    }
+
+    @Test
+    @DisplayName("completeAndValidate: should reject CR / LF / control characters (header injection / smuggling)")
+    void completeAndValidate_rejectsControlCharacters() {
+        assertTrue(urlValidationService.completeAndValidate("https://evil.com\r\nX-Injected:1").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("https://a.com/\n").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("https://a.com/\u0007").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("https://a.com/\u2028").isEmpty());
+        assertTrue(urlValidationService.completeAndValidate("https://a.com/\u2029tail").isEmpty());
+    }
+
+    @Test
+    @DisplayName("containsDisallowedCharacters: detects controls and DEL")
+    void containsDisallowedCharacters_detectsControls() {
+        assertTrue(UrlValidationService.containsDisallowedCharacters("a\nb"));
+        assertTrue(UrlValidationService.containsDisallowedCharacters("a\rb"));
+        assertTrue(UrlValidationService.containsDisallowedCharacters("\u0000"));
+        assertTrue(UrlValidationService.containsDisallowedCharacters(" "));
+        assertTrue(UrlValidationService.containsDisallowedCharacters("a\u2028b"));
+        assertFalse(UrlValidationService.containsDisallowedCharacters("https://example.com/foo"));
+    }
 }

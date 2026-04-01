@@ -182,6 +182,7 @@ export default function ChatbotPreview() {
       toggleCreateForm: () => router.push('/dashboard'),
       showCreateForm: false,
       hasChatbots: true,
+      canAddChatbot: true,
       isPreviewMode: false,
       onDeleteAllChatbots: () => {},
       portalLoading: false,

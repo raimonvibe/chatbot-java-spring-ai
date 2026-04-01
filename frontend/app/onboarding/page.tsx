@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Book, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Book, Sparkles } from 'lucide-react';
 import { createChatbotFromUrl, getAllChatbots, checkAuth } from '@/lib/api';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
+import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [websiteUrl, setWebsiteUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -53,43 +53,35 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateFromUrl = async (canonicalUrl: string) => {
     setError('');
     setCreating(true);
 
     try {
-      if (!websiteUrl.trim()) {
-        setError('Please enter a website URL');
-        setCreating(false);
-        return;
-      }
-
-      // Create chatbot (analysis runs in background; preview page shows "Setting up..." until ready)
-      await createChatbotFromUrl(websiteUrl.trim());
+      await createChatbotFromUrl(canonicalUrl);
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating chatbot:', err);
-      
-      // Check if it's a payment required error (402) - website size limit
-      if (err.status === 402 || err.upgradeRequired) {
-        setUpgradeMessage(err.message || 'Website too large for preview mode. Upgrade to continue.');
+      const anyErr = err as { status?: number; upgradeRequired?: boolean; message?: string };
+
+      if (anyErr.status === 402 || anyErr.upgradeRequired) {
+        setUpgradeMessage(anyErr.message || 'Website too large for preview mode. Upgrade to continue.');
         setPaywallFeature('general');
         setShowUpgradeModal(true);
         setCreating(false);
         return;
       }
-      
-      // Check if it's a limit reached error
-      if (err.message && (err.message.includes('limit') || err.message.includes('Upgrade'))) {
-        setUpgradeMessage(err.message || 'One chatbot per account limit reached. Upgrade to create more.');
+
+      const msg = typeof anyErr.message === 'string' ? anyErr.message : '';
+      if (msg && (msg.includes('limit') || msg.includes('Upgrade'))) {
+        setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
         setShowUpgradeModal(true);
         setCreating(false);
         return;
       }
-      
-      setError(err.message || 'Failed to create chatbot. Please try again.');
+
+      setError(msg || 'Failed to create chatbot. Please try again.');
       setCreating(false);
     }
   };
@@ -142,51 +134,13 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="websiteUrl" className="block text-sm font-medium mb-2 text-brown-800">
-              Enter your website URL
-            </label>
-            <input
-              id="websiteUrl"
-              type="text"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="example.com or https://example.com"
-              className="w-full px-4 py-3 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900 text-lg"
-              disabled={creating}
-              required
-            />
-            <p className="text-sm text-brown-600 mt-2">
-              We'll analyze your website and create a chatbot that understands your content. 
-              Christian values are pre-configured by default.
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={creating || !websiteUrl.trim()}
-            className="w-full px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {creating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Creating your chatbot...
-              </>
-            ) : (
-              <>
-                Create My Chatbot
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
+        <CreateChatbotFromWebsiteForm
+          variant="onboarding"
+          onSubmit={handleCreateFromUrl}
+          submitting={creating}
+          serverError={error}
+          onClearServerError={() => setError('')}
+        />
 
         <div className="mt-6 pt-6 border-t border-brown-200">
           <p className="text-xs text-brown-600 text-center">

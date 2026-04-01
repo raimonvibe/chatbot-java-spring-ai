@@ -22,11 +22,13 @@ import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.WebsiteScanAudit;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
+import com.prayer_chat.chatbot.util.WebsiteDisplayName;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +40,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,6 +70,7 @@ public class ChatbotController {
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
     private final RateLimitingService rateLimitingService;
+    private final UrlValidationService urlValidationService;
 
     @Value("${app.base-url:https://chatbot-java-spring-ai.onrender.com}")
     private String baseUrl;
@@ -87,7 +89,8 @@ public class ChatbotController {
                            WebsiteSizeEstimator websiteSizeEstimator,
                            WebsiteScanAuditRepository websiteScanAuditRepository,
                            AccessControlService accessControlService,
-                           RateLimitingService rateLimitingService) {
+                           RateLimitingService rateLimitingService,
+                           UrlValidationService urlValidationService) {
         this.chatbotRepository = chatbotRepository;
         this.chatbotService = chatbotService;
         this.aiChatbotService = aiChatbotService;
@@ -102,6 +105,7 @@ public class ChatbotController {
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
         this.rateLimitingService = rateLimitingService;
+        this.urlValidationService = urlValidationService;
     }
 
     // ============================================================================
@@ -303,10 +307,12 @@ public class ChatbotController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Website URL is required"));
             }
 
-            // Validate URL - add https:// if missing
-            if (!websiteUrl.startsWith("http://") && !websiteUrl.startsWith("https://")) {
-                websiteUrl = "https://" + websiteUrl;
+            // SECURITY: normalize and reject unsafe URLs before name generation, persistence, or crawling (SSRF defense).
+            Optional<String> canonicalWebsite = urlValidationService.completeAndValidate(websiteUrl);
+            if (canonicalWebsite.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid or unsafe website URL"));
             }
+            websiteUrl = canonicalWebsite.get();
 
             // Check if user already has chatbots (onboarding is only for first chatbot)
             Long currentChatbotCount = chatbotRepository.countByOwner(user.getId());
@@ -347,7 +353,7 @@ public class ChatbotController {
             }
 
             // Auto-generate name from URL
-            String generatedName = generateNameFromUrl(websiteUrl);
+            String generatedName = WebsiteDisplayName.suggestedChatbotNameFromUrl(websiteUrl);
             
             // Create chatbot with defaults
             Chatbot chatbot = new Chatbot();
@@ -409,44 +415,6 @@ public class ChatbotController {
         }
     }
 
-    /**
-     * Generate chatbot name from website URL
-     * Example: https://www.example.com -> "Example Chatbot"
-     */
-    private String generateNameFromUrl(String url) {
-        try {
-            URI uri = new URI(url);
-            String host = uri.getHost();
-            
-            if (host == null || host.isEmpty()) {
-                return "My Chatbot";
-            }
-
-            // Remove www. prefix
-            String domain = host.replaceFirst("^www\\.", "");
-            
-            // Remove common TLDs
-            domain = domain.replaceFirst("\\.(com|org|net|edu|gov|co|io|ai|app|dev)$", "");
-            
-            // Extract main part (before first dot if subdomain)
-            String[] parts = domain.split("\\.");
-            String mainPart = parts.length > 0 ? parts[parts.length - 1] : domain;
-            
-            // Capitalize first letter
-            if (mainPart.isEmpty()) {
-                return "My Chatbot";
-            }
-            
-            String capitalized = mainPart.substring(0, 1).toUpperCase() + 
-                                 (mainPart.length() > 1 ? mainPart.substring(1) : "");
-            
-            return capitalized + " Chatbot";
-        } catch (Exception e) {
-            logger.warn("Failed to generate name from URL: {}, using default", url);
-            return "My Chatbot";
-        }
-    }
-    
     /**
      * Create a new chatbot
      */

@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -138,6 +139,45 @@ class ChatbotControllerIT {
             .andExpect(jsonPath("$.name").exists());
 
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("Onboarding rejects javascript: URL before chatbot creation (uses UrlValidationService)")
+    void shouldRejectOnboardingJavascriptUrl() throws Exception {
+        mockMvc.perform(post("/api/chatbots/onboarding")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "javascript:alert(1)")))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
+
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("Onboarding rejects loopback URL before chatbot creation (SSRF guard)")
+    void shouldRejectOnboardingLoopbackUrl() throws Exception {
+        mockMvc.perform(post("/api/chatbots/onboarding")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "http://127.0.0.1:8080")))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
+
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("Onboarding rejects cloud metadata hostname before chatbot creation")
+    void shouldRejectOnboardingMetadataHostname() throws Exception {
+        mockMvc.perform(post("/api/chatbots/onboarding")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "https://metadata.google.internal/")))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
+
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test

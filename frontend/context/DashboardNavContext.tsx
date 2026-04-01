@@ -8,6 +8,8 @@ export interface DashboardNavValue {
   toggleCreateForm: () => void;
   showCreateForm: boolean;
   hasChatbots: boolean;
+  /** When false, hide header/actions to add another chatbot (subscription limit). */
+  canAddChatbot: boolean;
   isPreviewMode: boolean;
   onDeleteAllChatbots: () => void;
   portalLoading: boolean;

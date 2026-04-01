@@ -135,7 +135,7 @@ export default function Header() {
                     <CreditCard className="w-4 h-4 flex-shrink-0" />
                     {nav.portalLoading ? 'Opening…' : 'Subscription'}
                   </button>
-                  {(nav.hasChatbots || nav.showCreateForm) && (
+                  {nav.canAddChatbot && (
                     <button
                       type="button"
                       onClick={() => {

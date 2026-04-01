@@ -27,12 +27,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.net.URI;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -121,10 +124,37 @@ class ChatbotControllerWebsiteSizeLimitTest {
             websiteSizeEstimator,
             websiteScanAuditRepository,
             accessControlService,
-            rateLimitingService
+            rateLimitingService,
+            urlValidationService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
+        lenient().when(urlValidationService.completeAndValidate(anyString())).thenAnswer(invocation -> {
+            String raw = invocation.getArgument(0);
+            if (raw == null || raw.trim().isEmpty()) {
+                return Optional.empty();
+            }
+            String s = raw.trim();
+            if (!s.startsWith("http://") && !s.startsWith("https://")) {
+                s = "https://" + s;
+            }
+            try {
+                URI u = new URI(s);
+                String host = u.getHost();
+                if (host == null) {
+                    return Optional.empty();
+                }
+                String path = u.getRawPath();
+                if (path == null || path.isEmpty()) {
+                    path = "/";
+                }
+                String query = u.getRawQuery();
+                URI n = new URI(u.getScheme(), host, path, query != null && !query.isEmpty() ? query : null, null);
+                return Optional.of(n.toASCIIString());
+            } catch (Exception e) {
+                return Optional.empty();
+            }
+        });
         lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(false);
         lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(true);
         lenient().when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);
@@ -139,7 +169,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         String largeWebsiteUrl = "https://large-website.com";
         int estimatedPages = 100; // Exceeds 50-page limit
         
-        when(websiteSizeEstimator.estimateSize(largeWebsiteUrl)).thenReturn(estimatedPages);
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
 
         // Act
@@ -173,7 +203,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         String smallWebsiteUrl = "https://small-website.com";
         int estimatedPages = 30; // Within 50-page limit
         
-        when(websiteSizeEstimator.estimateSize(smallWebsiteUrl)).thenReturn(estimatedPages);
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
@@ -191,6 +221,21 @@ class ChatbotControllerWebsiteSizeLimitTest {
         
         // Verify chatbot WAS created (onboarding uses createChatbotEnforcingLimit with max 1)
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
+    }
+
+    @Test
+    @DisplayName("Should reject onboarding when URL fails safety validation")
+    void shouldRejectOnboardingWhenUrlFailsValidation() {
+        when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
+
+        ResponseEntity<?> response = chatbotController.createChatbotFromUrl(
+            Map.of("websiteUrl", "https://unsafe.example"),
+            customOAuth2User
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
+        verify(websiteSizeEstimator, never()).estimateSize(anyString());
     }
 
     @Test
@@ -309,7 +354,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         String websiteUrl = "https://example.com";
         
         // Simulate estimation failure (returns -1 or throws exception)
-        when(websiteSizeEstimator.estimateSize(websiteUrl)).thenReturn(-1);
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(-1);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
@@ -333,7 +378,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         String websiteUrl = "https://example.com";
         int estimatedPages = 50; // Exactly at limit
         
-        when(websiteSizeEstimator.estimateSize(websiteUrl)).thenReturn(estimatedPages);
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);

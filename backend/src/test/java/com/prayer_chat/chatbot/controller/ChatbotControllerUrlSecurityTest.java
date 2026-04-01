@@ -15,6 +15,7 @@ import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.UrlValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -82,6 +84,9 @@ class ChatbotControllerUrlSecurityTest {
     private RateLimitingService rateLimitingService;
 
     @Mock
+    private UrlValidationService urlValidationService;
+
+    @Mock
     private CustomOAuth2User customOAuth2User;
 
     private ChatbotController chatbotController;
@@ -117,10 +122,12 @@ class ChatbotControllerUrlSecurityTest {
             websiteSizeEstimator,
             websiteScanAuditRepository,
             accessControlService,
-            rateLimitingService
+            rateLimitingService,
+            urlValidationService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
+        lenient().when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.of("https://validated.test/"));
         // Mock access control - user has access to integration script
         lenient().when(accessControlService.hasActiveSubscription(any(User.class))).thenReturn(true);
         lenient().when(accessControlService.isPreviewMode(any(User.class))).thenReturn(false);

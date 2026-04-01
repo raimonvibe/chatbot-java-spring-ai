@@ -14,6 +14,7 @@ import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -85,6 +87,9 @@ class ChatbotControllerIntegrationScriptTest {
     private RateLimitingService rateLimitingService;
 
     @Mock
+    private UrlValidationService urlValidationService;
+
+    @Mock
     private CustomOAuth2User customOAuth2User;
 
     @InjectMocks
@@ -121,10 +126,13 @@ class ChatbotControllerIntegrationScriptTest {
             websiteSizeEstimator,
             websiteScanAuditRepository,
             accessControlService,
-            rateLimitingService
+            rateLimitingService,
+            urlValidationService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
+        lenient().when(urlValidationService.completeAndValidate(anyString()))
+            .thenReturn(Optional.of("https://validated.test/"));
     }
 
     private static final String PRODUCTION_URL = "https://chatbot-java-spring-ai.onrender.com";

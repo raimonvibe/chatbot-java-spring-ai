@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
+import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
 import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/ThemePicker';
 import AvatarPicker from '@/components/AvatarPicker';
@@ -32,8 +33,8 @@ export default function Dashboard() {
   const [themeApplyingId, setThemeApplyingId] = useState<number | null>(null);
   const [avatarApplyingId, setAvatarApplyingId] = useState<number | null>(null);
 
-  const [websiteUrl, setWebsiteUrl] = useState('');
   const [creating, setCreating] = useState(false);
+  const [createFormError, setCreateFormError] = useState('');
   const [analyzingChatbotId, setAnalyzingChatbotId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -152,23 +153,15 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateChatbot = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateFromUrl = async (canonicalUrl: string) => {
+    setCreateFormError('');
     setCreating(true);
 
     try {
-      if (!websiteUrl.trim()) {
-        alert('Please enter a website URL');
-        setCreating(false);
-        return;
-      }
-
-      const newChatbot = await createChatbotFromUrl(websiteUrl.trim());
+      const newChatbot = await createChatbotFromUrl(canonicalUrl);
       setChatbots([...chatbots, newChatbot]);
-      setWebsiteUrl('');
       setShowCreateForm(false);
       setCreating(false);
-      // Refetch subscription so "Get Embed Code" appears if user has paid (e.g. just created first chatbot after payment)
       loadSubscriptionStatus(chatbots.length + 1);
     } catch (error: unknown) {
       console.error('Error creating chatbot:', error);
@@ -185,10 +178,9 @@ export default function Dashboard() {
         setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
         setShowUpgradeModal(true);
-      } else {
-        setUpgradeMessage(msg);
-        setShowUpgradeModal(true);
+        return;
       }
+      setCreateFormError(msg);
     }
   };
 
@@ -199,8 +191,12 @@ export default function Dashboard() {
 
     try {
       await deleteChatbot(chatbotId);
-      setChatbots(chatbots.filter(c => c.id !== chatbotId));
-      loadSubscriptionStatus(chatbots.length - 1);
+      const next = chatbots.filter((c) => c.id !== chatbotId);
+      setChatbots(next);
+      loadSubscriptionStatus(next.length);
+      if (next.length === 0) {
+        router.push('/onboarding');
+      }
     } catch (error: unknown) {
       console.error('Error deleting chatbot:', error);
     }
@@ -216,6 +212,7 @@ export default function Dashboard() {
       setChatbots([]);
       loadSubscriptionStatus(0);
       alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);
+      router.push('/onboarding');
     } catch (error: unknown) {
       console.error('Error deleting all chatbots:', error);
       alert(getSafeErrorMessage(error, 'Failed to delete all chatbots. Please try again.'));
@@ -272,12 +269,15 @@ export default function Dashboard() {
       setNav(null);
       return;
     }
+    const maxBots = subscriptionStatus?.maxChatbots ?? 1;
+    const canAddChatbot = chatbots.length < maxBots;
     setNav({
       openSubscription,
       logout: handleLogout,
       toggleCreateForm: () => setShowCreateForm((s) => !s),
       showCreateForm,
       hasChatbots: chatbots.length > 0,
+      canAddChatbot,
       isPreviewMode: subscriptionStatus?.isPreviewMode ?? true,
       onDeleteAllChatbots: handleDeleteAllChatbots,
       portalLoading,
@@ -289,6 +289,7 @@ export default function Dashboard() {
     openSubscription,
     showCreateForm,
     chatbots.length,
+    subscriptionStatus?.maxChatbots,
     subscriptionStatus?.isPreviewMode,
     portalLoading,
     setNav,
@@ -368,7 +369,7 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {chatbots.length > 0 || showCreateForm ? (
+              {(subscriptionStatus ? chatbots.length < subscriptionStatus.maxChatbots : true) ? (
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(!showCreateForm)}
@@ -438,35 +439,13 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <form onSubmit={handleCreateChatbot} className="space-y-6">
-              <div>
-                <label htmlFor="websiteUrl" className="block text-sm font-medium mb-2 text-brown-800">
-                  Enter your website URL
-                </label>
-                <input
-                  id="websiteUrl"
-                  type="text"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  placeholder="example.com or https://example.com"
-                  className="w-full px-4 py-3 border border-brown-300 rounded-lg focus:ring-2 focus:ring-brown-500 focus:border-transparent bg-white text-brown-900 text-lg"
-                  disabled={creating}
-                  required
-                />
-                <p className="text-sm text-brown-600 mt-2">
-                  We'll analyze your website and create a chatbot that understands your content.
-                  Christian values are pre-configured by default.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={creating || !websiteUrl.trim()}
-                className="w-full px-6 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" /> Create My Chatbot
-              </button>
-            </form>
+            <CreateChatbotFromWebsiteForm
+              variant="dashboard"
+              onSubmit={handleCreateFromUrl}
+              submitting={creating}
+              serverError={createFormError}
+              onClearServerError={() => setCreateFormError('')}
+            />
           </motion.div>
         )}
 

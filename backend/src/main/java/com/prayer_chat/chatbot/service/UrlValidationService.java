@@ -22,6 +22,9 @@ public class UrlValidationService {
 
     private static final Logger logger = LoggerFactory.getLogger(UrlValidationService.class);
 
+    /** Maximum accepted URL length (RFC 7230 suggests practical limits; blocks abuse / ReDoS-ish megastrings). */
+    static final int MAX_URL_LENGTH = 2048;
+
     // Blocked hostnames
     private static final List<String> BLOCKED_HOSTS = Arrays.asList(
         "localhost",
@@ -73,10 +76,23 @@ public class UrlValidationService {
             logger.warn("URL validation failed: URL is null or empty");
             return false;
         }
+        String trimmed = url.trim();
+        if (trimmed.length() > MAX_URL_LENGTH) {
+            logger.warn("URL validation failed: URL exceeds max length ({})", MAX_URL_LENGTH);
+            return false;
+        }
+        if (containsDisallowedCharacters(trimmed)) {
+            logger.warn("URL validation failed: disallowed characters in URL");
+            return false;
+        }
 
         try {
             // Parse URI
-            URI uri = new URI(url);
+            URI uri = new URI(trimmed);
+            if (uri.getUserInfo() != null && !uri.getUserInfo().isEmpty()) {
+                logger.warn("URL validation failed: Userinfo not allowed (ambiguous / credential injection)");
+                return false;
+            }
             String scheme = uri.getScheme();
             String host = uri.getHost();
 
@@ -112,12 +128,12 @@ public class UrlValidationService {
             }
 
             // Validate URL pattern
-            if (!VALID_URL_PATTERN.matcher(url).matches()) {
-                logger.warn("URL validation failed: URL doesn't match valid pattern: {}", url);
+            if (!VALID_URL_PATTERN.matcher(trimmed).matches()) {
+                logger.warn("URL validation failed: URL doesn't match valid pattern: {}", trimmed);
                 return false;
             }
 
-            logger.debug("URL validation successful: {}", url);
+            logger.debug("URL validation successful: {}", trimmed);
             return true;
 
         } catch (Exception e) {
@@ -276,11 +292,22 @@ public class UrlValidationService {
             return Optional.empty();
         }
         String s = url.trim();
+        if (s.length() > MAX_URL_LENGTH) {
+            return Optional.empty();
+        }
+        if (containsDisallowedCharacters(s)) {
+            logger.debug("URL completion rejected: disallowed characters in input");
+            return Optional.empty();
+        }
         if (!s.startsWith("http://") && !s.startsWith("https://")) {
             s = "https://" + s;
         }
         try {
             URI uri = new URI(s);
+            if (uri.getUserInfo() != null && !uri.getUserInfo().isEmpty()) {
+                logger.debug("URL completion rejected: userinfo not permitted");
+                return Optional.empty();
+            }
             // Strip fragment and rebuild so crawler uses canonical form
             String path = uri.getRawPath();
             if (path == null || path.isEmpty()) path = "/";
@@ -301,5 +328,23 @@ public class UrlValidationService {
             logger.debug("URL completion failed for '{}': {}", url, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Rejects ASCII control characters and non-printables that are never valid in user-pasted website URLs
+     * (header injection, smuggling, odd parser behavior). TAB/LF/CR explicitly rejected even inside the string.
+     */
+    static boolean containsDisallowedCharacters(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c <= 0x20 || c == 0x7F) {
+                return true;
+            }
+            // Next-line (C1), line/paragraph separator — never valid in a website URL; confusion / smuggling
+            if (c == '\u0085' || c == '\u2028' || c == '\u2029') {
+                return true;
+            }
+        }
+        return false;
     }
 }

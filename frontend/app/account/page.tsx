@@ -262,6 +262,7 @@ function AccountPageContent() {
       toggleCreateForm: () => router.push('/dashboard'),
       showCreateForm: false,
       hasChatbots: chatbots.length > 0,
+      canAddChatbot: true,
       isPreviewMode: false,
       onDeleteAllChatbots: () => {},
       portalLoading,
