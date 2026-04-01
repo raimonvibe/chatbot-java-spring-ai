@@ -161,8 +161,8 @@ export interface ChristianContentAnalysis {
   versesAboveThreshold: number;
 }
 
-// Auto-detect backend URL based on environment
-function getApiBaseUrl(): string {
+/** Backend origin for public fetches (plan limits, etc.). Same rules as authenticated API calls. */
+export function getApiBaseUrl(): string {
   // Use explicit environment variable if set
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
@@ -668,6 +668,9 @@ export interface SubscriptionStatus {
   maxChatbots: number;
   currentChatbotCount: number;
   plan?: string;
+  /** Mirrors backend when billing integration is off (Stripe checkout/portal hidden). */
+  billingEnabled?: boolean;
+  paymentActionsAvailable?: boolean;
 }
 
 /** Response from GET /api/subscription/status */
@@ -679,6 +682,28 @@ export interface SubscriptionStatusApi {
   canUseChatbot: boolean;
   currentPeriodEnd?: string;
   canceledAt?: string;
+  billingEnabled?: boolean;
+  paymentActionsAvailable?: boolean;
+}
+
+/** Public GET /api/plans/limits (no auth). */
+export interface PublicPlanLimitsResponse {
+  description?: string;
+  billingEnabled?: boolean;
+  maxPagesPerScanOffered?: number;
+  websiteScanPolicySummary?: string;
+  plans?: Record<string, { maxPagesPerScan: number; messagesPerDay: number; monthlyScanQuota: number; maxChatbots?: number }>;
+  standardPageTiers?: Record<string, number>;
+}
+
+export async function fetchPublicPlanLimits(): Promise<PublicPlanLimitsResponse | null> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/plans/limits`, { method: 'GET' });
+    if (!response.ok) return null;
+    return (await response.json()) as PublicPlanLimitsResponse;
+  } catch {
+    return null;
+  }
 }
 
 export async function getSubscriptionStatusFromApi(): Promise<SubscriptionStatusApi | null> {

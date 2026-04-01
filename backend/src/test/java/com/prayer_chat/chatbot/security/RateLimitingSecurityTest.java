@@ -59,6 +59,9 @@ class RateLimitingSecurityTest {
     private SubscriptionRepository subscriptionRepository;
 
     @Mock
+    private BillingModeService billingModeService;
+
+    @Mock
     private RateLimitingService rateLimitingService;
 
     @Mock
@@ -81,12 +84,21 @@ class RateLimitingSecurityTest {
         testChatbot.setIsActive(true);
         testChatbot.setWebsiteUrl("https://example.com");
 
+        lenient().when(billingModeService.isBillingEnabled()).thenReturn(true);
+        lenient().when(billingModeService.effectiveMessagesPerDay(any()))
+            .thenAnswer(inv -> com.prayer_chat.chatbot.config.PlanLimits.messagesPerDay(inv.getArgument(0)));
+        lenient().when(billingModeService.effectiveDailyScanLimit(any()))
+            .thenAnswer(inv -> com.prayer_chat.chatbot.config.PlanLimits.dailyScanLimit(inv.getArgument(0)));
+        lenient().when(billingModeService.effectiveMonthlyScanQuota(any()))
+            .thenAnswer(inv -> com.prayer_chat.chatbot.config.PlanLimits.monthlyScanQuota(inv.getArgument(0)));
+
         // Create real RateLimitingService for some tests
         realRateLimitingService = new RateLimitingService(
             messageRepository,
             websiteScanAuditRepository,
             accessControlService,
-            subscriptionRepository
+            subscriptionRepository,
+            billingModeService
         );
     }
 

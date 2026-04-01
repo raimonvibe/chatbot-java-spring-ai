@@ -31,6 +31,7 @@ import {
 } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
+import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 
 function AccountPageFallback() {
   return (
@@ -250,6 +251,11 @@ function AccountPageContent() {
     }
   };
 
+  const paymentUi =
+    subscription !== 'error' && subscription != null
+      ? paymentActionsAvailableFromApi(subscription)
+      : isBillingEnabledFromEnv();
+
   const setNav = useSetDashboardNav();
   useEffect(() => {
     if (loading || !user) {
@@ -266,9 +272,10 @@ function AccountPageContent() {
       isPreviewMode: false,
       onDeleteAllChatbots: () => {},
       portalLoading,
+      showSubscriptionNav: paymentUi,
     });
     return () => setNav(null);
-  }, [loading, user, portalLoading, chatbots.length, setNav]);
+  }, [loading, user, portalLoading, chatbots.length, setNav, paymentUi]);
 
   if (loading) {
     return (
@@ -398,22 +405,32 @@ function AccountPageContent() {
           ) : (
             <p className="text-brown-400 text-sm">Free trial — upgrade for more features.</p>
           )}
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              onClick={handleManageSubscription}
-              disabled={portalLoading}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium hover:from-gold-600 hover:to-gold-700 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-              {portalLoading ? 'Opening…' : 'Manage subscription'}
-            </button>
-            <Link
-              href="/pricing"
-              className="px-4 py-2.5 rounded-xl bg-brown-700/80 text-brown-100 font-medium hover:bg-brown-700 border border-brown-600 transition-all flex items-center gap-2"
-            >
-              View plans <ExternalLink className="w-4 h-4" />
-            </Link>
-          </div>
+          {paymentUi ? (
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-gold-700 to-gold-800 text-gold-50 font-medium hover:from-gold-600 hover:to-gold-700 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                {portalLoading ? 'Opening…' : 'Manage subscription'}
+              </button>
+              <Link
+                href="/pricing"
+                className="px-4 py-2.5 rounded-xl bg-brown-700/80 text-brown-100 font-medium hover:bg-brown-700 border border-brown-600 transition-all flex items-center gap-2"
+              >
+                View plans <ExternalLink className="w-4 h-4" />
+              </Link>
+            </div>
+          ) : (
+            <p className="mt-4 text-brown-400 text-sm">
+              Billing is not enabled for this deployment. You can use Prayer-Chat within the published limits. See{' '}
+              <Link href="/pricing" className="text-gold-400 hover:text-gold-300 underline">
+                plans &amp; limits
+              </Link>{' '}
+              for reference.
+            </p>
+          )}
         </motion.section>
 
         {/* Embed code — show for paid subscribers, or when user just paid (so they see where to get it) */}

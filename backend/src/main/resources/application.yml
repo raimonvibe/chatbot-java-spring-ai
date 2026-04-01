@@ -192,6 +192,11 @@ app:
   base-url: ${APP_BASE_URL:https://chatbot-java-spring-ai.onrender.com}
   frontend-url: ${FRONTEND_URL:https://prayer-chat.com}
 
+  # Paid billing (Stripe). When false, checkout/portal/plan APIs return 403; webhooks no-op after verify.
+  # Set true and configure stripe.* when launching subscriptions. See docs/FREE_PRODUCT_BILLING.md.
+  billing:
+    enabled: ${APP_BILLING_ENABLED:false}
+
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry
   security:
     alert-webhook-url: ${SECURITY_ALERT_WEBHOOK_URL:}
@@ -204,12 +209,18 @@ app:
     session-timeout-minutes: 30
     max-message-length: 2000
   
-  # Website crawling/analysis settings
+  # Website crawling/analysis settings (technical crawl ceiling; plan limits also cap per user in ChatbotController)
   website-analysis:
     # Headless browser (Chrome) for SPAs: when Jsoup gets minimal content, retry with headless (requires Chrome/Chromium installed)
     headless-enabled: ${HEADLESS_CRAWL_ENABLED:true}
     max-headless-pages-per-scan: 5
     headless-timeout-seconds: 25
+    max-pages: ${WEBSITE_ANALYSIS_MAX_PAGES:500}
+    max-depth: 3
+    timeout-seconds: 30
+    user-agent: "PrayerChatCrawler/1.0 (+https://prayer-chat.com/bot)"
+    retry-attempts: 3
+    retry-delay-seconds: 2
 
   # Bible data configuration
   bible:
@@ -227,12 +238,6 @@ app:
     data:
       old-testament: classpath:data/bible/data/old-testament-data.json
       new-testament: classpath:data/bible/data/new-testament-data.json
-    max-pages: 50
-    max-depth: 3
-    timeout-seconds: 30
-    user-agent: "PrayerChatCrawler/1.0 (+https://prayer-chat.com/bot)"
-    retry-attempts: 3
-    retry-delay-seconds: 2
   
   # Embedding configuration
   embedding:

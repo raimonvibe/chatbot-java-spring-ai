@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
@@ -12,6 +13,7 @@ import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
@@ -87,7 +89,8 @@ class AnalysisStatusEndpointSecurityTest {
             websiteScanAuditRepository,
             accessControlService,
             rateLimitingService,
-            urlValidationService
+            urlValidationService,
+            new BillingModeService(newBillingPropsEnabled())
         );
 
         lenient().when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
@@ -137,5 +140,11 @@ class AnalysisStatusEndpointSecurityTest {
         assertNotNull(res.getBody());
         assertEquals(Boolean.TRUE, res.getBody().get("ready"));
         assertEquals(3L, res.getBody().get("pagesIndexed"));
+    }
+
+    private static BillingProperties newBillingPropsEnabled() {
+        BillingProperties p = new BillingProperties();
+        p.setEnabled(true);
+        return p;
     }
 }

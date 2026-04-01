@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { createCheckoutSession } from '@/lib/api';
+import { isBillingEnabledFromEnv } from '@/lib/billing-config';
 
 function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
@@ -30,7 +31,7 @@ const PLANS = [
     priceLabel: '$0',
     period: '/month',
     chatbots: 1,
-    maxPagesPerScan: 50,
+    maxPagesPerScan: 500,
     messagesPerDay: 10,
     scansPerMonth: 1,
     features: ['Christian messaging'],
@@ -91,6 +92,9 @@ const PLANS = [
 
 /** Plan limits from backend (GET /api/plans/limits). When set, overrides static maxPagesPerScan etc. */
 interface PlanLimitsResponse {
+  billingEnabled?: boolean;
+  websiteScanPolicySummary?: string;
+  maxPagesPerScanOffered?: number;
   plans?: Record<string, { maxPagesPerScan: number; messagesPerDay: number; monthlyScanQuota: number }>;
   standardPageTiers?: Record<string, number>;
 }
@@ -107,6 +111,8 @@ function PricingContent() {
       .then((data: PlanLimitsResponse | null) => data && setLimitsFromApi(data))
       .catch(() => {});
   }, []);
+
+  const billingOn = limitsFromApi?.billingEnabled ?? isBillingEnabledFromEnv();
 
   const plansToShow = PLANS.map((plan) => {
     const fromApiPlan = limitsFromApi?.plans?.[plan.id];
@@ -157,16 +163,34 @@ function PricingContent() {
           {newUser && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700">
-                Welcome! To start creating chatbots, please choose a subscription plan below.
+                {billingOn
+                  ? 'Welcome! To start creating chatbots, please choose a subscription plan below.'
+                  : 'Welcome! Sign in to create your chatbot — this deployment is free within the limits below.'}
               </p>
             </div>
           )}
 
+          {!billingOn && (
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-left max-w-2xl mx-auto">
+              <p className="text-emerald-900 font-medium">Currently free to use</p>
+              <p className="text-emerald-800 text-sm mt-1">
+                Paid checkout is turned off. The table below shows what the product supports today (including the{' '}
+                {limitsFromApi?.maxPagesPerScanOffered ?? 500}-page scan cap per site). Stripe can be re-enabled later
+                without removing this page.
+              </p>
+              {limitsFromApi?.websiteScanPolicySummary && (
+                <p className="text-emerald-800 text-sm mt-2">{limitsFromApi.websiteScanPolicySummary}</p>
+              )}
+            </div>
+          )}
+
           <h2 className="text-3xl md:text-4xl font-bold text-brown-800 mb-4">
-            Choose Your Plan
+            {billingOn ? 'Choose Your Plan' : 'Plans & limits'}
           </h2>
           <p className="text-lg text-brown-700">
-            One chatbot per subscription. Choose the plan that fits your website size (max pages we analyze).
+            {billingOn
+              ? 'One chatbot per subscription. Choose the plan that fits your website size (max pages we analyze).'
+              : 'Reference limits for this deployment. One chatbot per account; website scans are capped per plan tier.'}
           </p>
         </motion.div>
 
@@ -226,7 +250,7 @@ function PricingContent() {
                 >
                   {plan.cta}
                 </Link>
-              ) : (
+              ) : billingOn ? (
                 <button
                   type="button"
                   disabled={!!subscribingPlan}
@@ -246,19 +270,28 @@ function PricingContent() {
                     plan.cta
                   )}
                 </button>
+              ) : (
+                <Link
+                  href="/login?redirect=/dashboard"
+                  className="block w-full text-center px-4 py-2.5 bg-brown-200 text-brown-800 rounded-lg font-semibold hover:bg-brown-300 transition-all text-sm"
+                >
+                  Get started free
+                </Link>
               )}
             </div>
           ))}
         </motion.div>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-6 text-brown-600 text-center text-sm"
-        >
-          All plans include secure payment processing via Stripe
-        </motion.p>
+        {billingOn && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-6 text-brown-600 text-center text-sm"
+          >
+            All plans include secure payment processing via Stripe
+          </motion.p>
+        )}
       </div>
     </main>
   );

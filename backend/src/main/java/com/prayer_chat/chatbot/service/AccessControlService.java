@@ -21,12 +21,15 @@ public class AccessControlService {
     
     private final SubscriptionRepository subscriptionRepository;
     private final CostTrackingService costTrackingService;
-    
+    private final BillingModeService billingModeService;
+
     @Autowired
-    public AccessControlService(SubscriptionRepository subscriptionRepository, 
-                               CostTrackingService costTrackingService) {
+    public AccessControlService(SubscriptionRepository subscriptionRepository,
+                               CostTrackingService costTrackingService,
+                               BillingModeService billingModeService) {
         this.subscriptionRepository = subscriptionRepository;
         this.costTrackingService = costTrackingService;
+        this.billingModeService = billingModeService;
     }
     
     /**
@@ -40,6 +43,9 @@ public class AccessControlService {
      * Check if user can access integration script (requires paid subscription)
      */
     public boolean canAccessIntegrationScript(User user) {
+        if (!billingModeService.isBillingEnabled()) {
+            return true;
+        }
         Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
         
         if (subscriptionOpt.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
@@ -13,6 +14,7 @@ import com.prayer_chat.chatbot.service.BibleVerseService;
 import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
@@ -20,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -92,7 +93,6 @@ class ChatbotControllerIntegrationScriptTest {
     @Mock
     private CustomOAuth2User customOAuth2User;
 
-    @InjectMocks
     private ChatbotController chatbotController;
 
     private User testUser;
@@ -127,7 +127,8 @@ class ChatbotControllerIntegrationScriptTest {
             websiteScanAuditRepository,
             accessControlService,
             rateLimitingService,
-            urlValidationService
+            urlValidationService,
+            new BillingModeService(newBillingPropsEnabled())
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
@@ -315,6 +316,12 @@ class ChatbotControllerIntegrationScriptTest {
 
         assertTrue(embedCode.contains("id=\"prayer-chat-chatbot-" + expectedEmbedCode + "\""));
         assertTrue(embedCode.contains("data-embed-code=\"" + expectedEmbedCode + "\""));
+    }
+
+    private static BillingProperties newBillingPropsEnabled() {
+        BillingProperties p = new BillingProperties();
+        p.setEnabled(true);
+        return p;
     }
 }
 

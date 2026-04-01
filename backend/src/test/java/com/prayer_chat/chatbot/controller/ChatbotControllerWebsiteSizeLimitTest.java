@@ -14,6 +14,8 @@ import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.config.BillingProperties;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
@@ -42,8 +44,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for Website Size Limit enforcement in ChatbotController
  * 
- * Verifies that preview mode users are blocked from creating chatbots
- * with websites larger than 50 pages.
+ * Verifies that users are blocked from creating chatbots when estimated pages exceed plan limits (FREE = 500).
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ChatbotController Website Size Limit Tests")
@@ -91,6 +92,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
     @Mock
     private CustomOAuth2User customOAuth2User;
 
+    private BillingModeService billingModeService;
     private ChatbotController chatbotController;
 
     private User testUser;
@@ -109,6 +111,10 @@ class ChatbotControllerWebsiteSizeLimitTest {
         testChatbot.setIsActive(true);
         testChatbot.setWebsiteUrl("https://example.com");
 
+        BillingProperties billingProperties = new BillingProperties();
+        billingProperties.setEnabled(true);
+        billingModeService = new BillingModeService(billingProperties);
+
         // Initialize controller with all required dependencies
         chatbotController = new ChatbotController(
             chatbotRepository,
@@ -125,7 +131,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
             websiteScanAuditRepository,
             accessControlService,
             rateLimitingService,
-            urlValidationService
+            urlValidationService,
+            billingModeService
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
@@ -160,15 +167,17 @@ class ChatbotControllerWebsiteSizeLimitTest {
         lenient().when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);
         lenient().when(accessControlService.canCreateChatbot(any(User.class), anyLong())).thenReturn(true);
         lenient().when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(1);
+        lenient().when(accessControlService.getSubscriptionPlan(any(User.class)))
+            .thenReturn(Subscription.SubscriptionPlan.FREE);
     }
 
     @Test
-    @DisplayName("Should block preview user from creating chatbot with website > 50 pages")
+    @DisplayName("Should block preview user from creating chatbot with website > 500 pages")
     void shouldBlockPreviewUserFromLargeWebsite() {
         // Arrange
         String largeWebsiteUrl = "https://large-website.com";
-        int estimatedPages = 100; // Exceeds 50-page limit
-        
+        int estimatedPages = 600;
+
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
 
@@ -185,23 +194,23 @@ class ChatbotControllerWebsiteSizeLimitTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         assertTrue(body.get("error").toString().contains("Website too large for your plan"));
-        assertTrue(body.get("error").toString().contains("Upgrade to BASIC for sites up to 500 pages"));
+        assertTrue(body.get("error").toString().contains("Upgrade to BASIC for sites up to 2000 pages"));
         assertEquals(true, body.get("upgradeRequired"));
         assertEquals(estimatedPages, body.get("estimatedPages"));
-        assertEquals(50, body.get("maxPages"));
+        assertEquals(500, body.get("maxPages"));
         assertEquals("BASIC", body.get("suggestedPlan"));
-        assertEquals(500, body.get("suggestedMaxPages"));
+        assertEquals(2000, body.get("suggestedMaxPages"));
 
         // Verify chatbot was NOT created
         verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
-    @DisplayName("Should allow preview user to create chatbot with website <= 50 pages")
+    @DisplayName("Should allow preview user to create chatbot with website <= 500 pages")
     void shouldAllowPreviewUserWithSmallWebsite() {
         // Arrange
         String smallWebsiteUrl = "https://small-website.com";
-        int estimatedPages = 30; // Within 50-page limit
+        int estimatedPages = 30;
         
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
@@ -243,8 +252,9 @@ class ChatbotControllerWebsiteSizeLimitTest {
     void shouldAllowPaidUserWithAnyWebsiteSize() {
         // Arrange
         String largeWebsiteUrl = "https://large-website.com";
-        
-        when(accessControlService.isPreviewMode(testUser)).thenReturn(false); // Paid user
+
+        lenient().when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(5_000);
+        lenient().when(accessControlService.getSubscriptionPlan(testUser)).thenReturn(Subscription.SubscriptionPlan.ENTERPRISE);
         when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
@@ -263,7 +273,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
     }
 
     @Test
-    @DisplayName("Should block preview user in createChatbot() with website > 50 pages")
+    @DisplayName("Should block preview user in createChatbot() with website > 500 pages")
     void shouldBlockPreviewUserInCreateChatbot() {
         // Arrange
         ChatbotRequest request = new ChatbotRequest();
@@ -271,9 +281,9 @@ class ChatbotControllerWebsiteSizeLimitTest {
         request.setDescription("Test Description");
         request.setWebsiteUrl("https://large-website.com");
         request.setPrimaryLanguage("en");
-        
-        int estimatedPages = 75; // Exceeds 50-page limit
-        
+
+        int estimatedPages = 750;
+
         when(websiteSizeEstimator.estimateSize("https://large-website.com")).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
 
@@ -283,21 +293,21 @@ class ChatbotControllerWebsiteSizeLimitTest {
         // Assert
         assertEquals(HttpStatus.PAYMENT_REQUIRED, response.getStatusCode());
         assertNotNull(response.getBody());
-        
+
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         assertEquals(true, body.get("upgradeRequired"));
         assertEquals(estimatedPages, body.get("estimatedPages"));
-        assertEquals(50, body.get("maxPages"));
+        assertEquals(500, body.get("maxPages"));
         assertEquals("BASIC", body.get("suggestedPlan"));
-        assertEquals(500, body.get("suggestedMaxPages"));
+        assertEquals(2000, body.get("suggestedMaxPages"));
 
         // Verify chatbot was NOT created
         verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
     }
 
     @Test
-    @DisplayName("Should allow preview user in createChatbot() with website <= 50 pages")
+    @DisplayName("Should allow preview user in createChatbot() with website <= 500 pages")
     void shouldAllowPreviewUserInCreateChatbot() {
         // Arrange
         ChatbotRequest request = new ChatbotRequest();
@@ -305,8 +315,8 @@ class ChatbotControllerWebsiteSizeLimitTest {
         request.setDescription("Test Description");
         request.setWebsiteUrl("https://small-website.com");
         request.setPrimaryLanguage("en");
-        
-        int estimatedPages = 25; // Within 50-page limit
+
+        int estimatedPages = 25;
         
         when(websiteSizeEstimator.estimateSize("https://small-website.com")).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
@@ -372,25 +382,21 @@ class ChatbotControllerWebsiteSizeLimitTest {
     }
 
     @Test
-    @DisplayName("Should use exact limit of 50 pages")
-    void shouldUseExactLimitOf50Pages() {
-        // Arrange
+    @DisplayName("Should allow exactly 500 pages (at FREE tier limit)")
+    void shouldAllowExactly500Pages() {
         String websiteUrl = "https://example.com";
-        int estimatedPages = 50; // Exactly at limit
-        
+        int estimatedPages = 500;
+
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(estimatedPages);
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
         when(chatbotService.createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1))).thenReturn(testChatbot);
         when(websiteAnalysisService.analyzeWebsite(any(Chatbot.class))).thenReturn(null);
 
-        // Act
         ResponseEntity<?> response = chatbotController.createChatbotFromUrl(
             Map.of("websiteUrl", websiteUrl),
             customOAuth2User
         );
 
-        // Assert
-        // 50 pages should be allowed (limit is > 50, not >= 50)
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), eq(1));
     }
@@ -400,12 +406,12 @@ class ChatbotControllerWebsiteSizeLimitTest {
     void analyzeWebsiteReturns403WithSuggestedPlanWhenOverLimit() {
         testChatbot.setOwner(testUser);
         testChatbot.setWebsiteUrl("https://large-site.com");
-        int estimatedPages = 100;
+        int estimatedPages = 600;
 
         when(chatbotRepository.findById(100L)).thenReturn(java.util.Optional.of(testChatbot));
         when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
         when(rateLimitingService.checkScanLimit(testUser))
-            .thenReturn(new RateLimitingService.RateLimitResult(true, 1, 0, true, "scan"));
+            .thenReturn(new RateLimitingService.RateLimitResult(true, 1, 0, true, "scan", false));
         when(websiteSizeEstimator.estimateSize("https://large-site.com")).thenReturn(estimatedPages);
         when(accessControlService.getSubscriptionPlan(testUser)).thenReturn(Subscription.SubscriptionPlan.FREE);
 
@@ -417,10 +423,10 @@ class ChatbotControllerWebsiteSizeLimitTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
         assertTrue(body.get("error").toString().contains("Website too large for your plan"));
-        assertEquals(100, body.get("estimatedPages"));
-        assertEquals(50, body.get("maxPages"));
+        assertEquals(600, body.get("estimatedPages"));
+        assertEquals(500, body.get("maxPages"));
         assertEquals("BASIC", body.get("suggestedPlan"));
-        assertEquals(500, body.get("suggestedMaxPages"));
+        assertEquals(2000, body.get("suggestedMaxPages"));
         assertEquals(true, body.get("upgradeRequired"));
 
         verify(websiteAnalysisService, never()).analyzeWebsite(any(Chatbot.class));

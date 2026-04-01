@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Book, Sparkles, Zap, Heart, LayoutDashboard, User } from 'lucide-react';
-import { checkAuth } from '@/lib/api';
+import { checkAuth, fetchPublicPlanLimits } from '@/lib/api';
+import { isBillingEnabledFromEnv } from '@/lib/billing-config';
 
 export default function Home() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [pricingLinkLabel, setPricingLinkLabel] = useState('View Pricing');
 
   // Auth state is server-validated via checkAuth() (JWT sent to backend); we only use the boolean, no PII
   useEffect(() => {
@@ -22,6 +24,23 @@ export default function Home() {
       }
     });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublicPlanLimits()
+      .then((d) => {
+        if (cancelled) return;
+        if (d?.billingEnabled === false) setPricingLinkLabel('Plans & limits');
+        else if (d?.billingEnabled === true) setPricingLinkLabel('View Pricing');
+        else setPricingLinkLabel(isBillingEnabledFromEnv() ? 'View Pricing' : 'Plans & limits');
+      })
+      .catch(() => {
+        if (!cancelled) setPricingLinkLabel(isBillingEnabledFromEnv() ? 'View Pricing' : 'Plans & limits');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -73,7 +92,7 @@ export default function Home() {
                   href="/pricing"
                   className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all"
                 >
-                  View Pricing
+                  {pricingLinkLabel}
                 </Link>
               </>
             ) : (
@@ -89,7 +108,7 @@ export default function Home() {
                   href="/pricing"
                   className="px-8 py-4 bg-brown-50 text-brown-800 rounded-xl font-semibold text-lg border-2 border-brown-300 hover:border-brown-600 hover:shadow-lg transition-all"
                 >
-                  View Pricing
+                  {pricingLinkLabel}
                 </Link>
               </>
             )}

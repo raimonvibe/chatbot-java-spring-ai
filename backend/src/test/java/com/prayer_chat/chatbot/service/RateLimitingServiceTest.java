@@ -1,10 +1,12 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,9 @@ class RateLimitingServiceTest {
     @Mock
     private SubscriptionRepository subscriptionRepository;
 
+    @Mock
+    private BillingModeService billingModeService;
+
     @InjectMocks
     private RateLimitingService rateLimitingService;
 
@@ -48,6 +53,14 @@ class RateLimitingServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(billingModeService.isBillingEnabled()).thenReturn(true);
+        org.mockito.Mockito.lenient().when(billingModeService.effectiveMessagesPerDay(any()))
+            .thenAnswer(inv -> PlanLimits.messagesPerDay(inv.getArgument(0)));
+        org.mockito.Mockito.lenient().when(billingModeService.effectiveDailyScanLimit(any()))
+            .thenAnswer(inv -> PlanLimits.dailyScanLimit(inv.getArgument(0)));
+        org.mockito.Mockito.lenient().when(billingModeService.effectiveMonthlyScanQuota(any()))
+            .thenAnswer(inv -> PlanLimits.monthlyScanQuota(inv.getArgument(0)));
+
         previewUser = new User();
         previewUser.setId(1L);
         previewUser.setEmail("preview@example.com");
@@ -141,7 +154,7 @@ class RateLimitingServiceTest {
         assertEquals(1, result.getLimit());
         assertEquals(1, result.getCurrent());
         assertTrue(result.isPreviewMode());
-        assertTrue(result.getErrorMessage().contains("Preview mode allows 1 scan per day"));
+        assertTrue(result.getErrorMessage().contains("Upgrade to run more scans"));
     }
 
     @Test
@@ -180,7 +193,7 @@ class RateLimitingServiceTest {
         assertEquals(10, result.getLimit());
         assertEquals(10, result.getCurrent());
         assertFalse(result.isPreviewMode());
-        assertTrue(result.getErrorMessage().contains("scan limit"));
+        assertTrue(result.getErrorMessage().toLowerCase().contains("scan limit"));
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.prayer_chat.chatbot.service;
 
-import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -30,11 +29,15 @@ public class CostTrackingService {
     
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
-    
+    private final BillingModeService billingModeService;
+
     @Autowired
-    public CostTrackingService(UserRepository userRepository, SubscriptionRepository subscriptionRepository) {
+    public CostTrackingService(UserRepository userRepository,
+                               SubscriptionRepository subscriptionRepository,
+                               BillingModeService billingModeService) {
         this.userRepository = userRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.billingModeService = billingModeService;
     }
     
     /**
@@ -99,10 +102,15 @@ public class CostTrackingService {
             .orElseThrow(() -> new RuntimeException("User not found: " + user.getId()));
         resetMonthlyCostIfNeeded(lockedUser);
 
-        BigDecimal costLimit = PlanLimits.monthlyCostCapUsd(planFor(lockedUser));
+        BigDecimal costLimit = billingModeService.effectiveMonthlyCostCapUsd(planFor(lockedUser));
         BigDecimal currentCost = lockedUser.getCurrentMonthCost();
         BigDecimal newTotalCost = currentCost.add(estimatedCost);
         if (newTotalCost.compareTo(costLimit) > 0) {
+            if (!billingModeService.isBillingEnabled()) {
+                throw new RuntimeException(
+                    "Monthly usage limit reached for this service. Please try again next month or contact support."
+                );
+            }
             throw new RuntimeException(
                 "Monthly cost limit reached. Your plan limit is $" + costLimit + "/month. Upgrade to continue."
             );
@@ -121,9 +129,14 @@ public class CostTrackingService {
         resetMonthlyCostIfNeeded(lockedUser);
 
         BigDecimal cost = calculateWebsiteScanCost(pagesScanned, tokensEmbedded);
-        BigDecimal costLimit = PlanLimits.monthlyCostCapUsd(planFor(lockedUser));
+        BigDecimal costLimit = billingModeService.effectiveMonthlyCostCapUsd(planFor(lockedUser));
         BigDecimal newCost = lockedUser.getCurrentMonthCost().add(cost);
         if (newCost.compareTo(costLimit) > 0) {
+            if (!billingModeService.isBillingEnabled()) {
+                throw new RuntimeException(
+                    "Monthly usage limit reached for this service. Please try again next month or contact support."
+                );
+            }
             throw new RuntimeException(
                 "Monthly cost limit reached. Your plan limit is $" + costLimit + "/month. Upgrade to continue."
             );
@@ -146,7 +159,7 @@ public class CostTrackingService {
      * Get monthly cost limit for user (plan-based).
      */
     public BigDecimal getMonthlyCostLimit(User user) {
-        return PlanLimits.monthlyCostCapUsd(planFor(user));
+        return billingModeService.effectiveMonthlyCostCapUsd(planFor(user));
     }
 }
 

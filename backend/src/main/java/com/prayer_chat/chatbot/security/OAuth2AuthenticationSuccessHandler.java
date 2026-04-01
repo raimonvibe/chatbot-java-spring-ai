@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.security;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -28,6 +29,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
+
+    @Autowired
+    private BillingProperties billingProperties;
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -152,6 +156,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             Subscription subscription = subscriptionOpt.get();
 
             if (!subscription.canUseChatbot()) {
+                if (!billingProperties.isEnabled()) {
+                    logger.info("User {} has inactive subscription; billing off — redirecting to dashboard",
+                        LogSanitizer.sanitize(user.getEmail()));
+                    getRedirectStrategy().sendRedirect(request, response, getFrontendUrl(request) + "/dashboard");
+                    return;
+                }
                 // Has subscription but inactive - redirect to pricing
                 logger.info("User {} has inactive subscription, redirecting to pricing", LogSanitizer.sanitize(user.getEmail()));
                 String redirectUrl = getFrontendUrl(request) + "/pricing?upgrade=true";

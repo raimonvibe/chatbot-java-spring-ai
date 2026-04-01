@@ -12,6 +12,7 @@ import {
   pollUntilAnalysisReady,
   previewJesusTeachings,
   logout,
+  getSubscriptionStatusFromApi,
   AVATAR_IDS,
   getUserFacingFetchError,
   logClientIssue,
@@ -25,6 +26,7 @@ import { BookOpen, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import CalligraphicFrame from '@/components/CalligraphicFrame';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
+import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 
 /** Validates and parses chatbot ID from URL. Returns a positive integer or null if invalid (no API calls with bad ID). */
 function parseChatbotId(raw: string | string[] | undefined): number | null {
@@ -102,6 +104,7 @@ export default function ChatbotPreview() {
   const [showScreenMenu, setShowScreenMenu] = useState(false);
   const [websiteFrameLoaded, setWebsiteFrameLoaded] = useState(false);
   const [websiteFrameLikelyBlocked, setWebsiteFrameLikelyBlocked] = useState(false);
+  const [showSubscriptionNav, setShowSubscriptionNav] = useState(() => isBillingEnabledFromEnv());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
@@ -111,6 +114,12 @@ export default function ChatbotPreview() {
     tablet: 768,
     mobile: 390,
   };
+
+  useEffect(() => {
+    getSubscriptionStatusFromApi()
+      .then((s) => setShowSubscriptionNav(paymentActionsAvailableFromApi(s)))
+      .catch(() => setShowSubscriptionNav(isBillingEnabledFromEnv()));
+  }, []);
 
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
@@ -211,9 +220,10 @@ export default function ChatbotPreview() {
       isPreviewMode: false,
       onDeleteAllChatbots: () => {},
       portalLoading: false,
+      showSubscriptionNav,
     });
     return () => setNav(null);
-  }, [isValidId, setNav, router]);
+  }, [isValidId, setNav, router, showSubscriptionNav]);
 
   // Scroll messages container to bottom when messages change (sends/receives)
   useEffect(() => {

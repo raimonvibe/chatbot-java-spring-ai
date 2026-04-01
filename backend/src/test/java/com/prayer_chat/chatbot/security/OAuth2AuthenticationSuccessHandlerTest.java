@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.security;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.Subscription.SubscriptionPlan;
 import com.prayer_chat.chatbot.model.Subscription.SubscriptionStatus;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 /**
@@ -35,6 +37,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     @Mock
     private SubscriptionRepository subscriptionRepository;
+
+    @Mock
+    private BillingProperties billingProperties;
 
     @Mock
     private HttpServletRequest request;
@@ -65,6 +70,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
     void setUp() {
         ReflectionTestUtils.setField(successHandler, "allowedOrigins", FRONTEND_URL);
         successHandler.setRedirectStrategy(redirectStrategy);
+        lenient().when(billingProperties.isEnabled()).thenReturn(true);
 
         // Create test user
         testUser = new User();

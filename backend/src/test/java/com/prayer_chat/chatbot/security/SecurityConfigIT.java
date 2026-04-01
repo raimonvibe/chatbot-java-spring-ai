@@ -84,7 +84,7 @@ class SecurityConfigIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.plans").exists())
             .andExpect(jsonPath("$.standardPageTiers").exists())
-            .andExpect(jsonPath("$.plans.FREE.maxPagesPerScan").value(50))
+            .andExpect(jsonPath("$.plans.FREE.maxPagesPerScan").value(500))
             .andExpect(jsonPath("$.plans.ENTERPRISE.maxPagesPerScan").value(10000));
     }
 

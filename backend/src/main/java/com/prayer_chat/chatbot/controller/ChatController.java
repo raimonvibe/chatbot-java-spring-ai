@@ -5,6 +5,7 @@ import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
@@ -47,14 +48,17 @@ public class ChatController {
     private final AiChatbotService aiChatbotService;
     private final ChatbotRepository chatbotRepository;
     private final RateLimitingService rateLimitingService;
-    
+    private final BillingModeService billingModeService;
+
     @Autowired
-    public ChatController(AiChatbotService aiChatbotService, 
+    public ChatController(AiChatbotService aiChatbotService,
                          ChatbotRepository chatbotRepository,
-                         RateLimitingService rateLimitingService) {
+                         RateLimitingService rateLimitingService,
+                         BillingModeService billingModeService) {
         this.aiChatbotService = aiChatbotService;
         this.chatbotRepository = chatbotRepository;
         this.rateLimitingService = rateLimitingService;
+        this.billingModeService = billingModeService;
     }
     
     /**
@@ -112,7 +116,7 @@ public class ChatController {
                         "error", rateLimitResult.getErrorMessage(),
                         "current", rateLimitResult.getCurrent(),
                         "limit", rateLimitResult.getLimit(),
-                        "upgradeRequired", rateLimitResult.isPreviewMode()
+                        "upgradeRequired", rateLimitResult.isUpgradeSuggested()
                     ));
                 }
             }
@@ -263,7 +267,7 @@ public class ChatController {
                             "error", rateLimitResult.getErrorMessage(),
                             "current", rateLimitResult.getCurrent(),
                             "limit", rateLimitResult.getLimit(),
-                            "upgradeRequired", rateLimitResult.isPreviewMode()
+                            "upgradeRequired", rateLimitResult.isUpgradeSuggested()
                     ));
                 }
             }

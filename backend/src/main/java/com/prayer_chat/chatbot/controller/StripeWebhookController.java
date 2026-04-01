@@ -6,6 +6,7 @@ import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.service.SecurityAlertService;
 import com.prayer_chat.chatbot.service.StripeService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
@@ -49,6 +50,9 @@ public class StripeWebhookController {
 
     @Autowired
     private SecurityAlertService securityAlertService;
+
+    @Autowired
+    private BillingProperties billingProperties;
 
     /** Processed Stripe event IDs to prevent duplicate processing (replay / retries). Evicted after 24h. */
     private static final ConcurrentHashMap<String, Long> PROCESSED_EVENT_IDS = new ConcurrentHashMap<>();
@@ -113,6 +117,11 @@ public class StripeWebhookController {
         } catch (Exception e) {
             logger.error("Error processing Stripe webhook: {}", LogSanitizer.sanitizeException(e));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Webhook error");
+        }
+
+        if (!billingProperties.isEnabled()) {
+            logger.info("Stripe webhook acknowledged but billing disabled (app.billing.enabled=false); event type: {}", event.getType());
+            return ResponseEntity.ok("Billing disabled");
         }
 
         // Idempotency: do not process the same event twice (replay or Stripe retry).

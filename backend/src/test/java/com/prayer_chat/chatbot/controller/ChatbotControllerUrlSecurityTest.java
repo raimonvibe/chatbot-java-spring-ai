@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
@@ -14,6 +15,7 @@ import com.prayer_chat.chatbot.service.CostTrackingService;
 import com.prayer_chat.chatbot.service.ConversationExportService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,7 +125,8 @@ class ChatbotControllerUrlSecurityTest {
             websiteScanAuditRepository,
             accessControlService,
             rateLimitingService,
-            urlValidationService
+            urlValidationService,
+            new BillingModeService(newBillingPropsEnabled())
         );
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
@@ -309,6 +312,12 @@ class ChatbotControllerUrlSecurityTest {
         assertFalse(embedCode.contains("secret"));
         assertFalse(embedCode.contains("token"));
         assertFalse(embedCode.contains("password"));
+    }
+
+    private static BillingProperties newBillingPropsEnabled() {
+        BillingProperties p = new BillingProperties();
+        p.setEnabled(true);
+        return p;
     }
 }
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Loader2, ArrowRight, CheckCircle, ChevronDown } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Loader2, ArrowRight, CheckCircle, ChevronDown, Info } from 'lucide-react';
 import { previewWebsiteUrlInput, shouldShowIdnHostnameNote } from '@/lib/websiteUrlPreview';
+import { fetchPublicPlanLimits } from '@/lib/api';
 
 export type CreateChatbotFromWebsiteFormVariant = 'onboarding' | 'dashboard';
 
@@ -24,6 +25,24 @@ export default function CreateChatbotFromWebsiteForm({
   const [url, setUrl] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [scanPolicySummary, setScanPolicySummary] = useState<string | null>(null);
+  const [maxPagesOffered, setMaxPagesOffered] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublicPlanLimits().then((data) => {
+      if (cancelled || !data) return;
+      if (typeof data.websiteScanPolicySummary === 'string' && data.websiteScanPolicySummary.trim()) {
+        setScanPolicySummary(data.websiteScanPolicySummary.trim());
+      }
+      if (typeof data.maxPagesPerScanOffered === 'number' && data.maxPagesPerScanOffered > 0) {
+        setMaxPagesOffered(data.maxPagesPerScanOffered);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const preview = useMemo(() => previewWebsiteUrlInput(url), [url]);
   const showPuny = preview.ok && shouldShowIdnHostnameNote(url, preview.hostname);
@@ -49,6 +68,24 @@ export default function CreateChatbotFromWebsiteForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {(scanPolicySummary || maxPagesOffered != null) && (
+        <div
+          className="rounded-xl border border-amber-200 bg-amber-50/90 px-3.5 py-3 text-sm text-amber-950 flex gap-3"
+          role="status"
+        >
+          <Info className="w-5 h-5 flex-shrink-0 text-amber-700 mt-0.5" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            {scanPolicySummary ? (
+              <p className="text-amber-900/95 leading-relaxed">{scanPolicySummary}</p>
+            ) : maxPagesOffered != null ? (
+              <p className="font-medium text-amber-950">
+                We scan up to {maxPagesOffered.toLocaleString()} pages per website. Very large sites may need a
+                smaller URL or section.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )}
       <div>
         <label htmlFor="websiteUrl" className="block text-sm sm:text-base font-medium mb-2 text-brown-800">
           Enter your website URL

@@ -15,6 +15,11 @@ interface PaywallModalProps {
     text: string;
     reference: string;
   };
+  /**
+   * When false (billing disabled on server), show limits-only messaging with no Stripe checkout.
+   * Default true preserves legacy behavior for tests and paid deployments.
+   */
+  billingActionsAvailable?: boolean;
 }
 
 // Bible verses for different contexts
@@ -63,7 +68,8 @@ export default function PaywallModal({
   title,
   message,
   feature = 'general',
-  bibleVerse
+  bibleVerse,
+  billingActionsAvailable = true,
 }: PaywallModalProps) {
   const [loading, setLoading] = useState(false);
 
@@ -87,6 +93,54 @@ export default function PaywallModal({
   };
 
   if (!isOpen) return null;
+
+  if (!billingActionsAvailable) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', duration: 0.3 }}
+            className="bg-gradient-to-br from-brown-50 via-gold-50 to-brown-50 rounded-2xl p-6 sm:p-8 max-w-lg w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border-2 border-brown-200 shadow-2xl relative my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 text-brown-600 hover:text-brown-800 hover:bg-brown-100 rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-center mb-4">
+              <h3 className="text-2xl font-bold text-brown-800 mb-3">
+                {title || 'Something we can’t do yet'}
+              </h3>
+              <p className="text-brown-700 text-left text-base leading-relaxed">
+                {message ||
+                  'This limit applies while Prayer-Chat is offered for free. Try a smaller site section or fewer pages—we’ll keep improving what we can index.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full px-4 py-3 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+            >
+              Got it
+            </button>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -153,7 +207,7 @@ export default function PaywallModal({
               </div>
               <div className="flex items-center gap-3 bg-white/50 rounded-lg p-3">
                 <Sparkles className="w-5 h-5 text-gold-600 flex-shrink-0" />
-                <span className="text-brown-800 font-medium">Larger website scans (500+ pages)</span>
+                <span className="text-brown-800 font-medium">Larger website scans on paid tiers</span>
               </div>
               <div className="flex items-center gap-3 bg-white/50 rounded-lg p-3">
                 <Crown className="w-5 h-5 text-gold-600 flex-shrink-0" />

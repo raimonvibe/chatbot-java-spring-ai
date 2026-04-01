@@ -13,6 +13,8 @@ export interface DashboardNavValue {
   isPreviewMode: boolean;
   onDeleteAllChatbots: () => void;
   portalLoading: boolean;
+  /** When false, hide Stripe portal / “Subscription” entry (billing disabled on server). */
+  showSubscriptionNav: boolean;
 }
 
 const DashboardNavContext = createContext<{

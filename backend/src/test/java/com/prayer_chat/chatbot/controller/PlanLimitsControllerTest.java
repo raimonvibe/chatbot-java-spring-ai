@@ -1,11 +1,12 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +23,14 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("PlanLimitsController Tests")
 class PlanLimitsControllerTest {
 
-    @InjectMocks
     private PlanLimitsController planLimitsController;
+
+    @BeforeEach
+    void setUp() {
+        BillingProperties billingProperties = new BillingProperties();
+        billingProperties.setEnabled(true);
+        planLimitsController = new PlanLimitsController(billingProperties);
+    }
 
     @Test
     @DisplayName("GET /limits returns 200 and plan limits structure")
@@ -37,6 +44,9 @@ class PlanLimitsControllerTest {
         assertTrue(body.containsKey("description"));
         assertTrue(body.containsKey("plans"));
         assertTrue(body.containsKey("standardPageTiers"));
+        assertTrue(body.containsKey("billingEnabled"));
+        assertTrue(body.containsKey("maxPagesPerScanOffered"));
+        assertTrue(body.containsKey("websiteScanPolicySummary"));
 
         @SuppressWarnings("unchecked")
         Map<String, Map<String, Object>> plans = (Map<String, Map<String, Object>>) body.get("plans");

@@ -1,8 +1,10 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.dto.ChatRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,7 +52,9 @@ class ChatControllerEmbedSendSecurityTest {
 
     @BeforeEach
     void setUp() {
-        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService);
+        BillingProperties bp = new BillingProperties();
+        bp.setEnabled(true);
+        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.controller;
 
 import com.stripe.exception.StripeException;
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -35,8 +36,20 @@ public class SubscriptionController {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
+    @Autowired
+    private BillingProperties billingProperties;
+
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
+
+    private static final String BILLING_DISABLED_CODE = "BILLING_DISABLED";
+
+    private ResponseEntity<Map<String, String>> billingDisabled() {
+        Map<String, String> err = new HashMap<>();
+        err.put("error", "Payments are not enabled in this deployment.");
+        err.put("code", BILLING_DISABLED_CODE);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+    }
 
     /**
      * Get current user's subscription status
@@ -50,6 +63,8 @@ public class SubscriptionController {
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
 
             Map<String, Object> response = new HashMap<>();
+            response.put("billingEnabled", billingProperties.isEnabled());
+            response.put("paymentActionsAvailable", billingProperties.isEnabled());
 
             if (subscriptionOpt.isPresent()) {
                 Subscription subscription = subscriptionOpt.get();
@@ -103,6 +118,12 @@ public class SubscriptionController {
             err.put("error", "Invalid session ID format");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
         }
+        if (!billingProperties.isEnabled()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "Payments are not enabled in this deployment.");
+            err.put("code", BILLING_DISABLED_CODE);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
         try {
             boolean synced = stripeService.syncSubscriptionFromCheckoutSession(trimmed, currentUser.getUser().getId());
             Optional<Subscription> subOpt = subscriptionRepository.findByUserId(currentUser.getUser().getId());
@@ -146,6 +167,9 @@ public class SubscriptionController {
             @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             User user = currentUser.getUser();
 
             // Resolve plan or priceId: prefer "plan" (BASIC, PRO, ENTERPRISE), else "priceId" (Stripe price_xxx)
@@ -229,6 +253,9 @@ public class SubscriptionController {
             @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             User user = currentUser.getUser();
             if (!stripeService.isConfigured()) {
                 Map<String, String> error = new HashMap<>();
@@ -333,6 +360,9 @@ public class SubscriptionController {
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             User user = currentUser.getUser();
             stripeService.cancelSubscription(user.getId());
 
@@ -403,6 +433,9 @@ public class SubscriptionController {
             @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             if (request == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Missing request body");
@@ -474,6 +507,9 @@ public class SubscriptionController {
             @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             if (request == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Missing request body");
@@ -545,6 +581,9 @@ public class SubscriptionController {
             @RequestBody(required = false) Map<String, String> request) {
 
         try {
+            if (!billingProperties.isEnabled()) {
+                return billingDisabled();
+            }
             if (request == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Missing request body");

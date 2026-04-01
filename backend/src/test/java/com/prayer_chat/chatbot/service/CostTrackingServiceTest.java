@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.service;
 
+import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +34,9 @@ class CostTrackingServiceTest {
     @Mock
     private SubscriptionRepository subscriptionRepository;
 
+    @Mock
+    private BillingModeService billingModeService;
+
     @InjectMocks
     private CostTrackingService costTrackingService;
 
@@ -41,6 +46,10 @@ class CostTrackingServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(billingModeService.isBillingEnabled()).thenReturn(true);
+        lenient().when(billingModeService.effectiveMonthlyCostCapUsd(any()))
+            .thenAnswer(inv -> PlanLimits.monthlyCostCapUsd(inv.getArgument(0)));
+
         previewUser = new User();
         previewUser.setId(1L);
         previewUser.setEmail("preview@example.com");

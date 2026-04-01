@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +27,9 @@ class AccessControlServiceTest {
     @Mock
     private CostTrackingService costTrackingService;
 
+    @Mock
+    private BillingModeService billingModeService;
+
     @InjectMocks
     private AccessControlService accessControlService;
 
@@ -35,6 +39,8 @@ class AccessControlServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(billingModeService.isBillingEnabled()).thenReturn(true);
+
         testUser = new User();
         testUser.setId(1L);
         testUser.setEmail("test@example.com");
@@ -87,6 +93,14 @@ class AccessControlServiceTest {
 
         // Assert
         assertThat(isPreview).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should allow integration script when billing is disabled (free product)")
+    void shouldAllowIntegrationScriptWhenBillingDisabled() {
+        when(billingModeService.isBillingEnabled()).thenReturn(false);
+
+        assertThat(accessControlService.canAccessIntegrationScript(testUser)).isTrue();
     }
 
     @Test

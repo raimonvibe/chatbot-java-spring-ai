@@ -14,6 +14,7 @@ import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/Them
 import AvatarPicker from '@/components/AvatarPicker';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
 import { type AvatarId } from '@/lib/api';
+import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -36,6 +37,9 @@ export default function Dashboard() {
   const [creating, setCreating] = useState(false);
   const [createFormError, setCreateFormError] = useState('');
   const [analyzingChatbotId, setAnalyzingChatbotId] = useState<number | null>(null);
+
+  const offerPaymentUi = (status: SubscriptionStatus | null) =>
+    status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
 
   useEffect(() => {
     loadChatbots();
@@ -63,6 +67,8 @@ export default function Dashboard() {
         maxChatbots: canUse ? 10 : 1,
         currentChatbotCount: count,
         plan: api?.plan,
+        billingEnabled: api?.billingEnabled,
+        paymentActionsAvailable: api?.paymentActionsAvailable,
       });
     } catch (error: unknown) {
       console.error('Error loading subscription status:', error);
@@ -73,6 +79,8 @@ export default function Dashboard() {
         maxChatbots: 1,
         currentChatbotCount: fallbackCount,
         plan: undefined,
+        billingEnabled: undefined,
+        paymentActionsAvailable: undefined,
       });
     }
   };
@@ -92,6 +100,8 @@ export default function Dashboard() {
         maxChatbots: canUse ? 10 : 1,
         currentChatbotCount: data.length,
         plan: api?.plan,
+        billingEnabled: api?.billingEnabled,
+        paymentActionsAvailable: api?.paymentActionsAvailable,
       });
 
       // If user has no chatbots, redirect to onboarding
@@ -124,9 +134,14 @@ export default function Dashboard() {
     } catch (error: unknown) {
       console.error('Error analyzing website:', error);
       if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
-        setUpgradeMessage(getSafeErrorMessage(error, 'Website analysis limit reached. Upgrade to analyze more.'));
-        setPaywallFeature('general');
-        setShowUpgradeModal(true);
+        const msg = getSafeErrorMessage(error, 'Website analysis limit reached. Upgrade to analyze more.');
+        if (offerPaymentUi(subscriptionStatus)) {
+          setUpgradeMessage(msg);
+          setPaywallFeature('general');
+          setShowUpgradeModal(true);
+        } else {
+          alert(getSafeErrorMessage(error, 'Analysis limit reached for now. Try again later or use a smaller site.'));
+        }
       } else {
         alert(getSafeErrorMessage(error, 'Failed to analyze website. Please try again.'));
       }
@@ -143,10 +158,12 @@ export default function Dashboard() {
     } catch (error: unknown) {
       console.error('Error getting embed code:', error);
       const msg = getSafeErrorMessage(error, 'Failed to get embed code. Please try again.');
-      if (msg.includes('Upgrade')) {
+      if (msg.includes('Upgrade') && offerPaymentUi(subscriptionStatus)) {
         setUpgradeMessage(msg);
         setPaywallFeature('integration-script');
         setShowUpgradeModal(true);
+      } else if (msg.includes('Upgrade')) {
+        alert(getSafeErrorMessage(error, 'Embed is not available for your account right now.'));
       } else {
         alert(msg);
       }
@@ -169,15 +186,23 @@ export default function Dashboard() {
       const msg = getSafeErrorMessage(error, 'Failed to create chatbot. Please try again.');
 
       if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
-        setUpgradeMessage(msg || 'Website too large for preview mode. Upgrade to continue.');
+        setUpgradeMessage(msg || 'This website is larger than we can scan in one run. Try a main URL or a smaller section of your site.');
         setPaywallFeature('general');
-        setShowUpgradeModal(true);
+        if (offerPaymentUi(subscriptionStatus)) {
+          setShowUpgradeModal(true);
+        } else {
+          setCreateFormError(msg || 'This site has more pages than we can scan at once. Try a smaller URL or subdomain.');
+        }
         return;
       }
       if (msg.includes('limit') || msg.includes('Upgrade')) {
         setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
-        setShowUpgradeModal(true);
+        if (offerPaymentUi(subscriptionStatus)) {
+          setShowUpgradeModal(true);
+        } else {
+          setCreateFormError(msg || 'You have reached the limit for your account.');
+        }
         return;
       }
       setCreateFormError(msg);
@@ -281,6 +306,7 @@ export default function Dashboard() {
       isPreviewMode: subscriptionStatus?.isPreviewMode ?? true,
       onDeleteAllChatbots: handleDeleteAllChatbots,
       portalLoading,
+      showSubscriptionNav: offerPaymentUi(subscriptionStatus),
     });
     return () => setNav(null);
   }, [
@@ -291,6 +317,8 @@ export default function Dashboard() {
     chatbots.length,
     subscriptionStatus?.maxChatbots,
     subscriptionStatus?.isPreviewMode,
+    subscriptionStatus?.billingEnabled,
+    subscriptionStatus?.paymentActionsAvailable,
     portalLoading,
     setNav,
   ]);
@@ -333,7 +361,9 @@ export default function Dashboard() {
                 <p className="text-brown-900 font-bold text-lg leading-tight">Your Dashboard</p>
                 <p className="text-brown-700 text-sm mt-1">
                   {subscriptionStatus?.isPreviewMode
-                    ? 'Preview mode: embed is locked until subscription is active.'
+                    ? offerPaymentUi(subscriptionStatus)
+                      ? 'Preview mode: embed is locked until subscription is active.'
+                      : 'Manage chatbots and copy your embed code.'
                     : 'Manage chatbots and copy your embed code.'}
                 </p>
               </div>
@@ -379,43 +409,45 @@ export default function Dashboard() {
                   {showCreateForm ? 'Cancel' : 'New chatbot'}
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={async () => {
-                  setPortalLoading(true);
-                  try {
-                    const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
-                    const url = await createPortalSession(returnUrl);
-                    const allowed = (u: string) => {
-                      try {
-                        const o = new URL(u);
-                        return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
-                      } catch {
-                        return false;
+              {offerPaymentUi(subscriptionStatus) ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setPortalLoading(true);
+                    try {
+                      const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+                      const url = await createPortalSession(returnUrl);
+                      const allowed = (u: string) => {
+                        try {
+                          const o = new URL(u);
+                          return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
+                        } catch {
+                          return false;
+                        }
+                      };
+                      if (!url || typeof url !== 'string' || !allowed(url)) {
+                        alert('Invalid billing portal URL. Please try again or contact support.');
+                        return;
                       }
-                    };
-                    if (!url || typeof url !== 'string' || !allowed(url)) {
-                      alert('Invalid billing portal URL. Please try again or contact support.');
-                      return;
+                      window.location.href = url;
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
+                      if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
+                        alert(msg);
+                      } else {
+                        alert('Something went wrong. Please try again or contact support.');
+                      }
+                    } finally {
+                      setPortalLoading(false);
                     }
-                    window.location.href = url;
-                  } catch (e) {
-                    const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
-                    if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
-                      alert(msg);
-                    } else {
-                      alert('Something went wrong. Please try again or contact support.');
-                    }
-                  } finally {
-                    setPortalLoading(false);
-                  }
-                }}
-                disabled={portalLoading}
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-brown-200 text-brown-900 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                <CreditCard className="w-5 h-5" />
-                {portalLoading ? 'Opening…' : 'Subscription'}
-              </button>
+                  }}
+                  disabled={portalLoading}
+                  className="w-full px-4 py-3 rounded-2xl bg-white border border-brown-200 text-brown-900 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  {portalLoading ? 'Opening…' : 'Subscription'}
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -681,6 +713,7 @@ export default function Dashboard() {
           title={upgradeMessage ? undefined : undefined}
           message={upgradeMessage || undefined}
           feature={paywallFeature}
+          billingActionsAvailable={offerPaymentUi(subscriptionStatus)}
         />
       </div>
     </main>

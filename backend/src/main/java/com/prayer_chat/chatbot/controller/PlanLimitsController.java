@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,12 @@ import java.util.stream.Stream;
 @RequestMapping("/api/plans")
 public class PlanLimitsController {
 
+    private final BillingProperties billingProperties;
+
+    public PlanLimitsController(BillingProperties billingProperties) {
+        this.billingProperties = billingProperties;
+    }
+
     /**
      * Returns standard plan limits keyed by plan name. No auth required (public pricing info).
      */
@@ -26,6 +33,11 @@ public class PlanLimitsController {
     public ResponseEntity<Map<String, Object>> getPlanLimits() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("description", "One chatbot per subscription. Plan tier = max website pages per scan.");
+        body.put("billingEnabled", billingProperties.isEnabled());
+        body.put("maxPagesPerScanOffered", PlanLimits.FREE_MAX_PAGES);
+        body.put("websiteScanPolicySummary",
+            "We scan up to " + PlanLimits.FREE_MAX_PAGES
+                + " pages per website. Larger sites cannot be fully indexed in one run; try a smaller URL or subdomain.");
         Map<String, Map<String, Object>> plans = new LinkedHashMap<>();
         Stream.of(Subscription.SubscriptionPlan.values()).forEach(plan -> {
             Map<String, Object> p = new LinkedHashMap<>();

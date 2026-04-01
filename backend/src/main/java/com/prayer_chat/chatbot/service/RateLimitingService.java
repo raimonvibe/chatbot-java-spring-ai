@@ -29,16 +29,19 @@ public class RateLimitingService {
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
     private final SubscriptionRepository subscriptionRepository;
+    private final BillingModeService billingModeService;
 
     @Autowired
     public RateLimitingService(MessageRepository messageRepository,
                                WebsiteScanAuditRepository websiteScanAuditRepository,
                                AccessControlService accessControlService,
-                               SubscriptionRepository subscriptionRepository) {
+                               SubscriptionRepository subscriptionRepository,
+                               BillingModeService billingModeService) {
         this.messageRepository = messageRepository;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
         this.subscriptionRepository = subscriptionRepository;
+        this.billingModeService = billingModeService;
     }
 
     private static Subscription.SubscriptionPlan planFor(User user, SubscriptionRepository subscriptionRepository) {
@@ -61,7 +64,7 @@ public class RateLimitingService {
     @Transactional(readOnly = true)
     public RateLimitResult checkMessageLimit(User user) {
         Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
-        int messageLimit = PlanLimits.messagesPerDay(plan);
+        int messageLimit = billingModeService.effectiveMessagesPerDay(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
 
         Long messagesToday = messageRepository.countUserMessagesTodayByUserId(user.getId());
@@ -72,7 +75,8 @@ public class RateLimitingService {
             logger.warn("User {} attempted to send message but daily limit reached (current: {}, limit: {}, plan: {})",
                 user.getId(), messagesToday, messageLimit, plan);
         }
-        return new RateLimitResult(allowed, messageLimit, messagesToday.intValue(), isPreviewMode, "message");
+        return new RateLimitResult(allowed, messageLimit, messagesToday.intValue(), isPreviewMode, "message",
+            isPreviewMode && billingModeService.isBillingEnabled());
     }
     
     /**
@@ -89,8 +93,8 @@ public class RateLimitingService {
     @Transactional(readOnly = true)
     public RateLimitResult checkScanLimit(User user) {
         Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
-        int dailyLimit = PlanLimits.dailyScanLimit(plan);
-        int monthlyQuota = PlanLimits.monthlyScanQuota(plan);
+        int dailyLimit = billingModeService.effectiveDailyScanLimit(plan);
+        int monthlyQuota = billingModeService.effectiveMonthlyScanQuota(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
 
         LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
@@ -110,28 +114,29 @@ public class RateLimitingService {
             logger.warn("User {} attempted to scan but limit reached (daily: {}/{}, monthly: {}/{}, plan: {})",
                 user.getId(), scansInLastDay, dailyLimit, scansThisMonth, monthlyQuota, plan);
         }
-        return new RateLimitResult(allowed, overMonthly ? monthlyQuota : dailyLimit, current, isPreviewMode, "scan");
+        return new RateLimitResult(allowed, overMonthly ? monthlyQuota : dailyLimit, current, isPreviewMode, "scan",
+            isPreviewMode && billingModeService.isBillingEnabled());
     }
     
     /**
      * Get the maximum number of messages allowed per day for a user
      */
     public int getMaxMessagesPerDay(User user) {
-        return PlanLimits.messagesPerDay(planFor(user, subscriptionRepository));
+        return billingModeService.effectiveMessagesPerDay(planFor(user, subscriptionRepository));
     }
 
     /**
      * Get the maximum number of scans allowed per day for a user (plan-based).
      */
     public int getMaxScansPerDay(User user) {
-        return PlanLimits.dailyScanLimit(planFor(user, subscriptionRepository));
+        return billingModeService.effectiveDailyScanLimit(planFor(user, subscriptionRepository));
     }
 
     /**
      * Get the monthly scan quota for a user (plan-based).
      */
     public int getMonthlyScanQuota(User user) {
-        return PlanLimits.monthlyScanQuota(planFor(user, subscriptionRepository));
+        return billingModeService.effectiveMonthlyScanQuota(planFor(user, subscriptionRepository));
     }
     
     /**
@@ -143,13 +148,17 @@ public class RateLimitingService {
         private final int current;
         private final boolean isPreviewMode;
         private final String type; // "message" or "scan"
-        
-        public RateLimitResult(boolean allowed, int limit, int current, boolean isPreviewMode, String type) {
+        /** True when UI/API may offer Stripe upgrade (preview-tier limit hit while billing is on). */
+        private final boolean upgradeSuggested;
+
+        public RateLimitResult(boolean allowed, int limit, int current, boolean isPreviewMode, String type,
+                               boolean upgradeSuggested) {
             this.allowed = allowed;
             this.limit = limit;
             this.current = current;
             this.isPreviewMode = isPreviewMode;
             this.type = type;
+            this.upgradeSuggested = upgradeSuggested;
         }
         
         public boolean isAllowed() {
@@ -171,21 +180,24 @@ public class RateLimitingService {
         public String getType() {
             return type;
         }
-        
+
+        public boolean isUpgradeSuggested() {
+            return upgradeSuggested;
+        }
+
         public String getErrorMessage() {
-            if (type.equals("message")) {
-                if (isPreviewMode) {
-                    return String.format("Daily message limit reached. Preview mode allows %d messages per day. Upgrade to continue.", limit);
-                } else {
-                    return String.format("Daily message limit reached (%d messages). Please try again tomorrow.", limit);
+            if ("message".equals(type)) {
+                if (upgradeSuggested) {
+                    return String.format(
+                        "Daily message limit reached. Preview mode allows %d messages per day. Upgrade to continue.", limit);
                 }
-            } else { // scan
-                if (isPreviewMode) {
-                    return String.format("Daily scan limit reached. Preview mode allows %d scan per day. Upgrade to continue.", limit);
-                } else {
-                    return String.format("Daily scan limit reached (%d scans per day). Please try again tomorrow.", limit);
-                }
+                return String.format("Daily message limit reached (%d messages per day). Please try again tomorrow.", limit);
             }
+            if (upgradeSuggested) {
+                return String.format(
+                    "Scan limit reached for your current plan (preview). Upgrade to run more scans.", limit);
+            }
+            return String.format("Scan limit reached. Please try again later or contact support if this persists.", limit);
         }
     }
 }

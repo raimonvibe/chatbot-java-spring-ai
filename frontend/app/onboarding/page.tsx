@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Book, ChevronDown, Sparkles } from 'lucide-react';
-import { createChatbotFromUrl, getAllChatbots, checkAuth } from '@/lib/api';
+import { createChatbotFromUrl, getAllChatbots, checkAuth, getSubscriptionStatusFromApi } from '@/lib/api';
+import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -18,6 +19,7 @@ export default function OnboardingPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
+  const [billingActionsAvailable, setBillingActionsAvailable] = useState(() => isBillingEnabledFromEnv());
 
   useEffect(() => {
     checkAuthAndChatbots();
@@ -37,6 +39,12 @@ export default function OnboardingPage() {
       setAuthenticated(authResult.authenticated);
       
       if (authResult.authenticated) {
+        try {
+          const sub = await getSubscriptionStatusFromApi();
+          setBillingActionsAvailable(paymentActionsAvailableFromApi(sub));
+        } catch {
+          setBillingActionsAvailable(isBillingEnabledFromEnv());
+        }
         // Check if user already has chatbots
         const chatbots = await getAllChatbots();
         if (chatbots.length > 0) {
@@ -65,9 +73,16 @@ export default function OnboardingPage() {
       const anyErr = err as { status?: number; upgradeRequired?: boolean; message?: string };
 
       if (anyErr.status === 402 || anyErr.upgradeRequired) {
-        setUpgradeMessage(anyErr.message || 'Website too large for preview mode. Upgrade to continue.');
+        const m =
+          anyErr.message ||
+          'This website is larger than we can scan in one run. Try your homepage or a smaller section of the site.';
+        setUpgradeMessage(m);
         setPaywallFeature('general');
-        setShowUpgradeModal(true);
+        if (billingActionsAvailable) {
+          setShowUpgradeModal(true);
+        } else {
+          setError(m);
+        }
         setCreating(false);
         return;
       }
@@ -76,7 +91,11 @@ export default function OnboardingPage() {
       if (msg && (msg.includes('limit') || msg.includes('Upgrade'))) {
         setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
-        setShowUpgradeModal(true);
+        if (billingActionsAvailable) {
+          setShowUpgradeModal(true);
+        } else {
+          setError(msg || 'You have reached the limit for your account.');
+        }
         setCreating(false);
         return;
       }
@@ -114,6 +133,7 @@ export default function OnboardingPage() {
         title="Upgrade to Scan Larger Websites"
         message={upgradeMessage}
         feature={paywallFeature}
+        billingActionsAvailable={billingActionsAvailable}
       />
       
       <motion.div

@@ -45,7 +45,7 @@ public class WebsiteAnalysisService {
     private final RobotsTxtService robotsTxtService;
     private final ExecutorService executorService;
     
-    @Value("${app.website-analysis.max-pages:50}")
+    @Value("${app.website-analysis.max-pages:500}")
     private int maxPages;
     
     @Value("${app.website-analysis.max-depth:3}")

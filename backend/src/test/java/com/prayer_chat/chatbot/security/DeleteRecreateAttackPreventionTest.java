@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.security;
 
+import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.controller.ChatbotController;
 import com.prayer_chat.chatbot.helpers.TestAuthenticationHelper;
 import com.prayer_chat.chatbot.helpers.TestDataBuilder;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -85,7 +85,9 @@ class DeleteRecreateAttackPreventionTest {
     @Mock
     private RateLimitingService rateLimitingService;
 
-    @InjectMocks
+    @Mock
+    private UrlValidationService urlValidationService;
+
     private ChatbotController chatbotController;
 
     private User previewUser;
@@ -102,6 +104,28 @@ class DeleteRecreateAttackPreventionTest {
         testChatbot.setWebsiteUrl("https://example.com");
 
         customOAuth2User = (CustomOAuth2User) TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser).getPrincipal();
+
+        BillingProperties billingProperties = new BillingProperties();
+        billingProperties.setEnabled(true);
+        chatbotController = new ChatbotController(
+            chatbotRepository,
+            chatbotService,
+            aiChatbotService,
+            websiteAnalysisService,
+            conversationExportService,
+            bibleVerseService,
+            mock(ChristianContentAnalysisService.class),
+            mock(JesusTeachingsService.class),
+            mock(JesusVersesTaggingService.class),
+            costTrackingService,
+            websiteSizeEstimator,
+            websiteScanAuditRepository,
+            accessControlService,
+            rateLimitingService,
+            urlValidationService,
+            new BillingModeService(billingProperties)
+        );
+        lenient().when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.of("https://example.com/"));
     }
     
     private void setupPreviewModeMocks() {
@@ -121,7 +145,7 @@ class DeleteRecreateAttackPreventionTest {
         
         // Mock rate limiting - allow scans by default
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
-            true, 1, 0, true, "scan"
+            true, 1, 0, true, "scan", false
         );
         lenient().when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
     }
@@ -139,7 +163,7 @@ class DeleteRecreateAttackPreventionTest {
         
         // First scan (before delete) - allow scan
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
-            true, 1, 0, true, "scan"
+            true, 1, 0, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         
@@ -169,7 +193,7 @@ class DeleteRecreateAttackPreventionTest {
         
         // Second scan attempt - should be blocked because audit entry still exists
         RateLimitingService.RateLimitResult blockedResult = new RateLimitingService.RateLimitResult(
-            false, 1, 1, true, "scan"
+            false, 1, 1, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(blockedResult);
 
@@ -194,7 +218,7 @@ class DeleteRecreateAttackPreventionTest {
         setupPreviewModeMocks();
         
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
-            true, 1, 0, true, "scan"
+            true, 1, 0, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
@@ -219,7 +243,7 @@ class DeleteRecreateAttackPreventionTest {
         setupPreviewModeMocks();
         
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
-            true, 1, 0, true, "scan"
+            true, 1, 0, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
@@ -256,7 +280,7 @@ class DeleteRecreateAttackPreventionTest {
         setupPreviewModeMocks();
         
         RateLimitingService.RateLimitResult blockedResult = new RateLimitingService.RateLimitResult(
-            false, 1, 1, true, "scan"
+            false, 1, 1, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(blockedResult);
         
@@ -286,7 +310,7 @@ class DeleteRecreateAttackPreventionTest {
         setupPreviewModeMocks();
         
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
-            true, 1, 0, true, "scan"
+            true, 1, 0, true, "scan", false
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(allowedResult);
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));

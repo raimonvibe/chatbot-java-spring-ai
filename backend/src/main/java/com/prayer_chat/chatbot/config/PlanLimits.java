@@ -9,24 +9,27 @@ import java.math.BigDecimal;
  * One chatbot per user; plan tier is defined by website size (max pages per scan).
  * These page tiers are the single source of truth — backend and frontend should reference them.
  *
- * <h3>Standard page tiers (cost-sustainable)</h3>
+ * <h3>Standard page tiers (cost-sustainable; FREE tier raised for current free product)</h3>
  * <pre>
  * Plan        | Max pages/scan | Est. scan cost (1×) | Monthly cost cap
  * ------------|----------------|---------------------|------------------
- * FREE        | 50             | ~$0.02              | $5
+ * FREE        | 500            | ~$0.15              | $5
  * BASIC       | 500            | ~$0.15              | $15
  * PRO         | 2,000          | ~$0.60              | $50
  * ENTERPRISE  | 10,000         | ~$3.00              | $200
  * </pre>
- * One full scan at plan max stays well under the monthly cap; plans are doable.
+ * When {@code app.billing.enabled=false}, all users effectively run under generous free-product caps
+ * (see {@link com.prayer_chat.chatbot.service.BillingModeService}); paid tier constants remain for
+ * re-enabling Stripe. One full scan at plan max stays well under the monthly cap when billing is on.
  */
 public final class PlanLimits {
 
     private PlanLimits() {}
 
-    /** Standard max pages per scan per plan — single source of truth for "plan by website size". */
-    public static final int FREE_MAX_PAGES = 50;
-    public static final int BASIC_MAX_PAGES = 500;
+    /** Max pages per scan for FREE — current product default (was 50 when FREE was strictly preview-only). */
+    public static final int FREE_MAX_PAGES = 500;
+    /** Next tier above FREE (501+ pages) when billing is enabled; aligns with historical PRO-sized sites. */
+    public static final int BASIC_MAX_PAGES = 2_000;
     public static final int PRO_MAX_PAGES = 2_000;
     public static final int ENTERPRISE_MAX_PAGES = 10_000;
 

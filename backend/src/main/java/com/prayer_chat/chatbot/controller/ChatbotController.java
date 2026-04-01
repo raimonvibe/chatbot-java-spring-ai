@@ -22,6 +22,7 @@ import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
 import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
@@ -71,6 +72,7 @@ public class ChatbotController {
     private final AccessControlService accessControlService;
     private final RateLimitingService rateLimitingService;
     private final UrlValidationService urlValidationService;
+    private final BillingModeService billingModeService;
 
     @Value("${app.base-url:https://chatbot-java-spring-ai.onrender.com}")
     private String baseUrl;
@@ -90,7 +92,8 @@ public class ChatbotController {
                            WebsiteScanAuditRepository websiteScanAuditRepository,
                            AccessControlService accessControlService,
                            RateLimitingService rateLimitingService,
-                           UrlValidationService urlValidationService) {
+                           UrlValidationService urlValidationService,
+                           BillingModeService billingModeService) {
         this.chatbotRepository = chatbotRepository;
         this.chatbotService = chatbotService;
         this.aiChatbotService = aiChatbotService;
@@ -106,6 +109,7 @@ public class ChatbotController {
         this.accessControlService = accessControlService;
         this.rateLimitingService = rateLimitingService;
         this.urlValidationService = urlValidationService;
+        this.billingModeService = billingModeService;
     }
 
     // ============================================================================
@@ -344,25 +348,19 @@ public class ChatbotController {
             }
 
             // Check website size limit BEFORE creating chatbot (prevents costs for large sites)
-            boolean isPreviewMode = accessControlService.isPreviewMode(user);
-            if (isPreviewMode) {
-                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
-                int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
-                if (estimatedPages > maxPagesForUser) {
-                    Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPages);
-                    int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
-                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
-                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
-                    return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
-                        "estimatedPages", estimatedPages,
-                        "maxPages", maxPagesForUser,
-                        "suggestedPlan", suggested.name(),
-                        "suggestedMaxPages", suggestedMaxPages,
-                        "upgradeRequired", true,
-                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
-                    ));
-                }
+            int estimatedPagesOnboarding = websiteSizeEstimator.estimateSize(websiteUrl);
+            int maxPagesOnboarding = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
+            if (estimatedPagesOnboarding > maxPagesOnboarding) {
+                Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPagesOnboarding);
+                int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
+                logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})",
+                    LogSanitizer.sanitize(user.getEmail()), estimatedPagesOnboarding, maxPagesOnboarding);
+                HttpStatus onboardingSizeStatus = billingModeService.isBillingEnabled()
+                    ? HttpStatus.PAYMENT_REQUIRED
+                    : HttpStatus.FORBIDDEN;
+                return ResponseEntity.status(onboardingSizeStatus).body(
+                    billingModeService.websiteTooLargePayload(
+                        estimatedPagesOnboarding, maxPagesOnboarding, suggested, suggestedMaxPages));
             }
 
             // Auto-generate name from URL
@@ -452,30 +450,25 @@ public class ChatbotController {
             }
 
             // Check website size limit BEFORE creating chatbot (prevents costs for large sites)
-            boolean isPreviewMode = accessControlService.isPreviewMode(user);
-            if (isPreviewMode && request.getWebsiteUrl() != null && !request.getWebsiteUrl().trim().isEmpty()) {
-                String websiteUrl = request.getWebsiteUrl();
-                // Validate URL - add https:// if missing
-                if (!websiteUrl.startsWith("http://") && !websiteUrl.startsWith("https://")) {
-                    websiteUrl = "https://" + websiteUrl;
+            if (request.getWebsiteUrl() != null && !request.getWebsiteUrl().trim().isEmpty()) {
+                String websiteUrlCreate = request.getWebsiteUrl();
+                if (!websiteUrlCreate.startsWith("http://") && !websiteUrlCreate.startsWith("https://")) {
+                    websiteUrlCreate = "https://" + websiteUrlCreate;
                 }
-                
-                int estimatedPages = websiteSizeEstimator.estimateSize(websiteUrl);
-                int maxPagesForUser = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
-                if (estimatedPages > maxPagesForUser) {
-                    Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPages);
+
+                int estimatedPagesCreate = websiteSizeEstimator.estimateSize(websiteUrlCreate);
+                int maxPagesCreate = PlanLimits.maxPagesPerScan(accessControlService.getSubscriptionPlan(user));
+                if (estimatedPagesCreate > maxPagesCreate) {
+                    Subscription.SubscriptionPlan suggested = PlanLimits.minimumPlanForPages(estimatedPagesCreate);
                     int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
-                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})", 
-                        LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
-                    return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
-                        "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
-                        "estimatedPages", estimatedPages,
-                        "maxPages", maxPagesForUser,
-                        "suggestedPlan", suggested.name(),
-                        "suggestedMaxPages", suggestedMaxPages,
-                        "upgradeRequired", true,
-                        "message", "We'd love to help you share your message more widely! Upgrade to scan websites with more pages."
-                    ));
+                    logger.warn("User {} attempted to create chatbot with website of {} pages (limit: {})",
+                        LogSanitizer.sanitize(user.getEmail()), estimatedPagesCreate, maxPagesCreate);
+                    HttpStatus createSizeStatus = billingModeService.isBillingEnabled()
+                        ? HttpStatus.PAYMENT_REQUIRED
+                        : HttpStatus.FORBIDDEN;
+                    return ResponseEntity.status(createSizeStatus).body(
+                        billingModeService.websiteTooLargePayload(
+                            estimatedPagesCreate, maxPagesCreate, suggested, suggestedMaxPages));
                 }
             }
 
@@ -514,11 +507,14 @@ public class ChatbotController {
         } catch (ChatbotLimitReachedException e) {
             logger.warn("User attempted to create chatbot but limit reached (current: {}, max: {})",
                 e.getCurrentCount(), e.getMaxAllowed());
+            String limitMsg = billingModeService.isBillingEnabled()
+                ? "Chatbot limit reached. Preview mode allows " + e.getMaxAllowed() + " chatbots. Upgrade to create more."
+                : "You already have the maximum number of chatbots allowed for your account (" + e.getMaxAllowed() + ").";
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                "error", "Chatbot limit reached. Preview mode allows " + e.getMaxAllowed() + " chatbots. Upgrade to create more.",
+                "error", limitMsg,
                 "currentCount", e.getCurrentCount(),
                 "maxAllowed", e.getMaxAllowed(),
-                "upgradeRequired", true
+                "upgradeRequired", billingModeService.shouldSuggestPaidUpgrade()
             ));
         } catch (Exception e) {
             logger.error("Error creating chatbot", e);
@@ -720,7 +716,7 @@ public class ChatbotController {
                     "error", scanLimitResult.getErrorMessage(),
                     "current", scanLimitResult.getCurrent(),
                     "limit", scanLimitResult.getLimit(),
-                    "upgradeRequired", scanLimitResult.isPreviewMode()
+                    "upgradeRequired", scanLimitResult.isUpgradeSuggested()
                 ));
             }
             
@@ -734,14 +730,9 @@ public class ChatbotController {
                 int suggestedMaxPages = PlanLimits.maxPagesPerScan(suggested);
                 logger.warn("User {} attempted to scan website with {} pages (limit: {})", 
                     LogSanitizer.sanitize(user.getEmail()), estimatedPages, maxPagesForUser);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Website too large for your plan. Your plan allows up to " + maxPagesForUser + " pages. Upgrade to " + suggested + " for sites up to " + suggestedMaxPages + " pages.",
-                    "estimatedPages", estimatedPages,
-                    "maxPages", maxPagesForUser,
-                    "suggestedPlan", suggested.name(),
-                    "suggestedMaxPages", suggestedMaxPages,
-                    "upgradeRequired", true
-                ));
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    billingModeService.websiteTooLargePayload(
+                        estimatedPages, maxPagesForUser, suggested, suggestedMaxPages));
             }
 
             // 3. Estimate cost and check plan cost limit (all plans have a monthly cap)
@@ -755,7 +746,7 @@ public class ChatbotController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "error", e.getMessage(),
                     "estimatedCost", estimatedCost.toString(),
-                    "upgradeRequired", true
+                    "upgradeRequired", billingModeService.shouldSuggestPaidUpgrade()
                 ));
             }
 
@@ -920,11 +911,11 @@ public class ChatbotController {
             
             // Check if user can access integration script (requires paid subscription)
             if (!accessControlService.canAccessIntegrationScript(user)) {
-                logger.warn("User {} attempted to access integration script without paid subscription", 
+                logger.warn("User {} attempted to access integration script without paid subscription",
                     LogSanitizer.sanitize(user.getEmail()));
                 return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
                     "error", "Upgrade to paid tier for integration script access. Preview mode does not include integration script access.",
-                    "upgradeRequired", true,
+                    "upgradeRequired", billingModeService.shouldSuggestPaidUpgrade(),
                     "message", "We'd love to help you share your message more widely! Upgrade to access the integration script."
                 ));
             }

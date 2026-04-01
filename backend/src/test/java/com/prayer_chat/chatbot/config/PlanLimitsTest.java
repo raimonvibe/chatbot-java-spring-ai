@@ -24,8 +24,8 @@ class PlanLimitsTest {
 
         @Test
         void shouldReturnCorrectPageTiersForEachPlan() {
-            assertEquals(50, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.FREE));
-            assertEquals(500, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.BASIC));
+            assertEquals(500, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.FREE));
+            assertEquals(2_000, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.BASIC));
             assertEquals(2_000, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.PRO));
             assertEquals(10_000, PlanLimits.maxPagesPerScan(Subscription.SubscriptionPlan.ENTERPRISE));
         }
@@ -50,21 +50,15 @@ class PlanLimitsTest {
         }
 
         @ParameterizedTest
-        @CsvSource({ "1", "25", "50" })
-        void shouldReturnFreeUpTo50Pages(int pages) {
+        @CsvSource({ "1", "250", "500" })
+        void shouldReturnFreeUpTo500Pages(int pages) {
             assertEquals(Subscription.SubscriptionPlan.FREE, PlanLimits.minimumPlanForPages(pages));
         }
 
         @ParameterizedTest
-        @CsvSource({ "51", "100", "500" })
-        void shouldReturnBasicFor51To500Pages(int pages) {
-            assertEquals(Subscription.SubscriptionPlan.BASIC, PlanLimits.minimumPlanForPages(pages));
-        }
-
-        @ParameterizedTest
         @CsvSource({ "501", "1000", "2000" })
-        void shouldReturnProFor501To2000Pages(int pages) {
-            assertEquals(Subscription.SubscriptionPlan.PRO, PlanLimits.minimumPlanForPages(pages));
+        void shouldReturnBasicFor501To2000Pages(int pages) {
+            assertEquals(Subscription.SubscriptionPlan.BASIC, PlanLimits.minimumPlanForPages(pages));
         }
 
         @ParameterizedTest

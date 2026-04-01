@@ -122,19 +122,21 @@ export default function Header() {
                     <User className="w-4 h-4 flex-shrink-0" />
                     Account
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      nav.openSubscription();
-                      setMobileMenuOpen(false);
-                    }}
-                    disabled={nav.portalLoading}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] disabled:opacity-50 text-left"
-                    role="menuitem"
-                  >
-                    <CreditCard className="w-4 h-4 flex-shrink-0" />
-                    {nav.portalLoading ? 'Opening…' : 'Subscription'}
-                  </button>
+                  {nav.showSubscriptionNav && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        nav.openSubscription();
+                        setMobileMenuOpen(false);
+                      }}
+                      disabled={nav.portalLoading}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] disabled:opacity-50 text-left"
+                      role="menuitem"
+                    >
+                      <CreditCard className="w-4 h-4 flex-shrink-0" />
+                      {nav.portalLoading ? 'Opening…' : 'Subscription'}
+                    </button>
+                  )}
                   {nav.canAddChatbot && (
                     <button
                       type="button"
