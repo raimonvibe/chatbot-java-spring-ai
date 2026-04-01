@@ -3,8 +3,14 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Book, ChevronDown, Sparkles } from 'lucide-react';
-import { createChatbotFromUrl, getAllChatbots, checkAuth, getSubscriptionStatusFromApi } from '@/lib/api';
+import { Book, Sparkles } from 'lucide-react';
+import {
+  createChatbotFromUrl,
+  getAllChatbots,
+  checkAuth,
+  getSubscriptionStatusFromApi,
+  isApiError,
+} from '@/lib/api';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
@@ -70,12 +76,14 @@ export default function OnboardingPage() {
       router.push('/dashboard');
     } catch (err: unknown) {
       console.error('Error creating chatbot:', err);
-      const anyErr = err as { status?: number; upgradeRequired?: boolean; message?: string };
+      const tooLarge =
+        isApiError(err) &&
+        (err.status === 402 || err.upgradeRequired === true || err.websiteTooLarge === true);
 
-      if (anyErr.status === 402 || anyErr.upgradeRequired) {
+      if (tooLarge) {
         const m =
-          anyErr.message ||
-          'This website is larger than we can scan in one run. Try your homepage or a smaller section of the site.';
+          (err instanceof Error && err.message) ||
+          'This site has more pages than we can scan at once (up to 500 per scan). Try a smaller section or subdomain.';
         setUpgradeMessage(m);
         setPaywallFeature('general');
         if (billingActionsAvailable) {
@@ -87,7 +95,7 @@ export default function OnboardingPage() {
         return;
       }
 
-      const msg = typeof anyErr.message === 'string' ? anyErr.message : '';
+      const msg = err instanceof Error && typeof err.message === 'string' ? err.message : '';
       if (msg && (msg.includes('limit') || msg.includes('Upgrade'))) {
         setUpgradeMessage(msg || 'One chatbot per account limit reached. Upgrade to create more.');
         setPaywallFeature('chatbot-limit');
@@ -161,20 +169,6 @@ export default function OnboardingPage() {
           serverError={error}
           onClearServerError={() => setError('')}
         />
-
-        <details className="group mt-5 sm:mt-6 rounded-xl border border-brown-200/90 bg-brown-50/50 text-left open:bg-brown-50/70 [touch-action:manipulation]">
-          <summary className="flex min-h-12 sm:min-h-0 cursor-pointer list-none items-center justify-between gap-3 px-3 sm:px-3.5 py-3 sm:py-2.5 text-xs sm:text-sm font-medium text-brown-700 select-none [&::-webkit-details-marker]:hidden">
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">
-              <Sparkles className="h-4 w-4 sm:h-3.5 sm:w-3.5 shrink-0 text-gold-600" aria-hidden />
-              <span className="text-pretty leading-snug">Plan &amp; preview limits</span>
-            </span>
-            <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
-          </summary>
-          <p className="border-t border-brown-200/80 px-3 sm:px-3.5 py-3 sm:py-2.5 text-xs sm:text-sm leading-relaxed text-brown-600 text-pretty">
-            In preview mode you can create a limited number of chatbots for testing. Upgrade when you are ready for production
-            traffic and larger site scans.
-          </p>
-        </details>
       </motion.div>
     </main>
   );

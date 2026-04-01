@@ -185,13 +185,22 @@ export default function Dashboard() {
       setCreating(false);
       const msg = getSafeErrorMessage(error, 'Failed to create chatbot. Please try again.');
 
-      if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
-        setUpgradeMessage(msg || 'This website is larger than we can scan in one run. Try a main URL or a smaller section of your site.');
+      if (
+        isApiError(error) &&
+        (error.status === 402 || error.upgradeRequired === true || error.websiteTooLarge === true)
+      ) {
+        setUpgradeMessage(
+          msg ||
+            'This site has more pages than we can scan at once (up to 500 per scan). Try a smaller section or subdomain.'
+        );
         setPaywallFeature('general');
         if (offerPaymentUi(subscriptionStatus)) {
           setShowUpgradeModal(true);
         } else {
-          setCreateFormError(msg || 'This site has more pages than we can scan at once. Try a smaller URL or subdomain.');
+          setCreateFormError(
+            msg ||
+              'This site has more pages than we can scan at once (up to 500 per scan). Try a smaller section or subdomain.'
+          );
         }
         return;
       }

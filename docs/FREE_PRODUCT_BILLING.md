@@ -30,4 +30,4 @@ No code removal is required; toggles only.
 ## Large websites (UX)
 
 - Crawling is capped (see `app.website-analysis.max-pages`, aligned with `PlanLimits.FREE_MAX_PAGES`).
-- The create-chatbot form shows an informational banner from the public limits API so users understand **why** very large sites may be rejected before they submit.
+- When a URL exceeds the limit, the API returns a clear message (with estimated vs max pages). The onboarding/dashboard URL form shows that message after submit instead of an upfront banner.

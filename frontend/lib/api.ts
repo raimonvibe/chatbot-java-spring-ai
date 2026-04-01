@@ -2,6 +2,10 @@
 export interface ApiError extends Error {
   status?: number;
   upgradeRequired?: boolean;
+  /** Set when API returns estimatedPages + maxPages (site exceeds per-scan page cap). */
+  websiteTooLarge?: boolean;
+  estimatedPages?: number;
+  maxPages?: number;
 }
 
 /** Maximum length for user-facing error messages to avoid UI abuse or huge strings */
@@ -520,20 +524,25 @@ export async function createChatbotFromUrl(websiteUrl: string): Promise<Chatbot>
   });
 
   if (!response.ok) {
-    // Handle 402 Payment Required (website size limit)
-    if (response.status === 402) {
-      const errorData = await response.json().catch(() => ({ error: 'Upgrade required' }));
-      const error = new Error(errorData.error || 'Website too large for preview mode. Upgrade to continue.');
-      (error as any).status = 402;
-      (error as any).upgradeRequired = true;
-      (error as any).estimatedPages = errorData.estimatedPages;
-      (error as any).maxPages = errorData.maxPages;
-      throw error;
+    const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const errMsg =
+      typeof errorData.error === 'string' && errorData.error.trim()
+        ? sanitizeErrorMessage(errorData.error)
+        : `HTTP ${response.status}: ${response.statusText}`;
+    const error = new Error(errMsg || `HTTP ${response.status}`) as ApiError;
+    error.status = response.status;
+    if (typeof errorData.upgradeRequired === 'boolean') {
+      error.upgradeRequired = errorData.upgradeRequired;
     }
-    
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-    throw new Error(errorMessage);
+    if (typeof errorData.estimatedPages === 'number' && typeof errorData.maxPages === 'number') {
+      error.websiteTooLarge = true;
+      error.estimatedPages = errorData.estimatedPages;
+      error.maxPages = errorData.maxPages;
+    }
+    if (response.status === 402) {
+      error.upgradeRequired = true;
+    }
+    throw error;
   }
 
   return response.json();
