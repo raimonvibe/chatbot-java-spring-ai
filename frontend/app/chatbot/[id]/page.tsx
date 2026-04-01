@@ -651,11 +651,14 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
+                          // Parity with embed: backend/static/js/chatbot-widget.js @media (max-width: 768px) #prayer-chat-chat-container
                           left: '2.5%',
                           right: '2.5%',
                           bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
-                          height: 'min(56dvh, calc(100% - env(safe-area-inset-bottom) - 24px))',
+                          height: '50dvh',
+                          maxHeight: '50dvh',
+                          minHeight: 200,
                           borderRadius: 16,
                         }
                       : {
