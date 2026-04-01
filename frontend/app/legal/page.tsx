@@ -38,13 +38,6 @@ export default function LegalPage() {
               info@raimonvibe.com
             </a>
           </p>
-          <p className="mt-2 text-brown-700 text-base">
-            Our postal address (data controller) is listed once in our{' '}
-            <a href="/privacy" className="text-gold-700 hover:text-gold-800 underline">
-              Privacy Notice
-            </a>{' '}
-            under <em>Data Controller</em>, for legal and privacy-related correspondence.
-          </p>
         </section>
 
         <section>
@@ -197,7 +190,7 @@ export default function LegalPage() {
             <a href="mailto:info@raimonvibe.com" className="text-gold-700 hover:text-gold-800 underline">
               info@raimonvibe.com
             </a>
-            . Use the postal address in our Privacy Notice (Data Controller) only when you need to reach us in writing.
+            .
           </p>
         </section>
 

@@ -396,7 +396,7 @@ export default function ChatbotPreview() {
 
   return (
     <main
-      className="min-h-[100dvh] flex flex-col overflow-y-auto overflow-x-hidden"
+      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden"
       style={{
         background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
       }}
@@ -642,14 +642,11 @@ export default function ChatbotPreview() {
         </div>
       </div>
 
-      {/* Chat window: minHeight keeps preview tall enough; main scrolls on very short viewports */}
-      <div
-        className="flex-1 w-full p-2 md:p-3 flex flex-col min-h-0"
-        style={{ minHeight: 'min(380px, 58dvh)' }}
-      >
+      {/* Chat window: flex-1 + h-full fills space below header/controls (restored fixed viewport column) */}
+      <div className="flex-1 min-h-0 w-full p-2 md:p-3 flex flex-col">
         <div
           ref={previewScrollRef}
-          className={`flex-1 min-h-[300px] md:min-h-[360px] w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+          className={`h-full min-h-0 w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
         >
           <div
             className="h-full mx-auto transition-all duration-200"
@@ -659,7 +656,7 @@ export default function ChatbotPreview() {
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-            <div className="h-full min-h-[min(360px,55dvh)] w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
+            <div className="h-full w-full min-h-0 relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}

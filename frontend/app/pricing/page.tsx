@@ -174,7 +174,7 @@ function PricingContent() {
           <p className="text-lg text-brown-700">
             {billingOn
               ? 'One chatbot per subscription. Choose the plan that fits your website size (max pages we analyze).'
-              : 'Reference limits for this deployment. One chatbot per account; website scans are capped per plan tier.'}
+              : 'We are not charging subscription fees right now. One chatbot per account; compare the limits in each column to see what this free deployment includes.'}
           </p>
         </motion.div>
 
@@ -203,10 +203,14 @@ function PricingContent() {
                 {plan.id === 'ENTERPRISE' && <Building2 className="w-5 h-5 text-brown-600" />}
                 <h3 className="text-xl font-bold text-brown-800">{plan.name}</h3>
               </div>
-              <div className="mb-4">
-                <span className="text-3xl font-bold text-brown-900">{plan.priceLabel}</span>
-                <span className="text-brown-600">{plan.period}</span>
-              </div>
+              {billingOn ? (
+                <div className="mb-4">
+                  <span className="text-3xl font-bold text-brown-900">{plan.priceLabel}</span>
+                  <span className="text-brown-600">{plan.period}</span>
+                </div>
+              ) : (
+                <div className="mb-4 min-h-[2.75rem]" aria-hidden />
+              )}
               <ul className="space-y-2 mb-6 flex-1 text-sm">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
