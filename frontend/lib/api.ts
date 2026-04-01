@@ -591,7 +591,9 @@ export async function getAnalysisStatus(chatbotId: number): Promise<AnalysisStat
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error('Failed to get analysis status');
+      const err = new Error('Failed to get analysis status') as ApiError;
+      err.status = response.status;
+      throw err;
     }
     const data = await response.json();
     return { ready: !!data.ready, pagesIndexed: data.pagesIndexed ?? 0 };
@@ -605,7 +607,7 @@ export async function pollUntilAnalysisReady(
   chatbotId: number,
   options: { intervalMs?: number; timeoutMs?: number } = {}
 ): Promise<AnalysisStatus> {
-  const { intervalMs = 2000, timeoutMs = 120000 } = options; // default 2s poll, 2 min max (avoids feeling like a long hang)
+  const { intervalMs = 1000, timeoutMs = 120000 } = options; // 1s poll — COUNT endpoint is cheap; 2min max
   const start = Date.now();
   let lastStatus: AnalysisStatus = { ready: false, pagesIndexed: 0 };
   while (Date.now() - start < timeoutMs) {
@@ -614,7 +616,15 @@ export async function pollUntilAnalysisReady(
       lastStatus = status;
       if (status.ready) return status;
     } catch (e) {
-      // One failed poll (network/timeout): keep last status and retry next interval instead of throwing
+      // Auth / not-found: retrying won't help — exit so the UI doesn't spin for the full timeout
+      if (isApiError(e)) {
+        const s = e.status;
+        if (s === 401 || s === 403 || s === 404) {
+          console.warn('Analysis status poll stopped:', s);
+          return lastStatus;
+        }
+      }
+      // Transient network / abort / 5xx: retry
       console.warn('Analysis status poll failed, retrying:', e);
     }
     await new Promise((r) => setTimeout(r, intervalMs));

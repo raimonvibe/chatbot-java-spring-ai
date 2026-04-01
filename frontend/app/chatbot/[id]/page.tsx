@@ -18,6 +18,7 @@ import {
   type Message as MessageType,
   type Chatbot,
   type JesusTeachingsPreviewResponse,
+  type AnalysisStatus,
 } from '@/lib/api';
 import Link from 'next/link';
 import { BookOpen, ChevronDown, ChevronUp, Menu } from 'lucide-react';
@@ -114,13 +115,18 @@ export default function ChatbotPreview() {
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
     let cancelled = false;
-    const analysisStatusFirst = getAnalysisStatus(chatbotId).catch(() => ({
-      ready: false,
-      pagesIndexed: 0,
-    }));
-    Promise.all([getChatbot(chatbotId), analysisStatusFirst])
-      .then(async ([data, statusSnapshot]) => {
+    // Never treat a failed status request as "not ready" — that forces up to 2min of polling even when already indexed.
+    Promise.allSettled([getChatbot(chatbotId), getAnalysisStatus(chatbotId)])
+      .then(async (results) => {
         if (cancelled) return;
+        const chatResult = results[0];
+        const statusResult = results[1];
+        if (chatResult.status === 'rejected') {
+          logClientIssue('chatbotPreview.load', chatResult.reason);
+          setAnalysisLoading(false);
+          return;
+        }
+        const data = chatResult.value;
         setChatbot(data);
         setMessages([
           {
@@ -130,8 +136,20 @@ export default function ChatbotPreview() {
             timestamp: Date.now(),
           },
         ]);
-        // If chatbot has a website, wait until analysis is indexed (overlap status fetch with getChatbot; skip poll if already ready)
-        if (data.websiteUrl?.trim()) {
+        if (!data.websiteUrl?.trim()) {
+          setAnalysisLoading(false);
+        } else {
+          let statusSnapshot: AnalysisStatus =
+            statusResult.status === 'fulfilled'
+              ? statusResult.value
+              : { ready: false, pagesIndexed: 0 };
+          if (statusResult.status === 'rejected') {
+            try {
+              statusSnapshot = await getAnalysisStatus(chatbotId);
+            } catch {
+              /* one retry after chatbot load; still not ready → poll */
+            }
+          }
           try {
             if (!statusSnapshot.ready) {
               await pollUntilAnalysisReady(chatbotId);
@@ -139,8 +157,6 @@ export default function ChatbotPreview() {
           } finally {
             if (!cancelled) setAnalysisLoading(false);
           }
-        } else {
-          setAnalysisLoading(false);
         }
         // If \"What Jesus Would Say\" is enabled, load a small preview of teachings for the header card
         if (data.jesusTeachingsEnabled) {
