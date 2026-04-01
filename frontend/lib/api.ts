@@ -584,8 +584,10 @@ export async function getAnalysisStatus(chatbotId: number): Promise<AnalysisStat
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANALYSIS_STATUS_FETCH_TIMEOUT_MS);
   try {
+    const headers = getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}/analysis-status`, {
       credentials: 'include',
+      headers,
       signal: controller.signal,
     });
     if (!response.ok) {

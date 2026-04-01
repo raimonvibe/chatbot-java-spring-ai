@@ -688,8 +688,9 @@ public class WebsiteAnalysisService {
      * Used by frontend to keep loading screen until ready.
      */
     public Map<String, Object> getAnalysisStatus(Chatbot chatbot) {
-        List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot);
-        int indexed = (int) contents.stream().filter(c -> Boolean.TRUE.equals(c.getIsIndexed())).count();
+        // Single COUNT query — avoid loading every row on each preview poll (was very slow for large sites).
+        Long indexedCount = websiteContentRepository.countIndexedByChatbot(chatbot);
+        long indexed = indexedCount != null ? indexedCount : 0L;
         Map<String, Object> status = new HashMap<>();
         status.put("ready", indexed > 0);
         status.put("pagesIndexed", indexed);

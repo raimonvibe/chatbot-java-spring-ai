@@ -272,19 +272,32 @@ public class ChatbotController {
 
     /**
      * Get website analysis status for a chatbot. Used by frontend to keep loading screen until content is ready.
-     * GET is permitAll so preview page can poll without auth.
+     * <p>
+     * Security: same gate as {@link #getChatbot(Long, CustomOAuth2User)} — authenticated owner with subscription/preview.
+     * Prevents IDOR and leakage of indexing metadata ({@code pagesIndexed}) to unauthenticated or unrelated users.
+     * Filter chain allows GET {@code /api/chatbots/**} without auth, but this handler returns 401 without a principal.
      */
     @GetMapping("/{id}/analysis-status")
     @Transactional(readOnly = true)
-    public ResponseEntity<Map<String, Object>> getAnalysisStatus(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getAnalysisStatus(@PathVariable Long id,
+                                                                 @AuthenticationPrincipal CustomOAuth2User currentUser) {
         if (id == null || id < 0) {
             return ResponseEntity.badRequest().build();
         }
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = currentUser.getUser();
         Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
         if (chatbotOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        Map<String, Object> status = websiteAnalysisService.getAnalysisStatus(chatbotOpt.get());
+        Chatbot chatbot = chatbotOpt.get();
+        ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+        if (accessCheck != null) {
+            return ResponseEntity.status(accessCheck.getStatusCode()).build();
+        }
+        Map<String, Object> status = websiteAnalysisService.getAnalysisStatus(chatbot);
         return ResponseEntity.ok(status);
     }
     

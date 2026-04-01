@@ -8,6 +8,7 @@ import {
   sendMessage,
   getChatbot,
   getQuickReplies,
+  getAnalysisStatus,
   pollUntilAnalysisReady,
   previewJesusTeachings,
   logout,
@@ -113,8 +114,12 @@ export default function ChatbotPreview() {
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
     let cancelled = false;
-    getChatbot(chatbotId)
-      .then(async (data) => {
+    const analysisStatusFirst = getAnalysisStatus(chatbotId).catch(() => ({
+      ready: false,
+      pagesIndexed: 0,
+    }));
+    Promise.all([getChatbot(chatbotId), analysisStatusFirst])
+      .then(async ([data, statusSnapshot]) => {
         if (cancelled) return;
         setChatbot(data);
         setMessages([
@@ -125,10 +130,12 @@ export default function ChatbotPreview() {
             timestamp: Date.now(),
           },
         ]);
-        // If chatbot has a website, keep loading until analysis is ready so "tell me about this site" works
+        // If chatbot has a website, wait until analysis is indexed (overlap status fetch with getChatbot; skip poll if already ready)
         if (data.websiteUrl?.trim()) {
           try {
-            await pollUntilAnalysisReady(chatbotId);
+            if (!statusSnapshot.ready) {
+              await pollUntilAnalysisReady(chatbotId);
+            }
           } finally {
             if (!cancelled) setAnalysisLoading(false);
           }
