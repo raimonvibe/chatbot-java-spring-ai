@@ -286,7 +286,7 @@ describe('ChatInterface Component', () => {
       expect(sendButton).not.toBeDisabled()
     })
 
-    it('should disable input and buttons while loading', async () => {
+    it('should disable send while loading but keep input enabled for drafting', async () => {
       const user = userEvent.setup()
       let resolveMessage: (value: any) => void
       const messagePromise = new Promise((resolve) => {
@@ -302,9 +302,9 @@ describe('ChatInterface Component', () => {
       await user.type(input, 'Hello{Enter}')
 
       await waitFor(() => {
-        expect(input).toBeDisabled()
         expect(sendButton).toBeDisabled()
       })
+      expect(input).not.toBeDisabled()
 
       resolveMessage!({
         message: 'Response',
