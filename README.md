@@ -6,6 +6,8 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 
 > **Disclaimer**: This is an independent open-source project and is not affiliated with, endorsed by, or associated with Noupe, JotForm, or any other commercial chatbot service.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/raimonvibe/chatbot-java-spring-ai)
+
 ## ✨ Features
 
 ### 🎯 Modern Frontend Dashboard
