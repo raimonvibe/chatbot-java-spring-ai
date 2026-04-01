@@ -104,6 +104,8 @@ export default function ChatbotPreview() {
   const [showScreenMenu, setShowScreenMenu] = useState(false);
   const [websiteFrameLoaded, setWebsiteFrameLoaded] = useState(false);
   const [websiteFrameLikelyBlocked, setWebsiteFrameLikelyBlocked] = useState(false);
+  /** After hardening (safe URL only), default was plain; users expect website + widget on first open when URL exists. */
+  const sceneDefaultAppliedRef = useRef(false);
   const [showSubscriptionNav, setShowSubscriptionNav] = useState(() => isBillingEnabledFromEnv());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -193,6 +195,18 @@ export default function ChatbotPreview() {
 
     return () => { cancelled = true; };
   }, [chatbotId, isValidId]);
+
+  useEffect(() => {
+    sceneDefaultAppliedRef.current = false;
+  }, [chatbotId]);
+
+  useEffect(() => {
+    if (chatbotId == null || !chatbot || chatbot.id !== chatbotId) return;
+    if (sceneDefaultAppliedRef.current) return;
+    const safe = getSafeWebsitePreviewUrl(chatbot.websiteUrl);
+    setSceneMode(safe ? 'website' : 'plain');
+    sceneDefaultAppliedRef.current = true;
+  }, [chatbot, chatbotId]);
 
   // Provide nav context so header shows Dashboard/Account/Subscription/Logout and mobile menu on preview page
   useEffect(() => {
@@ -852,22 +866,6 @@ export default function ChatbotPreview() {
                 </button>
               )}
             </div>
-            <details className="group mt-2 sm:mt-3 rounded-lg border border-brown-200/80 bg-brown-50/70 text-left shadow-sm open:shadow-md [touch-action:manipulation] w-full min-w-0">
-              <summary className="flex min-h-12 sm:min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 sm:px-4 py-3 sm:py-2.5 text-sm sm:text-xs font-medium text-brown-800 select-none [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 flex-1 text-pretty leading-snug pr-1">About the website background</span>
-                <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
-              </summary>
-              <div className="space-y-2 border-t border-brown-200/70 px-3 sm:px-4 py-3 sm:py-2.5 text-sm sm:text-[11px] md:text-xs leading-relaxed text-brown-600">
-                <p className="text-pretty">
-                  We load your URL in a frame behind the chat widget so you can see the real layout. If nothing appears,
-                  the site is probably blocking embeds (common and intentional for security).
-                </p>
-                <p className="text-brown-600 sm:text-brown-500 text-pretty">
-                  Widget size, position, colors, and chat behavior stay true to your settings - only the live page preview may
-                  be missing.
-                </p>
-              </div>
-            </details>
           </div>
         </div>
       </div>
