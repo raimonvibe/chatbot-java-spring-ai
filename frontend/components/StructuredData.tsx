@@ -9,9 +9,6 @@ export default function StructuredData() {
     foundingDate: '2024',
     address: {
       '@type': 'PostalAddress',
-      streetAddress: 'Timpaan 1-B',
-      addressLocality: 'Hoorn',
-      postalCode: '1628 MT',
       addressCountry: 'NL',
     },
     contactPoint: {

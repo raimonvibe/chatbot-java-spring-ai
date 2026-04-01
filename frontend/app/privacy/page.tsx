@@ -199,11 +199,11 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl md:text-2xl font-semibold mb-3 text-brown-800">14. Contact Us</h2>
           <p>
-            If you have any questions about this Privacy Notice or our data practices, please contact us at:
-          </p>
-          <p className="mt-2">
-            Email: info@raimonvibe.com<br />
-            Address: Timpaan 1-B, 1628 MT Hoorn, Netherlands
+            If you have any questions about this Privacy Notice or our data practices, email us at{' '}
+            <a href="mailto:info@raimonvibe.com" className="text-gold-700 hover:text-gold-800 underline">
+              info@raimonvibe.com
+            </a>
+            . For postal correspondence, use the data controller address in Section 1 above.
           </p>
         </section>
 

@@ -133,7 +133,7 @@ export default function ContactPage() {
       </div>
 
       <div className="bg-brown-50 border border-brown-200 rounded-lg p-4 mb-6">
-        <h2 className="text-lg font-semibold text-brown-800 mb-2">Alternative Contact Methods</h2>
+        <h2 className="text-lg font-semibold text-brown-800 mb-2">Alternative Contact</h2>
         <div className="space-y-2 text-brown-700">
           <p>
             <strong>Email:</strong>{' '}
@@ -141,12 +141,12 @@ export default function ContactPage() {
               info@raimonvibe.com
             </a>
           </p>
-          <p>
-            <strong>Business Address:</strong><br />
-            RaimonVibe<br />
-            Timpaan 1-B<br />
-            1628 MT Hoorn<br />
-            Netherlands
+          <p className="text-sm text-brown-600">
+            For a postal address (e.g. formal or legal mail), see the <em>Data Controller</em> section in our{' '}
+            <a href="/privacy" className="text-gold-700 hover:text-gold-800 underline">
+              Privacy Notice
+            </a>
+            .
           </p>
         </div>
       </div>

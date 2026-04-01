@@ -30,14 +30,20 @@ export default function LegalPage() {
         <section>
           <h2 className="text-xl md:text-2xl font-semibold mb-3 text-brown-800">1. Service Provider Information</h2>
           <p>
-            This website is operated by:
+            This website is operated by <strong>RaimonVibe</strong>, based in the Netherlands.
           </p>
           <p className="mt-2">
-            RaimonVibe<br />
-            Timpaan 1-B<br />
-            1628 MT Hoorn<br />
-            Netherlands<br />
-            Email: info@raimonvibe.com
+            Email:{' '}
+            <a href="mailto:info@raimonvibe.com" className="text-gold-700 hover:text-gold-800 underline">
+              info@raimonvibe.com
+            </a>
+          </p>
+          <p className="mt-2 text-brown-700 text-base">
+            Our postal address (data controller) is listed once in our{' '}
+            <a href="/privacy" className="text-gold-700 hover:text-gold-800 underline">
+              Privacy Notice
+            </a>{' '}
+            under <em>Data Controller</em>, for legal and privacy-related correspondence.
           </p>
         </section>
 
@@ -187,11 +193,11 @@ export default function LegalPage() {
         <section>
           <h2 className="text-xl md:text-2xl font-semibold mb-3 text-brown-800">10. Contact Information</h2>
           <p>
-            For questions about these terms or any legal matters, please contact us at:
-          </p>
-          <p className="mt-2">
-            Email: info@raimonvibe.com<br />
-            Address: Timpaan 1-B, 1628 MT Hoorn, Netherlands
+            For questions about these terms or any legal matters, contact us at{' '}
+            <a href="mailto:info@raimonvibe.com" className="text-gold-700 hover:text-gold-800 underline">
+              info@raimonvibe.com
+            </a>
+            . Use the postal address in our Privacy Notice (Data Controller) only when you need to reach us in writing.
           </p>
         </section>
 
