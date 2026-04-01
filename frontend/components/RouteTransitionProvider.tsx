@@ -4,11 +4,13 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-const SWEEP_MS = 640;
+/** Total time the overlay stays mounted (slightly longer than Framer duration so the sweep finishes cleanly). */
+const SWEEP_MS = 2800;
+const SWEEP_DURATION_S = 2.45;
 
 /**
  * Client navigations: instant scroll to top (less jumpy than leaving scroll position)
- * and a short diagonal beige/brown gradient sweep (theme-aligned). Respects reduced motion.
+ * and a slow diagonal linear beige → brown sweep. Respects reduced motion.
  */
 export default function RouteTransitionProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -51,14 +53,13 @@ export default function RouteTransitionProvider({ children }: { children: React.
             key={sweepKey}
             className="absolute left-1/2 top-1/2 h-[320vmax] w-[90vmin] max-w-none -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-[0_0_80px_rgba(139,90,60,0.12)]"
             style={{
-              background:
-                'linear-gradient(165deg, #fdf8f3 0%, #f5ebdc 18%, #dec9b5 42%, #c9a882 62%, #a67c52 82%, #8b5a3c 100%)',
+              background: 'linear-gradient(180deg, #faf5eb 0%, #4a3428 100%)',
               rotate: -42,
               willChange: 'transform, opacity',
             }}
-            initial={{ x: '-140vmin', y: '-40vmin', opacity: 0.94 }}
+            initial={{ x: '-140vmin', y: '-40vmin', opacity: 0.92 }}
             animate={{ x: '140vmin', y: '40vmin', opacity: 0 }}
-            transition={{ duration: 0.56, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: SWEEP_DURATION_S, ease: [0.33, 0, 0.2, 1] }}
           />
         </div>
       )}

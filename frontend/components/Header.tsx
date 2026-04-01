@@ -6,7 +6,9 @@ import { usePathname } from 'next/navigation';
 import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu, BookOpen } from 'lucide-react';
 import { useDashboardNav } from '@/context/DashboardNavContext';
 
-const NAV_LINK_BASE = 'inline-flex items-center justify-center gap-1.5 h-9 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap min-h-[36px]';
+/** Single height for all bar controls so the row does not shift between breakpoints or loading states. */
+const NAV_LINK_BASE =
+  'inline-flex items-center justify-center gap-1.5 h-10 shrink-0 px-3 rounded-xl text-sm font-medium leading-none whitespace-nowrap';
 
 export default function Header() {
   const pathname = usePathname();
@@ -55,13 +57,13 @@ export default function Header() {
 
   return (
     <header className="bg-gradient-to-r from-brown-50 to-gold-50 border-b border-brown-200 sticky top-0 z-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between gap-3 min-h-[52px]">
-        {/* Left: page title — no truncation; fixed height */}
-        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8">
+        {/* Left: page title — fixed line height to match bar controls */}
+        <div className="flex min-h-0 min-w-0 flex-shrink-0 items-center gap-2">
           {leftLabel ? (
             <>
-              <leftLabel.icon className="w-5 h-5 text-brown-700 flex-shrink-0" aria-hidden />
-              <span className="text-brown-700 font-medium text-sm whitespace-nowrap">
+              <leftLabel.icon className="h-5 w-5 shrink-0 text-brown-700" aria-hidden />
+              <span className="text-sm font-medium leading-none whitespace-nowrap text-brown-700">
                 {leftLabel.text}
               </span>
             </>
@@ -70,7 +72,7 @@ export default function Header() {
               href="/"
               className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 transition-colors bg-transparent border-0`}
             >
-              <Home className="w-5 h-5 flex-shrink-0" />
+              <Home className="h-5 w-5 shrink-0" />
               <span>Back to Home</span>
             </Link>
           )}
@@ -80,24 +82,24 @@ export default function Header() {
         {isPricingPage && (
           <Link
             href="/dashboard"
-            className={`${NAV_LINK_BASE} bg-white border border-brown-200 text-brown-800 hover:bg-brown-50 transition-colors`}
+            className={`${NAV_LINK_BASE} border border-brown-200 bg-white text-brown-800 transition-colors hover:bg-brown-50`}
           >
-            <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+            <LayoutDashboard className="h-5 w-5 shrink-0" />
             <span>Dashboard</span>
           </Link>
         )}
 
         {/* App nav: hamburger + dropdown on all screen sizes (desktop and mobile) */}
         {showAppNav && (
-          <div className="relative flex-shrink-0" ref={menuRef} aria-label="Main">
+          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Main">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((o) => !o)}
-                className={`${NAV_LINK_BASE} bg-brown-100/70 border border-brown-200 text-brown-800 hover:bg-brown-100 transition-colors`}
+                className={`${NAV_LINK_BASE} border border-brown-200 bg-brown-100/70 text-brown-800 transition-colors hover:bg-brown-100`}
                 aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={mobileMenuOpen}
               >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
               </button>
               {mobileMenuOpen && (
                 <div
@@ -191,26 +193,30 @@ export default function Header() {
           </div>
         )}
 
-        {/* Dashboard loading: show Back to Home until nav is set */}
+        {/* Dashboard loading: same bar height as menu button to avoid vertical shift */}
         {isDashboardPage && !nav && (
-          <Link
-            href="/"
-            className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0 md:flex`}
-          >
-            <Home className="w-4 h-4 flex-shrink-0" />
-            <span>Back to Home</span>
-          </Link>
+          <div className="flex h-10 shrink-0 items-center justify-end">
+            <Link
+              href="/"
+              className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
+            >
+              <Home className="h-5 w-5 shrink-0" />
+              <span>Back to Home</span>
+            </Link>
+          </div>
         )}
 
-        {/* Account / Preview loading: show Back to Home until nav is set */}
+        {/* Account / Preview loading: match loaded-state right column geometry */}
         {(isAccountPage || isChatbotPreviewPage) && !nav && (
-          <Link
-            href="/"
-            className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 bg-transparent border-0 md:flex`}
-          >
-            <Home className="w-4 h-4 flex-shrink-0" />
-            <span>Back to Home</span>
-          </Link>
+          <div className="flex h-10 shrink-0 items-center justify-end">
+            <Link
+              href="/"
+              className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
+            >
+              <Home className="h-5 w-5 shrink-0" />
+              <span>Back to Home</span>
+            </Link>
+          </div>
         )}
       </div>
     </header>

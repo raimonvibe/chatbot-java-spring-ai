@@ -31,7 +31,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     await expect(page.locator('body')).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     // Look for chat input
@@ -75,7 +75,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const chatInput = page.getByPlaceholder(/message|type|ask/i);
@@ -110,7 +110,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const chatInput = page.getByPlaceholder(/message|type|ask/i);
@@ -150,7 +150,7 @@ test.describe('Chatbot Preview Page', () => {
       message: 'Response message',
     });
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const chatInput = page.getByPlaceholder(/message|type|ask/i);
@@ -180,7 +180,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const sendButton = page.getByRole('button', { name: /send/i });
@@ -211,7 +211,7 @@ test.describe('Chatbot Preview Page', () => {
     // Mock chat error
     await apiMock.mockApiError(`/api/chat/${chatbot.id}`, 500, 'Server error');
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const chatInput = page.getByPlaceholder(/message|type|ask/i);
@@ -241,7 +241,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     // Send a message first
@@ -278,7 +278,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const chatInput = page.getByPlaceholder(/message|type|ask/i);
@@ -310,7 +310,7 @@ test.describe('Chatbot Preview Page', () => {
 
     await apiMock.mockChatEndpoints();
 
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     // Verify mobile layout
@@ -335,19 +335,26 @@ test.describe('Chatbot Preview Page', () => {
     });
 
     await apiMock.mockChatEndpoints();
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     const panel = page.getByTestId('preview-widget-panel');
+    const frame = page.getByTestId('preview-device-frame');
     await expect(panel).toBeVisible();
+    await expect(frame).toBeVisible();
 
     const panelBox = await panel.boundingBox();
-    const viewport = page.viewportSize();
+    const frameBox = await frame.boundingBox();
     expect(panelBox).not.toBeNull();
-    expect(viewport).not.toBeNull();
-    if (panelBox && viewport) {
-      expect(viewport.width - (panelBox.x + panelBox.width)).toBeLessThanOrEqual(40);
-      expect(viewport.height - (panelBox.y + panelBox.height)).toBeLessThanOrEqual(40);
+    expect(frameBox).not.toBeNull();
+    if (panelBox && frameBox) {
+      // Widget is bottom-right inside the preview card (matches embed margins), not the browser viewport.
+      const insetRight = frameBox.x + frameBox.width - (panelBox.x + panelBox.width);
+      const insetBottom = frameBox.y + frameBox.height - (panelBox.y + panelBox.height);
+      expect(insetRight).toBeGreaterThanOrEqual(0);
+      expect(insetBottom).toBeGreaterThanOrEqual(0);
+      expect(insetRight).toBeLessThanOrEqual(40);
+      expect(insetBottom).toBeLessThanOrEqual(40);
     }
   });
 
@@ -366,7 +373,7 @@ test.describe('Chatbot Preview Page', () => {
     });
 
     await apiMock.mockChatEndpoints();
-    await page.goto(`/chatbot/${chatbot.id}/preview`);
+    await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
     // Open mobile screen-size menu and choose Mobile to apply mobile widget geometry.

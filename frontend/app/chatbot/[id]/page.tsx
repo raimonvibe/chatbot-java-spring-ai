@@ -324,15 +324,17 @@ export default function ChatbotPreview() {
   const isMobilePreview = screenPreview === 'mobile';
 
   /**
-   * Desktop/tablet widget: anchor with top + bottom so height always fits the preview frame (fixed height + minHeight
-   * caused overflow when the scene was short). Align top with the fake browser chrome (h-12 = 48px).
+   * Desktop/tablet: match embed script — floating panel 350×500 (we use ~332/308 width), bottom-right.
+   * Do not stretch top→bottom; that inflated the messages area inside the tall preview frame.
    */
   const desktopTabletEmbedStyle = useMemo(() => {
     const borderRadius = parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12;
     if (screenPreview === 'tablet') {
       return {
         width: 308,
-        top: 48,
+        height: 500,
+        maxHeight: 'calc(100% - 62px)',
+        top: 'auto',
         right: 14,
         bottom: 14,
         borderRadius,
@@ -340,7 +342,9 @@ export default function ChatbotPreview() {
     }
     return {
       width: 332,
-      top: 48,
+      height: 500,
+      maxHeight: 'calc(100% - 66px)',
+      top: 'auto',
       right: 18,
       bottom: 18,
       borderRadius,
@@ -656,7 +660,10 @@ export default function ChatbotPreview() {
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-            <div className="relative isolate flex min-h-[68dvh] w-full flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 md:min-h-[min(82dvh,840px)]">
+            <div
+              data-testid="preview-device-frame"
+              className="relative isolate flex min-h-[68dvh] w-full flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 md:min-h-[min(82dvh,840px)]"
+            >
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
@@ -747,12 +754,14 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Top/bottom anchoring keeps the panel inside the preview frame (no overflow past rounded border).
+                          // Match embed mobile: bottom sheet 50dvh, 95% width, not full frame height.
                           left: '2.5%',
                           right: '2.5%',
-                          top: 48,
+                          top: 'auto',
                           bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
+                          height: 'min(50dvh, calc(100% - 60px))',
+                          minHeight: 200,
                           borderRadius: 16,
                         }
                       : desktopTabletEmbedStyle
