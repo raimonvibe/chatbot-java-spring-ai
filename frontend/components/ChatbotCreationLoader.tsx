@@ -6,6 +6,14 @@ import { useState, useEffect } from 'react';
 import { PulseLoader, BarLoader } from 'react-spinners';
 import Lottie from 'lottie-react';
 
+/**
+ * Removes control chars and delimiter-like characters from API-provided names before rendering
+ * (defense in depth; backend also strips derived labels and validates on persist).
+ */
+function sanitizeChatbotDisplayName(name: string): string {
+  return name.replace(/[\u0000-\u001F\u007F<>"'\\]/g, '');
+}
+
 interface ChatbotCreationLoaderProps {
   isVisible: boolean;
   chatbotName?: string;
@@ -99,7 +107,7 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               animate={{ opacity: 1 }}
               className="text-4xl md:text-5xl font-bold text-white mb-4"
             >
-              {isAnalysis ? 'Setting up your chatbot' : 'Creating Your Chatbot'}
+              {isAnalysis ? 'Getting your assistant ready' : 'Creating Your Chatbot'}
             </motion.h2>
 
             {/* Subtitle for analysis mode */}
@@ -108,21 +116,25 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
                 key="analysis-subtitle"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-lg text-brown-200 mb-6 max-w-md mx-auto"
+                className="text-lg text-brown-200 mb-4 max-w-lg mx-auto leading-snug px-1"
               >
-                Analyzing your website so I can answer questions about it. This may take a minute.
+                We&apos;re reviewing your site&apos;s public pages so replies match your content. This usually takes a minute
+                or two.
               </motion.p>
             )}
 
-            {/* Chatbot name - sanitized to prevent XSS */}
-            {chatbotName && (
+            {/* Assistant name from your site — sanitized to prevent XSS */}
+            {chatbotName && sanitizeChatbotDisplayName(chatbotName).length > 0 && (
               <motion.p
                 key={`name-${chatbotName}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-xl text-gold-300 mb-8 font-semibold"
+                className="text-lg sm:text-xl text-gold-300 mb-6 sm:mb-8 font-semibold px-2"
               >
-                &quot;{chatbotName.replace(/[<>"']/g, '')}&quot;
+                <span className="text-brown-300 font-normal text-base sm:text-lg block mb-1">Assistant name</span>
+                <span data-testid="chatbot-display-name" className="block break-words">
+                  {sanitizeChatbotDisplayName(chatbotName)}
+                </span>
               </motion.p>
             )}
 
@@ -165,11 +177,11 @@ export default function ChatbotCreationLoader({ isVisible, chatbotName, isScanni
               />
             </div>
 
-            {/* Static tip - no rotation, no movement, stays fixed */}
-            <div className="text-sm text-brown-300 italic min-h-[1.5rem]">
+            {/* Short tip — analysis subtitle already sets timing expectations */}
+            <div className="text-sm text-brown-400 min-h-[1.5rem] max-w-md mx-auto px-2 leading-snug">
               {isAnalysis
-                ? "This may take a minute. You'll be able to ask questions about your site when it's ready."
-                : "Please wait while your chatbot is being prepared."}
+                ? 'You can ask about your site as soon as the review finishes.'
+                : 'Please wait while your chatbot is being prepared.'}
             </div>
 
             {/* Floating particles */}

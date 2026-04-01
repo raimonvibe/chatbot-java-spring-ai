@@ -41,15 +41,14 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName={maliciousName} />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).toBeInTheDocument();
-      
+
       // Should not contain script tags (removed by sanitization)
       expect(nameElement?.textContent).not.toContain('<script>');
       expect(nameElement?.textContent).not.toContain('</script>');
-      
+
       // Should contain sanitized name (script tags removed, but text remains)
-      // The important thing is that script tags are removed so they can't execute
       expect(nameElement?.textContent).toContain('Test Bot');
       
       // Verify no script tags in DOM
@@ -63,10 +62,10 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName={nameWithEntities} />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).toBeInTheDocument();
-      
-      // Should not contain unescaped HTML
+
+      // User-supplied fragment must not introduce markup inside the name text node
       expect(nameElement?.innerHTML).not.toContain('<');
       expect(nameElement?.innerHTML).not.toContain('>');
     });
@@ -77,10 +76,9 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName={nameWithEvent} />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).toBeInTheDocument();
-      
-      // Should not contain onclick attribute (React prevents attribute injection)
+
       expect(nameElement?.getAttribute('onclick')).toBeNull();
       
       // Text content may contain the string, but it won't execute as code
@@ -93,8 +91,7 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName="" />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
-      // Should not render name element if empty
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).not.toBeInTheDocument();
     });
 
@@ -103,8 +100,7 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName={null as any} />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
-      // Should not render name element if null
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).not.toBeInTheDocument();
     });
 
@@ -114,10 +110,9 @@ describe('ChatbotCreationLoader Security Tests', () => {
         <ChatbotCreationLoader isVisible={true} chatbotName={longName} />
       );
 
-      const nameElement = container.querySelector('.text-gold-300');
+      const nameElement = container.querySelector('[data-testid="chatbot-display-name"]');
       expect(nameElement).toBeInTheDocument();
-      
-      // Should render without crashing
+
       expect(nameElement?.textContent).toBeTruthy();
     });
   });

@@ -19,6 +19,10 @@ class WebsiteDisplayNameTest {
         "https://example.com|Example Chatbot",
         "https://www.shop.example.com|Example Chatbot",
         "https://api.mycompany.io|Mycompany Chatbot",
+        "https://www.acme.eu/|Acme Chatbot",
+        "https://acme.eu|Acme Chatbot",
+        "https://brand.de|Brand Chatbot",
+        "https://mysite.io|Mysite Chatbot",
         "|My Chatbot",
         "not-a-url|My Chatbot",
     })

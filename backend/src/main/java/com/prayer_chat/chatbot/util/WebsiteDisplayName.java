@@ -65,10 +65,24 @@ public final class WebsiteDisplayName {
 
     private static String fromGenericHost(String host) {
         String domain = host.replaceFirst("^www\\.", "");
-        domain = domain.replaceFirst("\\.(com|org|net|edu|gov|co|io|ai|app|dev)$", "");
-        String[] parts = domain.split("\\.");
-        String mainPart = parts.length > 0 ? parts[parts.length - 1] : domain;
-        if (mainPart.isEmpty()) {
+        String[] labels = domain.split("\\.");
+
+        if (labels.length == 0 || (labels.length == 1 && labels[0].isEmpty())) {
+            return "My Chatbot";
+        }
+
+        String mainPart;
+        if (labels.length == 2 && labels[1].length() == 2 && labels[1].matches("[a-z]+")) {
+            // Second label is a typical two-letter ccTLD (e.g. brand.eu, brand.de, site.io). Do not use the TLD as the name.
+            mainPart = labels[0];
+        } else {
+            String rest = domain.replaceFirst("\\.(com|org|net|edu|gov|co|io|ai|app|dev|eu|info|biz|name)$", "");
+            String[] parts = rest.split("\\.");
+            mainPart = parts.length > 0 ? parts[parts.length - 1] : rest;
+        }
+
+        mainPart = stripHostDerivedNoise(mainPart);
+        if (mainPart == null || mainPart.isEmpty()) {
             return "My Chatbot";
         }
         String capitalized = mainPart.substring(0, 1).toUpperCase()
@@ -76,7 +90,10 @@ public final class WebsiteDisplayName {
         return truncateToMaxLength(capitalized + SUFFIX);
     }
 
-    /** Strip characters that must never appear in a derived display name (defense in depth before XSS sanitization on persist). */
+    /**
+     * Strip characters that must never appear in a derived display name (defense in depth alongside
+     * {@link com.prayer_chat.chatbot.dto.ChatbotRequest} validation and client-side display sanitization).
+     */
     private static String stripHostDerivedNoise(String raw) {
         if (raw == null || raw.isEmpty()) {
             return "";
