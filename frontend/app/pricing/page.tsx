@@ -93,8 +93,6 @@ const PLANS = [
 /** Plan limits from backend (GET /api/plans/limits). When set, overrides static maxPagesPerScan etc. */
 interface PlanLimitsResponse {
   billingEnabled?: boolean;
-  websiteScanPolicySummary?: string;
-  maxPagesPerScanOffered?: number;
   plans?: Record<string, { maxPagesPerScan: number; messagesPerDay: number; monthlyScanQuota: number }>;
   standardPageTiers?: Record<string, number>;
 }
@@ -167,20 +165,6 @@ function PricingContent() {
                   ? 'Welcome! To start creating chatbots, please choose a subscription plan below.'
                   : 'Welcome! Sign in to create your chatbot — this deployment is free within the limits below.'}
               </p>
-            </div>
-          )}
-
-          {!billingOn && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-left max-w-2xl mx-auto">
-              <p className="text-emerald-900 font-medium">Currently free to use</p>
-              <p className="text-emerald-800 text-sm mt-1">
-                Paid checkout is turned off. The table below shows what the product supports today (including the{' '}
-                {limitsFromApi?.maxPagesPerScanOffered ?? 500}-page scan cap per site). Stripe can be re-enabled later
-                without removing this page.
-              </p>
-              {limitsFromApi?.websiteScanPolicySummary && (
-                <p className="text-emerald-800 text-sm mt-2">{limitsFromApi.websiteScanPolicySummary}</p>
-              )}
             </div>
           )}
 
