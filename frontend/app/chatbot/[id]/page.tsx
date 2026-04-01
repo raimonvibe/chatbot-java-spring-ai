@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
 import Message from '@/components/Message';
@@ -22,7 +22,7 @@ import {
   type AnalysisStatus,
 } from '@/lib/api';
 import Link from 'next/link';
-import { BookOpen, ChevronDown, ChevronUp, Menu } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Menu, MessageCircle } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
@@ -128,6 +128,13 @@ export default function ChatbotPreview() {
     getSubscriptionStatusFromApi()
       .then((s) => setShowSubscriptionNav(paymentActionsAvailableFromApi(s)))
       .catch(() => setShowSubscriptionNav(isBillingEnabledFromEnv()));
+  }, []);
+
+  /** Match Tailwind `md` (768px): phones default to the mobile device frame (embed parity). */
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    setScreenPreview('mobile');
   }, []);
 
   useEffect(() => {
@@ -324,15 +331,15 @@ export default function ChatbotPreview() {
   const isMobilePreview = screenPreview === 'mobile';
 
   /**
-   * Desktop/tablet: match embed script — floating panel 350×500 (we use ~332/308 width), bottom-right.
-   * Do not stretch top→bottom; that inflated the messages area inside the tall preview frame.
+   * Desktop/tablet: bottom-right panel, width ~embed. Height scales with the preview frame (like mobile’s
+   * min(50dvh, 100%-chrome)) so it does not tower over the mock browser; capped ~embed max (500px).
    */
   const desktopTabletEmbedStyle = useMemo(() => {
     const borderRadius = parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12;
     if (screenPreview === 'tablet') {
       return {
         width: 308,
-        height: 500,
+        height: 'min(480px, max(260px, calc(0.34 * (100% - 62px))))',
         maxHeight: 'calc(100% - 62px)',
         top: 'auto',
         right: 14,
@@ -342,7 +349,7 @@ export default function ChatbotPreview() {
     }
     return {
       width: 332,
-      height: 500,
+      height: 'min(500px, max(272px, calc(0.36 * (100% - 68px))))',
       maxHeight: 'calc(100% - 66px)',
       top: 'auto',
       right: 18,
@@ -551,9 +558,9 @@ export default function ChatbotPreview() {
         </motion.div>
       )}
 
-      {/* Screen-size preview controls — compact width so button rows are not stretched edge-to-edge */}
-      <div className="w-full flex justify-center px-2 md:px-3 pt-2 flex-shrink-0">
-        <div className="w-full max-w-md rounded-xl bg-white/70 border border-brown-200 p-1.5 shadow-sm">
+      {/* Screen-size preview controls — full width on small screens, capped on larger */}
+      <div className="flex w-full flex-shrink-0 justify-center px-2 sm:px-3 md:px-3 pt-2">
+        <div className="w-full max-w-full rounded-xl border border-brown-200 bg-white/70 p-1.5 shadow-sm sm:max-w-md">
           <div className="flex flex-wrap items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
             {(['actual', 'fit'] as const).map((mode) => (
               <button
@@ -638,31 +645,33 @@ export default function ChatbotPreview() {
               </div>
             )}
           </div>
-          <p className="text-[11px] text-brown-600 mt-1 px-1 md:hidden">
+          <p className="mt-1 px-1 text-[11px] leading-snug text-brown-600 md:hidden">
             {previewMode === 'actual'
-              ? 'For desktop/tablet previews on phone, swipe horizontally in the preview area.'
-              : 'Fit mode scales the preview to your current screen width.'}
+              ? 'For desktop/tablet frames on a phone, swipe sideways in the preview area.'
+              : 'Fit mode scales the preview to your screen width.'}
           </p>
         </div>
       </div>
 
       {/* Tall preview canvas so website background + bottom-right widget are clearly visible (~2× prior typical height) */}
-      <div className="flex w-full min-h-[72dvh] flex-1 flex-col p-2 md:min-h-[min(88dvh,920px)] md:p-3">
+      <div className="flex min-h-[min(72dvh,560px)] w-full flex-1 flex-col p-2 sm:min-h-[72dvh] md:min-h-[min(88dvh,920px)] md:p-3">
         <div
           ref={previewScrollRef}
-          className={`flex min-h-[70dvh] w-full flex-1 flex-col md:min-h-[min(86dvh,880px)] ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+          className={`flex min-h-[min(68dvh,520px)] w-full min-w-0 flex-1 flex-col sm:min-h-[70dvh] md:min-h-[min(86dvh,880px)] ${
+            previewMode === 'actual' ? 'touch-pan-x overflow-x-auto overscroll-x-contain' : 'overflow-x-hidden'
+          }`}
         >
           <div
-            className="mx-auto flex min-h-[68dvh] flex-1 flex-col transition-all duration-200 md:min-h-[min(84dvh,860px)]"
+            className="mx-auto flex min-h-[min(66dvh,480px)] min-w-0 flex-1 flex-col transition-all duration-200 sm:min-h-[68dvh] md:min-h-[min(84dvh,860px)]"
             style={
               previewMode === 'actual'
                 ? { width: `${selectedScreenWidth}px`, minWidth: `${selectedScreenWidth}px` }
-                : { width: '100%', maxWidth: '100%', minWidth: '0' }
+                : { width: '100%', maxWidth: '100%', minWidth: 0 }
             }
           >
             <div
               data-testid="preview-device-frame"
-              className="relative isolate flex min-h-[68dvh] w-full flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 md:min-h-[min(82dvh,840px)]"
+              className="relative isolate flex min-h-[min(66dvh,480px)] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 sm:min-h-[68dvh] md:min-h-[min(82dvh,840px)]"
             >
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
@@ -768,15 +777,16 @@ export default function ChatbotPreview() {
                   }
                 >
                   <div className="h-full flex flex-col overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
-                      <div className="font-semibold truncate">{chatbot?.name ?? 'AI Assistant'}</div>
+                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
+                      <div className="min-w-0 flex-1 font-semibold truncate">{chatbot?.name ?? 'AI Assistant'}</div>
+                      {/* Same behavior as embed #prayer-chat-close-btn → collapse to launcher; chevron reads as “minimize” */}
                       <button
                         type="button"
                         onClick={() => setIsWidgetOpen(false)}
-                        className="text-white/90 hover:text-white text-lg leading-none"
-                        aria-label="Close widget preview"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/15 hover:text-white [touch-action:manipulation]"
+                        aria-label="Minimize chat"
                       >
-                        ×
+                        <ChevronDown className="h-5 w-5" strokeWidth={2.5} aria-hidden />
                       </button>
                     </div>
 
@@ -869,7 +879,7 @@ export default function ChatbotPreview() {
                   data-testid="preview-widget-toggle"
                   type="button"
                   onClick={() => setIsWidgetOpen(true)}
-                  className="absolute z-20 text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center"
+                  className="absolute z-20 flex items-center justify-center rounded-full text-white shadow-xl transition-transform hover:scale-105 [touch-action:manipulation]"
                   style={{
                     width: isMobilePreview ? 50 : 60,
                     height: isMobilePreview ? 50 : 60,
@@ -877,9 +887,9 @@ export default function ChatbotPreview() {
                     bottom: isMobilePreview ? 'max(12px, env(safe-area-inset-bottom))' : 20,
                     backgroundColor: theme.primaryColor,
                   }}
-                  aria-label="Open widget preview"
+                  aria-label="Open chat"
                 >
-                  💬
+                  <MessageCircle className={isMobilePreview ? 'h-6 w-6' : 'h-7 w-7'} strokeWidth={2} aria-hidden />
                 </button>
               )}
             </div>
