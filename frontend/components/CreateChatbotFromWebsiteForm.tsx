@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Loader2, ArrowRight, CheckCircle, ChevronDown } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle } from 'lucide-react';
 import { previewWebsiteUrlInput, shouldShowIdnHostnameNote } from '@/lib/websiteUrlPreview';
 
 export type CreateChatbotFromWebsiteFormVariant = 'onboarding' | 'dashboard';
@@ -68,19 +68,6 @@ export default function CreateChatbotFromWebsiteForm({
             Using: <span className="font-mono">{preview.displayHref}</span>
           </p>
         )}
-
-        <details className="group mt-2 rounded-lg border border-brown-200/80 bg-brown-50/50 text-left [touch-action:manipulation]">
-          <summary className="flex min-h-10 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-brown-600 list-none select-none [&::-webkit-details-marker]:hidden">
-            <span>How we use this</span>
-            <ChevronDown
-              className="h-4 w-4 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180"
-              aria-hidden
-            />
-          </summary>
-          <p className="border-t border-brown-200/80 px-3 py-2 text-xs text-brown-600 leading-relaxed">
-            We read public pages from your site to train the chatbot. Use a URL you own or are allowed to crawl.
-          </p>
-        </details>
       </div>
 
       {showExpandedPreview && preview.displayHref && (
