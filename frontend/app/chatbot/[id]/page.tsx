@@ -17,7 +17,7 @@ import {
   type JesusTeachingsPreviewResponse,
 } from '@/lib/api';
 import Link from 'next/link';
-import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import CalligraphicFrame from '@/components/CalligraphicFrame';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
@@ -30,6 +30,22 @@ function parseChatbotId(raw: string | string[] | undefined): number | null {
   const n = parseInt(s, 10);
   if (!Number.isInteger(n) || n < 1 || !Number.isFinite(n)) return null;
   return n;
+}
+
+function parseBrandingConfig(configJson: string | undefined): { primaryColor: string; secondaryColor: string } {
+  const fallback = { primaryColor: '#8B5E34', secondaryColor: '#E8DCC4' };
+  if (!configJson || !configJson.trim()) return fallback;
+  if (configJson.length > 4096) return fallback;
+  try {
+    const o = JSON.parse(configJson) as Record<string, unknown>;
+    const primaryColor = typeof o.primaryColor === 'string' ? o.primaryColor.trim() : fallback.primaryColor;
+    const secondaryColor = typeof o.secondaryColor === 'string' ? o.secondaryColor.trim() : fallback.secondaryColor;
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(primaryColor)) return fallback;
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(secondaryColor)) return fallback;
+    return { primaryColor, secondaryColor };
+  } catch {
+    return fallback;
+  }
 }
 
 export default function ChatbotPreview() {
@@ -52,8 +68,17 @@ export default function ChatbotPreview() {
   const [jesusPreviewLoading, setJesusPreviewLoading] = useState(false);
   /** When true, we are still waiting for website analysis so the chatbot can answer about the site. */
   const [analysisLoading, setAnalysisLoading] = useState(true);
+  const [screenPreview, setScreenPreview] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('fit');
+  const [showScreenMenu, setShowScreenMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const theme = useMemo(() => parseBrandingConfig(chatbot?.brandingConfig), [chatbot?.brandingConfig]);
+  const SCREEN_WIDTHS: Record<'desktop' | 'tablet' | 'mobile', number> = {
+    desktop: 1024,
+    tablet: 768,
+    mobile: 390,
+  };
 
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
@@ -205,6 +230,7 @@ export default function ChatbotPreview() {
   };
 
   const hasJesusFeature = chatbot?.jesusTeachingsEnabled || chatbot?.bibleVerse;
+  const selectedScreenWidth = SCREEN_WIDTHS[screenPreview];
 
   if (!isValidId) {
     return (
@@ -232,7 +258,12 @@ export default function ChatbotPreview() {
   }
 
   return (
-    <main className="h-screen flex flex-col overflow-hidden md:h-auto md:min-h-[150vh] md:overflow-y-auto bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50">
+    <main
+      className="h-screen flex flex-col overflow-hidden md:h-auto md:min-h-[150vh] md:overflow-y-auto"
+      style={{
+        background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
+      }}
+    >
       {/* Compact header; on desktop the whole page scrolls so the chat area is taller */}
       <header className="flex-shrink-0 p-2 md:p-3 border-b border-brown-200/60 bg-white/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
@@ -249,7 +280,10 @@ export default function ChatbotPreview() {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-600 to-gold-600 truncate">
+              <h1
+                className="text-xl md:text-2xl font-bold truncate"
+                style={{ color: theme.primaryColor }}
+              >
                 {chatbot?.name ?? 'Loading...'}
               </h1>
               <p className="text-brown-700 text-sm truncate max-w-[min(100%,320px)] md:max-w-none">
@@ -259,7 +293,8 @@ export default function ChatbotPreview() {
           </div>
           <Link
             href="/dashboard"
-            className="flex-shrink-0 px-3 py-1.5 md:px-4 md:py-2 text-sm bg-brown-100 text-brown-800 rounded-lg hover:bg-brown-200 transition-colors border border-brown-200"
+            className="flex-shrink-0 px-3 py-1.5 md:px-4 md:py-2 text-sm rounded-lg transition-colors border border-brown-200"
+            style={{ backgroundColor: `${theme.secondaryColor}66`, color: '#4a3828' }}
           >
             Back to Dashboard
           </Link>
@@ -375,9 +410,94 @@ export default function ChatbotPreview() {
         </motion.div>
       )}
 
+      {/* Screen-size preview controls */}
+      <div className="w-full max-w-4xl mx-auto px-2 md:px-3 pt-2">
+        <div className="rounded-xl bg-white/70 border border-brown-200 p-1.5">
+          <div className="flex items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
+            {(['fit', 'actual'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPreviewMode(mode)}
+                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
+                style={{
+                  backgroundColor: previewMode === mode ? theme.primaryColor : '#ffffff',
+                  color: previewMode === mode ? '#ffffff' : '#5b4634',
+                  borderColor: previewMode === mode ? theme.primaryColor : '#e8d9c9',
+                }}
+              >
+                {mode === 'fit' ? 'Fit to screen' : 'Actual size'}
+              </button>
+            ))}
+          </div>
+          <div className="hidden md:flex items-center justify-center gap-2">
+            {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setScreenPreview(size)}
+                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
+                style={{
+                  backgroundColor: screenPreview === size ? theme.primaryColor : '#ffffff',
+                  color: screenPreview === size ? '#ffffff' : '#5b4634',
+                  borderColor: screenPreview === size ? theme.primaryColor : '#e8d9c9',
+                }}
+              >
+                {size === 'desktop' ? 'Desktop' : size === 'tablet' ? 'Tablet' : 'Mobile'}
+              </button>
+            ))}
+          </div>
+          <div className="md:hidden relative">
+            <button
+              type="button"
+              onClick={() => setShowScreenMenu((v) => !v)}
+              className="w-full px-3 py-2 text-sm rounded-lg border bg-white text-brown-800 border-brown-200 flex items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Menu className="w-4 h-4" />
+                Screen size: {screenPreview === 'desktop' ? 'Desktop' : screenPreview === 'tablet' ? 'Tablet' : 'Mobile'}
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showScreenMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showScreenMenu && (
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-brown-200 bg-white shadow-lg p-1">
+                {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setScreenPreview(size);
+                      setShowScreenMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-brown-50"
+                    style={{ color: screenPreview === size ? theme.primaryColor : '#5b4634' }}
+                  >
+                    {size === 'desktop' ? 'Desktop' : size === 'tablet' ? 'Tablet' : 'Mobile'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-brown-600 mt-1 px-1 md:hidden">
+            {previewMode === 'actual'
+              ? 'For desktop/tablet previews on phone, swipe horizontally in the preview area.'
+              : 'Fit mode scales the preview to your current screen width.'}
+          </p>
+        </div>
+      </div>
+
       {/* Chat window: takes remaining space, no page scroll — only inner chat scrolls */}
-      <div className="flex-1 min-h-0 flex flex-col p-2 md:p-3 max-w-4xl w-full mx-auto">
-        <CalligraphicFrame className="flex-1 min-h-0 rounded-3xl overflow-hidden shadow-2xl border-2 border-brown-200/80 bg-white/95 backdrop-blur-sm">
+      <div className="flex-1 min-h-0 w-full p-2 md:p-3">
+        <div className={`h-full w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+          <div
+            className="h-full mx-auto transition-all duration-200"
+            style={
+              previewMode === 'actual'
+                ? { width: `${selectedScreenWidth}px`, minWidth: `${selectedScreenWidth}px` }
+                : { width: '100%', maxWidth: '100%', minWidth: '0' }
+            }
+          >
+        <CalligraphicFrame className="h-full rounded-3xl overflow-hidden shadow-2xl border-2 border-brown-200/80 bg-white/95 backdrop-blur-sm">
           <div className="h-full flex flex-col rounded-3xl overflow-hidden p-4 md:p-5">
             {/* Scrollable messages area — only this scrolls; horizontal padding keeps book/user icons inside frame */}
                 <div
@@ -386,7 +506,14 @@ export default function ChatbotPreview() {
             >
               <AnimatePresence mode="popLayout">
                 {messages.map((message, index) => (
-                  <Message key={message.id} message={message} index={index} />
+                  <Message
+                    key={message.id}
+                    message={message}
+                    index={index}
+                    primaryColor={theme.primaryColor}
+                    secondaryColor={theme.secondaryColor}
+                    assistantAvatarId={chatbot?.avatarId}
+                  />
                 ))}
               </AnimatePresence>
 
@@ -397,12 +524,16 @@ export default function ChatbotPreview() {
                   exit={{ opacity: 0 }}
                   className="flex justify-start mb-4"
                 >
-                  <div className="bg-brown-100 rounded-2xl px-4 py-3 shadow-md border border-brown-200">
+                  <div
+                    className="rounded-2xl px-4 py-3 shadow-md border"
+                    style={{ backgroundColor: `${theme.secondaryColor}55`, borderColor: `${theme.secondaryColor}aa` }}
+                  >
                     <div className="flex space-x-2">
                       {[0, 1, 2].map((i) => (
                         <motion.div
                           key={i}
-                          className="w-2 h-2 bg-brown-500 rounded-full"
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: theme.primaryColor }}
                           animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
                           transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
                         />
@@ -423,7 +554,8 @@ export default function ChatbotPreview() {
                     <button
                       key={index}
                       onClick={() => handleSendMessage(reply)}
-                      className="px-3 py-1.5 text-sm bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 rounded-full hover:from-brown-200 hover:to-gold-200 transition-colors border border-brown-200"
+                      className="px-3 py-1.5 text-sm rounded-full transition-colors border"
+                      style={{ backgroundColor: `${theme.secondaryColor}66`, color: '#4a3828', borderColor: `${theme.secondaryColor}aa` }}
                       disabled={isLoading}
                     >
                       {reply}
@@ -443,12 +575,14 @@ export default function ChatbotPreview() {
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   disabled={isLoading}
-                  className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 border-brown-200 focus:outline-none focus:ring-2 focus:ring-brown-400 focus:border-brown-400 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400"
+                  className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 focus:outline-none focus:ring-2 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400"
+                  style={{ borderColor: `${theme.secondaryColor}cc` }}
                 />
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!input.trim() || isLoading}
-                  className="flex-shrink-0 px-4 py-3 md:px-6 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all min-w-[48px]"
+                  className="flex-shrink-0 px-4 py-3 md:px-6 text-white rounded-xl font-medium disabled:opacity-50 hover:shadow-lg transition-all min-w-[48px]"
+                  style={{ backgroundColor: theme.primaryColor }}
                   aria-label="Send message"
                 >
                   <svg
@@ -470,6 +604,8 @@ export default function ChatbotPreview() {
             </div>
           </div>
         </CalligraphicFrame>
+          </div>
+        </div>
       </div>
     </main>
   );

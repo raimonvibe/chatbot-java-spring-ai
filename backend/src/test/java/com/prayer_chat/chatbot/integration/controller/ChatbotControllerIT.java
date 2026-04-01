@@ -218,6 +218,28 @@ class ChatbotControllerIT {
     }
 
     @Test
+    @DisplayName("Should sanitize malicious brandingConfig on update")
+    void shouldSanitizeMaliciousBrandingConfigOnUpdate() throws Exception {
+        // Arrange
+        Chatbot chatbotDetails = TestDataBuilder.createTestChatbot(testUser);
+        chatbotDetails.setBrandingConfig("{\"primaryColor\":\"#fff\",\"danger\":\"url(javascript:alert(1))\",\"secondaryColor\":\"rgb(255,0,0)\"}");
+
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        when(chatbotRepository.save(any(Chatbot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act & Assert
+        mockMvc.perform(put("/api/chatbots/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(chatbotDetails))
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.brandingConfig").value("{\"primaryColor\":\"#fff\"}"));
+
+        verify(chatbotRepository, times(1)).findById(1L);
+        verify(chatbotRepository, times(1)).save(any(Chatbot.class));
+    }
+
+    @Test
     @DisplayName("Should delete chatbot successfully")
     void shouldDeleteChatbotSuccessfully() throws Exception {
         // Arrange - controller delegates to chatbotService.deleteChatbot (service performs vector store cleanup and repo delete)

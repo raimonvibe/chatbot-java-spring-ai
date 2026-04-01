@@ -518,7 +518,8 @@ public class ChatbotController {
 
             chatbot.setCustomPrompt(request.getCustomPrompt());
             chatbot.setWebhookUrl(request.getWebhookUrl());
-            chatbot.setBrandingConfig(request.getBrandingConfig());
+            // Defense in depth: only persist allow-listed branding keys/values.
+            chatbot.setBrandingConfig(EmbedSecurity.sanitizeBrandingConfig(request.getBrandingConfig()));
             chatbot.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
             // Generate unique embed code
@@ -573,7 +574,6 @@ public class ChatbotController {
             chatbot.setPrimaryLanguage(chatbotDetails.getPrimaryLanguage());
             chatbot.setSupportedLanguages(chatbotDetails.getSupportedLanguages());
             chatbot.setCustomPrompt(chatbotDetails.getCustomPrompt());
-            chatbot.setBrandingConfig(chatbotDetails.getBrandingConfig());
             chatbot.setIsActive(chatbotDetails.getIsActive());
             // NEW FEATURES
             chatbot.setWebhookUrl(chatbotDetails.getWebhookUrl());
@@ -583,6 +583,7 @@ public class ChatbotController {
             chatbot.setBibleVerse(chatbotDetails.getBibleVerse());
             chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
             chatbot.setJesusTeachingsEnabled(chatbotDetails.getJesusTeachingsEnabled()); // NEW: Jesus Teachings feature
+            chatbot.setBrandingConfig(EmbedSecurity.sanitizeBrandingConfig(chatbotDetails.getBrandingConfig()));
             chatbot.setAvatarId(com.prayer_chat.chatbot.util.EmbedSecurity.validateAvatarId(chatbotDetails.getAvatarId()));
 
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);

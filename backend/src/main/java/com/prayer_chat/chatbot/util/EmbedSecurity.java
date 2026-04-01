@@ -18,8 +18,8 @@ public final class EmbedSecurity {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    /** Allowed branding keys and safe value patterns (CSS-style values, no script). */
-    private static final Pattern SAFE_COLOR = Pattern.compile("^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$|^[a-zA-Z]+$");
+    /** Allowed branding keys and safe value patterns (strict hex colors only). */
+    private static final Pattern SAFE_COLOR = Pattern.compile("^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$");
     private static final Pattern SAFE_FONT_FAMILY = Pattern.compile("^[a-zA-Z0-9\\s,_-]+$");
     private static final Pattern SAFE_BORDER_RADIUS = Pattern.compile("^[0-9]+(px|em|rem)?$");
     private static final int MAX_STRING_LENGTH = 200;

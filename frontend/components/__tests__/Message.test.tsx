@@ -70,19 +70,13 @@ describe('Message Component', () => {
     })
 
     it('should render user avatar icon', () => {
-      const { container } = render(<Message message={mockUserMessage} index={0} />)
-
-      // Check for avatar container with gradient background (user)
-      const avatar = container.querySelector('.from-brown-600.to-gold-600')
-      expect(avatar).toBeInTheDocument()
+      render(<Message message={mockUserMessage} index={0} />)
+      expect(screen.getByTestId('user-icon')).toBeInTheDocument()
     })
 
     it('should render assistant avatar icon', () => {
-      const { container } = render(<Message message={mockAssistantMessage} index={0} />)
-
-      // Check for avatar container with solid background (assistant)
-      const avatar = container.querySelector('.bg-brown-700')
-      expect(avatar).toBeInTheDocument()
+      render(<Message message={mockAssistantMessage} index={0} />)
+      expect(screen.getByTestId('book-icon')).toBeInTheDocument()
     })
   })
 

@@ -129,9 +129,9 @@ class EmbedSecurityTest {
         @Test
         @DisplayName("Allows only safe keys and value patterns")
         void allowsOnlySafeKeys() {
-            String input = "{\"primaryColor\":\"#ff0000\",\"secondaryColor\":\"blue\",\"fontFamily\":\"Arial, sans-serif\",\"borderRadius\":\"8px\"}";
+            String input = "{\"primaryColor\":\"#ff0000\",\"secondaryColor\":\"#0000ff\",\"fontFamily\":\"Arial, sans-serif\",\"borderRadius\":\"8px\"}";
             String out = EmbedSecurity.sanitizeBrandingConfig(input);
-            assertThat(out).contains("#ff0000").contains("blue").contains("Arial").contains("8px");
+            assertThat(out).contains("#ff0000").contains("#0000ff").contains("Arial").contains("8px");
             assertThat(out).doesNotContain("script").doesNotContain("onerror").doesNotContain("javascript");
         }
 
