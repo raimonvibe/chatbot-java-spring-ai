@@ -100,6 +100,7 @@ export default function ChatbotPreview() {
   const [websiteFrameLikelyBlocked, setWebsiteFrameLikelyBlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
   const theme = useMemo(() => parseBrandingConfig(chatbot?.brandingConfig), [chatbot?.brandingConfig]);
   const SCREEN_WIDTHS: Record<'desktop' | 'tablet' | 'mobile', number> = {
     desktop: 1024,
@@ -272,6 +273,16 @@ export default function ChatbotPreview() {
     return () => clearTimeout(id);
   }, [sceneMode, chatbot?.websiteUrl]);
 
+  useEffect(() => {
+    if (previewMode !== 'actual') return;
+    if (screenPreview === 'mobile') return;
+    const el = previewScrollRef.current;
+    if (!el) return;
+    // Desktop/tablet widget is right-aligned inside a wider canvas; auto-pan there on narrow devices.
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    el.scrollLeft = maxScroll;
+  }, [previewMode, screenPreview]);
+
   if (!isValidId) {
     return (
       <main className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-brown-50 via-amber-50/30 to-gold-50 p-4">
@@ -299,7 +310,7 @@ export default function ChatbotPreview() {
 
   return (
     <main
-      className="h-screen flex flex-col overflow-hidden md:h-auto md:min-h-[150vh] md:overflow-y-auto"
+      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden md:h-auto md:min-h-[150vh] md:overflow-y-auto"
       style={{
         background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
       }}
@@ -547,7 +558,7 @@ export default function ChatbotPreview() {
 
       {/* Chat window: simulate real embed placement per viewport */}
       <div className="flex-1 min-h-0 w-full p-2 md:p-3">
-        <div className={`h-full w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+        <div ref={previewScrollRef} className={`h-full w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
           <div
             className="h-full mx-auto transition-all duration-200"
             style={
@@ -642,9 +653,9 @@ export default function ChatbotPreview() {
                       ? {
                           left: '2.5%',
                           right: '2.5%',
-                          bottom: 12,
+                          bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
-                          height: '50%',
+                          height: 'min(56dvh, calc(100% - env(safe-area-inset-bottom) - 24px))',
                           borderRadius: 16,
                         }
                       : {
@@ -762,7 +773,7 @@ export default function ChatbotPreview() {
                     width: isMobilePreview ? 50 : 60,
                     height: isMobilePreview ? 50 : 60,
                     right: isMobilePreview ? 12 : 20,
-                    bottom: isMobilePreview ? 12 : 20,
+                    bottom: isMobilePreview ? 'max(12px, env(safe-area-inset-bottom))' : 20,
                     backgroundColor: theme.primaryColor,
                   }}
                   aria-label="Open widget preview"
