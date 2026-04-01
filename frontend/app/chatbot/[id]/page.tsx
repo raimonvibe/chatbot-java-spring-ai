@@ -154,27 +154,31 @@ export default function ChatbotPreview() {
             timestamp: Date.now(),
           },
         ]);
-        if (!data.websiteUrl?.trim()) {
-          setAnalysisLoading(false);
-        } else {
-          let statusSnapshot: AnalysisStatus =
-            statusResult.status === 'fulfilled'
-              ? statusResult.value
-              : { ready: false, pagesIndexed: 0 };
-          if (statusResult.status === 'rejected') {
+        // Show preview + widget as soon as chatbot loads. Do not block the whole page on background indexing
+        // (poll can run minutes; users reported an empty preview when stuck behind ChatbotCreationLoader).
+        if (!cancelled) setAnalysisLoading(false);
+
+        if (data.websiteUrl?.trim()) {
+          void (async () => {
             try {
-              statusSnapshot = await getAnalysisStatus(chatbotId);
-            } catch {
-              /* one retry after chatbot load; still not ready → poll */
+              let statusSnapshot: AnalysisStatus =
+                statusResult.status === 'fulfilled'
+                  ? statusResult.value
+                  : { ready: false, pagesIndexed: 0 };
+              if (statusResult.status === 'rejected') {
+                try {
+                  statusSnapshot = await getAnalysisStatus(chatbotId);
+                } catch {
+                  /* still not ready → poll */
+                }
+              }
+              if (!statusSnapshot.ready) {
+                await pollUntilAnalysisReady(chatbotId);
+              }
+            } catch (e) {
+              logClientIssue('chatbotPreview.backgroundAnalysisPoll', e);
             }
-          }
-          try {
-            if (!statusSnapshot.ready) {
-              await pollUntilAnalysisReady(chatbotId);
-            }
-          } finally {
-            if (!cancelled) setAnalysisLoading(false);
-          }
+          })();
         }
         // If \"What Jesus Would Say\" is enabled, load a small preview of teachings for the header card
         if (data.jesusTeachingsEnabled) {
@@ -655,7 +659,7 @@ export default function ChatbotPreview() {
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-            <div className="h-full w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
+            <div className="h-full min-h-[min(360px,55dvh)] w-full relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
