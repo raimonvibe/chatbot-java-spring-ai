@@ -66,10 +66,10 @@ export default function RootLayout({
       <head>
         <StructuredData />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} flex min-h-screen flex-col antialiased`}>
         <Providers>
           <Header />
-          {children}
+          <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
           <Footer />
         </Providers>
       </body>

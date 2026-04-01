@@ -24,6 +24,10 @@
   --color-gold-900: #713f12;
 }
 
+html {
+  overflow-x: clip;
+}
+
 :root {
   /* Christian-themed light brown gradient colors */
   --foreground-rgb: 62, 39, 35;

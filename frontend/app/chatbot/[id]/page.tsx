@@ -396,7 +396,7 @@ export default function ChatbotPreview() {
 
   return (
     <main
-      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden"
+      className="flex min-h-[100dvh] flex-1 flex-col overflow-x-hidden overflow-y-auto"
       style={{
         background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
       }}
@@ -642,21 +642,21 @@ export default function ChatbotPreview() {
         </div>
       </div>
 
-      {/* Chat window: flex-1 + h-full fills space below header/controls (restored fixed viewport column) */}
-      <div className="flex-1 min-h-0 w-full p-2 md:p-3 flex flex-col">
+      {/* Tall preview canvas so website background + bottom-right widget are clearly visible (~2× prior typical height) */}
+      <div className="flex w-full min-h-[72dvh] flex-1 flex-col p-2 md:min-h-[min(88dvh,920px)] md:p-3">
         <div
           ref={previewScrollRef}
-          className={`h-full min-h-0 w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+          className={`flex min-h-[70dvh] w-full flex-1 flex-col md:min-h-[min(86dvh,880px)] ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
         >
           <div
-            className="h-full mx-auto transition-all duration-200"
+            className="mx-auto flex min-h-[68dvh] flex-1 flex-col transition-all duration-200 md:min-h-[min(84dvh,860px)]"
             style={
               previewMode === 'actual'
                 ? { width: `${selectedScreenWidth}px`, minWidth: `${selectedScreenWidth}px` }
                 : { width: '100%', maxWidth: '100%', minWidth: '0' }
             }
           >
-            <div className="h-full w-full min-h-0 relative rounded-2xl border border-brown-200/80 overflow-hidden bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 isolate">
+            <div className="relative isolate flex min-h-[68dvh] w-full flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 md:min-h-[min(82dvh,840px)]">
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
