@@ -651,12 +651,14 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Parity with embed: backend/static/js/chatbot-widget.js @media (max-width: 768px) #prayer-chat-chat-container
+                          // Embed uses 50dvh vs the real viewport (chatbot-widget.js). The dashboard preview nests
+                          // the panel inside a shorter frame; pure 50dvh fills ~most of that frame. Use 50% of the
+                          // preview scene with the same max as production so website background stays visible.
                           left: '2.5%',
                           right: '2.5%',
                           bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
-                          height: '50dvh',
+                          height: '50%',
                           maxHeight: '50dvh',
                           minHeight: 200,
                           borderRadius: 16,
