@@ -33,7 +33,7 @@
         <postgresql.version>42.7.8</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.12.Final</netty.version>
-        <httpcomponents5.version>5.4.2</httpcomponents5.version>
+        <httpcomponents5.version>5.4.3</httpcomponents5.version>
         <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
         <spring-framework.version>6.2.17</spring-framework.version>
         <!-- Jackson patch versions: pinned via dependencyManagement (com.fasterxml.jackson); do not set jackson-bom.version here — Boot 4 used tools.jackson BOM and broke CI. -->
