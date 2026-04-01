@@ -310,7 +310,7 @@ export default function ChatbotPreview() {
 
   return (
     <main
-      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden md:h-auto md:min-h-[150vh] md:overflow-y-auto"
+      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden"
       style={{
         background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
       }}
