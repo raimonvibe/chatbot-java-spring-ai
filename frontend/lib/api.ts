@@ -7,11 +7,31 @@ export interface ApiError extends Error {
 /** Maximum length for user-facing error messages to avoid UI abuse or huge strings */
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 
+/** Allowed diagnostic scopes for client logging (prevents log injection / bogus labels). */
+const SAFE_LOG_SCOPE = /^[a-z][a-z0-9_.-]{0,79}$/i;
+
+/**
+ * Strips C0/C1 controls, DEL, and Unicode bidi embedding markers from text shown to users or summarized in logs
+ * (UI/log confusion, RTL spoofing in reflected error strings). React text nodes still benefit from single-line cleanup.
+ */
+function stripUnsafeDisplayChars(s: string): string {
+  return s
+    .replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function sanitizeErrorMessage(value: unknown): string {
   if (value == null) return '';
   const s = typeof value === 'string' ? value : String(value);
   if (s === '[object Object]') return '';
-  return s.slice(0, MAX_ERROR_MESSAGE_LENGTH).trim();
+  const clipped = s.slice(0, MAX_ERROR_MESSAGE_LENGTH).trim();
+  return stripUnsafeDisplayChars(clipped);
+}
+
+function sanitizeErrorTypeName(name: string): string {
+  if (/^[A-Za-z][A-Za-z0-9]*$/.test(name) && name.length <= 40) return name;
+  return 'Error';
 }
 
 export function isApiError(error: unknown): error is ApiError {
@@ -34,9 +54,8 @@ export function getSafeErrorMessage(error: unknown, fallback: string): string {
  */
 export function isLikelyNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  const n = error.name;
   const m = (error.message || '').trim();
-  if (n === 'AbortError') return true;
+  if (error.name === 'AbortError') return true;
   if (m === 'Failed to fetch') return true;
   if (m === 'NetworkError when attempting to fetch resource.') return true;
   if (m.includes('Load failed')) return true;
@@ -60,17 +79,18 @@ export function getUserFacingFetchError(error: unknown, fallback: string): strin
  * (avoids huge stacks in hosted consoles; never logs tokens).
  */
 export function logClientIssue(scope: string, error: unknown): void {
+  const safeScope = SAFE_LOG_SCOPE.test(scope) ? scope : 'client';
   const isDev = process.env.NODE_ENV === 'development';
   if (isDev) {
-    console.error(`[Prayer-Chat:${scope}]`, error);
+    console.error(`[Prayer-Chat:${safeScope}]`, error);
     return;
   }
   const net = isLikelyNetworkError(error);
   const label =
     error instanceof Error
-      ? `${error.name}: ${sanitizeErrorMessage(error.message).slice(0, 200)}`
+      ? `${sanitizeErrorTypeName(error.name)}: ${sanitizeErrorMessage(error.message).slice(0, 200)}`
       : 'non-Error thrown';
-  console.warn(`[Prayer-Chat:${scope}]`, net ? 'network_or_cors' : 'error', label);
+  console.warn(`[Prayer-Chat:${safeScope}]`, net ? 'network_or_cors' : 'error', label);
 }
 
 export interface Message {

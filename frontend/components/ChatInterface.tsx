@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Message from './Message';
-import { sendMessage, getQuickReplies, type Message as MessageType } from '@/lib/api';
+import { sendMessage, getQuickReplies, getUserFacingFetchError, logClientIssue, type Message as MessageType } from '@/lib/api';
 import { Send, Book } from 'lucide-react';
 import { DotLoader } from 'react-spinners';
 
@@ -27,7 +27,7 @@ export default function ChatInterface() {
     // Load quick replies
     getQuickReplies(chatbotId)
       .then(setQuickReplies)
-      .catch(console.error);
+      .catch((e) => logClientIssue('chat.quickReplies', e));
   }, []);
 
   useEffect(() => {
@@ -70,13 +70,12 @@ export default function ChatInterface() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
-      // Add error message
+      logClientIssue('chat.send', error);
+      const errorMsg = getUserFacingFetchError(error, 'Something went wrong. Please try again.');
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMsg}. Please try again.`,
+        content: `Sorry, I encountered an error: ${errorMsg}`,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, errorMessage]);

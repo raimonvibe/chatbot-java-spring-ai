@@ -3,11 +3,15 @@ import userEvent from '@testing-library/user-event'
 import ChatInterface from '../ChatInterface'
 import * as api from '@/lib/api'
 
-// Mock the API module
-jest.mock('@/lib/api', () => ({
-  sendMessage: jest.fn(),
-  getQuickReplies: jest.fn(),
-}))
+// Mock the API module (keep real helpers used by ChatInterface)
+jest.mock('@/lib/api', () => {
+  const actual = jest.requireActual<typeof import('@/lib/api')>('@/lib/api');
+  return {
+    ...actual,
+    sendMessage: jest.fn(),
+    getQuickReplies: jest.fn(),
+  };
+});
 
 const mockSendMessage = api.sendMessage as jest.MockedFunction<typeof api.sendMessage>
 const mockGetQuickReplies = api.getQuickReplies as jest.MockedFunction<typeof api.getQuickReplies>

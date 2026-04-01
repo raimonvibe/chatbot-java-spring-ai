@@ -9,11 +9,14 @@ jest.mock('react-spinners', () => ({
   ),
 }));
 
-// Mock API functions
-jest.mock('@/lib/api', () => ({
-  sendMessage: jest.fn(),
-  getQuickReplies: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@/lib/api', () => {
+  const actual = jest.requireActual<typeof import('@/lib/api')>('@/lib/api');
+  return {
+    ...actual,
+    sendMessage: jest.fn(),
+    getQuickReplies: jest.fn().mockResolvedValue([]),
+  };
+});
 
 // Mock Message component
 jest.mock('../Message', () => {

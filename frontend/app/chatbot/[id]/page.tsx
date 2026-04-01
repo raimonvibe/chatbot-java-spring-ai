@@ -12,6 +12,8 @@ import {
   previewJesusTeachings,
   logout,
   AVATAR_IDS,
+  getUserFacingFetchError,
+  logClientIssue,
   type Message as MessageType,
   type Chatbot,
   type JesusTeachingsPreviewResponse,
@@ -140,7 +142,7 @@ export default function ChatbotPreview() {
           previewJesusTeachings(chatbotId, 3)
             .then(setJesusPreview)
             .catch((err) => {
-              console.error(err);
+              logClientIssue('chatbotPreview.jesusPreview', err);
               setJesusPreviewError('Could not load Jesus teachings preview.');
             })
             .finally(() => {
@@ -149,13 +151,13 @@ export default function ChatbotPreview() {
         }
       })
       .catch((err) => {
-        console.error(err);
+        logClientIssue('chatbotPreview.load', err);
         if (!cancelled) setAnalysisLoading(false);
       });
 
     getQuickReplies(chatbotId)
       .then(setQuickReplies)
-      .catch(console.error);
+      .catch((e) => logClientIssue('chatbotPreview.quickReplies', e));
 
     return () => { cancelled = true; };
   }, [chatbotId, isValidId]);
@@ -237,12 +239,12 @@ export default function ChatbotPreview() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+      logClientIssue('chatbotPreview.send', error);
+      const errorMsg = getUserFacingFetchError(error, 'Something went wrong. Please try again.');
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMsg}. Please try again.`,
+        content: `Sorry, I encountered an error: ${errorMsg}`,
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -627,9 +629,16 @@ export default function ChatbotPreview() {
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-brown-600">
-                      Tip: some sites deny iframe embedding via security headers. Optional future upgrade: backend-generated website screenshot fallback.
-                    </div>
+                    <details className="group mt-1 rounded-lg border border-brown-200/70 bg-white/60 text-left [touch-action:manipulation]">
+                      <summary className="flex min-h-10 sm:min-h-0 cursor-pointer list-none items-center justify-between gap-2 px-2.5 sm:px-2 py-2.5 sm:py-1.5 text-xs sm:text-[11px] font-medium text-brown-700 select-none [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0 flex-1 text-pretty leading-snug">Why this mock site?</span>
+                        <ChevronDown className="h-4 w-4 sm:h-3.5 sm:w-3.5 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                      </summary>
+                      <p className="border-t border-brown-100 px-2.5 sm:px-2 py-2.5 sm:py-2 text-xs sm:text-[11px] leading-snug text-brown-600 text-pretty">
+                        The real site did not load in the frame (often due to security headers). This placeholder lets you
+                        preview widget placement and theme anyway.
+                      </p>
+                    </details>
                   </div>
                 </div>
               )}
@@ -640,7 +649,7 @@ export default function ChatbotPreview() {
                 <div className="w-full h-12 border-b border-brown-100/80 bg-white/60" />
               </div>
               {sceneMode === 'website' && websiteFrameLikelyBlocked && !websiteFrameLoaded && (
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-xs">
+                <div className="absolute top-2 left-1/2 z-20 max-w-[min(100%-1rem,20rem)] -translate-x-1/2 px-3 py-1.5 text-center text-pretty rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[11px] sm:text-xs leading-snug">
                   Website blocked iframe preview. Showing widget only.
                 </div>
               )}
@@ -788,10 +797,22 @@ export default function ChatbotPreview() {
                 </button>
               )}
             </div>
-            <p className="mt-2 text-[11px] md:text-xs text-brown-600">
-              Preview limitations: some websites block iframe embedding with security headers. In that case, website background cannot be shown,
-              but widget size/position/theme simulation remains accurate.
-            </p>
+            <details className="group mt-2 sm:mt-3 rounded-lg border border-brown-200/80 bg-brown-50/70 text-left shadow-sm open:shadow-md [touch-action:manipulation] w-full min-w-0">
+              <summary className="flex min-h-12 sm:min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 sm:px-4 py-3 sm:py-2.5 text-sm sm:text-xs font-medium text-brown-800 select-none [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 flex-1 text-pretty leading-snug pr-1">About the website background</span>
+                <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="space-y-2 border-t border-brown-200/70 px-3 sm:px-4 py-3 sm:py-2.5 text-sm sm:text-[11px] md:text-xs leading-relaxed text-brown-600">
+                <p className="text-pretty">
+                  We load your URL in a frame behind the chat widget so you can see the real layout. If nothing appears,
+                  the site is probably blocking embeds (common and intentional for security).
+                </p>
+                <p className="text-brown-600 sm:text-brown-500 text-pretty">
+                  Widget size, position, colors, and chat behavior stay true to your settings - only the live page preview may
+                  be missing.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
       </div>

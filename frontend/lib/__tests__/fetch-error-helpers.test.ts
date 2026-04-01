@@ -2,6 +2,7 @@ import {
   getUserFacingFetchError,
   isLikelyNetworkError,
   getSafeErrorMessage,
+  logClientIssue,
 } from '../api';
 
 describe('isLikelyNetworkError', () => {
@@ -38,5 +39,42 @@ describe('getUserFacingFetchError', () => {
   it('delegates to getSafeErrorMessage for other errors', () => {
     const msg = getUserFacingFetchError(new Error('Chatbot not found'), 'fallback');
     expect(msg).toBe(getSafeErrorMessage(new Error('Chatbot not found'), 'fallback'));
+  });
+});
+
+describe('getSafeErrorMessage hardening', () => {
+  it('normalizes CRLF in messages (UI / log hygiene)', () => {
+    expect(getSafeErrorMessage(new Error('a\r\nb'), 'fb')).toBe('a b');
+  });
+
+  it('removes Unicode bidi overrides from reflected messages', () => {
+    const msg = getSafeErrorMessage(new Error(`pretend\u202e`), 'fb');
+    expect(msg).not.toMatch(/\u202e/);
+    expect(msg).toContain('pretend');
+  });
+});
+
+describe('logClientIssue', () => {
+  it('falls back to scope client when label is unsafe', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    logClientIssue('bad$scope', new Error('x'));
+    expect(warn.mock.calls[0][0]).toBe('[Prayer-Chat:client]');
+    warn.mockRestore();
+  });
+
+  it('allows dotted diagnostic scopes', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    logClientIssue('dashboard.avatar.save', new Error('x'));
+    expect(warn.mock.calls[0][0]).toBe('[Prayer-Chat:dashboard.avatar.save]');
+    warn.mockRestore();
+  });
+
+  it('sanitizes error type name in production-style summary', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const e = new Error('hello');
+    e.name = 'Type<script>Error';
+    logClientIssue('chat.send', e);
+    expect(String(warn.mock.calls[0][2])).toMatch(/^Error: hello$/);
+    warn.mockRestore();
   });
 });

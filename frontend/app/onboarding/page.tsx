@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Book, Sparkles } from 'lucide-react';
+import { Book, ChevronDown, Sparkles } from 'lucide-react';
 import { createChatbotFromUrl, getAllChatbots, checkAuth } from '@/lib/api';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
@@ -106,7 +106,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-brown-50 via-gold-50/30 to-brown-50">
+    <main className="min-h-screen flex flex-col items-center justify-center p-3 sm:p-4 pb-8 sm:pb-4 bg-gradient-to-br from-brown-50 via-gold-50/30 to-brown-50">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <PaywallModal
         isOpen={showUpgradeModal}
@@ -119,18 +119,18 @@ export default function OnboardingPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 max-w-lg w-full border border-brown-200"
+        className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto border border-brown-200"
       >
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Book className="w-10 h-10 text-brown-700" strokeWidth={1.5} />
-            <Sparkles className="w-8 h-8 text-gold-600" strokeWidth={1.5} />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <Book className="w-9 h-9 sm:w-10 sm:h-10 text-brown-700 shrink-0" strokeWidth={1.5} />
+            <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-gold-600 shrink-0" strokeWidth={1.5} />
           </div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brown-700 via-brown-600 to-gold-700 mb-2 text-pretty px-1">
             Welcome to Prayer-Chat
           </h1>
-          <p className="text-brown-700 text-lg">
-            Let's create your first AI chatbot in seconds
+          <p className="text-brown-700 text-base sm:text-lg text-pretty px-1">
+            Let&apos;s create your first AI chatbot in seconds
           </p>
         </div>
 
@@ -142,12 +142,19 @@ export default function OnboardingPage() {
           onClearServerError={() => setError('')}
         />
 
-        <div className="mt-6 pt-6 border-t border-brown-200">
-          <p className="text-xs text-brown-600 text-center">
-            <Sparkles className="w-3 h-3 inline mr-1" />
-            Preview Mode: You can create up to 3 chatbots for testing
+        <details className="group mt-5 sm:mt-6 rounded-xl border border-brown-200/90 bg-brown-50/50 text-left open:bg-brown-50/70 [touch-action:manipulation]">
+          <summary className="flex min-h-12 sm:min-h-0 cursor-pointer list-none items-center justify-between gap-3 px-3 sm:px-3.5 py-3 sm:py-2.5 text-xs sm:text-sm font-medium text-brown-700 select-none [&::-webkit-details-marker]:hidden">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <Sparkles className="h-4 w-4 sm:h-3.5 sm:w-3.5 shrink-0 text-gold-600" aria-hidden />
+              <span className="text-pretty leading-snug">Plan &amp; preview limits</span>
+            </span>
+            <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-brown-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+          </summary>
+          <p className="border-t border-brown-200/80 px-3 sm:px-3.5 py-3 sm:py-2.5 text-xs sm:text-sm leading-relaxed text-brown-600 text-pretty">
+            In preview mode you can create a limited number of chatbots for testing. Upgrade when you are ready for production
+            traffic and larger site scans.
           </p>
-        </div>
+        </details>
       </motion.div>
     </main>
   );
