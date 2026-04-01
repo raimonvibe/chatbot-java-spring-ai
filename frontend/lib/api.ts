@@ -27,6 +27,52 @@ export function getSafeErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * True when the browser failed before an HTTP response (offline, tab backgrounded,
+ * Chrome ERR_NETWORK_CHANGED after Wi‑Fi/VPN switch, extensions blocking the request, CORS at network layer).
+ * Does not detect HTTP 5xx (those are not "network" in this sense).
+ */
+export function isLikelyNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const n = error.name;
+  const m = (error.message || '').trim();
+  if (n === 'AbortError') return true;
+  if (m === 'Failed to fetch') return true;
+  if (m === 'NetworkError when attempting to fetch resource.') return true;
+  if (m.includes('Load failed')) return true;
+  if (/failed to fetch/i.test(m)) return true;
+  return false;
+}
+
+/**
+ * User-facing message for API calls using fetch: explains transient network loss clearly
+ * instead of the vague "Failed to fetch" from the browser.
+ */
+export function getUserFacingFetchError(error: unknown, fallback: string): string {
+  if (isLikelyNetworkError(error)) {
+    return 'Your connection was interrupted (for example, Wi-Fi or VPN changed). Please try again.';
+  }
+  return getSafeErrorMessage(error, fallback);
+}
+
+/**
+ * Logs a client failure: full details in development, one-line summary in production
+ * (avoids huge stacks in hosted consoles; never logs tokens).
+ */
+export function logClientIssue(scope: string, error: unknown): void {
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    console.error(`[Prayer-Chat:${scope}]`, error);
+    return;
+  }
+  const net = isLikelyNetworkError(error);
+  const label =
+    error instanceof Error
+      ? `${error.name}: ${sanitizeErrorMessage(error.message).slice(0, 200)}`
+      : 'non-Error thrown';
+  console.warn(`[Prayer-Chat:${scope}]`, net ? 'network_or_cors' : 'error', label);
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';

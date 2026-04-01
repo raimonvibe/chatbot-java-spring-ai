@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -562,8 +562,8 @@ export default function Dashboard() {
                         const updated = await updateChatbot(chatbot.id, payload);
                         setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
                       } catch (err) {
-                        console.error('Failed to save avatar:', err);
-                        alert(getSafeErrorMessage(err, 'Failed to save avatar. Please try again.'));
+                        logClientIssue('dashboard.avatar.save', err);
+                        alert(getUserFacingFetchError(err, 'Failed to save avatar. Please try again.'));
                       } finally {
                         setAvatarApplyingId(null);
                       }
@@ -601,8 +601,8 @@ export default function Dashboard() {
                         const updated = await updateChatbot(chatbot.id, payload);
                         setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
                       } catch (err) {
-                        console.error('Failed to apply theme:', err);
-                        alert(getSafeErrorMessage(err, 'Failed to save theme. Please try again.'));
+                        logClientIssue('dashboard.theme.save', err);
+                        alert(getUserFacingFetchError(err, 'Failed to save theme. Please try again.'));
                       } finally {
                         setThemeApplyingId(null);
                       }
