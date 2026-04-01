@@ -34,6 +34,8 @@
     let isOpen = false;
     let sessionId = null;
     let messageHistory = [];
+    /** True while waiting for the bot response; input stays enabled, send is disabled. */
+    let waitingForBotResponse = false;
     
     // DOM elements
     let widgetContainer = null;
@@ -275,10 +277,11 @@
         // Send button
         sendButton.addEventListener('click', sendMessage);
         
-        // Input field
-        inputField.addEventListener('keypress', function(e) {
+        // Input field — Enter sends only when not waiting (user can type the next message while bot thinks)
+        inputField.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
-                sendMessage();
+                e.preventDefault();
+                if (!waitingForBotResponse) sendMessage();
             }
         });
         
@@ -352,17 +355,30 @@
     }
     
     /**
+     * Disable only the send control while the bot is responding (input stays editable).
+     */
+    function setSendWaiting(waiting) {
+        waitingForBotResponse = !!waiting;
+        if (sendButton) {
+            sendButton.disabled = waitingForBotResponse;
+            sendButton.style.opacity = waitingForBotResponse ? '0.55' : '1';
+            sendButton.style.cursor = waitingForBotResponse ? 'not-allowed' : 'pointer';
+            sendButton.setAttribute('aria-busy', waitingForBotResponse ? 'true' : 'false');
+        }
+    }
+
+    /**
      * Send message
      */
     function sendMessage() {
         const message = inputField.value.trim();
-        if (!message) return;
+        if (!message || waitingForBotResponse) return;
         
         // Add user message
         addMessage(message, 'user');
         inputField.value = '';
         
-        // Show typing indicator
+        setSendWaiting(true);
         showTypingIndicator();
         
         // Send to API
@@ -377,20 +393,21 @@
                 language: navigator.language.split('-')[0] || 'en'
             })
         })
-        .then(response => response.json())
-        .then(data => {
-            hideTypingIndicator();
-            
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
             if (data.error) {
                 addMessage('Sorry, I encountered an error. Please try again.', 'bot');
             } else {
                 addMessage(data.message, 'bot');
             }
         })
-        .catch(error => {
-            hideTypingIndicator();
+        .catch(function(error) {
             addMessage('Sorry, I\'m having trouble connecting. Please try again later.', 'bot');
             console.error('Chatbot error:', error);
+        })
+        .finally(function() {
+            hideTypingIndicator();
+            setSendWaiting(false);
         });
     }
     

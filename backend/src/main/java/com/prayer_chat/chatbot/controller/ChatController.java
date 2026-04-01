@@ -30,7 +30,22 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * REST Controller for chat interactions
+ * REST controller for chat interactions.
+ *
+ * <p><b>Message limits (server-enforced):</b>
+ * <ul>
+ *   <li>{@code POST /api/chat/{chatbotId}} — used by the in-app preview and authenticated clients. Applies
+ *       per-IP per-chatbot throttling (same bucket as below) and, when the chatbot has an owner,
+ *       {@link RateLimitingService#checkMessageLimit} using {@link com.prayer_chat.chatbot.service.BillingModeService#effectiveMessagesPerDay}.
+ *       When billing is enabled, plan quotas come from {@link com.prayer_chat.chatbot.config.PlanLimits#messagesPerDay}
+ *       (FREE = 10/day, BASIC = 100/day, …). When billing is disabled, a higher free-product ceiling applies.</li>
+ *   <li>{@code POST /api/chat/embed/{embedCode}} — same owner daily quota as above, plus an additional
+ *       {@value #EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT} messages per hour per client IP per chatbot so one visitor
+ *       cannot exhaust the site owner’s quota.</li>
+ * </ul>
+ *
+ * <p>Website scan / page caps are enforced separately in {@code ChatbotController} and crawl configuration
+ * ({@code app.website-analysis.max-pages}), not in this class.
  */
 @RestController
 @RequestMapping("/api/chat")

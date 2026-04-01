@@ -84,10 +84,10 @@ export default function ChatInterface() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (!isLoading) handleSendMessage();
     }
   };
 
@@ -167,16 +167,16 @@ export default function ChatInterface() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            disabled={isLoading}
-            className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 border-brown-300 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-white text-brown-900"
+            className="min-w-0 flex-1 px-4 py-3 rounded-xl border-2 border-brown-300 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent transition-all bg-white text-brown-900"
             whileFocus={{ scale: 1.01 }}
           />
           <motion.button
             onClick={() => handleSendMessage()}
             disabled={!input.trim() || isLoading}
             aria-label="Send message"
+            aria-busy={isLoading}
             className="flex-shrink-0 min-w-[48px] px-4 py-3 md:px-6 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

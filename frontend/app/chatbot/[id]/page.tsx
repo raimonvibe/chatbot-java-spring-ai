@@ -286,10 +286,11 @@ export default function ChatbotPreview() {
     }
   };
 
+  /** Enter sends only when not waiting for the assistant (input stays editable while thinking). */
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (!isLoading) handleSendMessage();
     }
   };
 
@@ -297,15 +298,16 @@ export default function ChatbotPreview() {
   const selectedScreenWidth = SCREEN_WIDTHS[screenPreview];
   const isMobilePreview = screenPreview === 'mobile';
 
-  /** Shorter than legacy 500px so desktop/tablet previews feel balanced; maxHeight avoids clipping the scene on short viewports. */
+  /**
+   * Desktop/tablet widget: anchor with top + bottom so height always fits the preview frame (fixed height + minHeight
+   * caused overflow when the scene was short). Align top with the fake browser chrome (h-12 = 48px).
+   */
   const desktopTabletEmbedStyle = useMemo(() => {
     const borderRadius = parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12;
     if (screenPreview === 'tablet') {
       return {
         width: 308,
-        height: 360,
-        maxHeight: 'min(360px, calc(100% - 36px))',
-        minHeight: 264,
+        top: 48,
         right: 14,
         bottom: 14,
         borderRadius,
@@ -313,9 +315,7 @@ export default function ChatbotPreview() {
     }
     return {
       width: 332,
-      height: 384,
-      maxHeight: 'min(384px, calc(100% - 40px))',
-      minHeight: 272,
+      top: 48,
       right: 18,
       bottom: 18,
       borderRadius,
@@ -371,7 +371,7 @@ export default function ChatbotPreview() {
 
   return (
     <main
-      className="h-[100dvh] min-h-[100dvh] flex flex-col overflow-hidden"
+      className="min-h-[100dvh] flex flex-col overflow-y-auto overflow-x-hidden"
       style={{
         background: `linear-gradient(135deg, ${theme.secondaryColor}22 0%, #ffffff 45%, ${theme.primaryColor}18 100%)`,
       }}
@@ -522,10 +522,10 @@ export default function ChatbotPreview() {
         </motion.div>
       )}
 
-      {/* Screen-size preview controls */}
-      <div className="w-full max-w-4xl mx-auto px-2 md:px-3 pt-2">
-        <div className="rounded-xl bg-white/70 border border-brown-200 p-1.5">
-          <div className="flex items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
+      {/* Screen-size preview controls — compact width so button rows are not stretched edge-to-edge */}
+      <div className="w-full flex justify-center px-2 md:px-3 pt-2 flex-shrink-0">
+        <div className="w-full max-w-md rounded-xl bg-white/70 border border-brown-200 p-1.5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
             {(['actual', 'fit'] as const).map((mode) => (
               <button
                 key={mode}
@@ -542,7 +542,7 @@ export default function ChatbotPreview() {
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
+          <div className="flex flex-wrap items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
             {(['plain', 'website'] as const).map((mode) => (
               <button
                 key={mode}
@@ -561,7 +561,7 @@ export default function ChatbotPreview() {
               </button>
             ))}
           </div>
-          <div className="hidden md:flex items-center justify-center gap-2">
+          <div className="hidden md:flex flex-wrap items-center justify-center gap-2">
             {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
               <button
                 key={size}
@@ -617,9 +617,15 @@ export default function ChatbotPreview() {
         </div>
       </div>
 
-      {/* Chat window: simulate real embed placement per viewport */}
-      <div className="flex-1 min-h-0 w-full p-2 md:p-3">
-        <div ref={previewScrollRef} className={`h-full w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+      {/* Chat window: minHeight keeps preview tall enough; main scrolls on very short viewports */}
+      <div
+        className="flex-1 w-full p-2 md:p-3 flex flex-col min-h-0"
+        style={{ minHeight: 'min(380px, 58dvh)' }}
+      >
+        <div
+          ref={previewScrollRef}
+          className={`flex-1 min-h-[300px] md:min-h-[360px] w-full ${previewMode === 'actual' ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+        >
           <div
             className="h-full mx-auto transition-all duration-200"
             style={
@@ -719,14 +725,12 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Slightly under half height so website/plain background stays visible; mirrors embed feel.
+                          // Top/bottom anchoring keeps the panel inside the preview frame (no overflow past rounded border).
                           left: '2.5%',
                           right: '2.5%',
+                          top: 48,
                           bottom: 'max(12px, env(safe-area-inset-bottom))',
                           width: '95%',
-                          height: '46%',
-                          maxHeight: 'min(48dvh, calc(100% - 24px))',
-                          minHeight: 196,
                           borderRadius: 16,
                         }
                       : desktopTabletEmbedStyle
@@ -805,18 +809,19 @@ export default function ChatbotPreview() {
                           type="text"
                           value={input}
                           onChange={(e) => setInput(e.target.value)}
-                          onKeyPress={handleKeyPress}
+                          onKeyDown={handleKeyPress}
                           placeholder="Type your message..."
-                          disabled={isLoading}
-                          className="min-w-0 flex-1 px-3 py-2 rounded-[20px] border focus:outline-none focus:ring-2 disabled:opacity-50 bg-white text-brown-900 placeholder:text-brown-400 text-sm"
+                          className="min-w-0 flex-1 px-3 py-2 rounded-[20px] border focus:outline-none focus:ring-2 bg-white text-brown-900 placeholder:text-brown-400 text-sm"
                           style={{ borderColor: `${theme.secondaryColor}cc` }}
                         />
                         <button
+                          type="button"
                           onClick={() => handleSendMessage()}
                           disabled={!input.trim() || isLoading}
                           className="flex-shrink-0 text-white rounded-full font-medium disabled:opacity-50 hover:shadow-lg transition-all w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center"
                           style={{ backgroundColor: theme.primaryColor }}
                           aria-label="Send message"
+                          aria-busy={isLoading}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
