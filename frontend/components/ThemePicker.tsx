@@ -55,7 +55,7 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
       <p className="text-xs text-brown-600 mb-3">
         Choose a pastel theme for your chat widget. It will apply to the embed on your website.
       </p>
-      <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {PASTEL_PRESETS.map((theme) => {
           const isSelected =
             current.primary === theme.primaryColor && current.secondary === theme.secondaryColor;
@@ -65,11 +65,11 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
               type="button"
               disabled={applying}
               onClick={() => onApply(theme)}
-              aria-label={`Theme ${theme.name}`}
-              title={theme.name}
+              aria-label={`Theme ${theme.name}, primary ${theme.primaryColor}, secondary ${theme.secondaryColor}`}
+              title={`${theme.name} — ${theme.primaryColor} / ${theme.secondaryColor}`}
               className={`
-                flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all min-w-0
-                min-h-[44px] sm:min-h-0 touch-manipulation
+                flex min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 transition-all
+                touch-manipulation sm:min-h-0
                 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:ring-offset-1
                 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
                 ${isSelected
@@ -80,11 +80,14 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
               style={{ touchAction: 'manipulation' }}
             >
               <span
-                className="w-8 h-8 rounded-full flex-shrink-0 border border-brown-200 shadow-inner"
+                className="h-8 w-8 shrink-0 rounded-full border border-brown-200 shadow-inner"
                 style={{ backgroundColor: theme.primaryColor }}
               />
-              <span className="text-[10px] sm:text-xs font-medium text-brown-700 truncate w-full text-center">
+              <span className="w-full text-center text-xs font-medium leading-snug text-pretty text-brown-800">
                 {theme.name}
+              </span>
+              <span className="w-full text-center font-mono text-[9px] leading-tight text-brown-500 sm:text-[10px]">
+                {theme.primaryColor}
               </span>
             </button>
           );

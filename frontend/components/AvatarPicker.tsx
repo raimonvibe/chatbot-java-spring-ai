@@ -26,23 +26,23 @@ export default function AvatarPicker({ currentAvatarId, onSelect, disabled }: Av
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-brown-700">Chatbot avatar</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-4">
         <button
           type="button"
           onClick={() => onSelect('')}
           disabled={disabled}
           aria-pressed={current === ''}
           aria-label="No avatar"
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 min-w-[72px] transition-colors ${
+          className={`flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-2 p-2 transition-colors ${
             current === ''
               ? 'border-brown-600 bg-brown-100 ring-2 ring-brown-400'
               : 'border-brown-200 bg-white hover:border-brown-300 hover:bg-brown-50'
           } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          <span className="w-12 h-12 rounded-full bg-brown-200 flex items-center justify-center text-brown-500 text-xs font-medium">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brown-200 text-xs font-medium text-brown-500">
             None
           </span>
-          <span className="text-xs text-brown-600">No avatar</span>
+          <span className="w-full text-center text-xs leading-snug text-pretty text-brown-600">No avatar</span>
         </button>
         {AVATAR_IDS.map((id) => (
           <button
@@ -52,7 +52,7 @@ export default function AvatarPicker({ currentAvatarId, onSelect, disabled }: Av
             disabled={disabled}
             aria-pressed={current === id}
             aria-label={AVATAR_LABELS[id] ?? `Avatar ${id}`}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 min-w-[72px] transition-colors ${
+            className={`flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-2 p-2 transition-colors ${
               current === id
                 ? 'border-brown-600 bg-brown-100 ring-2 ring-brown-400'
                 : 'border-brown-200 bg-white hover:border-brown-300 hover:bg-brown-50'
@@ -63,10 +63,10 @@ export default function AvatarPicker({ currentAvatarId, onSelect, disabled }: Av
               src={`/${id}.png`}
               alt=""
               role="presentation"
-              className="w-12 h-12 rounded-full object-cover border border-brown-200"
+              className="h-12 w-12 shrink-0 rounded-full border border-brown-200 object-cover"
             />
-            <span className="text-xs text-brown-600 max-w-[72px] truncate" title={AVATAR_LABELS[id]}>
-              {AVATAR_LABELS[id]?.replace(/ \(.*\)$/, '') ?? id}
+            <span className="w-full text-center text-[11px] leading-snug text-pretty text-brown-700 sm:text-xs">
+              {AVATAR_LABELS[id] ?? id}
             </span>
           </button>
         ))}
