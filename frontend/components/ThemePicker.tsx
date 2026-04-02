@@ -65,8 +65,10 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
               type="button"
               disabled={applying}
               onClick={() => onApply(theme)}
-              aria-label={`Theme ${theme.name}, primary ${theme.primaryColor}, secondary ${theme.secondaryColor}`}
-              title={`${theme.name} — ${theme.primaryColor} / ${theme.secondaryColor}`}
+              aria-label={
+                isSelected ? `${theme.name} theme, currently selected` : `Apply ${theme.name} theme to your chatbot`
+              }
+              title={isSelected ? `${theme.name} (selected)` : `Use ${theme.name} colors for your widget`}
               className={`
                 flex min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 transition-all
                 touch-manipulation sm:min-h-0
@@ -82,12 +84,10 @@ export default function ThemePicker({ currentBrandingConfig, onApply, applying =
               <span
                 className="h-8 w-8 shrink-0 rounded-full border border-brown-200 shadow-inner"
                 style={{ backgroundColor: theme.primaryColor }}
+                aria-hidden
               />
               <span className="w-full text-center text-xs font-medium leading-snug text-pretty text-brown-800">
                 {theme.name}
-              </span>
-              <span className="w-full text-center font-mono text-[9px] leading-tight text-brown-500 sm:text-[10px]">
-                {theme.primaryColor}
               </span>
             </button>
           );

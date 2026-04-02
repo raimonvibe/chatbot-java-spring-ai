@@ -707,15 +707,15 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Bottom sheet: insets + taller than before on phone (balance vs embed ~50dvh).
+                          // Bottom sheet: ~55% of the mock device frame so chat history is readable; rest shows site/background.
                           left: 10,
                           right: 10,
                           top: 'auto',
                           bottom: 'max(10px, env(safe-area-inset-bottom))',
                           width: 'auto',
-                          height: 'min(48dvh, max(220px, calc(0.52 * (100% - 56px))))',
+                          height: 'min(calc(100% - 56px), max(260px, 55%))',
                           maxHeight: 'calc(100% - 56px)',
-                          minHeight: 220,
+                          minHeight: 260,
                           borderRadius: 16,
                           boxSizing: 'border-box',
                         }

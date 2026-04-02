@@ -193,7 +193,7 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
       await waitFor(() => expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument());
 
-      const themeButton = screen.getByRole('button', { name: /Theme Sage/i });
+      const themeButton = screen.getByRole('button', { name: /Apply Sage theme/i });
       fireEvent.click(themeButton);
 
       await waitFor(() => {
