@@ -18,6 +18,7 @@ import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/b
 
 export default function Dashboard() {
   const router = useRouter();
+  const canDeleteChatbots = !isBillingEnabledFromEnv();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -314,6 +315,7 @@ export default function Dashboard() {
       canAddChatbot,
       isPreviewMode: subscriptionStatus?.isPreviewMode ?? true,
       onDeleteAllChatbots: handleDeleteAllChatbots,
+      canDeleteChatbots,
       portalLoading,
       showSubscriptionNav: offerPaymentUi(subscriptionStatus),
     });
@@ -329,6 +331,7 @@ export default function Dashboard() {
     subscriptionStatus?.billingEnabled,
     subscriptionStatus?.paymentActionsAvailable,
     portalLoading,
+    canDeleteChatbots,
     setNav,
   ]);
 
@@ -505,14 +508,16 @@ export default function Dashboard() {
                     <Book className="w-5 h-5 text-brown-700 flex-shrink-0" />
                     <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
                   </div>
-                  <button
-                    onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                    title="Delete chatbot"
-                    type="button"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    {canDeleteChatbots && (
+                      <button
+                        onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        title="Delete chatbot"
+                        type="button"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                 </div>
                 <p className="text-brown-700 mb-4">{chatbot.description}</p>
 

@@ -1,6 +1,8 @@
 package com.prayer_chat.chatbot;
 
 import com.prayer_chat.chatbot.config.BillingProperties;
+import com.prayer_chat.chatbot.config.ProxyHeaderProperties;
+import com.prayer_chat.chatbot.config.TurnstileProperties;
 import com.prayer_chat.chatbot.config.EnvironmentVariableConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -33,7 +35,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @version 1.0.0
  */
 @SpringBootApplication
-@EnableConfigurationProperties(BillingProperties.class)
+@EnableConfigurationProperties({ BillingProperties.class, ProxyHeaderProperties.class, TurnstileProperties.class })
 @EnableJpaRepositories(entityManagerFactoryRef = "entityManagerFactory", basePackages = "com.prayer_chat.chatbot.repository")
 @EnableRetry  // Enable Spring Retry for Spring AI retry functionality
 @EnableAsync

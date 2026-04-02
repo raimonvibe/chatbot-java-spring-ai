@@ -78,6 +78,28 @@ public class RateLimitingService {
         return new RateLimitResult(allowed, messageLimit, messagesToday.intValue(), isPreviewMode, "message",
             isPreviewMode && billingModeService.isBillingEnabled());
     }
+
+    /**
+     * Extra guardrail against multi-account abuse from the same end-user IP.
+     * <p>
+     * Enforced only when billing is disabled (free product mode).
+     */
+    @Transactional(readOnly = true)
+    public IpMessageLimitResult checkIpMessageLimit(String clientIp) {
+        int limit = billingModeService.effectiveMessagesPerIpDay();
+        if (limit == Integer.MAX_VALUE) {
+            return new IpMessageLimitResult(true, limit, 0);
+        }
+        if (clientIp == null || clientIp.isBlank()) {
+            return new IpMessageLimitResult(true, limit, 0);
+        }
+
+        Long messagesToday = messageRepository.countUserMessagesTodayByUserIp(clientIp);
+        if (messagesToday == null) messagesToday = 0L;
+
+        boolean allowed = messagesToday < limit;
+        return new IpMessageLimitResult(allowed, limit, messagesToday.intValue());
+    }
     
     /**
      * Check if user can scan a website (rate limit check)
@@ -107,7 +129,6 @@ public class RateLimitingService {
         boolean overDaily = scansInLastDay >= dailyLimit;
         boolean overMonthly = scansThisMonth >= monthlyQuota;
         boolean allowed = !overDaily && !overMonthly;
-        int effectiveLimit = overMonthly ? monthlyQuota : dailyLimit;
         int current = overMonthly ? (int) scansThisMonth : scansInLastDay.intValue();
 
         if (!allowed) {
@@ -198,6 +219,38 @@ public class RateLimitingService {
                     "Scan limit reached for your current plan (preview). Upgrade to run more scans.", limit);
             }
             return String.format("Scan limit reached. Please try again later or contact support if this persists.", limit);
+        }
+    }
+
+    /** Simple result type for end-user-IP throttles (not plan-based). */
+    public static class IpMessageLimitResult {
+        private final boolean allowed;
+        private final int limit;
+        private final int current;
+
+        public IpMessageLimitResult(boolean allowed, int limit, int current) {
+            this.allowed = allowed;
+            this.limit = limit;
+            this.current = current;
+        }
+
+        public boolean isAllowed() {
+            return allowed;
+        }
+
+        public int getLimit() {
+            return limit;
+        }
+
+        public int getCurrent() {
+            return current;
+        }
+
+        public String getErrorMessage() {
+            return String.format(
+                "Daily message limit reached for this IP (%d messages/day). Please try again tomorrow.",
+                limit
+            );
         }
     }
 }

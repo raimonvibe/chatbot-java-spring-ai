@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import com.prayer_chat.chatbot.security.ClientIpResolver;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +31,9 @@ public class AuditService {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private ClientIpResolver clientIpResolver;
 
     /**
      * Log an audit event asynchronously
@@ -121,7 +125,7 @@ public class AuditService {
 
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
-                log.setIpAddress(getClientIpAddress(request));
+                log.setIpAddress(clientIpResolver.resolveClientIp(request));
                 log.setUserAgent(request.getHeader("User-Agent"));
             }
         } catch (Exception e) {
@@ -133,20 +137,6 @@ public class AuditService {
     /**
      * Get client IP address from request, considering proxies
      */
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-
-        return request.getRemoteAddr();
-    }
-
     /**
      * Get audit logs for a user
      */

@@ -7,6 +7,8 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.TurnstileService;
+import com.prayer_chat.chatbot.security.ClientIpResolver;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
 import io.github.bucket4j.Bandwidth;
@@ -64,16 +66,22 @@ public class ChatController {
     private final ChatbotRepository chatbotRepository;
     private final RateLimitingService rateLimitingService;
     private final BillingModeService billingModeService;
+    private final ClientIpResolver clientIpResolver;
+    private final TurnstileService turnstileService;
 
     @Autowired
     public ChatController(AiChatbotService aiChatbotService,
                          ChatbotRepository chatbotRepository,
                          RateLimitingService rateLimitingService,
-                         BillingModeService billingModeService) {
+                         BillingModeService billingModeService,
+                         ClientIpResolver clientIpResolver,
+                         TurnstileService turnstileService) {
         this.aiChatbotService = aiChatbotService;
         this.chatbotRepository = chatbotRepository;
         this.rateLimitingService = rateLimitingService;
         this.billingModeService = billingModeService;
+        this.clientIpResolver = clientIpResolver;
+        this.turnstileService = turnstileService;
     }
     
     /**
@@ -104,9 +112,19 @@ public class ChatController {
                 ));
             }
             
-            // SECURITY: Per-IP per-chatbot rate limit (embed abuse prevention): one visitor cannot exhaust owner quota
+            // SECURITY: Per-IP rate limit (embed abuse prevention): multiple chatbotIds shouldn't multiply the allowance.
             String clientIp = getClientIpAddress(httpRequest);
-            String embedBucketKey = "embed:" + clientIp + ":" + chatbotId;
+            String embedBucketKey = "embed:" + clientIp;
+
+            RateLimitingService.IpMessageLimitResult ipLimit = rateLimitingService.checkIpMessageLimit(clientIp);
+            // Defensive: if RateLimitingService is mocked and returns null in tests, allow the request.
+            if (ipLimit != null && !ipLimit.isAllowed()) {
+                return ResponseEntity.status(429).body(Map.of(
+                    "error", ipLimit.getErrorMessage(),
+                    "current", ipLimit.getCurrent(),
+                    "limit", ipLimit.getLimit()
+                ));
+            }
             Bucket bucket = embedChatBuckets.computeIfAbsent(embedBucketKey, k -> Bucket.builder()
                 .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
                 .build());
@@ -257,10 +275,35 @@ public class ChatController {
                 return ResponseEntity.status(403).body(Map.of("error", "Chatbot is not active"));
             }
 
-            // SECURITY: Per-IP per-chatbot rate limit
+            // SECURITY: Per-IP rate limit (embed abuse prevention): multiple chatbotIds shouldn't multiply the allowance.
             String clientIp = getClientIpAddress(httpRequest);
             Long id = chatbot.getId();
-            String embedBucketKey = "embed:" + clientIp + ":" + id;
+            String embedBucketKey = "embed:" + clientIp;
+
+            // Optional bot protection: Turnstile verification for public embed traffic.
+            if (turnstileService != null && turnstileService.isEnabled()) {
+                String token = request != null ? request.getTurnstileToken() : null;
+                if (token == null || token.isBlank()) {
+                    token = httpRequest.getHeader("CF-Turnstile-Response");
+                }
+                TurnstileService.VerifyResult vr = turnstileService.verify(token, clientIp);
+                if (!vr.allowed()) {
+                    return ResponseEntity.status(403).body(Map.of(
+                        "error", "Bot verification required",
+                        "code", vr.reason() != null ? vr.reason() : "turnstile_failed"
+                    ));
+                }
+            }
+
+            RateLimitingService.IpMessageLimitResult ipLimit = rateLimitingService.checkIpMessageLimit(clientIp);
+            // Defensive: if RateLimitingService is mocked and returns null in tests, allow the request.
+            if (ipLimit != null && !ipLimit.isAllowed()) {
+                return ResponseEntity.status(429).body(Map.of(
+                    "error", ipLimit.getErrorMessage(),
+                    "current", ipLimit.getCurrent(),
+                    "limit", ipLimit.getLimit()
+                ));
+            }
             Bucket bucket = embedChatBuckets.computeIfAbsent(embedBucketKey, k -> Bucket.builder()
                     .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
                     .build());
@@ -398,6 +441,12 @@ public class ChatController {
                 "supportedLanguages", supportedLanguages,
                 "brandingConfig", safeBranding
             ));
+            if (turnstileService != null && turnstileService.isEnabled() && turnstileService.siteKey() != null && !turnstileService.siteKey().isBlank()) {
+                response.put("turnstileEnabled", true);
+                response.put("turnstileSiteKey", turnstileService.siteKey());
+            } else {
+                response.put("turnstileEnabled", false);
+            }
             if (safeAvatarId != null) {
                 response.put("avatar", safeAvatarId);
             }
@@ -451,16 +500,6 @@ public class ChatController {
      * Get client IP address
      */
     private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        
-        return request.getRemoteAddr();
+        return clientIpResolver.resolveClientIp(request);
     }
 }

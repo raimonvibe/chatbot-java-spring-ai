@@ -3,9 +3,11 @@ package com.prayer_chat.chatbot.controller;
 import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.security.ClientIpResolver;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.TurnstileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,13 +44,19 @@ class ChatControllerEmbedSecurityTest {
     @Mock
     private RateLimitingService rateLimitingService;
 
+    @Mock
+    private ClientIpResolver clientIpResolver;
+
+    @Mock
+    private TurnstileService turnstileService;
+
     private ChatController chatController;
 
     @BeforeEach
     void setUp() {
         BillingProperties bp = new BillingProperties();
         bp.setEnabled(true);
-        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp));
+        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp), clientIpResolver, turnstileService);
     }
 
     @Test

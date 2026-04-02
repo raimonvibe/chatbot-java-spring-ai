@@ -3,9 +3,11 @@ package com.prayer_chat.chatbot.controller;
 import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.security.ClientIpResolver;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.service.TurnstileService;
 import com.prayer_chat.chatbot.dto.ChatRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,12 @@ class ChatControllerEmbedSendSecurityTest {
     private RateLimitingService rateLimitingService;
 
     @Mock
+    private ClientIpResolver clientIpResolver;
+
+    @Mock
+    private TurnstileService turnstileService;
+
+    @Mock
     private HttpServletRequest httpRequest;
 
     private ChatController chatController;
@@ -54,7 +62,7 @@ class ChatControllerEmbedSendSecurityTest {
     void setUp() {
         BillingProperties bp = new BillingProperties();
         bp.setEnabled(true);
-        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp));
+        chatController = new ChatController(aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp), clientIpResolver, turnstileService);
     }
 
     @Test
@@ -67,10 +75,11 @@ class ChatControllerEmbedSendSecurityTest {
 
         when(chatbotRepository.findByEmbedCode("prayer-chat-bot-100")).thenReturn(java.util.Optional.of(bot));
 
-        when(httpRequest.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(httpRequest.getHeader("X-Real-IP")).thenReturn(null);
-        when(httpRequest.getRemoteAddr()).thenReturn("203.0.113.1");
         when(httpRequest.getHeader("User-Agent")).thenReturn("test-UA");
+        when(clientIpResolver.resolveClientIp(httpRequest)).thenReturn("203.0.113.1");
+
+        when(rateLimitingService.checkIpMessageLimit("203.0.113.1"))
+            .thenReturn(new RateLimitingService.IpMessageLimitResult(true, 60, 0));
 
         ChatResponse response = mock(ChatResponse.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
         when(response.getResult().getOutput().getText()).thenReturn("Prayer-Chat reply");
@@ -101,6 +110,34 @@ class ChatControllerEmbedSendSecurityTest {
         assertThat(res.getBody().get("chatbotId")).isEqualTo(100L);
         verify(chatbotRepository).findByEmbedCode("prayer-chat-bot-100");
         verify(chatbotRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("Embed send returns 429 when IP daily cap is reached")
+    void shouldReturn429WhenIpDailyCapReached() {
+        Chatbot bot = new Chatbot();
+        bot.setId(100L);
+        bot.setIsActive(true);
+
+        when(chatbotRepository.findByEmbedCode("prayer-chat-bot-100")).thenReturn(java.util.Optional.of(bot));
+        when(clientIpResolver.resolveClientIp(httpRequest)).thenReturn("203.0.113.1");
+
+        when(rateLimitingService.checkIpMessageLimit("203.0.113.1"))
+            .thenReturn(new RateLimitingService.IpMessageLimitResult(false, 60, 60));
+
+        ChatRequest request = new ChatRequest("Hello", "session_1", "en");
+        ResponseEntity<java.util.Map<String, Object>> res = chatController.sendMessageByEmbedCode(
+            "prayer-chat-bot-100",
+            request,
+            httpRequest
+        );
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(res.getBody()).isNotNull();
+        assertThat(res.getBody().get("limit")).isEqualTo(60);
+        assertThat(res.getBody().get("current")).isEqualTo(60);
+
+        verify(aiChatbotService, never()).processMessage(anyLong(), any(), any(), any(), any(), any());
     }
 
     @Test

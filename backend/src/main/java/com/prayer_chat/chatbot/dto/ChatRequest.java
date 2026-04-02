@@ -32,6 +32,13 @@ public class ChatRequest {
     )
     private String language;
 
+    /**
+     * Optional Cloudflare Turnstile token (used by the public embed widget when enabled).
+     * Kept unvalidated beyond size so Turnstile token formats can evolve.
+     */
+    @Size(max = 5000, message = "Turnstile token too long")
+    private String turnstileToken;
+
     // Constructors
     public ChatRequest() {
     }
@@ -67,12 +74,21 @@ public class ChatRequest {
         this.language = language;
     }
 
+    public String getTurnstileToken() {
+        return turnstileToken;
+    }
+
+    public void setTurnstileToken(String turnstileToken) {
+        this.turnstileToken = turnstileToken;
+    }
+
     @Override
     public String toString() {
         return "ChatRequest{" +
                 "message='" + (message != null ? message.substring(0, Math.min(50, message.length())) + "..." : null) + '\'' +
                 ", sessionId='" + sessionId + '\'' +
                 ", language='" + language + '\'' +
+                ", turnstileToken='" + (turnstileToken != null ? "[present]" : null) + '\'' +
                 '}';
     }
 }

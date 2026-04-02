@@ -97,4 +97,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            "AND m.is_user_message = true " +
            "AND m.created_at >= :since", nativeQuery = true)
     Long countUserMessagesByUserIdSince(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
+
+    /**
+     * Count user messages sent today from a specific end-user IP (across all chatbot owners).
+     * Used as an additional guardrail against multi-account abuse from the same network.
+     */
+    @Query(value = "SELECT COUNT(m.id) FROM messages m " +
+           "INNER JOIN conversations c ON m.conversation_id = c.id " +
+           "WHERE c.user_ip = :userIp " +
+           "AND m.is_user_message = true " +
+           "AND CAST(m.created_at AS DATE) = CURRENT_DATE", nativeQuery = true)
+    Long countUserMessagesTodayByUserIp(@Param("userIp") String userIp);
 }

@@ -26,7 +26,10 @@
         primaryColor: '#8B5E34',
         secondaryColor: '#E8DCC4',
         fontFamily: 'Arial, sans-serif',
-        borderRadius: '8px'
+        borderRadius: '8px',
+        // Optional Cloudflare Turnstile bot protection (server can require token for /chat/embed POST)
+        turnstileEnabled: false,
+        turnstileSiteKey: null
     };
     
     // Widget state
@@ -411,17 +414,25 @@
         setSendWaiting(true);
         showTypingIndicator();
         
-        // Send to API
-        fetch(`${config.apiUrl}/chat/embed/${encodeURIComponent(config.embedCode)}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: message,
-                sessionId: sessionId,
-                language: navigator.language.split('-')[0] || 'en'
-            })
+        // Send to API (optionally include Turnstile token when enabled)
+        Promise.resolve()
+        .then(function() {
+            if (!config.turnstileEnabled || !config.turnstileSiteKey) return null;
+            return getTurnstileToken();
+        })
+        .then(function(turnstileToken) {
+            return fetch(`${config.apiUrl}/chat/embed/${encodeURIComponent(config.embedCode)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    sessionId: sessionId,
+                    language: navigator.language.split('-')[0] || 'en',
+                    turnstileToken: turnstileToken || null
+                })
+            });
         })
         .then(function(response) { return response.json(); })
         .then(function(data) {
@@ -527,6 +538,13 @@
                     var titleEl = widgetContainer.querySelector('#prayer-chat-widget-title');
                     if (titleEl) titleEl.textContent = data.name;
                 }
+                // Turnstile (optional)
+                if (typeof data.turnstileEnabled === 'boolean') {
+                    config.turnstileEnabled = data.turnstileEnabled;
+                }
+                if (data.turnstileSiteKey) {
+                    config.turnstileSiteKey = data.turnstileSiteKey;
+                }
                 // Avatar: only allow ids 1-6 (server already validates; defense in depth)
                 var allowedAvatarIds = ['1', '2', '3', '4', '5', '6'];
                 var avatarId = data.avatar && allowedAvatarIds.indexOf(String(data.avatar)) !== -1 ? String(data.avatar) : null;
@@ -569,6 +587,57 @@
             .catch(error => {
                 console.error('Error loading chatbot config:', error);
             });
+    }
+
+    /**
+     * Ensure Turnstile JS is loaded and return a token (invisible).
+     * If Turnstile fails, return null (server may then reject with 403).
+     */
+    function getTurnstileToken() {
+        return new Promise(function(resolve) {
+            try {
+                if (!config.turnstileSiteKey) return resolve(null);
+                ensureTurnstileScript(function(ok) {
+                    if (!ok || !window.turnstile || !window.turnstile.execute) return resolve(null);
+                    try {
+                        // Use an implicit widget: execute returns a promise-like in some builds; callback is most compatible.
+                        window.turnstile.execute(config.turnstileSiteKey, { action: 'chat' })
+                            .then(function(token) { resolve(token || null); })
+                            .catch(function() { resolve(null); });
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    function ensureTurnstileScript(cb) {
+        try {
+            if (window.turnstile) return cb(true);
+            if (document.getElementById('prayer-chat-turnstile')) {
+                // Script is loading; wait briefly.
+                var tries = 0;
+                var t = setInterval(function() {
+                    tries++;
+                    if (window.turnstile) { clearInterval(t); cb(true); }
+                    else if (tries > 30) { clearInterval(t); cb(false); }
+                }, 100);
+                return;
+            }
+            var s = document.createElement('script');
+            s.id = 'prayer-chat-turnstile';
+            s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+            s.async = true;
+            s.defer = true;
+            s.onload = function() { cb(!!window.turnstile); };
+            s.onerror = function() { cb(false); };
+            document.head.appendChild(s);
+        } catch (e) {
+            cb(false);
+        }
     }
     
     /**

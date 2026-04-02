@@ -227,7 +227,7 @@ export default function Header() {
                     <LogOut className="w-4 h-4 flex-shrink-0" />
                     Logout
                   </button>
-                  {nav.hasChatbots && nav.isPreviewMode && (
+                  {nav.hasChatbots && nav.isPreviewMode && nav.canDeleteChatbots && (
                     <button
                       type="button"
                       onClick={() => {

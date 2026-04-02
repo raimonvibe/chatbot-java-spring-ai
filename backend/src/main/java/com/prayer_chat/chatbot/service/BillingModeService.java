@@ -26,6 +26,11 @@ public class BillingModeService {
      * These are server-enforced via {@code RateLimitingService} and must match what you display in the pricing UI.
      */
     private static final int FREE_PRODUCT_MESSAGES_PER_DAY = 30;
+    /**
+     * Additional guardrail to reduce multi-account abuse from the same IP/network.
+     * This is only enforced when billing is disabled (Stripe off / preview/free product).
+     */
+    private static final int FREE_PRODUCT_MESSAGES_PER_IP_PER_DAY = 60;
     private static final int FREE_PRODUCT_MONTHLY_SCAN_QUOTA = 3;
     private static final int FREE_PRODUCT_DAILY_SCAN_LIMIT = 3;
 
@@ -56,6 +61,17 @@ public class BillingModeService {
             return FREE_PRODUCT_MESSAGES_PER_DAY;
         }
         return PlanLimits.messagesPerDay(plan);
+    }
+
+    /**
+     * End-user-IP message cap (free product only).
+     * When billing is enabled we rely on user-level quotas plus stronger infrastructure limits.
+     */
+    public int effectiveMessagesPerIpDay() {
+        if (!isBillingEnabled()) {
+            return FREE_PRODUCT_MESSAGES_PER_IP_PER_DAY;
+        }
+        return Integer.MAX_VALUE;
     }
 
     public int effectiveDailyScanLimit(Subscription.SubscriptionPlan plan) {

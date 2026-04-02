@@ -200,6 +200,14 @@ app:
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry
   security:
     alert-webhook-url: ${SECURITY_ALERT_WEBHOOK_URL:}
+    # Forwarded headers (X-Forwarded-For / X-Real-IP) hardening.
+    # Only trust these headers when the immediate sender (remoteAddr) is a known proxy IP range.
+    # If you deploy behind a CDN/load balancer, set:
+    # - APP_TRUST_FORWARDED_HEADERS=true
+    # - APP_TRUSTED_PROXIES=<comma-separated CIDRs>
+    proxy:
+      trust-forwarded-headers: ${APP_TRUST_FORWARDED_HEADERS:false}
+      trusted-proxies: ${APP_TRUSTED_PROXIES:}
   
   # Chatbot settings
   chatbot:
@@ -245,6 +253,13 @@ app:
     dimensions: 1024
     batch-size: 100
     cache-enabled: true
+
+  # Cloudflare Turnstile bot protection for the public embed widget chat endpoint.
+  # When enabled, the widget must send a Turnstile token with chat requests.
+  turnstile:
+    enabled: ${APP_TURNSTILE_ENABLED:false}
+    site-key: ${APP_TURNSTILE_SITE_KEY:}
+    secret-key: ${APP_TURNSTILE_SECRET_KEY:}
 
 # =============================================================================
 # SECURITY CONFIGURATION

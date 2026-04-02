@@ -276,6 +276,7 @@ export default function ChatbotPreview() {
       canAddChatbot: true,
       isPreviewMode: false,
       onDeleteAllChatbots: () => {},
+      canDeleteChatbots: false,
       portalLoading: false,
       showSubscriptionNav,
     });

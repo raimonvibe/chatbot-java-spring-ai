@@ -580,6 +580,12 @@ public class ChatbotController {
     public ResponseEntity<Void> deleteChatbot(@PathVariable Long id,
                                               @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            // Production guardrail: when billing is enabled, disable deletion completely.
+            // Rationale: deleting chatbots can reset usage counters (messages/conversations),
+            // which would undermine cost/abuse limits.
+            if (billingModeService.isBillingEnabled()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
@@ -613,6 +619,12 @@ public class ChatbotController {
     public ResponseEntity<Map<String, Object>> deleteAllChatbots(
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            // Production guardrail: when billing is enabled, disable bulk deletion completely.
+            if (billingModeService.isBillingEnabled()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Chatbot deletion is disabled in production."
+                ));
+            }
             User user = currentUser.getUser();
             
             // Only allow bulk delete for preview mode users (safety measure)

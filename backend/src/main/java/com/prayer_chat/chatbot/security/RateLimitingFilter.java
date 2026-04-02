@@ -39,6 +39,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Autowired(required = false)
     private SecurityAlertService securityAlertService;
 
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
     // Rate limits per minute
     private static final int CHAT_LIMIT = 20; // Chat endpoints: 20 requests per minute
     private static final int API_LIMIT = 60;  // Other API endpoints: 60 requests per minute
@@ -143,16 +146,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
      * Get client IP address (handles proxies)
      */
     private String getClientIp(HttpServletRequest request) {
+        if (clientIpResolver != null) {
+            return clientIpResolver.resolveClientIp(request);
+        }
+        // Fallback (mainly for unit tests that construct the filter without Spring wiring)
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
             return xForwardedFor.split(",")[0].trim();
         }
-
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
-
         return request.getRemoteAddr();
     }
 }
