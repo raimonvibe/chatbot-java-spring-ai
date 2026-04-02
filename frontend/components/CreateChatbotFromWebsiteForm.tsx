@@ -62,12 +62,6 @@ export default function CreateChatbotFromWebsiteForm({
           autoComplete="url"
           required
         />
-
-        {preview.ok && preview.displayHref && !showExpandedPreview && (
-          <p className="mt-2 text-xs text-brown-600 truncate" title={preview.displayHref}>
-            Using: <span className="font-mono">{preview.displayHref}</span>
-          </p>
-        )}
       </div>
 
       {showExpandedPreview && preview.displayHref && (
