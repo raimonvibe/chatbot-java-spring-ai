@@ -26,8 +26,8 @@ type PlanKey = 'BASIC' | 'PRO' | 'ENTERPRISE';
  * When billing is off, the FREE card shows these display values — they match
  * backend BillingModeService effective limits (messages/day, monthly scans).
  */
-const FREE_ROLLOUT_MESSAGES_PER_DAY = 2000;
-const FREE_ROLLOUT_SCANS_PER_MONTH = 100;
+const FREE_ROLLOUT_MESSAGES_PER_DAY = 30;
+const FREE_ROLLOUT_SCANS_PER_MONTH = 3;
 
 // One chatbot per user; plan tier = website size (max pages). Aligned with backend PlanLimits.
 // Full set kept for when app.billing.enabled is true; UI may filter to FREE only for a simpler page.

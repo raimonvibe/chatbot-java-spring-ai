@@ -42,8 +42,16 @@ public class PlanLimitsController {
         Stream.of(Subscription.SubscriptionPlan.values()).forEach(plan -> {
             Map<String, Object> p = new LinkedHashMap<>();
             p.put("maxPagesPerScan", PlanLimits.maxPagesPerScan(plan));
-            p.put("monthlyScanQuota", PlanLimits.monthlyScanQuota(plan));
-            p.put("messagesPerDay", PlanLimits.messagesPerDay(plan));
+            // When billing is disabled, the FREE card is a "free product" and should reflect the
+            // same server-enforced quotas as BillingModeService.
+            boolean billingEnabled = billingProperties.isEnabled();
+            if (!billingEnabled && plan == Subscription.SubscriptionPlan.FREE) {
+                p.put("monthlyScanQuota", 3);
+                p.put("messagesPerDay", 30);
+            } else {
+                p.put("monthlyScanQuota", PlanLimits.monthlyScanQuota(plan));
+                p.put("messagesPerDay", PlanLimits.messagesPerDay(plan));
+            }
             p.put("maxChatbots", PlanLimits.maxChatbots(plan));
             plans.put(plan.name(), p);
         });

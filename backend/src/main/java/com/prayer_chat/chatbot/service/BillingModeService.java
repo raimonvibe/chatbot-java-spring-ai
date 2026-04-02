@@ -21,6 +21,13 @@ public class BillingModeService {
 
     /** Monthly AI/crawl cost ceiling when billing is off (protects against runaway API bills). */
     private static final BigDecimal FREE_PRODUCT_MONTHLY_COST_CAP_USD = new BigDecimal("2500.00");
+    /**
+     * Free-product caps (Stripe billing disabled).
+     * These are server-enforced via {@code RateLimitingService} and must match what you display in the pricing UI.
+     */
+    private static final int FREE_PRODUCT_MESSAGES_PER_DAY = 30;
+    private static final int FREE_PRODUCT_MONTHLY_SCAN_QUOTA = 3;
+    private static final int FREE_PRODUCT_DAILY_SCAN_LIMIT = 3;
 
     public BillingModeService(BillingProperties billingProperties) {
         this.billingProperties = billingProperties;
@@ -39,21 +46,21 @@ public class BillingModeService {
 
     public int effectiveMonthlyScanQuota(Subscription.SubscriptionPlan plan) {
         if (!isBillingEnabled()) {
-            return 100;
+            return FREE_PRODUCT_MONTHLY_SCAN_QUOTA;
         }
         return PlanLimits.monthlyScanQuota(plan);
     }
 
     public int effectiveMessagesPerDay(Subscription.SubscriptionPlan plan) {
         if (!isBillingEnabled()) {
-            return 2000;
+            return FREE_PRODUCT_MESSAGES_PER_DAY;
         }
         return PlanLimits.messagesPerDay(plan);
     }
 
     public int effectiveDailyScanLimit(Subscription.SubscriptionPlan plan) {
         if (!isBillingEnabled()) {
-            return 50;
+            return FREE_PRODUCT_DAILY_SCAN_LIMIT;
         }
         return PlanLimits.dailyScanLimit(plan);
     }
