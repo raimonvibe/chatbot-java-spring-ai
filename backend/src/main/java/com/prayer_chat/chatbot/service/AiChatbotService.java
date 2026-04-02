@@ -256,65 +256,117 @@ public class AiChatbotService {
         }
     }
     
+    private static final int VECTOR_SEARCH_TOP_K = 48;
+    private static final int VECTOR_MATCHES_MAX = 10;
+    private static final int DB_SNAPSHOT_PAGES = 8;
+    private static final int MERGED_CONTEXT_DOCS_MAX = 14;
+    private static final int DB_SNIPPET_MAX_CHARS = 3500;
+
+    private static String contextDedupeKey(Document d) {
+        Object url = d.getMetadata() != null ? d.getMetadata().get("url") : null;
+        if (url != null && !url.toString().isBlank()) {
+            String u = url.toString().trim();
+            if (u.endsWith("/")) {
+                u = u.length() > 1 ? u.substring(0, u.length() - 1) : u;
+            }
+            return "u:" + u;
+        }
+        String t = d.getText();
+        if (t == null || t.isBlank()) {
+            return "e:" + System.identityHashCode(d);
+        }
+        return "t:" + t.substring(0, Math.min(120, t.length()));
+    }
+
+    private static boolean metadataMatchesChatbot(Document d, Long chatbotId) {
+        if (d.getMetadata() == null || chatbotId == null) {
+            return false;
+        }
+        Object v = d.getMetadata().get("chatbotId");
+        if (v == null) {
+            return false;
+        }
+        return chatbotId.toString().equals(String.valueOf(v));
+    }
+
     /**
-     * Retrieve relevant context from vector store for this chatbot only.
-     * Uses metadata filter so results are always from the scanned website.
-     * If vector search returns nothing, falls back to first pages of stored website content.
+     * Stored pages from DB as {@link Document}s (always available after crawl, even if vector indexing lags).
+     */
+    private List<Document> documentsFromWebsiteTable(Chatbot chatbot, int limit) {
+        List<WebsiteContent> rows = websiteContentRepository.findByChatbot(chatbot).stream()
+            .sorted(Comparator.comparing(WebsiteContent::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+            .limit(limit)
+            .collect(Collectors.toList());
+        List<Document> out = new ArrayList<>();
+        for (WebsiteContent c : rows) {
+            String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
+            if (text.trim().length() < 8) {
+                continue;
+            }
+            if (text.length() > DB_SNIPPET_MAX_CHARS) {
+                text = text.substring(0, DB_SNIPPET_MAX_CHARS) + "...";
+            }
+            out.add(new Document(text, Map.of(
+                "chatbotId", chatbot.getId().toString(),
+                "url", c.getUrl() != null ? c.getUrl() : "",
+                "title", c.getTitle() != null ? c.getTitle() : ""
+            )));
+        }
+        return out;
+    }
+
+    /**
+     * Hybrid context: stored website pages (broad coverage for "about this site") plus vector matches (query-specific).
+     * Vector hits are post-filtered by {@code chatbotId} in-process so tenant isolation does not depend on store filter syntax.
      */
     private List<Document> retrieveRelevantContext(Chatbot chatbot, String userMessage) {
+        String wantId = chatbot.getId() != null ? chatbot.getId().toString() : "";
+        List<Document> fromDb = documentsFromWebsiteTable(chatbot, DB_SNAPSHOT_PAGES);
+
+        List<Document> fromVector = new ArrayList<>();
         try {
-            // Search only this chatbot's documents (chatbotId filter)
             SearchRequest request = SearchRequest.builder()
                 .query(userMessage)
-                .topK(15)
+                .topK(VECTOR_SEARCH_TOP_K)
                 .similarityThresholdAll()
-                .filterExpression("chatbotId == '" + chatbot.getId() + "'")
                 .build();
-            List<Document> documents = vectorStore.similaritySearch(request);
-
-            if (!documents.isEmpty()) {
-                return documents.stream().limit(10).collect(Collectors.toList());
-            }
-
-            // Fallback: for generic queries ("tell me about this site") vector search may miss.
-            // Load first pages of website content so the chatbot always has site-specific context.
-            List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot).stream()
-                .limit(5)
+            List<Document> raw = vectorStore.similaritySearch(request);
+            fromVector = raw.stream()
+                .filter(d -> metadataMatchesChatbot(d, chatbot.getId()))
+                .limit(VECTOR_MATCHES_MAX)
                 .collect(Collectors.toList());
-            if (contents.isEmpty()) {
-                logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", chatbot.getId());
-                return new ArrayList<>();
-            }
-            List<Document> fallbackDocs = new ArrayList<>();
-            for (WebsiteContent c : contents) {
-                String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
-                if (text.length() > 3000) {
-                    text = text.substring(0, 3000) + "...";
-                }
-                fallbackDocs.add(new Document(text, Map.of(
-                    "chatbotId", chatbot.getId().toString(),
-                    "url", c.getUrl() != null ? c.getUrl() : "",
-                    "title", c.getTitle() != null ? c.getTitle() : ""
-                )));
-            }
-            logger.debug("Using {} fallback website content chunks for chatbot {}", fallbackDocs.size(), chatbot.getId());
-            return fallbackDocs;
         } catch (Exception e) {
-            logger.warn("Failed to retrieve context from vector store", e);
-            // Try fallback on error too
-            List<WebsiteContent> contents = websiteContentRepository.findByChatbot(chatbot).stream().limit(5).collect(Collectors.toList());
-            if (contents.isEmpty()) {
-                logger.debug("Fallback: no website content for chatbot {} after vector store error", chatbot.getId());
-                return new ArrayList<>();
-            }
-            List<Document> fallbackDocs = new ArrayList<>();
-            for (WebsiteContent c : contents) {
-                String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
-                if (text.length() > 3000) text = text.substring(0, 3000) + "...";
-                fallbackDocs.add(new Document(text, Map.of("chatbotId", chatbot.getId().toString(), "url", c.getUrl() != null ? c.getUrl() : "", "title", c.getTitle() != null ? c.getTitle() : "")));
-            }
-            return fallbackDocs;
+            logger.warn("Vector similarity search failed for chatbot {}: {}", wantId, e.getMessage());
         }
+
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<Document> merged = new ArrayList<>();
+        for (Document d : fromDb) {
+            if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
+                break;
+            }
+            String key = contextDedupeKey(d);
+            if (seen.add(key)) {
+                merged.add(d);
+            }
+        }
+        for (Document d : fromVector) {
+            if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
+                break;
+            }
+            String key = contextDedupeKey(d);
+            if (seen.add(key)) {
+                merged.add(d);
+            }
+        }
+
+        if (!fromDb.isEmpty() || !fromVector.isEmpty()) {
+            logger.debug("Context for chatbot {}: {} DB page(s), {} vector hit(s), {} merged doc(s)",
+                wantId, fromDb.size(), fromVector.size(), merged.size());
+        } else {
+            logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
+        }
+        return merged;
     }
     
     /**
@@ -499,19 +551,12 @@ public class AiChatbotService {
                 prompt.append("Do not claim the site has no purpose—just that your view of it is limited. Keep the tone friendly and helpful.\n");
             }
         } else {
-            // No content yet (analysis may still be running or failed). Apply to any website—do not invent info.
+            // No crawl/DB text yet (analysis still running, failed, or only empty pages saved). Never invent site facts.
             prompt.append("\n--- No website content is available yet ---\n");
-            prompt.append("The scanned website content for this chatbot is not available yet (analysis may still be running or the site could not be crawled). ");
-            prompt.append("Do NOT invent or guess information about the site. ");
-            if (websiteUrl.contains(".vercel.app")) {
-                prompt.append("The chatbot's website URL is a Vercel deployment. For Vercel sites, crawlers often get no content (e.g. preview URLs return 401, or the page is a client-rendered app with little crawlable text). ");
-                prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), explain clearly: no pages could be extracted from this site. ");
-                prompt.append("Suggest they ask the chatbot owner to use the production URL (e.g. https://project-name.vercel.app) or a custom domain in the chatbot settings, then run 'Analyze website' again. ");
-                prompt.append("Do not say to 'try again in a few minutes'—that will not fix a Vercel crawling issue.\n");
-            } else {
-                prompt.append("If the user asks about the site (e.g. 'tell me about this site', 'what is this website'), reply that the website content is still being analyzed and they can try again in a minute or two. ");
-                prompt.append("For other questions, answer helpfully but do not claim specific facts about the site.\n");
-            }
+            prompt.append("There is no stored page text for this chatbot yet (analysis may still be running, or the crawler found no usable text). ");
+            prompt.append("Do NOT invent or guess information about the business or website. ");
+            prompt.append("If the user asks what this site is about, say you do not have the page content yet and suggest trying again after analysis finishes, or contacting the site owner. ");
+            prompt.append("For other questions, answer helpfully without claiming specific facts about this site.\n");
         }
 
         prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");
