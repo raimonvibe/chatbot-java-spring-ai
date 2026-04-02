@@ -22,9 +22,10 @@ import {
   type AnalysisStatus,
 } from '@/lib/api';
 import Link from 'next/link';
-import { BookOpen, ChevronDown, ChevronUp, Menu, MessageCircle } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
+import { useChatbotPreviewControlsRegistration } from '@/context/ChatbotPreviewControlsContext';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 
 /** Validates and parses chatbot ID from URL. Returns a positive integer or null if invalid (no API calls with bad ID). */
@@ -90,6 +91,7 @@ export default function ChatbotPreview() {
   const chatbotId = useMemo(() => parseChatbotId(params?.id), [params?.id]);
   const isValidId = chatbotId !== null;
   const setNav = useSetDashboardNav();
+  const { setControls: setPreviewToolbarControls } = useChatbotPreviewControlsRegistration();
 
   const [chatbot, setChatbot] = useState<Chatbot | null>(null);
   const [messages, setMessages] = useState<MessageType[]>([]);
@@ -108,7 +110,6 @@ export default function ChatbotPreview() {
   const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('actual');
   const [sceneMode, setSceneMode] = useState<'plain' | 'website'>('plain');
   const [isWidgetOpen, setIsWidgetOpen] = useState(true);
-  const [showScreenMenu, setShowScreenMenu] = useState(false);
   const [websiteFrameLoaded, setWebsiteFrameLoaded] = useState(false);
   const [websiteFrameLikelyBlocked, setWebsiteFrameLikelyBlocked] = useState(false);
   /** After hardening (safe URL only), default was plain; users expect website + widget on first open when URL exists. */
@@ -364,6 +365,39 @@ export default function ChatbotPreview() {
   const websitePreviewUrl = getSafeWebsitePreviewUrl(chatbot?.websiteUrl);
 
   useEffect(() => {
+    if (!isValidId || chatbotId === null) {
+      setPreviewToolbarControls(null);
+      return;
+    }
+    if (analysisLoading || !chatbot) {
+      setPreviewToolbarControls(null);
+      return;
+    }
+    setPreviewToolbarControls({
+      theme: { primaryColor: theme.primaryColor },
+      previewMode,
+      setPreviewMode,
+      sceneMode,
+      setSceneMode,
+      screenPreview,
+      setScreenPreview,
+      websitePreviewUrl,
+    });
+    return () => setPreviewToolbarControls(null);
+  }, [
+    isValidId,
+    chatbotId,
+    analysisLoading,
+    chatbot,
+    theme.primaryColor,
+    previewMode,
+    sceneMode,
+    screenPreview,
+    websitePreviewUrl,
+    setPreviewToolbarControls,
+  ]);
+
+  useEffect(() => {
     if (sceneMode !== 'website') return;
     setWebsiteFrameLoaded(false);
     setWebsiteFrameLikelyBlocked(false);
@@ -561,111 +595,18 @@ export default function ChatbotPreview() {
         </motion.div>
       )}
 
-      {/* Screen-size preview controls — full width on small screens, capped on larger */}
-      <div className="flex w-full flex-shrink-0 justify-center px-2 sm:px-3 md:px-3 pt-2">
-        <div className="w-full max-w-full rounded-xl border border-brown-200 bg-white/70 p-1.5 shadow-sm sm:max-w-md">
-          <div className="flex flex-wrap items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
-            {(['actual', 'fit'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setPreviewMode(mode)}
-                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
-                style={{
-                  backgroundColor: previewMode === mode ? theme.primaryColor : '#ffffff',
-                  color: previewMode === mode ? '#ffffff' : '#5b4634',
-                  borderColor: previewMode === mode ? theme.primaryColor : '#e8d9c9',
-                }}
-              >
-                {mode === 'fit' ? 'Fit to screen' : 'Actual size'}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 pb-1.5 mb-1.5 border-b border-brown-200/80">
-            {(['plain', 'website'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setSceneMode(mode)}
-                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
-                style={{
-                  backgroundColor: sceneMode === mode ? theme.primaryColor : '#ffffff',
-                  color: sceneMode === mode ? '#ffffff' : '#5b4634',
-                  borderColor: sceneMode === mode ? theme.primaryColor : '#e8d9c9',
-                }}
-                disabled={mode === 'website' && !websitePreviewUrl}
-                title={mode === 'website' && !websitePreviewUrl ? 'No safe website URL on this chatbot' : undefined}
-              >
-                {mode === 'plain' ? 'Plain background' : 'Website background'}
-              </button>
-            ))}
-          </div>
-          <div className="hidden md:flex flex-wrap items-center justify-center gap-2">
-            {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => setScreenPreview(size)}
-                className="px-3 py-1.5 text-xs md:text-sm rounded-lg border transition-colors"
-                style={{
-                  backgroundColor: screenPreview === size ? theme.primaryColor : '#ffffff',
-                  color: screenPreview === size ? '#ffffff' : '#5b4634',
-                  borderColor: screenPreview === size ? theme.primaryColor : '#e8d9c9',
-                }}
-              >
-                {size === 'desktop' ? 'Desktop' : size === 'tablet' ? 'Tablet' : 'Mobile'}
-              </button>
-            ))}
-          </div>
-          <div className="md:hidden relative">
-            <button
-              type="button"
-              onClick={() => setShowScreenMenu((v) => !v)}
-              className="w-full px-3 py-2 text-sm rounded-lg border bg-white text-brown-800 border-brown-200 flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <Menu className="w-4 h-4" />
-                Screen size: {screenPreview === 'desktop' ? 'Desktop' : screenPreview === 'tablet' ? 'Tablet' : 'Mobile'}
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showScreenMenu ? 'rotate-180' : ''}`} />
-            </button>
-            {showScreenMenu && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-brown-200 bg-white shadow-lg p-1">
-                {(['desktop', 'tablet', 'mobile'] as const).map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => {
-                      setScreenPreview(size);
-                      setShowScreenMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-brown-50"
-                    style={{ color: screenPreview === size ? theme.primaryColor : '#5b4634' }}
-                  >
-                    {size === 'desktop' ? 'Desktop' : size === 'tablet' ? 'Tablet' : 'Mobile'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <p className="mt-1 px-1 text-[11px] leading-snug text-brown-600 md:hidden">
-            {previewMode === 'actual'
-              ? 'For desktop/tablet frames on a phone, swipe sideways in the preview area.'
-              : 'Fit mode scales the preview to your screen width.'}
-          </p>
-        </div>
-      </div>
+      {/* Preview layout controls live in the sticky app header (Layout button). */}
 
-      {/* Tall preview canvas so website background + bottom-right widget are clearly visible (~2× prior typical height) */}
-      <div className="flex min-h-[min(72dvh,560px)] w-full max-w-[100vw] flex-1 flex-col px-1.5 py-2 sm:min-h-[72dvh] sm:px-2 md:min-h-[min(88dvh,920px)] md:p-3">
+      {/* Preview canvas: taller min-heights on phones so the device frame fills more of the screen */}
+      <div className="flex min-h-[min(80dvh,680px)] w-full max-w-[100vw] flex-1 flex-col px-1.5 py-2 sm:min-h-[72dvh] sm:px-2 md:min-h-[min(88dvh,920px)] md:p-3">
         <div
           ref={previewScrollRef}
-          className={`flex min-h-[min(68dvh,520px)] w-full min-w-0 flex-1 flex-col sm:min-h-[70dvh] md:min-h-[min(86dvh,880px)] ${
+          className={`flex min-h-[min(78dvh,640px)] w-full min-w-0 flex-1 flex-col sm:min-h-[70dvh] md:min-h-[min(86dvh,880px)] ${
             previewMode === 'actual' ? 'touch-pan-x overflow-x-auto overscroll-x-contain' : 'overflow-x-hidden'
           }`}
         >
           <div
-            className="mx-auto flex min-h-[min(66dvh,480px)] min-w-0 flex-1 flex-col transition-all duration-200 sm:min-h-[68dvh] md:min-h-[min(84dvh,860px)]"
+            className="mx-auto flex min-h-[min(76dvh,600px)] min-w-0 flex-1 flex-col transition-all duration-200 sm:min-h-[68dvh] md:min-h-[min(84dvh,860px)]"
             style={
               previewMode === 'actual'
                 ? { width: `${selectedScreenWidth}px`, minWidth: `${selectedScreenWidth}px` }
@@ -674,7 +615,7 @@ export default function ChatbotPreview() {
           >
             <div
               data-testid="preview-device-frame"
-              className="relative isolate flex min-h-[min(66dvh,480px)] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 sm:min-h-[68dvh] md:min-h-[min(82dvh,840px)]"
+              className="relative isolate flex min-h-[min(76dvh,600px)] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 sm:min-h-[68dvh] md:min-h-[min(82dvh,840px)]"
             >
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
@@ -766,16 +707,15 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Bottom sheet: side insets + height capped vs frame and dvh so the messages area
-                          // does not stretch to ~80% of the preview (embed uses 50dvh on real sites; here we bias shorter).
+                          // Bottom sheet: insets + taller than before on phone (balance vs embed ~50dvh).
                           left: 10,
                           right: 10,
                           top: 'auto',
                           bottom: 'max(10px, env(safe-area-inset-bottom))',
                           width: 'auto',
-                          height: 'min(38dvh, max(196px, calc(0.38 * (100% - 56px))))',
+                          height: 'min(48dvh, max(220px, calc(0.52 * (100% - 56px))))',
                           maxHeight: 'calc(100% - 56px)',
-                          minHeight: 196,
+                          minHeight: 220,
                           borderRadius: 16,
                           boxSizing: 'border-box',
                         }
@@ -784,7 +724,9 @@ export default function ChatbotPreview() {
                 >
                   <div className="h-full flex flex-col overflow-hidden">
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
-                      <div className="min-w-0 flex-1 font-semibold truncate">{chatbot?.name ?? 'AI Assistant'}</div>
+                      <div className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-pretty line-clamp-2 sm:text-base sm:leading-normal md:line-clamp-none md:truncate">
+                        {chatbot?.name ?? 'AI Assistant'}
+                      </div>
                       {/* Same behavior as embed #prayer-chat-close-btn → collapse to launcher; chevron reads as “minimize” */}
                       <button
                         type="button"

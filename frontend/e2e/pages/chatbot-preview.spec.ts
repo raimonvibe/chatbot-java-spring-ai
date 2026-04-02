@@ -183,15 +183,15 @@ test.describe('Chatbot Preview Page', () => {
     await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
-    const sendButton = page.getByRole('button', { name: /send/i });
+    const sendButton = page.getByRole('button', { name: 'Send message' });
+    await expect(sendButton).toBeVisible();
+    // Empty input: send stays disabled (no accidental submit via click).
+    await expect(sendButton).toBeDisabled();
 
-    if (await sendButton.isVisible()) {
-      // Try to send without typing
-      await sendButton.click();
-      await page.waitForTimeout(500);
-
-      // Should not send or show validation
-    }
+    const chatInput = page.getByPlaceholder('Type your message...');
+    await chatInput.press('Enter');
+    await page.waitForTimeout(300);
+    await expect(sendButton).toBeDisabled();
 
     await expect(page.locator('body')).toBeVisible();
   });
@@ -376,9 +376,12 @@ test.describe('Chatbot Preview Page', () => {
     await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
-    // Open mobile screen-size menu and choose Mobile (exact name — trigger is “Screen size: Mobile”).
-    await page.getByRole('button', { name: /Screen size:/i }).click();
-    await page.getByRole('button', { name: 'Mobile', exact: true }).click();
+    // Header → Preview layout dropdown → Mobile device frame
+    await page.getByTestId('preview-layout-trigger').click();
+    await page
+      .getByRole('dialog', { name: 'Preview layout options' })
+      .getByRole('button', { name: 'Mobile', exact: true })
+      .click();
 
     const panel = page.getByTestId('preview-widget-panel');
     const frame = page.getByTestId('preview-device-frame');

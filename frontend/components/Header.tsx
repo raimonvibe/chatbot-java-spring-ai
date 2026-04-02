@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu, BookOpen } from 'lucide-react';
+import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu, BookOpen, LayoutTemplate } from 'lucide-react';
 import { useDashboardNav } from '@/context/DashboardNavContext';
+import { useChatbotPreviewControls } from '@/context/ChatbotPreviewControlsContext';
+import PreviewLayoutPanel from '@/components/PreviewLayoutPanel';
 
 /** Single height for all bar controls so the row does not shift between breakpoints or loading states. */
 const NAV_LINK_BASE =
@@ -19,7 +21,14 @@ export default function Header() {
   const isPricingPage = pathname === '/pricing';
   const nav = useDashboardNav();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [previewLayoutOpen, setPreviewLayoutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const previewLayoutRef = useRef<HTMLDivElement>(null);
+  const previewControls = useChatbotPreviewControls();
+
+  useEffect(() => {
+    if (!previewControls) setPreviewLayoutOpen(false);
+  }, [previewControls]);
 
   const showAppNav = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && nav;
 
@@ -42,6 +51,26 @@ export default function Header() {
     };
   }, [mobileMenuOpen]);
 
+  useEffect(() => {
+    if (!previewLayoutOpen) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent) {
+        if (e.key === 'Escape') setPreviewLayoutOpen(false);
+        return;
+      }
+      const target = e.target as Node | null;
+      if (target && previewLayoutRef.current && !previewLayoutRef.current.contains(target)) {
+        setPreviewLayoutOpen(false);
+      }
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [previewLayoutOpen]);
+
   if (isHomePage) {
     return null;
   }
@@ -57,13 +86,13 @@ export default function Header() {
 
   return (
     <header className="bg-gradient-to-r from-brown-50 to-gold-50 border-b border-brown-200 sticky top-0 z-50">
-      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8">
-        {/* Left: page title — fixed line height to match bar controls */}
-        <div className="flex min-h-0 min-w-0 flex-shrink-0 items-center gap-2">
+      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 md:px-8">
+        {/* Left: page title — truncates on narrow viewports so controls stay tappable */}
+        <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 overflow-hidden">
           {leftLabel ? (
             <>
               <leftLabel.icon className="h-5 w-5 shrink-0 text-brown-700" aria-hidden />
-              <span className="text-sm font-medium leading-none whitespace-nowrap text-brown-700">
+              <span className="min-w-0 truncate text-sm font-medium leading-none text-brown-700">
                 {leftLabel.text}
               </span>
             </>
@@ -89,12 +118,45 @@ export default function Header() {
           </Link>
         )}
 
-        {/* App nav: hamburger + dropdown on all screen sizes (desktop and mobile) */}
+        {/* App nav: chatbot preview layout (dropdown) + hamburger */}
         {showAppNav && (
-          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Main">
+          <div className="flex h-10 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+            {isChatbotPreviewPage && previewControls && (
+              <div className="relative" ref={previewLayoutRef}>
+                <button
+                  type="button"
+                  data-testid="preview-layout-trigger"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setPreviewLayoutOpen((o) => !o);
+                  }}
+                  className={`${NAV_LINK_BASE} border border-brown-200 bg-white !px-2 text-brown-800 transition-colors hover:bg-brown-50 min-[380px]:!px-3`}
+                  aria-expanded={previewLayoutOpen}
+                  aria-haspopup="dialog"
+                  aria-label="Preview layout — change size, background, and device frame"
+                >
+                  <LayoutTemplate className="h-5 w-5 shrink-0 text-brown-700" aria-hidden />
+                  <span className="hidden min-[380px]:inline">Layout</span>
+                </button>
+                {previewLayoutOpen && (
+                  <div
+                    role="dialog"
+                    aria-label="Preview layout options"
+                    className="z-[60] rounded-xl border border-brown-200 bg-white p-3 shadow-xl max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:max-h-[min(75dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:w-auto max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-[min(calc(100vw-2rem),20rem)] sm:max-h-none sm:overflow-visible"
+                  >
+                    <p className="mb-2 text-xs font-semibold text-brown-800 sm:text-sm">How the embed preview looks</p>
+                    <PreviewLayoutPanel api={previewControls} />
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="relative flex items-center justify-end" ref={menuRef} aria-label="Main">
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen((o) => !o)}
+                onClick={() => {
+                  setPreviewLayoutOpen(false);
+                  setMobileMenuOpen((o) => !o);
+                }}
                 className={`${NAV_LINK_BASE} border border-brown-200 bg-brown-100/70 text-brown-800 transition-colors hover:bg-brown-100`}
                 aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={mobileMenuOpen}
@@ -103,7 +165,7 @@ export default function Header() {
               </button>
               {mobileMenuOpen && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-brown-200 bg-white shadow-lg py-2 z-50"
+                  className="z-50 rounded-xl border border-brown-200 bg-white py-2 shadow-lg max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:w-auto max-sm:max-h-[min(70dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:overflow-y-auto max-sm:overscroll-contain sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-56 sm:max-h-none sm:overflow-visible"
                   role="menu"
                 >
                   <Link
@@ -190,6 +252,7 @@ export default function Header() {
                   </Link>
                 </div>
               )}
+            </div>
           </div>
         )}
 
