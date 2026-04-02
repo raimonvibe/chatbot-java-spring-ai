@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import Message from '@/components/Message';
 import {
   sendMessage,
@@ -87,6 +87,7 @@ function chatbotIdMatchesRoute(chatbot: Chatbot, routeId: number): boolean {
 
 export default function ChatbotPreview() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const chatbotId = useMemo(() => parseChatbotId(params?.id), [params?.id]);
   const isValidId = chatbotId !== null;
@@ -118,7 +119,8 @@ export default function ChatbotPreview() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
-  const theme = useMemo(() => parseBrandingConfig(chatbot?.brandingConfig), [chatbot?.brandingConfig]);
+  const brandingJson = typeof chatbot?.brandingConfig === 'string' ? chatbot.brandingConfig : '';
+  const theme = useMemo(() => parseBrandingConfig(brandingJson || undefined), [brandingJson]);
   const SCREEN_WIDTHS: Record<'desktop' | 'tablet' | 'mobile', number> = {
     desktop: 1024,
     tablet: 768,
@@ -141,6 +143,7 @@ export default function ChatbotPreview() {
     setPreviewMode('fit');
   }, []);
 
+  // pathname in deps so revisiting /chatbot/:id after dashboard edits refetches (avoids stale cached GET for branding/avatar).
   useEffect(() => {
     if (!isValidId || chatbotId === null) return;
     let cancelled = false;
@@ -215,7 +218,25 @@ export default function ChatbotPreview() {
       .then(setQuickReplies)
       .catch((e) => logClientIssue('chatbotPreview.quickReplies', e));
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
+  }, [chatbotId, isValidId, pathname]);
+
+  /** If user returns to this tab after editing on another tab, pick up latest branding/avatar */
+  useEffect(() => {
+    if (!isValidId || chatbotId === null) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      getChatbot(chatbotId)
+        .then((data) => {
+          if (!chatbotIdMatchesRoute(data, chatbotId)) return;
+          setChatbot(data);
+        })
+        .catch((e) => logClientIssue('chatbotPreview.refetchOnVisible', e));
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [chatbotId, isValidId]);
 
   useEffect(() => {
@@ -620,9 +641,10 @@ export default function ChatbotPreview() {
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
-                  title="Website preview background"
+                  title="Website preview (static — scripts disabled so your live embed does not load here)"
                   className="absolute inset-0 z-0 w-full h-full border-0"
-                  sandbox="allow-scripts allow-forms allow-popups"
+                  // No allow-scripts: customer sites that include our embed would otherwise run a second widget under the dashboard preview.
+                  sandbox="allow-forms allow-popups"
                   referrerPolicy="no-referrer"
                   loading="lazy"
                   onLoad={() => setWebsiteFrameLoaded(true)}

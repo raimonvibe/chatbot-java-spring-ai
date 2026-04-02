@@ -335,6 +335,7 @@ export async function getChatbot(chatbotId: number): Promise<Chatbot> {
   const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
     credentials: 'include',
     headers,
+    cache: 'no-store',
   });
 
   if (!response.ok) {

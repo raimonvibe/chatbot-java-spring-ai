@@ -22,11 +22,19 @@ const API_BASE_URL = getApiBaseUrl();
 // Plan keys sent to backend (must match backend: BASIC, PRO, ENTERPRISE)
 type PlanKey = 'BASIC' | 'PRO' | 'ENTERPRISE';
 
+/**
+ * When billing is off, the FREE card shows these display values — they match
+ * backend BillingModeService effective limits (messages/day, monthly scans).
+ */
+const FREE_ROLLOUT_MESSAGES_PER_DAY = 2000;
+const FREE_ROLLOUT_SCANS_PER_MONTH = 100;
+
 // One chatbot per user; plan tier = website size (max pages). Aligned with backend PlanLimits.
+// Full set kept for when app.billing.enabled is true; UI may filter to FREE only for a simpler page.
 const PLANS = [
   {
     id: 'FREE',
-    name: 'Free Trial',
+    name: 'Free',
     price: 0,
     priceLabel: '$0',
     period: '/month',
@@ -34,7 +42,7 @@ const PLANS = [
     maxPagesPerScan: 500,
     messagesPerDay: 10,
     scansPerMonth: 1,
-    features: ['Christian messaging'],
+    features: ['Christian messaging', 'Website embed snippet'],
     cta: 'Get Started Free',
     href: '/dashboard',
     buttonType: 'link' as const,
@@ -112,13 +120,27 @@ function PricingContent() {
 
   const billingOn = limitsFromApi?.billingEnabled ?? isBillingEnabledFromEnv();
 
-  const plansToShow = PLANS.map((plan) => {
+  const plansMerged = PLANS.map((plan) => {
     const fromApiPlan = limitsFromApi?.plans?.[plan.id];
     const maxPages = fromApiPlan?.maxPagesPerScan ?? limitsFromApi?.standardPageTiers?.[plan.id] ?? plan.maxPagesPerScan;
     const messagesPerDay = fromApiPlan?.messagesPerDay ?? plan.messagesPerDay;
     const scansPerMonth = fromApiPlan?.monthlyScanQuota ?? plan.scansPerMonth;
     return { ...plan, maxPagesPerScan: maxPages, messagesPerDay, scansPerMonth };
   });
+
+  const plansToShow = billingOn
+    ? plansMerged
+    : plansMerged
+        .filter((p) => p.id === 'FREE')
+        .map((p) =>
+          p.id === 'FREE'
+            ? {
+                ...p,
+                messagesPerDay: FREE_ROLLOUT_MESSAGES_PER_DAY,
+                scansPerMonth: FREE_ROLLOUT_SCANS_PER_MONTH,
+              }
+            : p
+        );
 
   const handleSubscribe = async (planKey: PlanKey) => {
     if (subscribingPlan) return;
@@ -169,12 +191,12 @@ function PricingContent() {
           )}
 
           <h2 className="text-3xl md:text-4xl font-bold text-brown-800 mb-4">
-            {billingOn ? 'Choose Your Plan' : 'Plans & limits'}
+            {billingOn ? 'Choose Your Plan' : "What's included"}
           </h2>
           <p className="text-lg text-brown-700">
             {billingOn
               ? 'One chatbot per subscription. Choose the plan that fits your website size (max pages we analyze).'
-              : 'We are not charging subscription fees right now. One chatbot per account; compare the limits in each column to see what this free deployment includes.'}
+              : 'Your free plan includes one chatbot per account — no subscription fee right now. Add the embed snippet to your site when you are ready.'}
           </p>
         </motion.div>
 
@@ -182,7 +204,11 @@ function PricingContent() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full"
+          className={
+            billingOn
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full'
+              : 'grid grid-cols-1 gap-6 max-w-md w-full mx-auto'
+          }
         >
           {plansToShow.map((plan) => (
             <div
