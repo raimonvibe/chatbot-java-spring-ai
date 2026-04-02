@@ -21,13 +21,12 @@
         // Deprecated: kept only so older widget init calls don't crash before showing an error.
         chatbotId: null,
         apiUrl: 'http://localhost:8080/api',
-        theme: 'default',
         position: 'bottom-right',
-        primaryColor: '#007bff',
-        secondaryColor: '#6c757d',
+        /* Match app default; host site CSS often sets `button { background: blue }` — we override with !important in updateWidgetStyling */
+        primaryColor: '#8B5E34',
+        secondaryColor: '#E8DCC4',
         fontFamily: 'Arial, sans-serif',
-        borderRadius: '8px',
-        buttonStyle: 'rounded'
+        borderRadius: '8px'
     };
     
     // Widget state
@@ -45,6 +44,13 @@
     let sendButton = null;
     let toggleButton = null;
     let backdropElement = null;
+
+    /**
+     * Synchronous guard: duplicate init must be blocked BEFORE createWidget finishes appending to the DOM.
+     * Otherwise two inits (e.g. script onload twice) both pass a querySelector check, create two widgets,
+     * and shared closure vars point at only the last one — the first stays unstyled (often host "blue" button CSS).
+     */
+    var prayerChatEmbedInitTaken = Object.create(null);
     
     /**
      * Ensure Font Awesome is loaded so icons display on any host site.
@@ -105,6 +111,17 @@
             }
             return;
         }
+        var ec = config.embedCode;
+        if (prayerChatEmbedInitTaken[ec]) {
+            console.warn('PrayerChat: duplicate init skipped (embed already mounted or initializing)');
+            return;
+        }
+        if (document.querySelector('[data-prayer-chat-widget-for="' + ec + '"]')) {
+            console.warn('PrayerChat: widget node already present for this embed — skipping duplicate init');
+            prayerChatEmbedInitTaken[ec] = true;
+            return;
+        }
+        prayerChatEmbedInitTaken[ec] = true;
         try {
             ensureFontAwesome();
             var randomValues = new Uint8Array(16);
@@ -115,6 +132,7 @@
             loadChatbotConfig();
             console.log('PrayerChat Chatbot initialized:', config);
         } catch (e) {
+            delete prayerChatEmbedInitTaken[ec];
             console.error('PrayerChat Chatbot init error:', e);
             showEmbedError('Chat failed to start. Open console (F12) for details.');
         }
@@ -127,6 +145,7 @@
         // Create main container (mobile overrides in injected <style> use 100dvw so it fits phone viewport)
         widgetContainer = document.createElement('div');
         widgetContainer.id = 'prayer-chat-chatbot-widget';
+        widgetContainer.setAttribute('data-prayer-chat-widget-for', config.embedCode);
         widgetContainer.style.cssText = `
             position: fixed !important;
             ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -261,6 +280,8 @@
         
         // Add welcome message
         addMessage('Hello! How can I help you today?', 'bot');
+
+        updateWidgetStyling();
     }
     
     /**
@@ -336,7 +357,12 @@
      */
     function openChat() {
         chatContainer.style.display = 'flex';
-        toggleButton.style.display = 'none';
+        /* !important beats mobile injected rules (#prayer-chat-toggle-btn { position:fixed }) so the FAB cannot sit on top of the send button */
+        if (widgetContainer) widgetContainer.classList.add('prayer-chat-panel-open');
+        if (toggleButton) {
+            toggleButton.style.setProperty('display', 'none', 'important');
+            toggleButton.setAttribute('aria-hidden', 'true');
+        }
         isOpen = true;
         createBackdrop();
         if (inputField) {
@@ -349,7 +375,11 @@
      */
     function closeChat() {
         chatContainer.style.display = 'none';
-        toggleButton.style.display = 'flex';
+        if (widgetContainer) widgetContainer.classList.remove('prayer-chat-panel-open');
+        if (toggleButton) {
+            toggleButton.style.setProperty('display', 'flex', 'important');
+            toggleButton.removeAttribute('aria-hidden');
+        }
         isOpen = false;
         removeBackdrop();
     }
@@ -528,12 +558,13 @@
                             if (branding.secondaryColor) config.secondaryColor = branding.secondaryColor;
                             if (branding.fontFamily) config.fontFamily = branding.fontFamily;
                             if (branding.borderRadius) config.borderRadius = branding.borderRadius;
-                            updateWidgetStyling();
                         }
                     } catch (e) {
                         console.warn('Invalid branding config:', e);
                     }
                 }
+                /* Always re-apply (host CSS cannot override; works when branding is missing or empty) */
+                updateWidgetStyling();
             })
             .catch(error => {
                 console.error('Error loading chatbot config:', error);
@@ -547,8 +578,14 @@
         // Apply branding after config loads. All queries scoped to our widget so we never touch host DOM.
         // Security: we only set styles from the sanitized brandingConfig we already validated server-side.
         if (!widgetContainer) return;
+        var primary = config.primaryColor || '#8B5E34';
+        widgetContainer.style.setProperty('--prayer-chat-primary', primary);
+
         const header = widgetContainer.querySelector('.prayer-chat-widget-header');
-        if (header) header.style.background = config.primaryColor;
+        if (header) {
+            header.style.setProperty('background', primary, 'important');
+            header.style.setProperty('background-color', primary, 'important');
+        }
 
         const chatContainerEl = widgetContainer.querySelector('#prayer-chat-chat-container');
         if (chatContainerEl && config.borderRadius) {
@@ -561,13 +598,25 @@
         }
 
         const sendBtn = widgetContainer.querySelector('#prayer-chat-send-btn');
-        if (sendBtn) sendBtn.style.background = config.primaryColor;
+        if (sendBtn) {
+            sendBtn.style.setProperty('background', primary, 'important');
+            sendBtn.style.setProperty('background-color', primary, 'important');
+            sendBtn.style.setProperty('color', '#ffffff', 'important');
+        }
 
         const toggleBtn = widgetContainer.querySelector('#prayer-chat-toggle-btn');
-        if (toggleBtn) toggleBtn.style.background = config.primaryColor;
+        if (toggleBtn) {
+            toggleBtn.style.setProperty('background', primary, 'important');
+            toggleBtn.style.setProperty('background-color', primary, 'important');
+            toggleBtn.style.setProperty('color', '#ffffff', 'important');
+        }
 
         const closeBtn = widgetContainer.querySelector('#prayer-chat-close-btn');
-        if (closeBtn) closeBtn.style.color = '#ffffff';
+        if (closeBtn) {
+            closeBtn.style.setProperty('background', 'transparent', 'important');
+            closeBtn.style.setProperty('background-color', 'transparent', 'important');
+            closeBtn.style.setProperty('color', '#ffffff', 'important');
+        }
 
         if (config.fontFamily) {
             widgetContainer.style.fontFamily = config.fontFamily;
@@ -583,6 +632,26 @@
             50% { opacity: 1; }
         }
         /* All rules scoped under our widget root so host page is never styled */
+        /* When the panel is open, never show the floating launcher (avoids double circles with the send button). */
+        #prayer-chat-chatbot-widget.prayer-chat-panel-open #prayer-chat-toggle-btn {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        /* Host pages often style all buttons (e.g. Bootstrap) — keep our launcher/send on-brand */
+        #prayer-chat-chatbot-widget button#prayer-chat-toggle-btn,
+        #prayer-chat-chatbot-widget button#prayer-chat-send-btn {
+            background-color: var(--prayer-chat-primary, #8B5E34) !important;
+            color: #fff !important;
+            border: none !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+        }
+        #prayer-chat-chatbot-widget button#prayer-chat-close-btn {
+            background: transparent !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
         /* Mobile: bottom sheet 50% height, 95% width, centered — does not push viewport */
         @media (max-width: 768px) {
             #prayer-chat-chatbot-widget {
