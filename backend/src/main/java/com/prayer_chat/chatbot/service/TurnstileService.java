@@ -26,7 +26,9 @@ public class TurnstileService {
     }
 
     public boolean isEnabled() {
-        return turnstileProperties.isEnabled();
+        // Feature is intentionally kept in codebase but disabled for now.
+        // This makes Turnstile a future opt-in without impacting current production behavior.
+        return false;
     }
 
     public String siteKey() {
@@ -34,7 +36,7 @@ public class TurnstileService {
     }
 
     public VerifyResult verify(String token, String remoteIp) {
-        if (!turnstileProperties.isEnabled()) {
+        if (!isEnabled()) {
             return VerifyResult.pass();
         }
         if (token == null || token.isBlank()) {
