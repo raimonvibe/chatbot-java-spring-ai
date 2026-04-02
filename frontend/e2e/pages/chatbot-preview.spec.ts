@@ -376,20 +376,25 @@ test.describe('Chatbot Preview Page', () => {
     await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
-    // Open mobile screen-size menu and choose Mobile to apply mobile widget geometry.
+    // Open mobile screen-size menu and choose Mobile (exact name — trigger is “Screen size: Mobile”).
     await page.getByRole('button', { name: /Screen size:/i }).click();
-    await page.getByRole('button', { name: 'Mobile' }).click();
+    await page.getByRole('button', { name: 'Mobile', exact: true }).click();
 
     const panel = page.getByTestId('preview-widget-panel');
+    const frame = page.getByTestId('preview-device-frame');
     await expect(panel).toBeVisible();
+    await expect(frame).toBeVisible();
 
     const panelBox = await panel.boundingBox();
-    const viewport = page.viewportSize();
+    const frameBox = await frame.boundingBox();
     expect(panelBox).not.toBeNull();
-    expect(viewport).not.toBeNull();
-    if (panelBox && viewport) {
-      expect(panelBox.width).toBeGreaterThanOrEqual(viewport.width * 0.9);
-      expect(viewport.height - (panelBox.y + panelBox.height)).toBeLessThanOrEqual(30);
+    expect(frameBox).not.toBeNull();
+    if (panelBox && frameBox) {
+      // Wide bottom sheet inside the mock device, not necessarily 90% of full browser viewport.
+      expect(panelBox.width).toBeGreaterThanOrEqual(frameBox.width * 0.85);
+      const insetBottom = frameBox.y + frameBox.height - (panelBox.y + panelBox.height);
+      expect(insetBottom).toBeGreaterThanOrEqual(0);
+      expect(insetBottom).toBeLessThanOrEqual(28);
     }
   });
 });

@@ -130,11 +130,14 @@ export default function ChatbotPreview() {
       .catch(() => setShowSubscriptionNav(isBillingEnabledFromEnv()));
   }, []);
 
-  /** Match Tailwind `md` (768px): phones default to the mobile device frame (embed parity). */
+  /**
+   * Narrow viewports: mobile frame + fit width so the mock phone and chat sheet fit the screen (no 390px overflow).
+   */
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     if (!window.matchMedia('(max-width: 767px)').matches) return;
     setScreenPreview('mobile');
+    setPreviewMode('fit');
   }, []);
 
   useEffect(() => {
@@ -654,7 +657,7 @@ export default function ChatbotPreview() {
       </div>
 
       {/* Tall preview canvas so website background + bottom-right widget are clearly visible (~2× prior typical height) */}
-      <div className="flex min-h-[min(72dvh,560px)] w-full flex-1 flex-col p-2 sm:min-h-[72dvh] md:min-h-[min(88dvh,920px)] md:p-3">
+      <div className="flex min-h-[min(72dvh,560px)] w-full max-w-[100vw] flex-1 flex-col px-1.5 py-2 sm:min-h-[72dvh] sm:px-2 md:min-h-[min(88dvh,920px)] md:p-3">
         <div
           ref={previewScrollRef}
           className={`flex min-h-[min(68dvh,520px)] w-full min-w-0 flex-1 flex-col sm:min-h-[70dvh] md:min-h-[min(86dvh,880px)] ${
@@ -763,15 +766,18 @@ export default function ChatbotPreview() {
                   style={
                     isMobilePreview
                       ? {
-                          // Match embed mobile: bottom sheet 50dvh, 95% width, not full frame height.
-                          left: '2.5%',
-                          right: '2.5%',
+                          // Bottom sheet: side insets + height capped vs frame and dvh so the messages area
+                          // does not stretch to ~80% of the preview (embed uses 50dvh on real sites; here we bias shorter).
+                          left: 10,
+                          right: 10,
                           top: 'auto',
-                          bottom: 'max(12px, env(safe-area-inset-bottom))',
-                          width: '95%',
-                          height: 'min(50dvh, calc(100% - 60px))',
-                          minHeight: 200,
+                          bottom: 'max(10px, env(safe-area-inset-bottom))',
+                          width: 'auto',
+                          height: 'min(38dvh, max(196px, calc(0.38 * (100% - 56px))))',
+                          maxHeight: 'calc(100% - 56px)',
+                          minHeight: 196,
                           borderRadius: 16,
+                          boxSizing: 'border-box',
                         }
                       : desktopTabletEmbedStyle
                   }
@@ -883,8 +889,8 @@ export default function ChatbotPreview() {
                   style={{
                     width: isMobilePreview ? 50 : 60,
                     height: isMobilePreview ? 50 : 60,
-                    right: isMobilePreview ? 12 : 20,
-                    bottom: isMobilePreview ? 'max(12px, env(safe-area-inset-bottom))' : 20,
+                    right: isMobilePreview ? 10 : 20,
+                    bottom: isMobilePreview ? 'max(10px, env(safe-area-inset-bottom))' : 20,
                     backgroundColor: theme.primaryColor,
                   }}
                   aria-label="Open chat"
