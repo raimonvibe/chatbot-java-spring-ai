@@ -54,7 +54,7 @@ export default function Dashboard() {
     }
   }, [loading, authenticated, router]);
 
-  /** Fetch real subscription from API so dashboard shows "Get Embed Code" when user has paid (canUseChatbot).
+  /** Fetch subscription from API for plan limits and embed access (canUseChatbot); UI styling differs in preview vs full access.
    *  Security: subscription is from authenticated API only; embed access is enforced by backend on GET /embed. */
   const loadSubscriptionStatus = async (chatbotCountOverride?: number) => {
     try {
@@ -91,7 +91,7 @@ export default function Dashboard() {
       setChatbots(data);
       setAuthenticated(true);
 
-      // Refetch subscription from API so embed button shows correctly (Get Embed Code vs Upgrade)
+      // Refetch subscription from API so embed button styling matches access tier
       const api = await getSubscriptionStatusFromApi();
       const canUse = !!api?.canUseChatbot;
       setSubscriptionStatus({
@@ -540,7 +540,7 @@ export default function Dashboard() {
                     {subscriptionStatus?.isPreviewMode ? (
                       <>
                         <Crown className="w-4 h-4" />
-                        Upgrade for Embed Code
+                        Website embed snippet
                       </>
                     ) : (
                       <>
