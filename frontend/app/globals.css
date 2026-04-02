@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brown-50: #fdf8f3;
+  --color-brown-100: #f5ebdc;
+  --color-brown-200: #dec9b5;
+  --color-brown-300: #d2b48c;
+  --color-brown-400: #c9a882;
+  --color-brown-500: #a67c52;
+  --color-brown-600: #8b5a3c;
+  --color-brown-700: #6d4530;
+  --color-brown-800: #4a2f1f;
+  --color-brown-900: #3e2723;
+
+  --color-gold-50: #fefce8;
+  --color-gold-100: #fef9c3;
+  --color-gold-200: #fef08a;
+  --color-gold-300: #fde047;
+  --color-gold-400: #facc15;
+  --color-gold-500: #eab308;
+  --color-gold-600: #ca8a04;
+  --color-gold-700: #a16207;
+  --color-gold-800: #854d0e;
+  --color-gold-900: #713f12;
+}
+
+html {
+  overflow-x: clip;
+}
+
+:root {
+  /* Christian-themed light brown gradient colors */
+  --foreground-rgb: 62, 39, 35;
+  --background-start-rgb: 245, 235, 220;  /* Light warm beige */
+  --background-mid-rgb: 222, 202, 182;    /* Soft brown */
+  --background-end-rgb: 210, 180, 140;    /* Tan/light brown */
+
+  /* Accent colors */
+  --accent-brown: 139, 90, 60;
+  --accent-gold: 184, 134, 11;
+  --text-primary: 62, 39, 35;
+  --text-secondary: 101, 67, 33;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    135deg,
+    rgb(var(--background-start-rgb)) 0%,
+    rgb(var(--background-mid-rgb)) 50%,
+    rgb(var(--background-end-rgb)) 100%
+  );
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom scrollbar - Christian theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(var(--background-start-rgb), 0.5);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-brown), 0.6);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-brown), 0.8);
+}
