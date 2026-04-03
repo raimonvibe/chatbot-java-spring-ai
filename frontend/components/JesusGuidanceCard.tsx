@@ -28,7 +28,7 @@ export default function JesusGuidanceCard({
   return (
     <motion.div
       initial={false}
-      className="flex-shrink-0 border-b border-brown-200/60 bg-gradient-to-r from-brown-50/80 to-amber-50/50 mb-1 md:mb-2"
+      className="flex-shrink-0 border-b border-brown-200/60 bg-gradient-to-r from-brown-50/80 to-amber-50/50"
     >
       <button
         type="button"
@@ -56,7 +56,8 @@ export default function JesusGuidanceCard({
           >
             <div className="px-4 pb-3 pt-1 text-sm text-brown-700">
               <p className="mb-3 max-w-3xl text-xs md:text-sm">
-                This chatbot weaves in gentle inspiration from Jesus&apos;s teachings and relevant Bible verses.
+                This chatbot can weave in gentle inspiration from Jesus&apos;s teachings and relevant Bible verses when
+                those features are enabled.
               </p>
 
               {/* Tabs */}
@@ -86,17 +87,23 @@ export default function JesusGuidanceCard({
               </div>
 
               {/* Tab content container with max height for responsiveness (keep card compact so chat stays tall) */}
-              <div className="max-h-32 md:max-h-40 overflow-y-auto pr-1 space-y-2">
+              <div className="max-h-40 md:max-h-48 overflow-y-auto pr-1 space-y-2">
                 {jesusActiveTab === 'verse' ? (
                   chatbot?.bibleVerse ? (
                     <blockquote className="pl-3 border-l-4 border-gold-500 italic bg-white/70 rounded-r-lg py-1.5 pr-3 text-xs md:text-sm">
                       {chatbot.bibleVerse}
                     </blockquote>
                   ) : (
-                    <p className="text-[11px] md:text-xs text-brown-600">
-                      No specific verse has been attached yet. On your dashboard, run the Christian Content analysis to
-                      generate a verse connected to this site.
-                    </p>
+                    <div className="text-[11px] md:text-xs text-brown-600 space-y-2">
+                      <p>
+                        A verse is chosen automatically after your website has been scanned and indexed, when we find a
+                        strong match for your content.
+                      </p>
+                      <p>
+                        If you just created this chatbot, wait for setup to finish, then refresh this page. If none
+                        appears, your site&apos;s topics may not have matched a suggested verse yet.
+                      </p>
+                    </div>
                   )
                 ) : jesusPreviewLoading ? (
                   <p className="text-[11px] md:text-xs text-brown-600">Loading teachings…</p>
@@ -115,14 +122,15 @@ export default function JesusGuidanceCard({
                     ))}
                     {jesusPreview.topTeachings.length > 2 && (
                       <p className="text-[11px] text-brown-600 mt-1">
-                        More teachings are available in your dashboard under &quot;What Jesus Would Say&quot;.
+                        More teachings may surface in chat as people ask questions. You can adjust the feature on your
+                        dashboard.
                       </p>
                     )}
                   </>
                 ) : (
                   <p className="text-[11px] md:text-xs text-brown-600">
-                    No specific teachings preview is available yet. You can enable and preview &quot;What Jesus Would
-                    Say&quot; from the dashboard settings.
+                    No teachings preview yet. On your dashboard, turn on &quot;Include What Jesus Would Say&quot; and
+                    ensure your site has finished scanning so we can match teachings to your content.
                   </p>
                 )}
               </div>
