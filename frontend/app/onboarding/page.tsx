@@ -9,6 +9,7 @@ import {
   getAllChatbots,
   checkAuth,
   getSubscriptionStatusFromApi,
+  getSafeErrorMessage,
   isApiError,
 } from '@/lib/api';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
@@ -51,12 +52,25 @@ export default function OnboardingPage() {
         } catch {
           setBillingActionsAvailable(isBillingEnabledFromEnv());
         }
-        // Check if user already has chatbots
-        const chatbots = await getAllChatbots();
-        if (chatbots.length > 0) {
-          // User already has chatbots, redirect to dashboard
-          router.push('/dashboard');
-          return;
+        try {
+          const chatbots = await getAllChatbots();
+          if (chatbots.length > 0) {
+            router.push('/dashboard');
+            return;
+          }
+        } catch (loadErr: unknown) {
+          console.error('Error loading chatbots on onboarding:', loadErr);
+          const st = isApiError(loadErr) ? loadErr.status : undefined;
+          if (st === 401) {
+            setAuthenticated(false);
+            return;
+          }
+          setError(
+            getSafeErrorMessage(
+              loadErr,
+              'Could not verify existing chatbots. You can still create your first chatbot below.'
+            )
+          );
         }
       }
     } catch (error) {

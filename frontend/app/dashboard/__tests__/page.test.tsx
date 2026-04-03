@@ -20,7 +20,6 @@ jest.mock('lucide-react', () => ({
   Copy: () => <span data-testid="icon-copy" />,
   CheckCircle: () => <span data-testid="icon-check" />,
   Crown: () => <span data-testid="icon-crown" />,
-  Sparkles: () => <span data-testid="icon-sparkles" />,
   Trash2: () => <span data-testid="icon-trash" />,
   LogOut: () => <span data-testid="icon-logout" />,
   CreditCard: () => <span data-testid="icon-creditcard" />,
@@ -41,6 +40,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 const mockGetAllChatbots = jest.fn();
+const mockCheckAuth = jest.fn();
 const mockCreatePortalSession = jest.fn();
 const mockLogout = jest.fn();
 const mockDeleteChatbot = jest.fn();
@@ -51,11 +51,10 @@ const mockGetSubscriptionStatusFromApi = jest.fn();
 jest.mock('@/lib/api', () => ({
   getAllChatbots: (...args: unknown[]) => mockGetAllChatbots(...args),
   createChatbotFromUrl: jest.fn(),
-  analyzeWebsite: jest.fn(),
+  checkAuth: (...args: unknown[]) => mockCheckAuth(...args),
   getEmbedCode: (...args: unknown[]) => mockGetEmbedCode(...args),
   deleteChatbot: (...args: unknown[]) => mockDeleteChatbot(...args),
   deleteAllChatbots: jest.fn(),
-  checkAuth: jest.fn(),
   logout: (...args: unknown[]) => mockLogout(...args),
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
   updateChatbot: (...args: unknown[]) => mockUpdateChatbot(...args),
@@ -63,6 +62,8 @@ jest.mock('@/lib/api', () => ({
   isApiError: (e: unknown): e is Error & { status?: number; upgradeRequired?: boolean } =>
     e instanceof Error && 'status' in e,
   getSafeErrorMessage: (e: unknown, fallback: string) =>
+    e instanceof Error && typeof e.message === 'string' && e.message ? e.message.slice(0, 500) : fallback,
+  getUserFacingFetchError: (e: unknown, fallback: string) =>
     e instanceof Error && typeof e.message === 'string' && e.message ? e.message.slice(0, 500) : fallback,
 }));
 
@@ -79,6 +80,10 @@ const minimalChatbot = {
 describe('Dashboard Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // mockImplementation survives clearAllMocks better than mockResolvedValue for shared fn mocks
+    mockCheckAuth.mockImplementation(() =>
+      Promise.resolve({ authenticated: true, user: { id: 1, email: 'a@b.c' } })
+    );
     mockGetAllChatbots.mockResolvedValue([minimalChatbot]);
     mockLogout.mockResolvedValue({});
     mockGetSubscriptionStatusFromApi.mockResolvedValue({
@@ -101,14 +106,17 @@ describe('Dashboard Page', () => {
       });
     });
 
-    it('should redirect to /login on network/CORS error (status 0 or undefined)', async () => {
+    it('should stay signed in on network error when checkAuth still succeeds', async () => {
       mockGetAllChatbots.mockRejectedValueOnce(new Error('Failed to fetch'));
 
       render(<Dashboard />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('/login');
+        expect(screen.getByRole('heading', { name: /Prayer-Chat Dashboard/i })).toBeInTheDocument();
       });
+
+      expect(mockReplace).not.toHaveBeenCalledWith('/login');
+      expect(screen.getByRole('alert')).toHaveTextContent(/Failed to fetch|connection was interrupted|Could not load your chatbots/i);
     });
   });
 

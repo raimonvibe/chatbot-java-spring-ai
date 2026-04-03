@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, analyzeWebsite, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Sparkles, Trash2, LogOut, CreditCard, User } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Trash2, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -37,7 +37,8 @@ export default function Dashboard() {
 
   const [creating, setCreating] = useState(false);
   const [createFormError, setCreateFormError] = useState('');
-  const [analyzingChatbotId, setAnalyzingChatbotId] = useState<number | null>(null);
+  /** Non-auth failures loading the list (403/5xx/network): keep session and let user retry */
+  const [chatbotsLoadError, setChatbotsLoadError] = useState<string | null>(null);
 
   const offerPaymentUi = (status: SubscriptionStatus | null) =>
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
@@ -87,6 +88,7 @@ export default function Dashboard() {
   };
 
   const loadChatbots = async () => {
+    setChatbotsLoadError(null);
     try {
       const data = await getAllChatbots();
       setChatbots(data);
@@ -113,41 +115,26 @@ export default function Dashboard() {
     } catch (error: unknown) {
       console.error('Error loading chatbots:', error);
       const status = isApiError(error) ? error.status : undefined;
-      if (status === 401 || status === 0 || status === undefined) {
-        // 401 = Unauthorized, 0 or undefined = Network/CORS error
+      if (status === 401) {
         setAuthenticated(false);
-        // Don't redirect automatically - let user click the button
-        // This prevents redirect loops
       } else {
-        // Other errors (500, etc.) - still show as unauthenticated
-        setAuthenticated(false);
+        // 403, 402, 5xx, network: do not force logout — scan limits and transient errors are not auth failures
+        try {
+          const authResult = await checkAuth();
+          if (!authResult.authenticated) {
+            setAuthenticated(false);
+          } else {
+            setAuthenticated(true);
+            setChatbotsLoadError(
+              getUserFacingFetchError(error, 'Could not load your chatbots. Please try again.')
+            );
+          }
+        } catch {
+          setAuthenticated(false);
+        }
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAnalyzeWebsite = async (chatbotId: number, websiteUrl: string) => {
-    setAnalyzingChatbotId(chatbotId);
-    try {
-      await analyzeWebsite(chatbotId, websiteUrl);
-      // Website analysis started; Christian content will be enabled automatically when ready
-    } catch (error: unknown) {
-      console.error('Error analyzing website:', error);
-      if (isApiError(error) && (error.status === 402 || error.upgradeRequired)) {
-        const msg = getSafeErrorMessage(error, 'Website analysis limit reached. Upgrade to analyze more.');
-        if (offerPaymentUi(subscriptionStatus)) {
-          setUpgradeMessage(msg);
-          setPaywallFeature('general');
-          setShowUpgradeModal(true);
-        } else {
-          alert(getSafeErrorMessage(error, 'Analysis limit reached for now. Try again later or use a smaller site.'));
-        }
-      } else {
-        alert(getSafeErrorMessage(error, 'Failed to analyze website. Please try again.'));
-      }
-    } finally {
-      setAnalyzingChatbotId(null);
     }
   };
 
@@ -359,6 +346,24 @@ export default function Dashboard() {
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <div className="max-w-4xl mx-auto min-w-0">
         <h1 className="sr-only">Prayer-Chat Dashboard</h1>
+        {chatbotsLoadError && (
+          <div
+            role="alert"
+            className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-brown-800 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-sm">{chatbotsLoadError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                void loadChatbots();
+              }}
+              className="shrink-0 px-4 py-2 rounded-lg bg-brown-700 text-white text-sm font-medium hover:bg-brown-800 cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {/* Optional Preview Mode badge when nav is in header */}
         {subscriptionStatus?.isPreviewMode && (
           <p className="mb-4 text-xs text-brown-600 font-medium">Preview Mode</p>
@@ -553,15 +558,6 @@ export default function Dashboard() {
                         Get Embed Code
                       </>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyzeWebsite(chatbot.id, chatbot.websiteUrl ?? '')}
-                    disabled={analyzingChatbotId !== null}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 hover:from-brown-200 hover:to-gold-200 border border-brown-200 disabled:opacity-70 cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {analyzingChatbotId === chatbot.id ? 'Analyzing…' : 'Analyze website'}
                   </button>
                 </div>
                 <div className="mt-3 pt-3 border-t border-brown-200 space-y-1.5">
