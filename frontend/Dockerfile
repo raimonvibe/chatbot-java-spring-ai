@@ -3,13 +3,13 @@
 # ─────────────────────────────────────────────────────────────
 
 # Stage 1 – Install only production dependencies (best layer caching)
-FROM node:20-bookworm-slim AS deps
+FROM node:20.20.2-trixie-slim AS deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --only=production --ignore-scripts
 
 # Stage 2 – Build the application
-FROM node:20-bookworm-slim AS builder
+FROM node:20.20.2-trixie-slim AS builder
 WORKDIR /app
 
 # Install ALL dependencies (dev deps needed for build)
@@ -26,7 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Stage 3 – Final minimal production image
-FROM node:20-bookworm-slim AS runner
+FROM node:20.20.2-trixie-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
