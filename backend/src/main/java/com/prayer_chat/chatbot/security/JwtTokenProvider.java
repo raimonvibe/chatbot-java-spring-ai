@@ -43,6 +43,11 @@ public class JwtTokenProvider {
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** JWT time-to-live in seconds (for HttpOnly cookie Max-Age). */
+    public long getJwtExpirationSeconds() {
+        return Math.max(1L, jwtExpiration / 1000L);
+    }
+
     public String generateToken(String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);

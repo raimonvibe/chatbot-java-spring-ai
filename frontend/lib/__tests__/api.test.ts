@@ -38,6 +38,7 @@ describe('API Module', () => {
         expect.stringContaining('/api/chat/1'),
         expect.objectContaining({
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: 'Hello',

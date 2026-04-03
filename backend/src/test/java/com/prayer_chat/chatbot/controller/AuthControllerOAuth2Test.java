@@ -68,6 +68,8 @@ class AuthControllerOAuth2Test {
         ReflectionTestUtils.setField(authController, "googleClientId", "test-client-id");
         ReflectionTestUtils.setField(authController, "googleClientSecret", "test-client-secret");
         ReflectionTestUtils.setField(authController, "allowedOrigins", "http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com");
+        // Standalone MockMvc does not load application-test.yml; match integration tests that expect JSON token.
+        ReflectionTestUtils.setField(authController, "exposeJwtInOAuthResponse", true);
 
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
 

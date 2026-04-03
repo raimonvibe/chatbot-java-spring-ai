@@ -220,23 +220,49 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Widget endpoints: allow any origin so the embed works on customer sites (church-example.com, etc.).
-        // No credentials; rate limiting and auth checks protect the API. See docs/EMBED_FLOW_EXPLAINED.md.
-        // Include Authorization so dashboard (www.prayer-chat.com) can send JWT; chat API does not require it but preflight must allow the header.
+        // Embed-only: any origin, no credentials (third-party sites). Must register before /api/chat/** so embed wins.
         CorsConfiguration widgetCors = new CorsConfiguration();
         widgetCors.setAllowedOriginPatterns(List.of("*"));
         widgetCors.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
-        widgetCors.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        widgetCors.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers",
+            "CF-Turnstile-Response"
+        ));
         widgetCors.setAllowCredentials(false);
         widgetCors.setMaxAge(3600L);
-        source.registerCorsConfiguration("/api/chat/**", widgetCors);
+        source.registerCorsConfiguration("/api/chat/embed/**", widgetCors);
         source.registerCorsConfiguration("/js/**", widgetCors);
+
+        // Dashboard preview: POST/GET /api/chat/{id} (not /embed/) — credentialed cross-origin requests send PC_AUTH.
+        List<String> dashboardOriginPatterns = Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+        CorsConfiguration dashboardChatCors = new CorsConfiguration();
+        dashboardChatCors.setAllowedOriginPatterns(dashboardOriginPatterns);
+        dashboardChatCors.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
+        dashboardChatCors.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers",
+            "CF-Turnstile-Response"
+        ));
+        dashboardChatCors.setAllowCredentials(true);
+        dashboardChatCors.setMaxAge(3600L);
+        source.registerCorsConfiguration("/api/chat/**", dashboardChatCors);
 
         // Default: strict origins for dashboard, auth, subscription (credentials allowed)
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
-            .map(String::trim)
-            .toList());
+        config.setAllowedOriginPatterns(dashboardOriginPatterns);
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
         config.setAllowedHeaders(Arrays.asList(
             "Authorization",
@@ -251,7 +277,7 @@ public class SecurityConfig {
         config.setMaxAge(3600L);
         source.registerCorsConfiguration("/**", config);
 
-        logger.info("CORS: widget /api/chat and /js allow any origin; other paths use allowed patterns: {}", config.getAllowedOriginPatterns());
+        logger.info("CORS: /api/chat/embed/** and /js/** allow any origin (no credentials); /api/chat/** uses {}; other paths same.", dashboardOriginPatterns);
         return source;
     }
 

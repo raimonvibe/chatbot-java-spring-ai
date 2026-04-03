@@ -11,4 +11,7 @@
 app:
   admin:
     enabled: true
+  auth:
+    # Local HTTP cross-origin (e.g. :3000 → :8081): browser may not send cross-site cookies; JSON token keeps dev UX.
+    expose-jwt-in-oauth-response: true
 

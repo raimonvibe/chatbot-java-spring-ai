@@ -92,24 +92,24 @@ function AuthCallbackContent() {
         }
 
         const data = await response.json();
-        
-        if (data.token) {
-          // Store token in localStorage
-          localStorage.setItem('authToken', data.token);
-          
-          // Store user info if provided
-          if (data.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-          }
 
+        // HttpOnly cookie may carry the session when the API omits token (production hardening).
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+        if (data.token) {
+          localStorage.setItem('authToken', data.token);
+        } else {
+          localStorage.removeItem('authToken');
+        }
+
+        if (data.token || data.user) {
           setStatus('success');
-          
-          // Redirect to dashboard after short delay
           setTimeout(() => {
             router.push('/dashboard');
           }, 1000);
         } else {
-          throw new Error('No token received from server');
+          throw new Error('No session data received from server');
         }
       } catch (err) {
         console.error('OAuth callback error:', err);

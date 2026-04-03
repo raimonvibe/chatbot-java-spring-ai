@@ -37,13 +37,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p><b>Message limits (server-enforced):</b>
  * <ul>
  *   <li>{@code POST /api/chat/{chatbotId}} — used by the in-app preview and authenticated clients. Applies
- *       per-IP per-chatbot throttling (same bucket as below) and, when the chatbot has an owner,
+ *       per-IP per-chatbot throttling (bucket key {@code chatId:ip:chatbotId}) and, when the chatbot has an owner,
  *       {@link RateLimitingService#checkMessageLimit} using {@link com.prayer_chat.chatbot.service.BillingModeService#effectiveMessagesPerDay}.
  *       When billing is enabled, plan quotas come from {@link com.prayer_chat.chatbot.config.PlanLimits#messagesPerDay}
  *       (FREE = 10/day, BASIC = 100/day, …). When billing is disabled, a higher free-product ceiling applies.</li>
  *   <li>{@code POST /api/chat/embed/{embedCode}} — same owner daily quota as above, plus an additional
- *       {@value #EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT} messages per hour per client IP per chatbot so one visitor
- *       cannot exhaust the site owner’s quota.</li>
+ *       {@value #EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT} messages per hour per client IP per chatbot (bucket key
+ *       {@code embedId:ip:chatbotId}) so one visitor cannot exhaust the site owner’s quota.</li>
  * </ul>
  *
  * <p>Website scan / page caps are enforced separately in {@code ChatbotController} and crawl configuration
@@ -59,6 +59,9 @@ public class ChatController {
     /** Per-IP per-chatbot limit for embed chat: 30 messages per hour to prevent one visitor from exhausting quota. */
     private static final int EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT = 30;
     private static final Duration EMBED_CHAT_REFILL_PERIOD = Duration.ofHours(1);
+
+    /** Generic client-visible error — never echo server exception text (information disclosure). */
+    private static final String CHAT_ERROR_GENERIC = "Something went wrong. Please try again later.";
 
     private final Map<String, Bucket> embedChatBuckets = new ConcurrentHashMap<>();
 
@@ -112,9 +115,9 @@ public class ChatController {
                 ));
             }
             
-            // SECURITY: Per-IP rate limit (embed abuse prevention): multiple chatbotIds shouldn't multiply the allowance.
+            // SECURITY: Per-IP per-chatbot bucket so one NAT user testing bot A does not exhaust bot B's preview quota.
             String clientIp = getClientIpAddress(httpRequest);
-            String embedBucketKey = "embed:" + clientIp;
+            String embedBucketKey = "chatId:" + clientIp + ":" + chatbotId;
 
             RateLimitingService.IpMessageLimitResult ipLimit = rateLimitingService.checkIpMessageLimit(clientIp);
             // Defensive: if RateLimitingService is mocked and returns null in tests, allow the request.
@@ -216,9 +219,7 @@ public class ChatController {
                 ));
             }
             
-            return ResponseEntity.status(500).body(Map.of(
-                "error", errorMessage != null ? errorMessage : "Failed to process message"
-            ));
+            return ResponseEntity.status(500).body(Map.of("error", CHAT_ERROR_GENERIC));
         } catch (Exception e) {
             logger.error("Unexpected error processing chat message for chatbot {}: {}", chatbotId, LogSanitizer.sanitizeException(e));
             logger.error("Exception type: {}, Cause: {}", e.getClass().getName(), 
@@ -233,9 +234,7 @@ public class ChatController {
                 ));
             }
             
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Failed to process message: " + (errorMsg != null ? errorMsg : "Unknown error")
-            ));
+            return ResponseEntity.status(500).body(Map.of("error", CHAT_ERROR_GENERIC));
         }
     }
 
@@ -275,10 +274,10 @@ public class ChatController {
                 return ResponseEntity.status(403).body(Map.of("error", "Chatbot is not active"));
             }
 
-            // SECURITY: Per-IP rate limit (embed abuse prevention): multiple chatbotIds shouldn't multiply the allowance.
+            // SECURITY: Per-IP per-chatbot embed bucket (distinct from in-app preview keys).
             String clientIp = getClientIpAddress(httpRequest);
             Long id = chatbot.getId();
-            String embedBucketKey = "embed:" + clientIp;
+            String embedBucketKey = "embedId:" + clientIp + ":" + id;
 
             // Optional bot protection: Turnstile verification for public embed traffic.
             if (turnstileService != null && turnstileService.isEnabled()) {
@@ -379,15 +378,18 @@ public class ChatController {
                         "error", "AI service is not configured. Please contact support."
                 ));
             }
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", errorMessage != null ? errorMessage : "Failed to process message"
-            ));
+            return ResponseEntity.status(500).body(Map.of("error", CHAT_ERROR_GENERIC));
         } catch (Exception e) {
             logger.error("Unexpected error processing embed chat message for embedCode {}: {}", LogSanitizer.sanitize(embedCode), LogSanitizer.sanitizeException(e));
             String errorMsg = e.getMessage();
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "Failed to process message: " + (errorMsg != null ? errorMsg : "Unknown error")
-            ));
+            if (errorMsg != null && (errorMsg.contains("ANTHROPIC_API_KEY") ||
+                    errorMsg.contains("ChatModel") ||
+                    errorMsg.contains("not properly configured"))) {
+                return ResponseEntity.status(503).body(Map.of(
+                        "error", "AI service is not configured. Please contact support."
+                ));
+            }
+            return ResponseEntity.status(500).body(Map.of("error", CHAT_ERROR_GENERIC));
         }
     }
     

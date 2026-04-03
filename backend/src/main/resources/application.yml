@@ -197,6 +197,10 @@ app:
   billing:
     enabled: ${APP_BILLING_ENABLED:false}
 
+  # OAuth JWT delivery: false = HttpOnly cookie only (recommended for HTTPS production). True = also return JWT in JSON (local HTTP / tests).
+  auth:
+    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:false}
+
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry
   security:
     alert-webhook-url: ${SECURITY_ALERT_WEBHOOK_URL:}

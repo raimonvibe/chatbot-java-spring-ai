@@ -192,11 +192,8 @@ export function getApiBaseUrl(): string {
 const API_BASE_URL = getApiBaseUrl();
 
 /**
- * Helper function to get auth headers with JWT token
- * Security measures:
- * - Validates token format (JWT tokens have 3 parts separated by dots)
- * - Sanitizes token to prevent header injection
- * - Handles edge cases (null, empty, malformed tokens)
+ * JSON + optional Bearer header. When JWT is not in localStorage (production cookie-only auth),
+ * authenticated calls still work if fetch uses credentials: 'include' and the API sets PC_AUTH (HttpOnly).
  */
 function getAuthHeaders(): HeadersInit {
   const headers: HeadersInit = {
@@ -307,11 +304,11 @@ export async function sendMessage(
   sessionId?: string,
   language: string = 'en'
 ): Promise<ChatResponse> {
-  // credentials: 'omit' so request works from dashboard and embedded widget (backend CORS for /api/chat/** allows any origin, no credentials)
+  // credentials: 'include' so PC_AUTH (API host) is sent from the dashboard (embed uses /api/chat/embed/* + omit in widget JS).
   const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/chat/${chatbotId}`, {
     method: 'POST',
-    credentials: 'omit',
+    credentials: 'include',
     headers,
     body: JSON.stringify({
       message,
@@ -708,7 +705,10 @@ export interface PublicPlanLimitsResponse {
 
 export async function fetchPublicPlanLimits(): Promise<PublicPlanLimitsResponse | null> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/plans/limits`, { method: 'GET' });
+    const response = await fetch(`${getApiBaseUrl()}/api/plans/limits`, {
+      method: 'GET',
+      credentials: 'omit',
+    });
     if (!response.ok) return null;
     return (await response.json()) as PublicPlanLimitsResponse;
   } catch {

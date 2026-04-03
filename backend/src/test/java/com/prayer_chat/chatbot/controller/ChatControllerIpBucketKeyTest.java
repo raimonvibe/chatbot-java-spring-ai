@@ -51,8 +51,8 @@ class ChatControllerIpBucketKeyTest {
     }
 
     @Test
-    @DisplayName("Per-IP throttling is shared across different chatbotIds (bucket key is global per IP)")
-    void perIpThrottleIsSharedAcrossChatbotIds() {
+    @DisplayName("Per-IP preview throttling is separate per chatbotId (bucket key includes chatbot)")
+    void perIpThrottleIsSeparatePerChatbotId() {
         Chatbot bot1 = new Chatbot();
         bot1.setId(1L);
         bot1.setIsActive(true);
@@ -86,25 +86,38 @@ class ChatControllerIpBucketKeyTest {
 
         ChatRequest request = new ChatRequest("Hello", "session_1", "en");
 
-        // First 30 succeed (limit is 30/hour).
         for (int i = 0; i < 30; i++) {
             ResponseEntity<Map<String, Object>> res = chatController.sendMessage(1L, request, httpRequest);
             assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
-        // 31st should be throttled even on a different chatbotId, because key is per IP.
-        ResponseEntity<Map<String, Object>> throttled = chatController.sendMessage(2L, request, httpRequest);
-        assertThat(throttled.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        // Same IP, different chatbot: separate bucket — still allowed.
+        ResponseEntity<Map<String, Object>> bot2Ok = chatController.sendMessage(2L, request, httpRequest);
+        assertThat(bot2Ok.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        // Ensure we didn't attempt to call the AI when throttled.
-        // (Only checks the final call path; earlier calls should have invoked the AI.)
+        // bot1 bucket exhausted for this IP
+        ResponseEntity<Map<String, Object>> bot1Throttled = chatController.sendMessage(1L, request, httpRequest);
+        assertThat(bot1Throttled.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    @Test
+    @DisplayName("Global per-IP message limit from RateLimitingService applies before per-chatbot bucket")
+    void ipMessageLimitBlocksWhenServiceDenies() {
+        Chatbot bot1 = new Chatbot();
+        bot1.setId(1L);
+        bot1.setIsActive(true);
+        bot1.setOwner(null);
+
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(bot1));
+        when(clientIpResolver.resolveClientIp(httpRequest)).thenReturn("203.0.113.9");
         when(rateLimitingService.checkIpMessageLimit("203.0.113.9"))
             .thenReturn(new RateLimitingService.IpMessageLimitResult(false, 60, 60));
-        ResponseEntity<Map<String, Object>> ipThrottled = chatController.sendMessage(2L, request, httpRequest);
+
+        ChatRequest request = new ChatRequest("Hello", "session_1", "en");
+        ResponseEntity<Map<String, Object>> ipThrottled = chatController.sendMessage(1L, request, httpRequest);
         assertThat(ipThrottled.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
         assertThat(ipThrottled.getBody()).isNotNull();
         assertThat(ipThrottled.getBody().get("limit")).isEqualTo(60);
         assertThat(ipThrottled.getBody().get("current")).isEqualTo(60);
     }
 }
-

@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.controller;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.util.LogSanitizer;
+import com.prayer_chat.chatbot.security.AuthCookieHelper;
 import com.prayer_chat.chatbot.security.CustomOAuth2UserService;
 import com.prayer_chat.chatbot.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,6 +55,10 @@ public class AuthController {
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
+
+    /** When false (production HTTPS), JWT is only in HttpOnly cookie — not in OAuth JSON (reduces XSS token theft). */
+    @Value("${app.auth.expose-jwt-in-oauth-response:false}")
+    private boolean exposeJwtInOAuthResponse;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -133,9 +138,11 @@ public class AuthController {
             // Log the logout attempt
             if (oAuth2User != null) {
                 String email = oAuth2User.getUser().getEmail();
-                System.out.println("User logging out: " + (email != null ? email.substring(0, Math.min(3, email.length())) + "***" : "unknown"));
+                logger.debug("User logging out: {}", email != null ? LogSanitizer.sanitize(email) : "unknown");
             }
-            
+
+            AuthCookieHelper.clearAuthCookie(response, request.isSecure());
+
             // Invalidate Spring Session
             HttpSession session = request.getSession(false);
             if (session != null) {
@@ -160,6 +167,7 @@ public class AuthController {
         } catch (Exception e) {
             // Even if there's an error, try to clear the session
             try {
+                AuthCookieHelper.clearAuthCookie(response, request.isSecure());
                 HttpSession session = request.getSession(false);
                 if (session != null) {
                     session.invalidate();
@@ -192,7 +200,8 @@ public class AuthController {
     @PostMapping("/oauth2/callback")
     public ResponseEntity<?> handleOAuth2Callback(
             @RequestBody Map<String, String> request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         
         // Security: Validate and sanitize input
         String code = request != null ? request.get("code") : null;
@@ -267,13 +276,22 @@ public class AuthController {
             String jwtToken = jwtTokenProvider.generateToken(user.getEmail());
             logger.info("Generated JWT token for user: {}", LogSanitizer.sanitize(user.getEmail()));
 
+            AuthCookieHelper.addAuthCookie(
+                httpResponse,
+                jwtToken,
+                jwtTokenProvider.getJwtExpirationSeconds(),
+                httpRequest.isSecure()
+            );
+
             // Step 5: Create session (optional, for session-based auth)
             HttpSession session = httpRequest.getSession(true);
             session.setAttribute("user", user);
 
-            // Step 6: Return token and user info
+            // Step 6: Return user info (JWT in HttpOnly cookie; optional JSON token for local HTTP / tests)
             Map<String, Object> response = new HashMap<>();
-            response.put("token", jwtToken);
+            if (exposeJwtInOAuthResponse) {
+                response.put("token", jwtToken);
+            }
             // User doesn't have a name field, use email as display name
             response.put("user", Map.of(
                     "id", user.getId(),

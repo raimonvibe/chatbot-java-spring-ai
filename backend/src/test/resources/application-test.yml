@@ -72,6 +72,8 @@ pinecone:
 
 # App config for tests (disable headless crawl so tests don't need Chrome)
 app:
+  auth:
+    expose-jwt-in-oauth-response: true
   billing:
     enabled: true
   website-analysis:

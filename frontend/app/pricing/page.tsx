@@ -112,7 +112,7 @@ function PricingContent() {
   const [subscribingPlan, setSubscribingPlan] = useState<PlanKey | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/plans/limits`)
+    fetch(`${API_BASE_URL}/api/plans/limits`, { method: 'GET', credentials: 'omit' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data: PlanLimitsResponse | null) => data && setLimitsFromApi(data))
       .catch(() => {});
