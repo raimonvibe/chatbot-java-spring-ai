@@ -20,9 +20,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import com.prayer_chat.chatbot.security.CustomOAuth2User;
 
 import java.time.Duration;
 import java.util.List;
@@ -36,8 +39,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>Message limits (server-enforced):</b>
  * <ul>
- *   <li>{@code POST /api/chat/{chatbotId}} — used by the in-app preview and authenticated clients. Applies
- *       per-IP per-chatbot throttling (bucket key {@code chatId:ip:chatbotId}) and, when the chatbot has an owner,
+ *   <li>{@code POST /api/chat/{chatbotId}} — dashboard preview: requires authentication and (unless {@code ROLE_ADMIN})
+ *       ownership of the chatbot. Applies per-IP per-chatbot burst throttling (bucket key {@code chatId:{ip}:{chatbotId}})
+ *       and, when the chatbot has an owner,
  *       {@link RateLimitingService#checkMessageLimit} using {@link com.prayer_chat.chatbot.service.BillingModeService#effectiveMessagesPerDay}.
  *       When billing is enabled, plan quotas come from {@link com.prayer_chat.chatbot.config.PlanLimits#messagesPerDay}
  *       (FREE = 10/day, BASIC = 100/day, …). When billing is disabled, a higher free-product ceiling applies.</li>
@@ -94,19 +98,30 @@ public class ChatController {
     public ResponseEntity<Map<String, Object>> sendMessage(
             @PathVariable Long chatbotId,
             @Valid @RequestBody ChatRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
 
         try {
-            // Get chatbot and verify it exists
-            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(chatbotId);
+            // Fail closed before DB work if the principal is missing (defense in depth; filter chain should already block).
+            ResponseEntity<Map<String, Object>> unauthenticated = denyIfNoPreviewPrincipal(currentUser);
+            if (unauthenticated != null) {
+                return unauthenticated;
+            }
+
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findByIdWithOwner(chatbotId);
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.status(404).body(Map.of(
                     "error", "Chatbot not found"
                 ));
             }
-            
+
             Chatbot chatbot = chatbotOpt.get();
-            
+
+            ResponseEntity<Map<String, Object>> authz = denyPreviewChatUnlessOwnerOrAdmin(currentUser, chatbot);
+            if (authz != null) {
+                return authz;
+            }
+
             // SECURITY: Check if chatbot is active
             if (!chatbot.getIsActive()) {
                 logger.warn("Attempted to send message to inactive chatbot: {}", chatbotId);
@@ -115,9 +130,9 @@ public class ChatController {
                 ));
             }
             
-            // SECURITY: Per-IP per-chatbot bucket so one NAT user testing bot A does not exhaust bot B's preview quota.
+            // Per-IP per-chatbot burst limit for numeric preview (distinct from embed bucket keys — see sendMessageByEmbedCode).
             String clientIp = getClientIpAddress(httpRequest);
-            String embedBucketKey = "chatId:" + clientIp + ":" + chatbotId;
+            String previewBurstKey = "chatId:" + clientIp + ":" + chatbotId;
 
             RateLimitingService.IpMessageLimitResult ipLimit = rateLimitingService.checkIpMessageLimit(clientIp);
             // Defensive: if RateLimitingService is mocked and returns null in tests, allow the request.
@@ -128,11 +143,11 @@ public class ChatController {
                     "limit", ipLimit.getLimit()
                 ));
             }
-            Bucket bucket = embedChatBuckets.computeIfAbsent(embedBucketKey, k -> Bucket.builder()
+            Bucket bucket = embedChatBuckets.computeIfAbsent(previewBurstKey, k -> Bucket.builder()
                 .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
                 .build());
             if (!bucket.tryConsume(1)) {
-                logger.warn("Embed chat rate limit exceeded for IP {} chatbot {}", clientIp, chatbotId);
+                logger.warn("Preview chat per-IP burst limit exceeded for IP {} chatbot {}", clientIp, chatbotId);
                 return ResponseEntity.status(429).body(Map.of(
                     "error", "Too many messages. Please try again later."
                 ));
@@ -469,9 +484,23 @@ public class ChatController {
     @GetMapping("/{chatbotId}/conversation/{sessionId}")
     public ResponseEntity<Map<String, Object>> getConversationHistory(
             @PathVariable Long chatbotId,
-            @PathVariable String sessionId) {
+            @PathVariable String sessionId,
+            @AuthenticationPrincipal CustomOAuth2User currentUser) {
         
         try {
+            ResponseEntity<Map<String, Object>> unauthenticated = denyIfNoPreviewPrincipal(currentUser);
+            if (unauthenticated != null) {
+                return unauthenticated;
+            }
+
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findByIdWithOwner(chatbotId);
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("error", "Chatbot not found"));
+            }
+            ResponseEntity<Map<String, Object>> authz = denyPreviewChatUnlessOwnerOrAdmin(currentUser, chatbotOpt.get());
+            if (authz != null) {
+                return authz;
+            }
             // This would typically return conversation history
             // For now, return a simple response
             Map<String, Object> response = Map.of(
@@ -489,6 +518,35 @@ public class ChatController {
                 "error", "Failed to retrieve conversation history"
             ));
         }
+    }
+
+    /**
+     * Numeric-ID preview chat requires authentication; caller must own the chatbot unless they have ROLE_ADMIN.
+     *
+     * @return {@code null} if allowed, otherwise 401/403 JSON error
+     */
+    private ResponseEntity<Map<String, Object>> denyIfNoPreviewPrincipal(CustomOAuth2User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+        return null;
+    }
+
+    /** Requires non-null {@code currentUser} (call {@link #denyIfNoPreviewPrincipal} first). */
+    private ResponseEntity<Map<String, Object>> denyPreviewChatUnlessOwnerOrAdmin(CustomOAuth2User currentUser, Chatbot chatbot) {
+        boolean admin = currentUser.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (admin) {
+            return null;
+        }
+        User botOwner = chatbot.getOwner();
+        if (botOwner == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied"));
+        }
+        if (!botOwner.getId().equals(currentUser.getUser().getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied"));
+        }
+        return null;
     }
     
     /**

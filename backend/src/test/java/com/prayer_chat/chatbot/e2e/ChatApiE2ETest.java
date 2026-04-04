@@ -4,7 +4,6 @@ import com.prayer_chat.chatbot.helpers.E2ETestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -17,23 +16,21 @@ import static org.junit.jupiter.api.Assertions.*;
  * - POST /api/chat/{chatbotId} → GET conversation history
  * - Multi-turn conversation with session management
  * - Language switching mid-conversation
- * - Public chatbot access via embed code
- * - Rate limiting enforcement
+ * - Public chatbot access via embed code (separate tests)
+ * - Rate limiting / AI availability (explicit status expectations)
  */
 @DisplayName("Chat API E2E Tests")
 class ChatApiE2ETest extends E2ETestBase {
 
     /**
-     * Helper method to assert chat response status.
-     * Accepts 200/201 (success) or 500 (AI service not available).
-     * Note: /api/chat/** is permitAll() in TestSecurityConfig, so 401/403 should not occur.
+     * Authenticated owner preview chat ({@code POST /api/chat/{id}}): expect a normal outcome or explicit client/infra errors.
+     * Does not accept 401/403 here — those indicate authz bugs for an active bot owned by the caller.
      */
-    private void assertChatResponseStatus(int statusCode) {
-        // /api/chat/** is permitAll(), so 401/403 should not occur
-        // Accept 200/201 (success), 400 (validation error), or 500 (AI service unavailable)
-        assertTrue(statusCode == 200 || statusCode == 201 || statusCode == 400 || statusCode == 500,
-            "Expected 200/201 (success), 400 (validation), or 500 (AI service unavailable). " +
-            "Got: " + statusCode + ". Note: 401/403 should not occur since /api/chat/** is permitAll().");
+    private void assertAuthenticatedPreviewChatResponse(int statusCode) {
+        assertTrue(
+            statusCode == 200 || statusCode == 201 || statusCode == 400 || statusCode == 429
+                || statusCode == 500 || statusCode == 503,
+            "Expected 2xx success, 400 (validation), 429 (rate limit), or 5xx (AI/infra). Got: " + statusCode);
     }
 
     @Test
@@ -58,7 +55,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 statusCodeRef.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
             });
 
         // Accept 200/201 (success) or 500 (AI service not available in test)
@@ -73,8 +70,8 @@ class ChatApiE2ETest extends E2ETestBase {
                     assertFalse(msg.toString().isEmpty(), "Message should not be empty");
                 });
         } else {
-            // 500 indicates AI service issue, which is acceptable in E2E tests
-            assertTrue(statusCode == 500, "Expected 200/201 or 500, got: " + statusCode);
+            assertTrue(statusCode == 429 || statusCode == 500 || statusCode == 503,
+                "When chat does not succeed, expect rate limit (429) or AI/config failure (500/503). Got: " + statusCode);
         }
     }
 
@@ -100,7 +97,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 status1Ref.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
                 if (status == 200 || status == 201) {
                     // Message exists check
                 }
@@ -114,7 +111,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 status2Ref.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
             });
 
         // Turn 3
@@ -125,7 +122,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 status3Ref.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
             });
     }
 
@@ -143,7 +140,7 @@ class ChatApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Chat without Authentication")
+    @DisplayName("Chat without Authentication is rejected for numeric chatbot id")
     void shouldHandleUnauthenticatedChat() {
         // Create chatbot as authenticated user
         String email = "owner@example.com";
@@ -156,20 +153,17 @@ class ChatApiE2ETest extends E2ETestBase {
         )
             .expectStatus().is2xxSuccessful());
 
-        // Try to chat without auth
+        // Numeric preview chat requires JWT; embed path stays public (createOAuth2User sets a default token — clear it).
         Map<String, String> msg = Map.of("message", "Hello!");
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
-        webApiClient.post("/api/chat/" + chatbotId, msg)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                // Since /api/chat/** is permitAll(), should allow public access (200) or return 500 (AI service issue)
-                // Note: 401/403 should not occur since endpoint is permitAll()
-                assertTrue((status >= 200 && status < 300) || status == 500,
-                    "Should allow public access (200-299) or return 500 (AI service). " +
-                    "Got: " + status + ". Note: 401/403 should not occur since /api/chat/** is permitAll().");
-            });
+        webApiClient.clearAuth();
+        try {
+            webApiClient.post("/api/chat/" + chatbotId, msg)
+                .expectStatus().value(s ->
+                    assertTrue(s == 401 || s == 403,
+                        "Unauthenticated numeric preview chat must be rejected before the controller (401 Unauthorized or 403 Forbidden). Got: " + s));
+        } finally {
+            webApiClient.clearAuth();
+        }
     }
 
     @Test
@@ -185,20 +179,9 @@ class ChatApiE2ETest extends E2ETestBase {
         )
             .expectStatus().is2xxSuccessful());
 
-        // Send empty message (with or without token - /api/chat/** is permitAll())
         Map<String, String> msg = Map.of("message", "");
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
-        webApiClient.post("/api/chat/" + chatbotId, msg)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                // Should return 400 Bad Request, or 500 if AI service issue
-                // Note: 401 should not occur since /api/chat/** is permitAll()
-                assertTrue(status == 400 || status == 500,
-                    "Should return 400 (validation) or 500 (AI service). " +
-                    "Got: " + status + ". Note: 401 should not occur since /api/chat/** is permitAll().");
-            });
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
+            .expectStatus().isBadRequest();
     }
 
     @Test
@@ -218,17 +201,8 @@ class ChatApiE2ETest extends E2ETestBase {
         String longMessage = "a".repeat(3000);
         Map<String, String> msg = Map.of("message", longMessage);
 
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                // Should either accept it or reject with 400 (depending on max length)
-                // Also accept 500 (AI service not available) or 401/403 (auth issues)
-                assertTrue(status == 200 || status == 201 || status == 400 || status == 500 || status == 401 || status == 403,
-                    "Should handle long messages gracefully - got: " + status);
-            });
+            .expectStatus().isBadRequest();
     }
 
     @Test
@@ -244,7 +218,7 @@ class ChatApiE2ETest extends E2ETestBase {
         )
             .expectStatus().is2xxSuccessful());
 
-        // Message with special characters (with or without token - /api/chat/** is permitAll())
+        // Message with special characters
         String specialMessage = "Hello! @#$%^&*() <script>alert('xss')</script> 你好 مرحبا";
         Map<String, String> msg = Map.of("message", specialMessage);
 
@@ -254,7 +228,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 statusCodeRef.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
             });
         
         if (statusCodeRef.get() == 200 || statusCodeRef.get() == 201) {
@@ -287,7 +261,7 @@ class ChatApiE2ETest extends E2ETestBase {
                 .consumeWith(result -> {
                     int status = result.getStatus().value();
                     statusRef.set(status);
-                    assertChatResponseStatus(status);
+                    assertAuthenticatedPreviewChatResponse(status);
                 });
         }
     }
@@ -312,20 +286,8 @@ class ChatApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(otherEmail);
         Map<String, String> msg = Map.of("message", "Can I chat here?");
         
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(token2).post("/api/chat/" + chatbotId, msg)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                // Depending on implementation:
-                // - Public chatbots: allow (200)
-                // - Private chatbots: deny (403)
-                // - AI service issues: 500
-                // - Either behavior is acceptable
-                assertTrue((status >= 200 && status < 500) || status == 500,
-                    "Should handle cross-user chat access - got: " + status);
-            });
+            .expectStatus().isForbidden();
     }
 
     @Test
@@ -348,7 +310,7 @@ class ChatApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 statusCodeRef.set(status);
-                assertChatResponseStatus(status);
+                assertAuthenticatedPreviewChatResponse(status);
             });
         
         if (statusCodeRef.get() == 200 || statusCodeRef.get() == 201) {
@@ -357,44 +319,6 @@ class ChatApiE2ETest extends E2ETestBase {
                 .expectBody()
                 .jsonPath("$.message").exists();
         }
-    }
-
-    @Test
-    @DisplayName("Multiple Chatbots Same User Different Conversations")
-    void shouldIsolateConversationsBetweenChatbots() {
-        String email = "multi-bot@example.com";
-        String token = createOAuth2User(email);
-        createActiveSubscriptionForUser(email);
-
-        // Create two chatbots
-        Long bot1Id = extractChatbotId(webApiClient.withAuth(token).createChatbot("Bot 1", "https://example.com/bot1", "First")
-            .expectStatus().is2xxSuccessful());
-        Long bot2Id = extractChatbotId(webApiClient.withAuth(token).createChatbot("Bot 2", "https://example.com/bot2", "Second")
-            .expectStatus().is2xxSuccessful());
-
-        // Chat with bot 1
-        Map<String, String> msg1 = Map.of("message", "Hello Bot 1");
-        AtomicReference<Integer> status1Ref = new AtomicReference<>();
-        webApiClient.withAuth(token).post("/api/chat/" + bot1Id, msg1)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                status1Ref.set(status);
-                assertChatResponseStatus(status);
-            });
-
-        // Chat with bot 2
-        Map<String, String> msg2 = Map.of("message", "Hello Bot 2");
-        AtomicReference<Integer> status2Ref = new AtomicReference<>();
-        webApiClient.withAuth(token).post("/api/chat/" + bot2Id, msg2)
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                status2Ref.set(status);
-                assertChatResponseStatus(status);
-            });
-
-        // Both should work independently
     }
 
     @Test
@@ -419,19 +343,9 @@ class ChatApiE2ETest extends E2ETestBase {
         webApiClient.withAuth(token).put("/api/chatbots/" + chatbotId, chatbotUpdate)
             .expectStatus().is2xxSuccessful();
 
-        // Try to chat with inactive chatbot
         Map<String, String> msg = Map.of("message", "Are you there?");
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
-        // Use returnResult() to avoid implicit status validation - allows any status code
-        org.springframework.test.web.reactive.server.ExchangeResult result = webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
-            .returnResult(Map.class);
-        
-        int status = result.getStatus().value();
-        statusCodeRef.set(status);
-        // Should return 403 FORBIDDEN for inactive chatbot, or 2xx (success)
-        // Accept 403 (forbidden) or 2xx (success)
-        assertTrue(status == 403 || (status >= 200 && status < 300),
-            "Should handle inactive chatbot gracefully - got: " + status);
+        webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg)
+            .expectStatus().isForbidden();
     }
 
     @Test
@@ -457,8 +371,7 @@ class ChatApiE2ETest extends E2ETestBase {
                     int status = result.getStatus().value();
                     statusCodeRef.set(status);
                     // Should all succeed (or some might be rate limited or 500 for AI service issues)
-                    assertTrue((status >= 200 && status < 500) || status == 500,
-                        "Should handle rapid messages - got: " + status);
+                    assertAuthenticatedPreviewChatResponse(status);
                 });
         }
     }
@@ -494,7 +407,7 @@ class ChatApiE2ETest extends E2ETestBase {
                 .consumeWith(result -> {
                     int status = result.getStatus().value();
                     statusRef.set(status);
-                    assertChatResponseStatus(status);
+                    assertAuthenticatedPreviewChatResponse(status);
                 });
         }
     }
@@ -512,31 +425,21 @@ class ChatApiE2ETest extends E2ETestBase {
         )
             .expectStatus().is2xxSuccessful());
 
-        // Send a few messages (with or without token - /api/chat/** is permitAll())
         Map<String, String> msg1 = Map.of("message", "Message 1");
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg1)
-            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
+            .expectBody().consumeWith(r -> assertAuthenticatedPreviewChatResponse(r.getStatus().value()));
         Map<String, String> msg2 = Map.of("message", "Message 2");
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg2)
-            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
+            .expectBody().consumeWith(r -> assertAuthenticatedPreviewChatResponse(r.getStatus().value()));
         Map<String, String> msg3 = Map.of("message", "Message 3");
         webApiClient.withAuth(token).post("/api/chat/" + chatbotId, msg3)
-            .expectBody().consumeWith(result -> assertChatResponseStatus(result.getStatus().value()));
+            .expectBody().consumeWith(r -> assertAuthenticatedPreviewChatResponse(r.getStatus().value()));
 
-        // Try to get conversation history (if endpoint exists)
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
-        webApiClient.withAuth(token).get("/api/chat/" + chatbotId + "/history")
+        String sessionId = "e2e_hist_sess";
+        webApiClient.withAuth(token).get("/api/chat/" + chatbotId + "/conversation/" + sessionId)
+            .expectStatus().isOk()
             .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-            });
-
-        // Should return history or 404 if not implemented, or 500 for AI service errors
-        // Note: 401 should not occur since /api/chat/** is permitAll()
-        int statusCode = statusCodeRef.get();
-        assertTrue(statusCode == 200 || statusCode == 404 || statusCode == 500,
-            "Should return history (200), not found (404), or AI service error (500). " +
-            "Got: " + statusCode + ". Note: 401 should not occur since /api/chat/** is permitAll().");
+            .jsonPath("$.chatbotId").isEqualTo(chatbotId.intValue())
+            .jsonPath("$.sessionId").isEqualTo(sessionId);
     }
 }

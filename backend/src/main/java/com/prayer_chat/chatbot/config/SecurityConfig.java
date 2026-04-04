@@ -17,7 +17,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -69,7 +72,10 @@ public class SecurityConfig {
                 // Allow all OPTIONS requests for CORS preflight (industry standard, secure)
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/").permitAll() // Root path returns JSON API info (RootController)
-                .requestMatchers("/api/chat/**", "/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
+                // Public embed widget only (GET/POST config + chat). Numeric-ID chat requires JWT — see Phase 1.1 hardening.
+                .requestMatchers("/api/chat/embed/**").permitAll()
+                .requestMatchers("/chatbot-widget.js", "/api/health", "/actuator/health").permitAll()
+                .requestMatchers("/api/chat/**").authenticated()
                 // Restrict non-health actuator endpoints to administrators only.
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/auth/me").authenticated() // Only /me endpoint requires auth
@@ -95,6 +101,23 @@ public class SecurityConfig {
                 .requestMatchers("/index", "/chatbots/**", "/analytics", "/settings").authenticated()
                 .anyRequest().authenticated()
             );
+
+        // REST /api/**: never redirect to HTML login — return 401/403 so clients and tests get deterministic errors.
+        http.exceptionHandling(ex -> ex
+            .defaultAuthenticationEntryPointFor(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                new AntPathRequestMatcher("/api/**"))
+            .defaultAccessDeniedHandlerFor(
+                (request, response, accessDeniedException) -> {
+                    if (response.isCommitted()) {
+                        return;
+                    }
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":\"Forbidden\"}");
+                },
+                new AntPathRequestMatcher("/api/**"))
+        );
         
         // OAuth2 is REQUIRED - configure it
         // Check both the direct env var and the Spring property
@@ -220,7 +243,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Embed-only: any origin, no credentials (third-party sites). Must register before /api/chat/** so embed wins.
+        // Embed-only: any origin, no credentials (third-party sites). /api/chat/embed/** registered explicitly below.
         CorsConfiguration widgetCors = new CorsConfiguration();
         widgetCors.setAllowedOriginPatterns(List.of("*"));
         widgetCors.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));

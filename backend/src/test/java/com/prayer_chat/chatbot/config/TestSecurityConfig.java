@@ -95,8 +95,9 @@ public class TestSecurityConfig {
                 .requestMatchers("/login/**", "/oauth2/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll() // Note: /api/auth/me requires auth, but handled in controller
                 
-                // 4. Chat API endpoints - permitAll() (public chatbot widget)
-                .requestMatchers("/api/chat/**").permitAll()
+                // 4. Public embed widget only; numeric /api/chat/{id} requires JWT (matches production SecurityConfig)
+                .requestMatchers("/api/chat/embed/**").permitAll()
+                .requestMatchers("/api/chat/**").authenticated()
                 
                 // 5. Stripe webhook - permitAll() (needs to be public for Stripe to call)
                 .requestMatchers("/stripe/webhook").permitAll()
@@ -137,7 +138,7 @@ public class TestSecurityConfig {
                 .anyRequest().authenticated()
             )
             // Disable form login redirect for API endpoints (return 401 instead of 302)
-            // BUT: Don't return 401 for permitAll() endpoints like /api/chat/**
+            // BUT: Don't return 401 for permitAll() endpoints like /api/chat/embed/**
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
                     String requestUri = request.getRequestURI();
@@ -150,7 +151,7 @@ public class TestSecurityConfig {
                     // Skip authentication entry point for permitAll() endpoints
                     // If we reach here for a permitAll() endpoint, it's a configuration bug
                     // But we should still allow the request to proceed
-                    if (requestUri.startsWith("/api/chat/") || 
+                    if (requestUri.startsWith("/api/chat/embed") || 
                         requestUri.equals("/api/health") ||
                         requestUri.startsWith("/api/auth/") ||
                         requestUri.startsWith("/login/") ||
@@ -177,14 +178,15 @@ public class TestSecurityConfig {
                             logger.debug("🔍 AuthenticationEntryPoint: Set anonymous authentication");
                         }
                         
-                        // Check if response is already committed
                         if (response.isCommitted()) {
                             logger.error("🔍 AuthenticationEntryPoint: Response already committed for permitAll() endpoint: {}", requestUri);
                             return;
                         }
-                        // CRITICAL: Don't write to response - let it continue by not setting status
-                        // This should allow the filter chain to continue to the controller
-                        logger.debug("🔍 AuthenticationEntryPoint: Returning without setting 401 for permitAll() endpoint");
+                        // Entry point must complete the response; silent return leaves undefined client behavior (e.g. 500).
+                        logger.error("🔍 AuthenticationEntryPoint: permitAll endpoint {} reached entry point — security filter ordering bug", requestUri);
+                        response.setStatus(500);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"error\":\"Security misconfiguration\"}");
                         return;
                     }
                     // Check if response is already committed before writing

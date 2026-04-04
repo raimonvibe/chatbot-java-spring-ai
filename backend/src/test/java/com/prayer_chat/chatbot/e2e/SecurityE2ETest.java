@@ -72,48 +72,11 @@ class SecurityE2ETest extends E2ETestBase {
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
         
-        AtomicReference<Integer> createStatusCodeRef = new AtomicReference<>();
-        AtomicReference<Long> chatbotIdRef = new AtomicReference<>();
-        webApiClient.withAuth(token).createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "XSS Test Bot",
             "https://example.com/xsstest",
             "XSS testing"
-        )
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                createStatusCodeRef.set(status);
-                // ID extraction will be done via jsonPath separately
-            });
-        
-        // Handle potential errors (401, 500) that prevent JSON parsing
-        int createStatusCode = createStatusCodeRef.get();
-        if (createStatusCode != 200 && createStatusCode != 201) {
-            // Chatbot creation failed - skip rest of test
-            assertTrue(createStatusCode == 401 || createStatusCode == 500,
-                "Chatbot creation should return 200/201, or 401/500 if auth/service issue. Got: " + createStatusCode);
-            return;
-        }
-        
-        // Extract ID using jsonPath
-        webApiClient.withAuth(token).createChatbot(
-            "XSS Test Bot",
-            "https://example.com/xsstest",
-            "XSS testing"
-        )
-            .expectStatus().is2xxSuccessful()
-            .expectBody()
-            .jsonPath("$.id").value(id -> {
-                if (id instanceof Integer) {
-                    chatbotIdRef.set(((Integer) id).longValue());
-                } else if (id instanceof Long) {
-                    chatbotIdRef.set((Long) id);
-                } else if (id instanceof Number) {
-                    chatbotIdRef.set(((Number) id).longValue());
-                }
-            });
-        Long chatbotId = chatbotIdRef.get();
-        assertNotNull(chatbotId, "Chatbot ID should be extracted");
+        ));
 
         // Send XSS payload in chat
         String xssMessage = "<script>alert('XSS in chat')</script>";
@@ -126,7 +89,7 @@ class SecurityE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 chatStatusCodeRef.set(status);
-                assertTrue(status == 200 || status == 201 || status == 400 || 
+                assertTrue(status == 200 || status == 201 || status == 400 ||
                     status == 500 || status == 401,
                     "Should return 200/201 (success), 400 (validation), 500 (AI service), or 401 (auth). Got: " + status);
             });

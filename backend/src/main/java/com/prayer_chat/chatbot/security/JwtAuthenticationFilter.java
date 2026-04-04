@@ -61,7 +61,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // For permitAll() endpoints, ensure anonymous authentication is set
         // This is a defensive measure to ensure permitAll() endpoints work correctly
         // even if AnonymousAuthenticationFilter hasn't run yet or if there's a filter order issue
-        boolean isPermitAllEndpoint = requestUri.startsWith("/api/chat/") || 
+        // Only /api/chat/embed/** is anonymous; POST /api/chat/{id} requires JWT (SecurityConfig).
+        boolean isPermitAllEndpoint = requestUri.startsWith("/api/chat/embed") || 
                                       requestUri.equals("/api/health") ||
                                       requestUri.startsWith("/api/auth/") ||
                                       requestUri.startsWith("/login/") ||

@@ -54,6 +54,12 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
                                         @Param("endDate") java.time.LocalDateTime endDate);
 
     /**
+     * Load chatbot with owner in one query (avoids lazy-null owner in non-transactional controllers).
+     */
+    @Query("SELECT c FROM Chatbot c LEFT JOIN FETCH c.owner WHERE c.id = :id")
+    Optional<Chatbot> findByIdWithOwner(@Param("id") Long id);
+
+    /**
      * Find chatbots by owner ID
      */
     List<Chatbot> findByOwnerId(Long ownerId);

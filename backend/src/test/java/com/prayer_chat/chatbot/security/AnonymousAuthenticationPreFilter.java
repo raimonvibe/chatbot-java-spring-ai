@@ -38,7 +38,7 @@ public class AnonymousAuthenticationPreFilter extends OncePerRequestFilter {
         logger.debug("🔍 AnonymousAuthenticationPreFilter: Processing request URI: {}", requestUri);
         
         // Check if this is a permitAll() endpoint (must match TestSecurityConfig and production SecurityConfig)
-        boolean isPermitAllEndpoint = requestUri.startsWith("/api/chat/") || 
+        boolean isPermitAllEndpoint = requestUri.startsWith("/api/chat/embed") || 
                                       requestUri.equals("/api/health") ||
                                       requestUri.startsWith("/api/auth/") ||
                                       requestUri.startsWith("/login/") ||

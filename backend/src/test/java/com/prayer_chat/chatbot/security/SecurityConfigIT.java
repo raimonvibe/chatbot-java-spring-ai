@@ -89,15 +89,21 @@ class SecurityConfigIT {
     }
 
     @Test
-    @DisplayName("Should allow public access to /api/chat/** endpoints (permitAll)")
-    void shouldAllowPublicAccessToChatEndpoints() throws Exception {
-        // /api/chat/** should be permitAll() - no authentication required
-        // Even without authentication, should not return 401
+    @DisplayName("Should require authentication for POST /api/chat/{id} (numeric preview chat)")
+    void shouldRequireAuthForNumericChatEndpoint() throws Exception {
         mockMvc.perform(post("/api/chat/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"message\":\"test\"}"))
-            .andExpect(status().is(not(401))); // Should NOT be 401 (permitAll)
-            // Will likely be 404 (chatbot not found) or 500 (AI service), but NOT 401
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should allow unauthenticated access to embed chat path only")
+    void shouldAllowPublicAccessToEmbedChatEndpoints() throws Exception {
+        mockMvc.perform(post("/api/chat/embed/not-a-real-code")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"test\"}"))
+            .andExpect(status().is(not(401)));
     }
 
     @Test
