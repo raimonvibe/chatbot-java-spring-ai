@@ -126,13 +126,6 @@ public class ChatbotController {
     }
     
     /**
-     * Check if user is in preview mode (helper method)
-     */
-    private boolean isPreviewMode(User user) {
-        return costTrackingService.isPreviewMode(user);
-    }
-
-    /**
      * Check if user owns the chatbot
      */
     private boolean isOwner(User user, Chatbot chatbot) {
@@ -570,125 +563,6 @@ public class ChatbotController {
         } catch (Exception e) {
             logger.error("Error updating chatbot {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-    
-    /**
-     * Delete a chatbot
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteChatbot(@PathVariable Long id,
-                                              @AuthenticationPrincipal CustomOAuth2User currentUser) {
-        try {
-            // Production guardrail: when billing is enabled, disable deletion completely.
-            // Rationale: deleting chatbots can reset usage counters (messages/conversations),
-            // which would undermine cost/abuse limits.
-            if (billingModeService.isBillingEnabled()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-            User user = currentUser.getUser();
-            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
-
-            if (chatbotOpt.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            Chatbot chatbot = chatbotOpt.get();
-
-            // Verify access
-            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
-            if (accessCheck != null) {
-                return accessCheck;
-            }
-
-            chatbotService.deleteChatbot(id, user);
-            return ResponseEntity.noContent().build();
-
-        } catch (Exception e) {
-            logger.error("Error deleting chatbot {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-    
-    /**
-     * Delete all chatbots for the current user
-     * Only available for preview mode users (useful for testing/resetting)
-     * Paid users should use individual delete to avoid accidental bulk deletion
-     */
-    @DeleteMapping
-    public ResponseEntity<Map<String, Object>> deleteAllChatbots(
-            @AuthenticationPrincipal CustomOAuth2User currentUser) {
-        try {
-            // Production guardrail: when billing is enabled, disable bulk deletion completely.
-            if (billingModeService.isBillingEnabled()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Chatbot deletion is disabled in production."
-                ));
-            }
-            User user = currentUser.getUser();
-            
-            // Only allow bulk delete for preview mode users (safety measure)
-            if (!isPreviewMode(user)) {
-                logger.warn("User {} attempted bulk delete but is not in preview mode", LogSanitizer.sanitize(user.getEmail()));
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Bulk delete is only available for preview mode users. Please delete chatbots individually."
-                ));
-            }
-            
-            // Find all chatbots owned by this user
-            List<Chatbot> userChatbots = chatbotRepository.findByOwnerId(user.getId());
-            
-            if (userChatbots.isEmpty()) {
-                return ResponseEntity.ok(Map.of(
-                    "message", "No chatbots found to delete",
-                    "deletedCount", 0
-                ));
-            }
-            
-            // Clear vector store for each chatbot so reused IDs do not inherit old content
-            for (Chatbot c : userChatbots) {
-                try {
-                    aiChatbotService.deleteVectorStoreDocumentsForChatbot(c.getId());
-                } catch (Exception e) {
-                    logger.warn("Could not clear vector store for chatbot {} during bulk delete: {}", c.getId(), e.getMessage());
-                }
-            }
-            // Delete all chatbots
-            int deletedCount = userChatbots.size();
-            chatbotRepository.deleteAll(userChatbots);
-            
-            // Reset sequence if no chatbots remain in database (for clean ID numbering)
-            // This only affects preview mode users who delete all their chatbots
-            long totalChatbots = chatbotRepository.countAllChatbots();
-            if (totalChatbots == 0) {
-                try {
-                    // Try PostgreSQL first (production)
-                    chatbotRepository.resetSequencePostgreSQL();
-                    logger.info("Reset chatbot ID sequence (PostgreSQL)");
-                } catch (Exception e) {
-                    try {
-                        // Fallback to H2 (local development)
-                        chatbotRepository.resetSequenceH2();
-                        logger.info("Reset chatbot ID sequence (H2)");
-                    } catch (Exception e2) {
-                        // If both fail, log but don't fail the request
-                        logger.warn("Could not reset chatbot ID sequence (this is not critical): {}", e2.getMessage());
-                    }
-                }
-            }
-            
-            logger.info("Deleted {} chatbots for preview mode user: {}", deletedCount, LogSanitizer.sanitize(user.getEmail()));
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Successfully deleted all chatbots",
-                "deletedCount", deletedCount,
-                "sequenceReset", totalChatbots == 0
-            ));
-
-        } catch (Exception e) {
-            logger.error("Error deleting all chatbots for user", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to delete chatbots"));
         }
     }
     

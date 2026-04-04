@@ -133,37 +133,6 @@ class ChatbotServiceTest {
     }
 
     @Test
-    @DisplayName("Should delete chatbot successfully")
-    void shouldDeleteChatbotSuccessfully() {
-        // Arrange
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-
-        // Act
-        chatbotService.deleteChatbot(1L, testUser);
-
-        // Assert
-        verify(chatbotRepository, times(1)).delete(testChatbot);
-        verify(auditService, times(1)).log(any(), any(), anyString(), eq(testUser), isNull(), isNull());
-    }
-
-    @Test
-    @DisplayName("Should prevent unauthorized deletion")
-    void shouldPreventUnauthorizedDeletion() {
-        // Arrange
-        User unauthorizedUser = TestDataBuilder.createTestUser();
-        unauthorizedUser.setId(2L);
-
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-
-        // Act & Assert
-        assertThatThrownBy(() -> chatbotService.deleteChatbot(1L, unauthorizedUser))
-            .isInstanceOf(SecurityException.class)
-            .hasMessageContaining("not authorized");
-
-        verify(chatbotRepository, never()).delete(any());
-    }
-
-    @Test
     @DisplayName("Should get all chatbots for user")
     void shouldGetAllChatbotsForUser() {
         // Arrange

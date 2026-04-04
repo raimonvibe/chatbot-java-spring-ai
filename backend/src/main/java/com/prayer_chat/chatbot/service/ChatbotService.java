@@ -188,53 +188,6 @@ public class ChatbotService {
     }
 
     /**
-     * Delete a chatbot with authorization check
-     *
-     * @param id the chatbot ID
-     * @param user the user requesting deletion
-     * @throws SecurityException if user is not authorized
-     * @throws IllegalArgumentException if chatbot not found
-     */
-    @Transactional
-    public void deleteChatbot(Long id, User user) {
-        logger.debug("Deleting chatbot {} for user: {}", id, user.getId());
-
-        // Find the chatbot
-        Chatbot chatbot = chatbotRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Chatbot not found: " + id));
-
-        // Check authorization
-        if (!isOwner(user, chatbot)) {
-            logger.warn("User {} attempted to delete chatbot {} without authorization", user.getId(), id);
-            throw new SecurityException("You are not authorized to delete this chatbot");
-        }
-
-        // Remove this chatbot's documents from the vector store so the ID can be reused without inheriting old content
-        if (aiChatbotService != null) {
-            try {
-                aiChatbotService.deleteVectorStoreDocumentsForChatbot(chatbot.getId());
-            } catch (Exception e) {
-                logger.warn("Could not clear vector store for deleted chatbot {}: {}", id, e.getMessage());
-            }
-        }
-
-        // Delete the chatbot
-        chatbotRepository.delete(chatbot);
-
-        // Log the deletion
-        auditService.log(
-            AuditLog.EventType.CHATBOT_DELETED,
-            AuditLog.Severity.INFO,
-            "Chatbot deleted: " + chatbot.getName(),
-            user,
-            null,
-            null
-        );
-
-        logger.info("Deleted chatbot: {}", id);
-    }
-
-    /**
      * Get all chatbots for a user
      *
      * @param user the user

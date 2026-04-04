@@ -267,11 +267,8 @@ function AccountPageContent() {
       logout: handleLogout,
       toggleCreateForm: () => router.push('/dashboard'),
       showCreateForm: false,
-      hasChatbots: chatbots.length > 0,
       canAddChatbot: true,
       isPreviewMode: false,
-      onDeleteAllChatbots: () => {},
-      canDeleteChatbots: false,
       portalLoading,
       showSubscriptionNav: paymentUi,
     });

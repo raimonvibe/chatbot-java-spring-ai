@@ -217,7 +217,7 @@ test.describe('Chatbot Detail Page', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('should delete chatbot with confirmation', async ({ page }) => {
+  test('should not show delete chatbot on preview page', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -235,24 +235,7 @@ test.describe('Chatbot Detail Page', () => {
     await page.goto(`/chatbot/${chatbot.id}`);
     await page.waitForLoadState('networkidle');
 
-    // Look for delete button
-    const deleteButton = page.getByRole('button', { name: /delete|remove/i });
-
-    if (await deleteButton.isVisible()) {
-      await deleteButton.click();
-      await page.waitForTimeout(500);
-
-      // Look for confirmation
-      const confirmButton = page.getByRole('button', { name: /confirm|yes|delete/i });
-
-      if (await confirmButton.isVisible()) {
-        await confirmButton.click();
-        await page.waitForLoadState('networkidle');
-
-        // Should redirect to dashboard
-      }
-    }
-
+    await expect(page.getByRole('button', { name: /^delete$/i })).toHaveCount(0);
     await expect(page.locator('body')).toBeVisible();
   });
 

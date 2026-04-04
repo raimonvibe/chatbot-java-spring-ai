@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, deleteAllChatbots, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, getEmbedCode, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, Trash2, LogOut, CreditCard, User } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -18,7 +18,6 @@ import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/b
 
 export default function Dashboard() {
   const router = useRouter();
-  const canDeleteChatbots = !isBillingEnabledFromEnv();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -206,41 +205,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteChatbot = async (chatbotId: number, chatbotName: string) => {
-    if (!confirm(`Are you sure you want to delete "${chatbotName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      await deleteChatbot(chatbotId);
-      const next = chatbots.filter((c) => c.id !== chatbotId);
-      setChatbots(next);
-      loadSubscriptionStatus(next.length);
-      if (next.length === 0) {
-        router.push('/onboarding');
-      }
-    } catch (error: unknown) {
-      console.error('Error deleting chatbot:', error);
-    }
-  };
-
-  const handleDeleteAllChatbots = async () => {
-    if (!confirm(`Are you sure you want to delete ALL ${chatbots.length} chatbot(s)? This action cannot be undone and will reset your testing environment.`)) {
-      return;
-    }
-
-    try {
-      const result = await deleteAllChatbots();
-      setChatbots([]);
-      loadSubscriptionStatus(0);
-      alert(`Successfully deleted ${result.deletedCount} chatbot(s).`);
-      router.push('/onboarding');
-    } catch (error: unknown) {
-      console.error('Error deleting all chatbots:', error);
-      alert(getSafeErrorMessage(error, 'Failed to delete all chatbots. Please try again.'));
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -298,11 +262,8 @@ export default function Dashboard() {
       logout: handleLogout,
       toggleCreateForm: () => setShowCreateForm((s) => !s),
       showCreateForm,
-      hasChatbots: chatbots.length > 0,
       canAddChatbot,
       isPreviewMode: subscriptionStatus?.isPreviewMode ?? true,
-      onDeleteAllChatbots: handleDeleteAllChatbots,
-      canDeleteChatbots,
       portalLoading,
       showSubscriptionNav: offerPaymentUi(subscriptionStatus),
     });
@@ -318,7 +279,6 @@ export default function Dashboard() {
     subscriptionStatus?.billingEnabled,
     subscriptionStatus?.paymentActionsAvailable,
     portalLoading,
-    canDeleteChatbots,
     setNav,
   ]);
 
@@ -513,16 +473,6 @@ export default function Dashboard() {
                     <Book className="w-5 h-5 text-brown-700 flex-shrink-0" />
                     <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
                   </div>
-                    {canDeleteChatbots && (
-                      <button
-                        onClick={() => handleDeleteChatbot(chatbot.id, chatbot.name)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        title="Delete chatbot"
-                        type="button"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                 </div>
                 <p className="text-brown-700 mb-4">{chatbot.description}</p>
 

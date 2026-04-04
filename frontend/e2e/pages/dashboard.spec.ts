@@ -234,7 +234,7 @@ test.describe('Dashboard Page', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('should delete chatbot with confirmation', async ({ page }) => {
+  test('should not offer dashboard delete controls (quota abuse prevention)', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -250,36 +250,8 @@ test.describe('Dashboard Page', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Set up dialog handler to accept confirmation
-    page.on('dialog', async (dialog) => {
-      expect(dialog.type()).toBe('confirm');
-      await dialog.accept();
-    });
-
-    // Mock the delete endpoint
-    await page.route('**/api/chatbots/*', async (route) => {
-      if (route.request().method() === 'DELETE') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ message: 'Chatbot deleted successfully' }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Look for delete button (Trash2 icon button)
-    const deleteButton = page.locator('button[title="Delete chatbot"], button:has-text("Delete")').first();
-    
-    await expect(deleteButton).toBeVisible({ timeout: 10000 });
-    await deleteButton.click();
-
-    // Wait for deletion to complete
-    await page.waitForTimeout(1000);
-
-    // Verify page is still accessible
-    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('button[title="Delete chatbot"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Delete All$/i })).toHaveCount(0);
   });
 
   test('should filter/search chatbots', async ({ page }) => {

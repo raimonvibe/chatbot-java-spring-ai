@@ -86,7 +86,9 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 // Allow public GET requests to read chatbot data
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
-                // Protect write operations (POST, PUT, DELETE)
+                // Chatbot deletion disabled (prevents quota reset via delete + recreate)
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/chatbots", "/api/chatbots/**").denyAll()
+                // Protect write operations (POST, PUT, PATCH)
                 .requestMatchers("/api/chatbots/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/plans/limits").permitAll()
                 .requestMatchers("/api/subscription/**").authenticated()

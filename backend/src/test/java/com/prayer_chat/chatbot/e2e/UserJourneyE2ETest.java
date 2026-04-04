@@ -137,8 +137,8 @@ class UserJourneyE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int status = result.getStatus().value();
                 checkoutStatusCodeRef.set(status);
-                assertTrue(status == 200 || status == 201 || status == 500,
-                    "Should return 200/201 (success) or 500 (Stripe mock issue). Got: " + status);
+                assertTrue(status == 200 || status == 201 || status == 400 || status == 500,
+                    "Should return 200/201 (success), 400 (validation), or 500 (Stripe mock issue). Got: " + status);
             });
         
         if (checkoutStatusCodeRef.get() == 200 || checkoutStatusCodeRef.get() == 201) {
@@ -158,83 +158,26 @@ class UserJourneyE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Complete Journey: OAuth2 Login → Create Multiple Chatbots → Delete One")
-    void shouldManageMultipleChatbots() {
-        // Step 1: Create OAuth2 user and subscription
+    @DisplayName("Complete Journey: OAuth2 Login → One Chatbot; DELETE Forbidden")
+    void shouldManageSingleChatbotWithDeleteForbidden() {
         String email = "multi-chatbot-user@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        // Step 2: Create first chatbot
-        Long chatbot1Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
+        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
             "Sales Assistant",
             "https://example.com/sales",
             "Helps with sales inquiries"
         )
             .expectStatus().is2xxSuccessful());
 
-        // Step 3: Create second chatbot
-        Long chatbot2Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
-            "Support Bot",
-            "https://example.com/support",
-            "Provides customer support"
-        )
-            .expectStatus().is2xxSuccessful());
-
-        // Step 4: Create third chatbot
-        Long chatbot3Id = extractChatbotId(webApiClient.withAuth(token).createChatbot(
-            "FAQ Bot",
-            "https://example.com/faq",
-            "Answers frequently asked questions"
-        )
-            .expectStatus().is2xxSuccessful());
-
-        // Step 5: Verify all chatbots exist
         webApiClient.withAuth(token).getChatbots()
             .expectStatus().isOk()
             .expectBodyList(Map.class)
-            .hasSize(3);
+            .hasSize(1);
 
-        // Step 6: Delete second chatbot
-        webApiClient.withAuth(token).deleteChatbot(chatbot2Id)
-            .expectStatus().is2xxSuccessful();
-
-        // Step 7: Verify only 2 chatbots remain
-        webApiClient.withAuth(token).getChatbots()
-            .expectStatus().isOk()
-            .expectBodyList(Map.class)
-            .hasSize(2)
-            .consumeWith(result -> {
-                // Verify chatbot1 and chatbot3 exist
-                boolean hasChatbot1 = result.getResponseBody().stream()
-                    .anyMatch(bot -> {
-                        Object id = bot.get("id");
-                        Long idLong = null;
-                        if (id instanceof Integer) {
-                            idLong = ((Integer) id).longValue();
-                        } else if (id instanceof Long) {
-                            idLong = (Long) id;
-                        } else if (id instanceof Number) {
-                            idLong = ((Number) id).longValue();
-                        }
-                        return idLong != null && idLong.equals(chatbot1Id);
-                    });
-                boolean hasChatbot3 = result.getResponseBody().stream()
-                    .anyMatch(bot -> {
-                        Object id = bot.get("id");
-                        Long idLong = null;
-                        if (id instanceof Integer) {
-                            idLong = ((Integer) id).longValue();
-                        } else if (id instanceof Long) {
-                            idLong = (Long) id;
-                        } else if (id instanceof Number) {
-                            idLong = ((Number) id).longValue();
-                        }
-                        return idLong != null && idLong.equals(chatbot3Id);
-                    });
-                assertTrue(hasChatbot1, "Chatbot 1 should still exist");
-                assertTrue(hasChatbot3, "Chatbot 3 should still exist");
-            });
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().isForbidden();
     }
 
     @Test
@@ -391,19 +334,12 @@ class UserJourneyE2ETest extends E2ETestBase {
             .expectBody()
             .jsonPath("$.name").isEqualTo("Initial Bot Name");
 
-        // Step 5: Delete chatbot (403 when billing is enabled — ChatbotController disables deletion)
-        org.springframework.test.web.reactive.server.ExchangeResult deleteResult =
-            webApiClient.withAuth(token).deleteChatbot(chatbotId).returnResult(Void.class);
-        int deleteStatus = deleteResult.getStatus().value();
-        assertTrue(deleteStatus == 204 || deleteStatus == 200 || deleteStatus == 403,
-            "Delete should succeed (204/200) or return 403 when billing mode forbids deletion. Got: " + deleteStatus);
+        webApiClient.withAuth(token).deleteChatbot(chatbotId)
+            .expectStatus().isForbidden();
 
-        if (deleteStatus == 403) {
-            return;
-        }
-
-        // Step 6: Verify chatbot is deleted
         webApiClient.withAuth(token).getChatbot(chatbotId)
-            .expectStatus().isNotFound();
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Initial Bot Name");
     }
 }

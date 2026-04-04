@@ -107,11 +107,12 @@ public class TestSecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
                 // 6b. Plan limits (public pricing info) - must match production SecurityConfig
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/plans/limits").permitAll()
+                // 6c. Chatbot deletion disabled (matches production SecurityConfig)
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/chatbots", "/api/chatbots/**").denyAll()
                 
                 // 7. Write operations to chatbots - authenticated() (must come AFTER GET rules)
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/chatbots/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/chatbots/**").authenticated()
-                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/chatbots/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.PATCH, "/api/chatbots/**").authenticated()
                 
                 // 8. Admin endpoints - hasRole("ADMIN")

@@ -271,11 +271,8 @@ export default function ChatbotPreview() {
       logout: handleLogout,
       toggleCreateForm: () => router.push('/dashboard'),
       showCreateForm: false,
-      hasChatbots: true,
       canAddChatbot: true,
       isPreviewMode: false,
-      onDeleteAllChatbots: () => {},
-      canDeleteChatbots: false,
       portalLoading: false,
       showSubscriptionNav,
     });

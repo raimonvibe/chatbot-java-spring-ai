@@ -280,19 +280,11 @@ class ChatbotControllerIT {
     }
 
     @Test
-    @DisplayName("Should delete chatbot successfully")
-    void shouldDeleteChatbotSuccessfully() throws Exception {
-        // Arrange - controller delegates to chatbotService.deleteChatbot (service performs vector store cleanup and repo delete)
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-        doNothing().when(chatbotService).deleteChatbot(eq(1L), any(User.class));
-
-        // Act & Assert
+    @DisplayName("Should reject DELETE /api/chatbots/{id} (deletion disabled)")
+    void shouldRejectChatbotDelete() throws Exception {
         mockMvc.perform(delete("/api/chatbots/1")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
-            .andExpect(status().isNoContent());
-
-        verify(chatbotRepository, times(1)).findById(1L);
-        verify(chatbotService, times(1)).deleteChatbot(eq(1L), any(User.class));
+            .andExpect(status().isForbidden());
     }
 
     @Test
@@ -461,20 +453,14 @@ class ChatbotControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Updated Lifecycle Bot"));
 
-        // Arrange - Delete (controller delegates to chatbotService.deleteChatbot)
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
-        doNothing().when(chatbotService).deleteChatbot(eq(1L), any(User.class));
-
-        // Act - Delete
+        // Act - Delete is disabled at security layer
         mockMvc.perform(delete("/api/chatbots/1")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
-            .andExpect(status().isNoContent());
+            .andExpect(status().isForbidden());
 
-        // Verify all operations were called
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
-        verify(chatbotRepository, times(2)).findById(1L); // Once for update, once for delete
+        verify(chatbotRepository, times(1)).findById(1L);
         verify(chatbotRepository, times(1)).save(any(Chatbot.class));
-        verify(chatbotService, times(1)).deleteChatbot(eq(1L), any(User.class));
     }
 
     @Test
@@ -619,14 +605,14 @@ class ChatbotControllerIT {
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
         // Mock WebsiteScanAuditRepository (controller uses this, not WebsiteContentRepository)
         when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
-        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(100); // > 50 pages
+        when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(600); // > PlanLimits.FREE_MAX_PAGES (500)
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots/1/analyze")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error").exists())
-            .andExpect(jsonPath("$.estimatedPages").value(100))
+            .andExpect(jsonPath("$.estimatedPages").value(600))
             .andExpect(jsonPath("$.upgradeRequired").value(true));
 
         verify(chatbotRepository, times(1)).findById(1L);

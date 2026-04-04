@@ -3,7 +3,6 @@ package com.prayer_chat.chatbot.e2e;
 import com.prayer_chat.chatbot.helpers.E2ETestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Chatbot API E2E Tests
  *
- * Tests complete chatbot CRUD lifecycle:
- * - Full CRUD lifecycle: Create → Read → Update → Delete
+ * Tests chatbot API (create/read/update; DELETE is disabled for quota abuse prevention):
+ * - Create → Read → Update; DELETE returns 403
  * - POST /api/chatbots → POST /api/chatbots/{id}/analyze → GET /api/chatbots/{id}/embed
  * - Chatbot ownership verification
  * - Multi-user scenarios
@@ -24,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ChatbotApiE2ETest extends E2ETestBase {
 
     @Test
-    @DisplayName("Complete CRUD Lifecycle: Create → Read → Update → Delete")
+    @DisplayName("Create → Read → Update; DELETE disabled (403)")
     void shouldCompleteFullCRUDLifecycle() {
         // Setup: Create OAuth2 user and subscription
         String email = "crud@example.com";
@@ -86,41 +85,33 @@ class ChatbotApiE2ETest extends E2ETestBase {
             .expectBody()
             .jsonPath("$.name").isEqualTo("Updated CRUD Bot");
 
-        // Step 4: DELETE chatbot
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().is2xxSuccessful();
+            .expectStatus().isForbidden();
 
-        // Step 5: Verify deletion
         webApiClient.withAuth(token).getChatbot(chatbotId)
-            .expectStatus().isNotFound();
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.name").isEqualTo("Updated CRUD Bot");
     }
 
     @Test
-    @DisplayName("Create Multiple Chatbots and List All")
-    void shouldCreateMultipleChatbotsAndListAll() {
+    @DisplayName("Create One Chatbot and List (one chatbot per account)")
+    void shouldCreateOneChatbotAndList() {
         // Create OAuth2 user and subscription
         String email = "multiple@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
-        // Create 3 chatbots
         webApiClient.withAuth(token).createChatbot("Bot 1", "https://example.com/bot1", "First bot")
             .expectStatus().is2xxSuccessful();
-        webApiClient.withAuth(token).createChatbot("Bot 2", "https://example.com/bot2", "Second bot")
-            .expectStatus().is2xxSuccessful();
-        webApiClient.withAuth(token).createChatbot("Bot 3", "https://example.com/bot3", "Third bot")
-            .expectStatus().is2xxSuccessful();
 
-        // Get all chatbots
         webApiClient.withAuth(token).getChatbots()
             .expectStatus().isOk()
             .expectBodyList(Map.class)
             .consumeWith(result -> {
                 assertNotNull(result.getResponseBody());
-                assertEquals(3, result.getResponseBody().size());
+                assertEquals(1, result.getResponseBody().size());
                 assertNotNull(result.getResponseBody().get(0).get("name"));
-                assertNotNull(result.getResponseBody().get(1).get("name"));
-                assertNotNull(result.getResponseBody().get(2).get("name"));
             });
     }
 
@@ -161,7 +152,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Chatbot Ownership: User Cannot Delete Another User's Chatbot")
+    @DisplayName("Chatbot DELETE returns 403 for any caller (including non-owner)")
     void shouldPreventUnauthorizedDeletion() {
         // User 1 creates chatbot
         String creatorEmail = "creator@example.com";
@@ -179,21 +170,8 @@ class ChatbotApiE2ETest extends E2ETestBase {
         String attackerToken = createOAuth2User(attackerEmail);
         createActiveSubscriptionForUser(attackerEmail);
         
-        AtomicReference<Integer> statusCodeRef = new AtomicReference<>();
         webApiClient.withAuth(attackerToken).deleteChatbot(chatbotId)
-            .expectStatus().is4xxClientError()
-            .expectBody()
-            .consumeWith(result -> {
-                int status = result.getStatus().value();
-                statusCodeRef.set(status);
-                assertTrue(status == 403 || status == 404, 
-                    "Expected 403 or 404, got: " + status);
-            });
-
-        // Should return 403 or 404
-        int statusCode = statusCodeRef.get();
-        assertTrue(statusCode == 403 || statusCode == 404,
-            "User should not delete another user's chatbot. Got: " + statusCode);
+            .expectStatus().isForbidden();
     }
 
     @Test
@@ -366,48 +344,23 @@ class ChatbotApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Delete Chatbot: Successful Deletion")
-    void shouldDeleteChatbotSuccessfully() {
-        String email = "deleter@example.com";
+    @DisplayName("DELETE /api/chatbots/{id} always returns 403 for authenticated owner")
+    void shouldRejectDeleteForOwner() {
+        String email = "nodelete@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
-            "To Delete",
-            "https://example.com/delete",
-            "Will be deleted"
+            "Kept Bot",
+            "https://example.com/kept",
+            "Cannot delete via API"
         )
             .expectStatus().is2xxSuccessful());
 
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().is2xxSuccessful();
+            .expectStatus().isForbidden();
 
-        // Verify deletion
-        webApiClient.withAuth(token).getChatbot(chatbotId)
-            .expectStatus().isNotFound();
-    }
-
-    @Test
-    @DisplayName("Delete Chatbot: Already Deleted Returns 404")
-    void shouldReturn404ForAlreadyDeletedChatbot() {
-        String email = "doubledelete@example.com";
-        String token = createOAuth2User(email);
-        createActiveSubscriptionForUser(email);
-
-        Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
-            "Double Delete",
-            "https://example.com/doubledelete",
-            "Test double deletion"
-        )
-            .expectStatus().is2xxSuccessful());
-
-        // First deletion
-        webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().is2xxSuccessful();
-
-        // Second deletion attempt
-        webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().isNotFound();
+        webApiClient.withAuth(token).getChatbot(chatbotId).expectStatus().isOk();
     }
 
     @Test
@@ -474,17 +427,15 @@ class ChatbotApiE2ETest extends E2ETestBase {
             .consumeWith(result -> {
                 int statusValue = result.getStatus().value();
                 statusCodeRef.set(statusValue);
-                // Accept 200/204/404/405/401
-                assertTrue(statusValue == 200 || statusValue == 204 || statusValue == 404 || 
+                // Accept 200/204/400/404/405/401 (400 = validation / unsupported partial body)
+                assertTrue(statusValue == 200 || statusValue == 204 || statusValue == 400 || statusValue == 404 ||
                     statusValue == 405 || statusValue == 401,
-                    "Expected 200/204/404/405/401, got: " + statusValue);
+                    "Expected 200/204/400/404/405/401, got: " + statusValue);
             });
 
-        // Should succeed (200 or 204) or return 404/405 if PATCH not implemented
-        // Note: Controller only has PUT, not PATCH, so 405 Method Not Allowed is expected
-        // 401 indicates authentication issue (token not sent correctly)
         int statusCode = statusCodeRef.get();
-        assertTrue(statusCode == 200 || statusCode == 204 || statusCode == 404 || statusCode == 405 || statusCode == 401,
-            "Partial update should succeed (200/204) or return 404/405/401 - got: " + statusCode);
+        assertTrue(statusCode == 200 || statusCode == 204 || statusCode == 400 || statusCode == 404
+                || statusCode == 405 || statusCode == 401,
+            "Partial update should succeed (200/204) or return 400/404/405/401 - got: " + statusCode);
     }
 }

@@ -20,7 +20,6 @@ jest.mock('lucide-react', () => ({
   Copy: () => <span data-testid="icon-copy" />,
   CheckCircle: () => <span data-testid="icon-check" />,
   Crown: () => <span data-testid="icon-crown" />,
-  Trash2: () => <span data-testid="icon-trash" />,
   LogOut: () => <span data-testid="icon-logout" />,
   CreditCard: () => <span data-testid="icon-creditcard" />,
   User: () => <span data-testid="icon-user" />,
@@ -43,7 +42,6 @@ const mockGetAllChatbots = jest.fn();
 const mockCheckAuth = jest.fn();
 const mockCreatePortalSession = jest.fn();
 const mockLogout = jest.fn();
-const mockDeleteChatbot = jest.fn();
 const mockGetEmbedCode = jest.fn();
 const mockUpdateChatbot = jest.fn();
 const mockGetSubscriptionStatusFromApi = jest.fn();
@@ -53,8 +51,6 @@ jest.mock('@/lib/api', () => ({
   createChatbotFromUrl: jest.fn(),
   checkAuth: (...args: unknown[]) => mockCheckAuth(...args),
   getEmbedCode: (...args: unknown[]) => mockGetEmbedCode(...args),
-  deleteChatbot: (...args: unknown[]) => mockDeleteChatbot(...args),
-  deleteAllChatbots: jest.fn(),
   logout: (...args: unknown[]) => mockLogout(...args),
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
   updateChatbot: (...args: unknown[]) => mockUpdateChatbot(...args),

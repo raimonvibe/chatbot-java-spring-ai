@@ -7,13 +7,9 @@ export interface DashboardNavValue {
   logout: () => void;
   toggleCreateForm: () => void;
   showCreateForm: boolean;
-  hasChatbots: boolean;
   /** When false, hide header/actions to add another chatbot (subscription limit). */
   canAddChatbot: boolean;
   isPreviewMode: boolean;
-  onDeleteAllChatbots: () => void;
-  /** When true, allow delete/testing reset controls to be shown in the UI. */
-  canDeleteChatbots: boolean;
   portalLoading: boolean;
   /** When false, hide Stripe portal / “Subscription” entry (billing disabled on server). */
   showSubscriptionNav: boolean;

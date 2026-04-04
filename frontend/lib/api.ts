@@ -837,40 +837,6 @@ export async function getEmbedCode(chatbotId: number): Promise<string> {
   }
 }
 
-export async function deleteChatbot(chatbotId: number): Promise<void> {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers,
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Chatbot not found');
-    }
-    if (response.status === 403) {
-      throw new Error('You do not have permission to delete this chatbot');
-    }
-    throw new Error('Failed to delete chatbot');
-  }
-}
-
-export async function deleteAllChatbots(): Promise<{ message: string; deletedCount: number }> {
-  const headers = getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers,
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to delete all chatbots');
-  }
-
-  return response.json();
-}
-
 export async function logout(): Promise<{ message: string; googleLogoutUrl?: string }> {
   const headers = getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {

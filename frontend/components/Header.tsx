@@ -227,19 +227,6 @@ export default function Header() {
                     <LogOut className="w-4 h-4 flex-shrink-0" />
                     Logout
                   </button>
-                  {nav.hasChatbots && nav.isPreviewMode && nav.canDeleteChatbots && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        nav.onDeleteAllChatbots();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium min-h-[44px] text-left"
-                      role="menuitem"
-                    >
-                      Delete All
-                    </button>
-                  )}
                   <div className="border-t border-brown-100 my-2" aria-hidden />
                   <Link
                     href="/"
