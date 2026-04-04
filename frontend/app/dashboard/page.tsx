@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User, Loader2, Trash2 } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
@@ -18,6 +18,8 @@ import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/b
 
 export default function Dashboard() {
   const router = useRouter();
+  const pathname = usePathname();
+  const prevPathnameRef = useRef<string | null>(null);
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -57,6 +59,16 @@ export default function Dashboard() {
     loadChatbots();
     loadSubscriptionStatus();
   }, []);
+
+  /** Re-entering dashboard from preview (or any other route) refetches chatbots — pairs with GET cache: no-store. */
+  useEffect(() => {
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+    if (pathname !== '/dashboard' || loading || !authenticated) return;
+    if (prev != null && prev !== '/dashboard') {
+      void loadChatbots();
+    }
+  }, [pathname, loading, authenticated]);
 
   // Redirect to login if not authenticated (use useEffect to avoid showing modal)
   // This must be before early returns to maintain hook order
@@ -786,7 +798,8 @@ export default function Dashboard() {
                           ...chatbot,
                           name: (chatbot.name && chatbot.name.trim()) || 'Chatbot',
                           websiteUrl: (chatbot.websiteUrl && chatbot.websiteUrl.trim()) || 'https://example.com',
-                          avatarId: avatarId || null,
+                          // Empty string clears avatar on server; omitting the field would skip PATCH merge.
+                          avatarId: avatarId ? avatarId : '',
                         };
                         const updated = await updateChatbot(chatbot.id, payload);
                         setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));

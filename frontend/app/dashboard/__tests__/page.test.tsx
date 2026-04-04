@@ -38,6 +38,7 @@ const mockPush = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush, back: jest.fn(), pathname: '/dashboard', prefetch: jest.fn() }),
+  usePathname: () => '/dashboard',
 }));
 
 const mockGetAllChatbots = jest.fn();

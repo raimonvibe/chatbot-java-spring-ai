@@ -328,4 +328,13 @@ public class Chatbot {
     public void setJesusTeachingsEnabled(Boolean jesusTeachingsEnabled) {
         this.jesusTeachingsEnabled = jesusTeachingsEnabled;
     }
+
+    /**
+     * Whether the {@code jesus_teachings_enabled} column is still NULL in the database.
+     * Used so background jobs (e.g. website analysis) only auto-enable the feature when the user
+     * has never set a preference; explicit {@code false} must not be overwritten.
+     */
+    public boolean isJesusTeachingsUnsetInDatabase() {
+        return jesusTeachingsEnabled == null;
+    }
 }

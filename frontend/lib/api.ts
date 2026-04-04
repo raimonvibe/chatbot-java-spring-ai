@@ -524,6 +524,7 @@ export async function getAllChatbots(): Promise<Chatbot[]> {
   const response = await fetch(`${API_BASE_URL}/api/chatbots`, {
     credentials: 'include',
     headers,
+    cache: 'no-store',
   });
 
   if (!response.ok) {

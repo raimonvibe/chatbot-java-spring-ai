@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.dto.ChatbotRequest;
+import com.prayer_chat.chatbot.dto.ChatbotUpdatePayload;
 import com.prayer_chat.chatbot.exception.ChatbotLimitReachedException;
 import com.prayer_chat.chatbot.model.BibleVerse;
 import com.prayer_chat.chatbot.model.Chatbot;
@@ -392,7 +393,9 @@ public class ChatbotController {
                                 BibleVerse v = matches.get(0).getVerse();
                                 String verseText = v.getReference() + " - \"" + v.getText() + "\"";
                                 c.setBibleVerse(verseText);
-                                c.setJesusTeachingsEnabled(true);
+                                if (c.isJesusTeachingsUnsetInDatabase()) {
+                                    c.setJesusTeachingsEnabled(true);
+                                }
                                 if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
                                 chatbotRepository.save(c);
                                 logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
@@ -518,11 +521,12 @@ public class ChatbotController {
     /**
      * Update a chatbot. Accepts both PUT and PATCH (frontend uses PATCH).
      * Security: same for both methods — requires authentication, verifyAccess (owner + active subscription),
-     * path {@code id} only (body cannot change id/owner), and @Valid on body.
+     * path {@code id} only (body cannot change id/owner). Body uses {@link ChatbotUpdatePayload} so PATCH can be
+     * partial: omitted properties stay null and must not wipe branding, avatar, or toggles.
      */
     @RequestMapping(value = "/{id}", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<Chatbot> updateChatbot(@PathVariable Long id,
-                                                 @Valid @RequestBody Chatbot chatbotDetails,
+                                                 @RequestBody ChatbotUpdatePayload patch,
                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
             User user = currentUser.getUser();
@@ -539,22 +543,52 @@ public class ChatbotController {
             if (accessCheck != null) {
                 return ResponseEntity.status(accessCheck.getStatusCode()).build();
             }
-            chatbot.setName(chatbotDetails.getName());
-            chatbot.setDescription(chatbotDetails.getDescription());
-            chatbot.setPrimaryLanguage(chatbotDetails.getPrimaryLanguage());
-            chatbot.setSupportedLanguages(chatbotDetails.getSupportedLanguages());
-            chatbot.setCustomPrompt(chatbotDetails.getCustomPrompt());
-            chatbot.setIsActive(chatbotDetails.getIsActive());
-            // NEW FEATURES
-            chatbot.setWebhookUrl(chatbotDetails.getWebhookUrl());
-            chatbot.setWebhookEvents(chatbotDetails.getWebhookEvents());
-            chatbot.setQuickReplies(chatbotDetails.getQuickReplies());
-            // CHRISTIAN MESSAGING FEATURES
-            chatbot.setBibleVerse(chatbotDetails.getBibleVerse());
-            chatbot.setChristianMessagingEnabled(chatbotDetails.getChristianMessagingEnabled());
-            chatbot.setJesusTeachingsEnabled(chatbotDetails.getJesusTeachingsEnabled()); // NEW: Jesus Teachings feature
-            chatbot.setBrandingConfig(EmbedSecurity.sanitizeBrandingConfig(chatbotDetails.getBrandingConfig()));
-            chatbot.setAvatarId(com.prayer_chat.chatbot.util.EmbedSecurity.validateAvatarId(chatbotDetails.getAvatarId()));
+            if (patch.getName() != null) {
+                chatbot.setName(patch.getName());
+            }
+            if (patch.getWebsiteUrl() != null) {
+                chatbot.setWebsiteUrl(patch.getWebsiteUrl());
+            }
+            if (patch.getDescription() != null) {
+                chatbot.setDescription(patch.getDescription());
+            }
+            if (patch.getPrimaryLanguage() != null) {
+                chatbot.setPrimaryLanguage(patch.getPrimaryLanguage());
+            }
+            if (patch.getSupportedLanguages() != null) {
+                chatbot.setSupportedLanguages(patch.getSupportedLanguages());
+            }
+            if (patch.getCustomPrompt() != null) {
+                chatbot.setCustomPrompt(patch.getCustomPrompt());
+            }
+            if (patch.getIsActive() != null) {
+                chatbot.setIsActive(patch.getIsActive());
+            }
+            if (patch.getWebhookUrl() != null) {
+                chatbot.setWebhookUrl(patch.getWebhookUrl());
+            }
+            if (patch.getWebhookEvents() != null) {
+                chatbot.setWebhookEvents(patch.getWebhookEvents());
+            }
+            if (patch.getQuickReplies() != null) {
+                chatbot.setQuickReplies(patch.getQuickReplies());
+            }
+            if (patch.getBibleVerse() != null) {
+                chatbot.setBibleVerse(patch.getBibleVerse());
+            }
+            if (patch.getChristianMessagingEnabled() != null) {
+                chatbot.setChristianMessagingEnabled(patch.getChristianMessagingEnabled());
+            }
+            if (patch.getJesusTeachingsEnabled() != null) {
+                chatbot.setJesusTeachingsEnabled(patch.getJesusTeachingsEnabled());
+            }
+            if (patch.getBrandingConfig() != null) {
+                chatbot.setBrandingConfig(EmbedSecurity.sanitizeBrandingConfig(patch.getBrandingConfig()));
+            }
+            // Empty string clears avatar; omit property in JSON to leave unchanged.
+            if (patch.getAvatarId() != null) {
+                chatbot.setAvatarId(EmbedSecurity.validateAvatarId(patch.getAvatarId()));
+            }
 
             Chatbot updatedChatbot = chatbotRepository.save(chatbot);
             logger.info("Updated chatbot: {}", LogSanitizer.sanitize(updatedChatbot.getName()));
@@ -698,7 +732,9 @@ public class ChatbotController {
                         BibleVerse v = matches.get(0).getVerse();
                         String verseText = v.getReference() + " - \"" + v.getText() + "\"";
                         c.setBibleVerse(verseText);
-                        c.setJesusTeachingsEnabled(true);
+                        if (c.isJesusTeachingsUnsetInDatabase()) {
+                            c.setJesusTeachingsEnabled(true);
+                        }
                         if (c.getChristianMessagingEnabled() == null) c.setChristianMessagingEnabled(true);
                         chatbotRepository.save(c);
                         logger.info("Auto-enabled Christian content for chatbot {} with verse {}", c.getId(), v.getReference());
