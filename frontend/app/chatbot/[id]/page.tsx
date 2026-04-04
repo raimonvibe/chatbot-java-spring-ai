@@ -360,14 +360,14 @@ export default function ChatbotPreview() {
 
   /**
    * Desktop/tablet: bottom-right panel, width ~embed. Height scales with the preview frame (like mobile’s
-   * min(50dvh, 100%-chrome)) so it does not tower over the mock browser; capped ~embed max (500px).
+   * min(50dvh, 100%-chrome)) so it does not tower over the mock browser; capped ~embed max (460px).
    */
   const desktopTabletEmbedStyle = useMemo(() => {
     const borderRadius = parseInt(theme.borderRadius, 10) > 0 ? parseInt(theme.borderRadius, 10) : 12;
     if (screenPreview === 'tablet') {
       return {
         width: 308,
-        height: 'min(480px, max(260px, calc(0.34 * (100% - 62px))))',
+        height: 'min(442px, max(260px, calc(0.34 * (100% - 62px))))',
         maxHeight: 'calc(100% - 62px)',
         top: 'auto',
         right: 14,
@@ -377,7 +377,7 @@ export default function ChatbotPreview() {
     }
     return {
       width: 332,
-      height: 'min(500px, max(272px, calc(0.36 * (100% - 68px))))',
+      height: 'min(460px, max(272px, calc(0.36 * (100% - 68px))))',
       maxHeight: 'calc(100% - 66px)',
       top: 'auto',
       right: 18,
@@ -826,7 +826,11 @@ export default function ChatbotPreview() {
                       aria-valuemax={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.max : undefined}
                       aria-valuenow={previewResizeAriaValueNow}
                       title="Drag to resize height"
-                      className="preview-widget-resize-grip flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 py-1 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1"
+                      className={
+                        `preview-widget-resize-grip flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1 ${
+                          isMobilePreview ? 'min-h-[52px] py-2.5' : 'min-h-[22px] py-0.5'
+                        }`
+                      }
                       style={{
                         borderRadius: `${widgetGripTopBorderRadius} ${widgetGripTopBorderRadius} 0 0`,
                       }}
@@ -836,7 +840,11 @@ export default function ChatbotPreview() {
                       onPointerCancel={onPreviewWidgetResizePointerUp}
                       onKeyDown={onPreviewWidgetResizeKeyDown}
                     >
-                      <GripHorizontal className="h-4 w-4 text-brown-500/80" strokeWidth={2} aria-hidden />
+                      <GripHorizontal
+                        className={`text-brown-500/80 ${isMobilePreview ? 'h-5 w-5' : 'h-3.5 w-3.5'}`}
+                        strokeWidth={2}
+                        aria-hidden
+                      />
                     </div>
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
                       <div className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-pretty line-clamp-2 sm:text-base sm:leading-normal md:line-clamp-none md:truncate">
