@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import Message from '@/components/Message';
@@ -22,7 +22,7 @@ import {
   type AnalysisStatus,
 } from '@/lib/api';
 import Link from 'next/link';
-import { ChevronDown, MessageCircle } from 'lucide-react';
+import { ChevronDown, GripHorizontal, MessageCircle } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import JesusGuidanceCard from '@/components/JesusGuidanceCard';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
@@ -118,6 +118,12 @@ export default function ChatbotPreview() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
+  const previewDeviceFrameRef = useRef<HTMLDivElement>(null);
+  const previewWidgetPanelRef = useRef<HTMLDivElement>(null);
+  const previewResizeDragRef = useRef<{ startY: number; startH: number; pointerId: number } | null>(null);
+  const [previewFrameHeight, setPreviewFrameHeight] = useState(0);
+  /** User-adjusted panel height (px); null = use default responsive embed styles */
+  const [previewWidgetHeightPx, setPreviewWidgetHeightPx] = useState<number | null>(null);
   const brandingJson = typeof chatbot?.brandingConfig === 'string' ? chatbot.brandingConfig : '';
   const theme = useMemo(() => parseBrandingConfig(brandingJson || undefined), [brandingJson]);
   const SCREEN_WIDTHS: Record<'desktop' | 'tablet' | 'mobile', number> = {
@@ -379,6 +385,190 @@ export default function ChatbotPreview() {
       borderRadius,
     } as const;
   }, [screenPreview, theme.borderRadius]);
+
+  useLayoutEffect(() => {
+    const el = previewDeviceFrameRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setPreviewFrameHeight(el.clientHeight);
+    });
+    ro.observe(el);
+    setPreviewFrameHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, [analysisLoading, chatbotId, sceneMode, screenPreview]);
+
+  useEffect(() => {
+    if (chatbotId === null) {
+      setPreviewWidgetHeightPx(null);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(`prayer-chat-preview-h-${chatbotId}`);
+      if (!raw?.trim()) {
+        setPreviewWidgetHeightPx(null);
+        return;
+      }
+      const n = parseInt(raw, 10);
+      if (Number.isFinite(n)) setPreviewWidgetHeightPx(n);
+      else setPreviewWidgetHeightPx(null);
+    } catch {
+      setPreviewWidgetHeightPx(null);
+    }
+  }, [chatbotId]);
+
+  useEffect(() => {
+    if (previewWidgetHeightPx === null || previewFrameHeight < 80) return;
+    const maxH = Math.max(220, previewFrameHeight - 48);
+    if (previewWidgetHeightPx > maxH) setPreviewWidgetHeightPx(maxH);
+  }, [previewFrameHeight, previewWidgetHeightPx]);
+
+  /** Min/max panel height (px) inside the preview device frame — single source for drag, clamp, and ARIA */
+  const previewWidgetHeightLimits = useMemo(() => {
+    const frameH = previewFrameHeight > 0 ? previewFrameHeight : 640;
+    const maxH = Math.max(220, frameH - 48);
+    return { min: 220, max: maxH };
+  }, [previewFrameHeight]);
+
+  const widgetGripTopBorderRadius = useMemo(() => {
+    const px = parseInt(theme.borderRadius, 10);
+    return Number.isFinite(px) && px > 0 ? theme.borderRadius : '12px';
+  }, [theme.borderRadius]);
+
+  useEffect(() => {
+    return () => {
+      previewResizeDragRef.current = null;
+    };
+  }, []);
+
+  const mobilePreviewWidgetBaseStyle = useMemo(
+    () =>
+      ({
+        left: 10,
+        right: 10,
+        top: 'auto',
+        bottom: 'max(10px, env(safe-area-inset-bottom))',
+        width: 'auto',
+        height: 'min(calc(100% - 56px), max(260px, 55%))',
+        maxHeight: 'calc(100% - 56px)',
+        minHeight: 260,
+        borderRadius: 16,
+        boxSizing: 'border-box' as const,
+      }) as const,
+    []
+  );
+
+  const previewWidgetPanelStyle = useMemo(() => {
+    const { min, max } = previewWidgetHeightLimits;
+    if (previewWidgetHeightPx === null) {
+      return isMobilePreview ? mobilePreviewWidgetBaseStyle : desktopTabletEmbedStyle;
+    }
+    const h = Math.min(Math.max(min, previewWidgetHeightPx), max);
+    if (isMobilePreview) {
+      return {
+        ...mobilePreviewWidgetBaseStyle,
+        height: h,
+        maxHeight: max,
+        minHeight: Math.min(260, h),
+      };
+    }
+    return {
+      ...desktopTabletEmbedStyle,
+      height: h,
+      maxHeight: max,
+    };
+  }, [
+    isMobilePreview,
+    mobilePreviewWidgetBaseStyle,
+    desktopTabletEmbedStyle,
+    previewWidgetHeightPx,
+    previewWidgetHeightLimits,
+  ]);
+
+  const onPreviewWidgetResizePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const panel = previewWidgetPanelRef.current;
+    if (!panel) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    previewResizeDragRef.current = {
+      startY: e.clientY,
+      startH: panel.getBoundingClientRect().height,
+      pointerId: e.pointerId,
+    };
+  }, []);
+
+  const onPreviewWidgetResizePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = previewResizeDragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const frame = previewDeviceFrameRef.current;
+    if (!frame) return;
+    const min = 220;
+    const max = Math.max(min, frame.clientHeight - 48);
+    const dy = e.clientY - d.startY;
+    const next = Math.round(d.startH - dy);
+    setPreviewWidgetHeightPx(Math.min(max, Math.max(min, next)));
+  }, []);
+
+  const onPreviewWidgetResizePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const d = previewResizeDragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      previewResizeDragRef.current = null;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      if (chatbotId === null) return;
+      const h = previewWidgetPanelRef.current?.getBoundingClientRect().height;
+      if (h && Number.isFinite(h)) {
+        try {
+          localStorage.setItem(`prayer-chat-preview-h-${chatbotId}`, String(Math.round(h)));
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [chatbotId]
+  );
+
+  const onPreviewWidgetResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const key = e.key;
+      if (key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'Home' && key !== 'End') return;
+      const panel = previewWidgetPanelRef.current;
+      const frame = previewDeviceFrameRef.current;
+      if (!panel || !frame) return;
+      e.preventDefault();
+      const min = previewWidgetHeightLimits.min;
+      const max = Math.max(min, frame.clientHeight - 48);
+      const currentPx =
+        previewWidgetHeightPx !== null
+          ? previewWidgetHeightPx
+          : Math.round(panel.getBoundingClientRect().height);
+      let next = currentPx;
+      if (key === 'ArrowUp') next = currentPx + 24;
+      else if (key === 'ArrowDown') next = currentPx - 24;
+      else if (key === 'Home') next = max;
+      else if (key === 'End') next = min;
+      const clamped = Math.min(max, Math.max(min, Math.round(next)));
+      setPreviewWidgetHeightPx(clamped);
+      if (chatbotId !== null) {
+        try {
+          localStorage.setItem(`prayer-chat-preview-h-${chatbotId}`, String(clamped));
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [previewWidgetHeightPx, previewWidgetHeightLimits.min, chatbotId]
+  );
+
+  const previewResizeAriaValueNow = useMemo(() => {
+    if (previewWidgetHeightPx === null) return undefined;
+    const { min, max } = previewWidgetHeightLimits;
+    return Math.min(max, Math.max(min, previewWidgetHeightPx));
+  }, [previewWidgetHeightPx, previewWidgetHeightLimits]);
+
   const websiteHost = getHostname(chatbot?.websiteUrl);
   const websitePreviewUrl = getSafeWebsitePreviewUrl(chatbot?.websiteUrl);
 
@@ -531,6 +721,7 @@ export default function ChatbotPreview() {
             }
           >
             <div
+              ref={previewDeviceFrameRef}
               data-testid="preview-device-frame"
               className="relative isolate flex min-h-[min(76dvh,600px)] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-brown-200/80 bg-gradient-to-br from-white via-brown-50/30 to-amber-50/40 sm:min-h-[68dvh] md:min-h-[min(82dvh,840px)]"
             >
@@ -620,27 +811,33 @@ export default function ChatbotPreview() {
 
               {isWidgetOpen && (
                 <div
+                  ref={previewWidgetPanelRef}
                   data-testid="preview-widget-panel"
                   className="absolute z-20 shadow-2xl border border-brown-200/80 bg-white/95 backdrop-blur-sm overflow-hidden"
-                  style={
-                    isMobilePreview
-                      ? {
-                          // Bottom sheet: ~55% of the mock device frame so chat history is readable; rest shows site/background.
-                          left: 10,
-                          right: 10,
-                          top: 'auto',
-                          bottom: 'max(10px, env(safe-area-inset-bottom))',
-                          width: 'auto',
-                          height: 'min(calc(100% - 56px), max(260px, 55%))',
-                          maxHeight: 'calc(100% - 56px)',
-                          minHeight: 260,
-                          borderRadius: 16,
-                          boxSizing: 'border-box',
-                        }
-                      : desktopTabletEmbedStyle
-                  }
+                  style={previewWidgetPanelStyle}
                 >
                   <div className="h-full flex flex-col overflow-hidden">
+                    <div
+                      role={previewWidgetHeightPx !== null ? 'slider' : undefined}
+                      tabIndex={0}
+                      aria-orientation={previewWidgetHeightPx !== null ? 'vertical' : undefined}
+                      aria-label="Chat height. Drag, or use arrow keys to resize."
+                      aria-valuemin={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.min : undefined}
+                      aria-valuemax={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.max : undefined}
+                      aria-valuenow={previewResizeAriaValueNow}
+                      title="Drag to resize height"
+                      className="flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 py-1 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1"
+                      style={{
+                        borderRadius: `${widgetGripTopBorderRadius} ${widgetGripTopBorderRadius} 0 0`,
+                      }}
+                      onPointerDown={onPreviewWidgetResizePointerDown}
+                      onPointerMove={onPreviewWidgetResizePointerMove}
+                      onPointerUp={onPreviewWidgetResizePointerUp}
+                      onPointerCancel={onPreviewWidgetResizePointerUp}
+                      onKeyDown={onPreviewWidgetResizeKeyDown}
+                    >
+                      <GripHorizontal className="h-4 w-4 text-brown-500/80" strokeWidth={2} aria-hidden />
+                    </div>
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
                       <div className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-pretty line-clamp-2 sm:text-base sm:leading-normal md:line-clamp-none md:truncate">
                         {chatbot?.name ?? 'AI Assistant'}

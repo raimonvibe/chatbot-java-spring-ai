@@ -47,6 +47,9 @@
     let sendButton = null;
     let toggleButton = null;
     let backdropElement = null;
+    let resizeHandleEl = null;
+    /** @type {{ startY: number, startH: number, pointerId: number } | null} */
+    var resizeDragState = null;
 
     /**
      * Synchronous guard: duplicate init must be blocked BEFORE createWidget finishes appending to the DOM.
@@ -179,6 +182,31 @@
             min-width: 0;
         `;
         
+        // Top resize grip (vertical resize; panel anchored to bottom of widget container)
+        resizeHandleEl = document.createElement('div');
+        resizeHandleEl.className = 'prayer-chat-resize-handle';
+        resizeHandleEl.setAttribute('role', 'slider');
+        resizeHandleEl.setAttribute('aria-orientation', 'vertical');
+        resizeHandleEl.setAttribute('aria-label', 'Chat height. Drag, or use arrow keys to resize.');
+        resizeHandleEl.setAttribute('title', 'Drag to resize height');
+        resizeHandleEl.setAttribute('tabindex', '0');
+        resizeHandleEl.style.cssText = `
+            flex-shrink: 0;
+            height: 11px;
+            min-height: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: ns-resize;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            border-radius: ${config.borderRadius} ${config.borderRadius} 0 0;
+        `;
+        resizeHandleEl.innerHTML = '<i class="fas fa-grip-lines prayer-chat-resize-grip-icon" aria-hidden="true" style="opacity:0.5;font-size:13px;line-height:1;color:#444;"></i>';
+        
         // Create header
         const header = document.createElement('div');
         header.className = 'prayer-chat-widget-header';
@@ -186,7 +214,7 @@
             background: ${config.primaryColor};
             color: white;
             padding: 15px;
-            border-radius: ${config.borderRadius} ${config.borderRadius} 0 0;
+            border-radius: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -260,6 +288,7 @@
         toggleButton.setAttribute('aria-label', 'Open chat');
         
         // Assemble widget
+        chatContainer.appendChild(resizeHandleEl);
         chatContainer.appendChild(header);
         chatContainer.appendChild(messageContainer);
         chatContainer.appendChild(inputArea);
@@ -285,6 +314,140 @@
         addMessage('Hello! How can I help you today?', 'bot');
 
         updateWidgetStyling();
+        applySavedPanelHeight();
+        setupResizeHandle();
+    }
+
+    function getPanelHeightLimits() {
+        var minH = 220;
+        var maxH = Math.max(minH, Math.min(typeof window !== 'undefined' ? window.innerHeight - 32 : 800, 900));
+        return { minH: minH, maxH: maxH };
+    }
+
+    function clampPanelHeight(px) {
+        var lim = getPanelHeightLimits();
+        return Math.round(Math.max(lim.minH, Math.min(lim.maxH, px)));
+    }
+
+    function updateResizeHandleAria(h) {
+        if (!resizeHandleEl) return;
+        var lim = getPanelHeightLimits();
+        try {
+            resizeHandleEl.setAttribute('aria-valuemin', String(lim.minH));
+            resizeHandleEl.setAttribute('aria-valuemax', String(lim.maxH));
+            resizeHandleEl.setAttribute('aria-valuenow', String(h));
+        } catch (e) { /* ignore */ }
+    }
+
+    function applyPanelHeightPx(px) {
+        if (!chatContainer) return;
+        var h = clampPanelHeight(px);
+        chatContainer.style.setProperty('height', h + 'px', 'important');
+        chatContainer.style.setProperty('max-height', 'calc(100dvh - 24px)', 'important');
+        updateResizeHandleAria(h);
+    }
+
+    function applySavedPanelHeight() {
+        if (!config.embedCode || !chatContainer) return;
+        try {
+            var k = 'prayer-chat-panel-h-' + config.embedCode;
+            var raw = localStorage.getItem(k);
+            if (raw == null || raw === '') return;
+            var n = parseInt(raw, 10);
+            if (!isFinite(n)) return;
+            applyPanelHeightPx(n);
+        } catch (e) { /* private mode / quota */ }
+    }
+
+    function persistPanelHeight(px) {
+        if (!config.embedCode) return;
+        try {
+            localStorage.setItem('prayer-chat-panel-h-' + config.embedCode, String(clampPanelHeight(px)));
+        } catch (e) { /* ignore */ }
+    }
+
+    function detachResizeGlobalListeners() {
+        document.body.style.cursor = '';
+        window.removeEventListener('pointermove', onResizePointerMove);
+        window.removeEventListener('pointerup', onResizePointerUp);
+        window.removeEventListener('pointercancel', onResizePointerUp);
+    }
+
+    function releaseResizePointerCapture() {
+        if (!resizeDragState || !resizeHandleEl) return;
+        try {
+            if (resizeHandleEl.hasPointerCapture(resizeDragState.pointerId)) {
+                resizeHandleEl.releasePointerCapture(resizeDragState.pointerId);
+            }
+        } catch (err) { /* ignore */ }
+    }
+
+    /** End in-progress resize without persisting (e.g. panel closed mid-drag). */
+    function cancelResizeInteraction() {
+        if (!resizeDragState) return;
+        releaseResizePointerCapture();
+        detachResizeGlobalListeners();
+        resizeDragState = null;
+    }
+
+    function setupResizeHandle() {
+        if (!resizeHandleEl) return;
+        resizeHandleEl.addEventListener('pointerdown', onResizePointerDown);
+        resizeHandleEl.addEventListener('keydown', onResizeHandleKeydown);
+    }
+
+    function onResizeHandleKeydown(e) {
+        if (!isOpen || !chatContainer) return;
+        var key = e.key;
+        if (key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'Home' && key !== 'End') return;
+        e.preventDefault();
+        var lim = getPanelHeightLimits();
+        var current = clampPanelHeight(chatContainer.getBoundingClientRect().height);
+        var next = current;
+        if (key === 'ArrowUp') next = current + 24;
+        else if (key === 'ArrowDown') next = current - 24;
+        else if (key === 'Home') next = lim.maxH;
+        else if (key === 'End') next = lim.minH;
+        applyPanelHeightPx(next);
+        persistPanelHeight(clampPanelHeight(next));
+    }
+
+    function onResizePointerDown(e) {
+        if (!isOpen || !chatContainer) return;
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        try {
+            resizeHandleEl.setPointerCapture(e.pointerId);
+        } catch (err) { /* older browsers */ }
+        var rect = chatContainer.getBoundingClientRect();
+        resizeDragState = {
+            startY: e.clientY,
+            startH: rect.height,
+            pointerId: e.pointerId
+        };
+        document.body.style.cursor = 'ns-resize';
+        window.addEventListener('pointermove', onResizePointerMove);
+        window.addEventListener('pointerup', onResizePointerUp);
+        window.addEventListener('pointercancel', onResizePointerUp);
+    }
+
+    function onResizePointerMove(e) {
+        if (!resizeDragState || !chatContainer) return;
+        if (e.pointerId !== resizeDragState.pointerId) return;
+        var dy = e.clientY - resizeDragState.startY;
+        var next = resizeDragState.startH - dy;
+        applyPanelHeightPx(next);
+    }
+
+    function onResizePointerUp(e) {
+        if (!resizeDragState) return;
+        if (e && e.pointerId !== undefined && e.pointerId !== resizeDragState.pointerId) return;
+        releaseResizePointerCapture();
+        detachResizeGlobalListeners();
+        if (chatContainer) {
+            persistPanelHeight(chatContainer.getBoundingClientRect().height);
+        }
+        resizeDragState = null;
     }
     
     /**
@@ -371,12 +534,19 @@
         if (inputField) {
             setTimeout(function() { inputField.focus(); }, 100);
         }
+        requestAnimationFrame(function() {
+            if (chatContainer && resizeHandleEl) {
+                var h = clampPanelHeight(chatContainer.getBoundingClientRect().height);
+                updateResizeHandleAria(h);
+            }
+        });
     }
     
     /**
      * Close chat. Remove only our backdrop; leave document.body untouched.
      */
     function closeChat() {
+        cancelResizeInteraction();
         chatContainer.style.display = 'none';
         if (widgetContainer) widgetContainer.classList.remove('prayer-chat-panel-open');
         if (toggleButton) {
@@ -676,6 +846,11 @@
             chatContainerEl.style.borderRadius = config.borderRadius;
         }
 
+        var resizeHandle = widgetContainer.querySelector('.prayer-chat-resize-handle');
+        if (resizeHandle && config.borderRadius) {
+            resizeHandle.style.borderRadius = config.borderRadius + ' ' + config.borderRadius + ' 0 0';
+        }
+
         const inputAreaEl = widgetContainer.querySelector('.prayer-chat-input-area');
         if (inputAreaEl && config.borderRadius) {
             inputAreaEl.style.borderRadius = `0 0 ${config.borderRadius} ${config.borderRadius}`;
@@ -782,6 +957,10 @@
                 right: max(12px, env(safe-area-inset-right)) !important;
                 bottom: max(12px, env(safe-area-inset-bottom)) !important;
                 left: auto !important;
+            }
+            #prayer-chat-chatbot-widget .prayer-chat-resize-handle {
+                flex-shrink: 0 !important;
+                touch-action: none !important;
             }
             #prayer-chat-chatbot-widget .prayer-chat-widget-header {
                 padding-top: max(15px, env(safe-area-inset-top)) !important;
