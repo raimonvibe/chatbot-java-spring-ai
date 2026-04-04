@@ -364,6 +364,33 @@ export async function updateChatbot(chatbotId: number, updates: Partial<Chatbot>
 }
 
 /**
+ * Delete a chatbot (owner only). Server keeps per-user website scan audit rows, so quotas do not reset.
+ */
+export async function deleteChatbot(chatbotId: number): Promise<void> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/chatbots/${chatbotId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers,
+  });
+  if (response.status === 204) {
+    return;
+  }
+  if (response.status === 401) {
+    const err = new Error('Please sign in again to continue.') as ApiError;
+    err.status = 401;
+    throw err;
+  }
+  if (response.status === 404) {
+    throw new Error('Chatbot not found');
+  }
+  if (response.status === 403) {
+    throw new Error('You do not have permission to delete this chatbot');
+  }
+  const data = await response.json().catch(() => ({}));
+  throw new Error((data as { error?: string }).error || 'Failed to delete chatbot');
+}
+
 /** Allow only Stripe checkout redirect URLs (security: prevent open redirect from API response). */
 function isStripeCheckoutUrl(url: string): boolean {
   try {

@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Chatbot API E2E Tests
  *
- * Tests chatbot API (create/read/update; DELETE is disabled for quota abuse prevention):
- * - Create → Read → Update; DELETE returns 403
+ * Tests chatbot API (create/read/update/delete):
+ * - Create → Read → Update → Delete (owner); non-owner DELETE returns 403
  * - POST /api/chatbots → POST /api/chatbots/{id}/analyze → GET /api/chatbots/{id}/embed
  * - Chatbot ownership verification
  * - Multi-user scenarios
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ChatbotApiE2ETest extends E2ETestBase {
 
     @Test
-    @DisplayName("Create → Read → Update; DELETE disabled (403)")
+    @DisplayName("Create → Read → Update → Delete (owner)")
     void shouldCompleteFullCRUDLifecycle() {
         // Setup: Create OAuth2 user and subscription
         String email = "crud@example.com";
@@ -86,12 +86,10 @@ class ChatbotApiE2ETest extends E2ETestBase {
             .jsonPath("$.name").isEqualTo("Updated CRUD Bot");
 
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().isForbidden();
+            .expectStatus().isNoContent();
 
         webApiClient.withAuth(token).getChatbot(chatbotId)
-            .expectStatus().isOk()
-            .expectBody()
-            .jsonPath("$.name").isEqualTo("Updated CRUD Bot");
+            .expectStatus().isNotFound();
     }
 
     @Test
@@ -152,7 +150,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Chatbot DELETE returns 403 for any caller (including non-owner)")
+    @DisplayName("Chatbot DELETE returns 403 for non-owner")
     void shouldPreventUnauthorizedDeletion() {
         // User 1 creates chatbot
         String creatorEmail = "creator@example.com";
@@ -344,23 +342,23 @@ class ChatbotApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("DELETE /api/chatbots/{id} always returns 403 for authenticated owner")
-    void shouldRejectDeleteForOwner() {
-        String email = "nodelete@example.com";
+    @DisplayName("DELETE /api/chatbots/{id} returns 204 for authenticated owner")
+    void shouldAllowOwnerToDeleteChatbot() {
+        String email = "candelete@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
 
         Long chatbotId = extractChatbotId(webApiClient.withAuth(token).createChatbot(
-            "Kept Bot",
-            "https://example.com/kept",
-            "Cannot delete via API"
+            "Temp Bot",
+            "https://example.com/temp",
+            "Owner can delete"
         )
             .expectStatus().is2xxSuccessful());
 
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().isForbidden();
+            .expectStatus().isNoContent();
 
-        webApiClient.withAuth(token).getChatbot(chatbotId).expectStatus().isOk();
+        webApiClient.withAuth(token).getChatbot(chatbotId).expectStatus().isNotFound();
     }
 
     @Test

@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -84,6 +85,8 @@ class ChatbotControllerIT {
 
     @BeforeEach
     void setUp() {
+        clearInvocations(chatbotRepository, chatbotService);
+
         testUser = TestDataBuilder.createTestUser();
         testUser.setId(1L);
 
@@ -280,11 +283,16 @@ class ChatbotControllerIT {
     }
 
     @Test
-    @DisplayName("Should reject DELETE /api/chatbots/{id} (deletion disabled)")
-    void shouldRejectChatbotDelete() throws Exception {
+    @DisplayName("Should delete chatbot when authenticated owner")
+    void shouldDeleteChatbotWhenOwner() throws Exception {
+        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+
         mockMvc.perform(delete("/api/chatbots/1")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNoContent());
+
+        verify(chatbotRepository, times(1)).findById(1L);
+        verify(chatbotRepository, times(1)).delete(testChatbot);
     }
 
     @Test
@@ -453,14 +461,15 @@ class ChatbotControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Updated Lifecycle Bot"));
 
-        // Act - Delete is disabled at security layer
+        // Act - Delete (owner); scan audit rows are not removed — quotas remain per user
         mockMvc.perform(delete("/api/chatbots/1")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNoContent());
 
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
-        verify(chatbotRepository, times(1)).findById(1L);
+        verify(chatbotRepository, times(2)).findById(1L);
         verify(chatbotRepository, times(1)).save(any(Chatbot.class));
+        verify(chatbotRepository, times(1)).delete(testChatbot);
     }
 
     @Test

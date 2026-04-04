@@ -565,6 +565,45 @@ public class ChatbotController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Delete a chatbot owned by the current user.
+     * <p>
+     * Website scan and cost limits are tracked per user in {@link WebsiteScanAudit}, which is not cascade-deleted,
+     * so deleting a chatbot does not reset daily/monthly scan quotas (delete-and-recreate abuse is prevented).
+     */
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteChatbot(@PathVariable Long id,
+                                              @AuthenticationPrincipal CustomOAuth2User currentUser) {
+        try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            User user = currentUser.getUser();
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+            if (chatbotOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            Chatbot chatbot = chatbotOpt.get();
+            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
+            if (accessCheck != null) {
+                return ResponseEntity.status(accessCheck.getStatusCode()).build();
+            }
+            Long chatbotId = chatbot.getId();
+            try {
+                aiChatbotService.deleteVectorStoreDocumentsForChatbot(chatbotId);
+            } catch (Exception e) {
+                logger.warn("Vector store cleanup before delete chatbot {}: {}", chatbotId, e.getMessage());
+            }
+            chatbotRepository.delete(chatbot);
+            logger.info("User {} deleted chatbot {}", user.getId(), chatbotId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            logger.error("Error deleting chatbot {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
     
     /**
      * Analyze website for a chatbot

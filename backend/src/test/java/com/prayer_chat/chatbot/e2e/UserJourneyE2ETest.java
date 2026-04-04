@@ -158,8 +158,8 @@ class UserJourneyE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Complete Journey: OAuth2 Login → One Chatbot; DELETE Forbidden")
-    void shouldManageSingleChatbotWithDeleteForbidden() {
+    @DisplayName("Complete Journey: OAuth2 Login → One Chatbot → Delete")
+    void shouldManageSingleChatbotWithDelete() {
         String email = "multi-chatbot-user@example.com";
         String token = createOAuth2User(email);
         createActiveSubscriptionForUser(email);
@@ -177,7 +177,12 @@ class UserJourneyE2ETest extends E2ETestBase {
             .hasSize(1);
 
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().isForbidden();
+            .expectStatus().isNoContent();
+
+        webApiClient.withAuth(token).getChatbots()
+            .expectStatus().isOk()
+            .expectBodyList(Map.class)
+            .hasSize(0);
     }
 
     @Test
@@ -335,11 +340,9 @@ class UserJourneyE2ETest extends E2ETestBase {
             .jsonPath("$.name").isEqualTo("Initial Bot Name");
 
         webApiClient.withAuth(token).deleteChatbot(chatbotId)
-            .expectStatus().isForbidden();
+            .expectStatus().isNoContent();
 
         webApiClient.withAuth(token).getChatbot(chatbotId)
-            .expectStatus().isOk()
-            .expectBody()
-            .jsonPath("$.name").isEqualTo("Initial Bot Name");
+            .expectStatus().isNotFound();
     }
 }

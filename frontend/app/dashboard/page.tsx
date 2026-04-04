@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, getEmbedCode, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User, Loader2 } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User, Loader2, Trash2 } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -45,6 +45,7 @@ export default function Dashboard() {
     chatbotId: number;
   } | null>(null);
   const [embedFetchingId, setEmbedFetchingId] = useState<number | null>(null);
+  const [chatbotDeletingId, setChatbotDeletingId] = useState<number | null>(null);
 
   const offerPaymentUi = (status: SubscriptionStatus | null) =>
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
@@ -174,6 +175,32 @@ export default function Dashboard() {
       }
     } finally {
       setEmbedFetchingId(null);
+    }
+  };
+
+  const handleDeleteChatbot = async (chatbot: Chatbot) => {
+    const confirmed = window.confirm(
+      `Delete “${chatbot.name}”? This cannot be undone.\n\nWebsite scan limits are tied to your account and do not reset if you delete a chatbot—you won’t get extra scans by creating a new one.`
+    );
+    if (!confirmed) return;
+    setChatbotDeletingId(chatbot.id);
+    setEmbedFetchError(null);
+    try {
+      await deleteChatbot(chatbot.id);
+      const remaining = chatbots.filter((c) => c.id !== chatbot.id);
+      setChatbots(remaining);
+      if (selectedChatbot?.id === chatbot.id) {
+        setSelectedChatbot(null);
+        setEmbedCode('');
+      }
+      await loadSubscriptionStatus(remaining.length);
+      if (remaining.length === 0) {
+        router.push('/onboarding');
+      }
+    } catch (err: unknown) {
+      alert(getUserFacingFetchError(err, 'Could not delete chatbot. Please try again.'));
+    } finally {
+      setChatbotDeletingId(null);
     }
   };
 
@@ -564,6 +591,25 @@ export default function Dashboard() {
                       <>
                         <Code className="w-4 h-4 shrink-0" />
                         Get Embed Code
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete chatbot"
+                    disabled={chatbotDeletingId === chatbot.id || embedFetchingId === chatbot.id}
+                    onClick={() => void handleDeleteChatbot(chatbot)}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-brown-200 bg-white text-brown-700 hover:bg-red-50 hover:text-red-900 hover:border-red-200/80 transition-colors font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {chatbotDeletingId === chatbot.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                        Deleting…
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 shrink-0" aria-hidden />
+                        Delete chatbot
                       </>
                     )}
                   </button>

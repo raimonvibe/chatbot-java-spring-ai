@@ -234,7 +234,7 @@ test.describe('Dashboard Page', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('should not offer dashboard delete controls (quota abuse prevention)', async ({ page }) => {
+  test('should show delete chatbot control for owner (scan limits stay per account on server)', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
@@ -250,7 +250,7 @@ test.describe('Dashboard Page', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('button[title="Delete chatbot"]')).toHaveCount(0);
+    await expect(page.locator('button[title="Delete chatbot"]')).toHaveCount(1);
     await expect(page.getByRole('button', { name: /^Delete All$/i })).toHaveCount(0);
   });
 
