@@ -912,22 +912,21 @@
             box-shadow: none !important;
         }
         /*
-         * Touch targets: iOS HIG / Material ~44–48px. Grip is 11px on large desktops only.
-         * - pointer:coarse: phones, many Android tablets, some touch laptops
-         * - max-width 1366px: iPad (often reports fine pointer + “desktop” layout), small laptops — still need a fat hit area
+         * Grip stays tiny only on very wide viewports (fine pointer, mouse-first).
+         * Up to 1920px: tablets, laptops, small desktops — larger hit area (touch + trackpad).
          */
-        @media (pointer: coarse), (max-width: 1366px) {
+        @media (pointer: coarse), (max-width: 1920px) {
             #prayer-chat-chatbot-widget .prayer-chat-resize-handle {
-                min-height: 48px !important;
+                min-height: 64px !important;
                 height: auto !important;
-                padding: 12px 0 !important;
+                padding: 18px 0 !important;
                 box-sizing: border-box !important;
                 position: relative !important;
                 z-index: 2 !important;
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
             }
             #prayer-chat-chatbot-widget .prayer-chat-resize-handle .prayer-chat-resize-grip-icon {
-                font-size: 22px !important;
+                font-size: 26px !important;
                 line-height: 1 !important;
                 opacity: 0.55 !important;
             }
