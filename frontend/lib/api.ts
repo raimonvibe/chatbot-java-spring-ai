@@ -802,6 +802,13 @@ export async function getEmbedCode(chatbotId: number): Promise<string> {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const err = new Error(
+        'Please sign in again to copy your embed code. Refresh the page, sign in, and try once more.'
+      ) as ApiError;
+      err.status = 401;
+      throw err;
+    }
     if (response.status === 402) {
       // Payment required - user is in preview mode
       // Try to parse as JSON first, fallback to text

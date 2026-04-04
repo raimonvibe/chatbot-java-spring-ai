@@ -372,6 +372,20 @@ describe('API Module', () => {
       await expect(getEmbedCode(1)).rejects.toThrow('Not found')
     })
 
+    it('should throw a session message when unauthorized (401)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: {
+          get: jest.fn(() => null),
+        },
+        json: async () => ({}),
+        text: async () => '',
+      } as unknown as Response)
+
+      await expect(getEmbedCode(1)).rejects.toThrow('Please sign in again')
+    })
+
     it('should throw an error when payment required (402)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,

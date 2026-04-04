@@ -6,7 +6,7 @@ import { getAllChatbots, createChatbotFromUrl, getEmbedCode, checkAuth, logout, 
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User } from 'lucide-react';
+import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User, Loader2 } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -38,6 +38,13 @@ export default function Dashboard() {
   const [createFormError, setCreateFormError] = useState('');
   /** Non-auth failures loading the list (403/5xx/network): keep session and let user retry */
   const [chatbotsLoadError, setChatbotsLoadError] = useState<string | null>(null);
+  /** Embed fetch failed: inline banner (no browser alert). */
+  const [embedFetchError, setEmbedFetchError] = useState<{
+    message: string;
+    kind: 'sign-in' | 'generic';
+    chatbotId: number;
+  } | null>(null);
+  const [embedFetchingId, setEmbedFetchingId] = useState<number | null>(null);
 
   const offerPaymentUi = (status: SubscriptionStatus | null) =>
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
@@ -138,10 +145,12 @@ export default function Dashboard() {
   };
 
   const handleGetEmbedCode = async (chatbotId: number) => {
+    setEmbedFetchError(null);
+    setEmbedFetchingId(chatbotId);
     try {
       const code = await getEmbedCode(chatbotId);
       setEmbedCode(code);
-      setSelectedChatbot(chatbots.find(c => c.id === chatbotId) || null);
+      setSelectedChatbot(chatbots.find((c) => c.id === chatbotId) || null);
     } catch (error: unknown) {
       console.error('Error getting embed code:', error);
       const msg = getSafeErrorMessage(error, 'Failed to get embed code. Please try again.');
@@ -150,10 +159,21 @@ export default function Dashboard() {
         setPaywallFeature('integration-script');
         setShowUpgradeModal(true);
       } else if (msg.includes('Upgrade')) {
-        alert(getSafeErrorMessage(error, 'Embed is not available for your account right now.'));
+        setEmbedFetchError({
+          message: getSafeErrorMessage(error, 'Embed is not available for your account right now.'),
+          kind: 'generic',
+          chatbotId,
+        });
       } else {
-        alert(msg);
+        const status = isApiError(error) ? error.status : undefined;
+        setEmbedFetchError({
+          message: msg,
+          kind: status === 401 ? 'sign-in' : 'generic',
+          chatbotId,
+        });
       }
+    } finally {
+      setEmbedFetchingId(null);
     }
   };
 
@@ -324,6 +344,38 @@ export default function Dashboard() {
             </button>
           </div>
         )}
+        {embedFetchError && (
+          <div
+            role="alert"
+            className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-brown-800 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+          >
+            <p className="text-sm min-w-0 pr-2">{embedFetchError.message}</p>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {embedFetchError.kind === 'sign-in' && (
+                <Link
+                  href="/login"
+                  className="px-4 py-2 rounded-lg bg-brown-700 text-white text-sm font-medium hover:bg-brown-800"
+                >
+                  Sign in
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleGetEmbedCode(embedFetchError.chatbotId)}
+                className="px-4 py-2 rounded-lg bg-white border border-brown-300 text-brown-800 text-sm font-medium hover:bg-brown-50"
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => setEmbedFetchError(null)}
+                className="px-4 py-2 rounded-lg text-brown-700 text-sm font-medium hover:bg-amber-100/80"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {/* Optional Preview Mode badge when nav is in header */}
         {subscriptionStatus?.isPreviewMode && (
           <p className="mb-4 text-xs text-brown-600 font-medium">Preview Mode</p>
@@ -487,24 +539,30 @@ export default function Dashboard() {
 
                   <button
                     type="button"
+                    disabled={embedFetchingId === chatbot.id}
                     onClick={() => {
-                      handleGetEmbedCode(chatbot.id);
+                      void handleGetEmbedCode(chatbot.id);
                       setSelectedChatbot(chatbot);
                     }}
-                    className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium cursor-pointer ${
+                    className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                       subscriptionStatus?.isPreviewMode
                         ? 'bg-brown-100 text-brown-600 hover:bg-brown-200'
                         : 'bg-gold-100 text-gold-800 hover:bg-gold-200'
                     }`}
                   >
-                    {subscriptionStatus?.isPreviewMode ? (
+                    {embedFetchingId === chatbot.id ? (
                       <>
-                        <Crown className="w-4 h-4" />
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                        Loading…
+                      </>
+                    ) : subscriptionStatus?.isPreviewMode ? (
+                      <>
+                        <Crown className="w-4 h-4 shrink-0" />
                         Website embed snippet
                       </>
                     ) : (
                       <>
-                        <Code className="w-4 h-4" />
+                        <Code className="w-4 h-4 shrink-0" />
                         Get Embed Code
                       </>
                     )}
@@ -626,7 +684,10 @@ export default function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
-            onClick={() => setEmbedCode('')}
+            onClick={() => {
+              setEmbedCode('');
+              setEmbedFetchError(null);
+            }}
           >
             <div
               className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border border-brown-200 shadow-lg my-auto"
@@ -656,7 +717,10 @@ export default function Dashboard() {
                   {embedCopyFeedback === 'success' ? 'Copied!' : embedCopyFeedback === 'error' ? 'Copy failed' : 'Copy code'}
                 </button>
                 <button
-                  onClick={() => setEmbedCode('')}
+                  onClick={() => {
+                    setEmbedCode('');
+                    setEmbedFetchError(null);
+                  }}
                   className="w-full sm:w-auto px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors flex items-center justify-center gap-2"
                 >
                   <X className="w-4 h-4" />

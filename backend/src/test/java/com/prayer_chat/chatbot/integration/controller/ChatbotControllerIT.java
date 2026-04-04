@@ -483,6 +483,15 @@ class ChatbotControllerIT {
     }
 
     @Test
+    @DisplayName("Should return 401 when embed code requested without authentication")
+    void shouldReturnUnauthorizedForEmbedWithoutAuth() throws Exception {
+        mockMvc.perform(get("/api/chatbots/1/embed"))
+            .andExpect(status().isUnauthorized());
+
+        verify(chatbotRepository, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("Should generate embed code for chatbot with paid subscription")
     void shouldGenerateEmbedCodeForPaidUser() throws Exception {
         // Arrange

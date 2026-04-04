@@ -780,6 +780,9 @@ public class ChatbotController {
     public ResponseEntity<?> getEmbedCode(@PathVariable Long id,
                                                             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
