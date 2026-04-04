@@ -285,13 +285,13 @@ class ChatbotControllerIT {
     @Test
     @DisplayName("Should delete chatbot when authenticated owner")
     void shouldDeleteChatbotWhenOwner() throws Exception {
-        when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        when(chatbotRepository.findByIdAndOwner_Id(1L, testUser.getId())).thenReturn(Optional.of(testChatbot));
 
         mockMvc.perform(delete("/api/chatbots/1")
                 .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isNoContent());
 
-        verify(chatbotRepository, times(1)).findById(1L);
+        verify(chatbotRepository, times(1)).findByIdAndOwner_Id(1L, testUser.getId());
         verify(chatbotRepository, times(1)).delete(testChatbot);
     }
 
@@ -447,6 +447,7 @@ class ChatbotControllerIT {
         updateDetails.setName("Updated Lifecycle Bot");
 
         when(chatbotRepository.findById(1L)).thenReturn(Optional.of(testChatbot));
+        when(chatbotRepository.findByIdAndOwner_Id(1L, testUser.getId())).thenReturn(Optional.of(testChatbot));
         when(chatbotRepository.save(any(Chatbot.class))).thenAnswer(invocation -> {
             Chatbot saved = invocation.getArgument(0);
             saved.setName("Updated Lifecycle Bot");
@@ -467,7 +468,8 @@ class ChatbotControllerIT {
             .andExpect(status().isNoContent());
 
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
-        verify(chatbotRepository, times(2)).findById(1L);
+        verify(chatbotRepository, times(1)).findById(1L);
+        verify(chatbotRepository, times(1)).findByIdAndOwner_Id(1L, testUser.getId());
         verify(chatbotRepository, times(1)).save(any(Chatbot.class));
         verify(chatbotRepository, times(1)).delete(testChatbot);
     }
@@ -498,6 +500,34 @@ class ChatbotControllerIT {
             .andExpect(status().isUnauthorized());
 
         verify(chatbotRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("Should return 404 when deleting another user's chatbot (no IDOR leak)")
+    void shouldReturnNotFoundWhenDeletingOtherUsersChatbot() throws Exception {
+        User otherUser = TestDataBuilder.createTestUser("other@example.com");
+        otherUser.setId(2L);
+        Subscription otherSubscription = TestDataBuilder.createActiveSubscription(otherUser);
+        when(subscriptionRepository.findByUserId(otherUser.getId())).thenReturn(Optional.of(otherSubscription));
+        when(chatbotRepository.findByIdAndOwner_Id(1L, otherUser.getId())).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/chatbots/1")
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(otherUser))))
+            .andExpect(status().isNotFound());
+
+        verify(chatbotRepository, times(1)).findByIdAndOwner_Id(1L, otherUser.getId());
+        verify(chatbotRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Should reject delete with invalid chatbot id")
+    void shouldRejectDeleteWithInvalidChatbotId() throws Exception {
+        mockMvc.perform(delete("/api/chatbots/0")
+                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+            .andExpect(status().isBadRequest());
+
+        verify(chatbotRepository, never()).findByIdAndOwner_Id(anyLong(), anyLong());
+        verify(chatbotRepository, never()).delete(any());
     }
 
     @Test

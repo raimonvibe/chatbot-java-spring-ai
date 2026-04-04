@@ -95,6 +95,18 @@ class ChatbotRepositoryIT {
     }
 
     @Test
+    @DisplayName("Should find by id and owner id only when both match (owner-scoped delete)")
+    void shouldFindByIdAndOwnerId() {
+        Chatbot chatbot = TestDataBuilder.createTestChatbot(testUser);
+        Chatbot saved = chatbotRepository.save(chatbot);
+        User other = TestDataBuilder.createTestUser("other-owner@example.com");
+        other = userRepository.save(other);
+
+        assertThat(chatbotRepository.findByIdAndOwner_Id(saved.getId(), testUser.getId())).isPresent();
+        assertThat(chatbotRepository.findByIdAndOwner_Id(saved.getId(), other.getId())).isEmpty();
+    }
+
+    @Test
     @DisplayName("Should find only active chatbots")
     void shouldFindOnlyActiveChatbots() {
         // Arrange

@@ -571,6 +571,9 @@ public class ChatbotController {
      * <p>
      * Website scan and cost limits are tracked per user in {@link WebsiteScanAudit}, which is not cascade-deleted,
      * so deleting a chatbot does not reset daily/monthly scan quotas (delete-and-recreate abuse is prevented).
+     * <p>
+     * Security: validate id; require same subscription gate as other chatbot APIs; load by {@code id + owner}
+     * so a non-owner always gets {@code 404 Not Found} (no confirmation that another user's resource exists).
      */
     @DeleteMapping("/{id}")
     @Transactional
@@ -580,16 +583,18 @@ public class ChatbotController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
+            if (id == null || id < 1) {
+                return ResponseEntity.badRequest().build();
+            }
             User user = currentUser.getUser();
-            Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
+            if (!hasActiveSubscription(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            Optional<Chatbot> chatbotOpt = chatbotRepository.findByIdAndOwner_Id(id, user.getId());
             if (chatbotOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
             Chatbot chatbot = chatbotOpt.get();
-            ResponseEntity<Void> accessCheck = verifyAccess(user, chatbot);
-            if (accessCheck != null) {
-                return ResponseEntity.status(accessCheck.getStatusCode()).build();
-            }
             Long chatbotId = chatbot.getId();
             try {
                 aiChatbotService.deleteVectorStoreDocumentsForChatbot(chatbotId);

@@ -63,6 +63,12 @@ public interface ChatbotRepository extends JpaRepository<Chatbot, Long> {
      * Find chatbots by owner ID
      */
     List<Chatbot> findByOwnerId(Long ownerId);
+
+    /**
+     * Owner-scoped lookup for destructive operations: empty if wrong owner or missing id
+     * (avoids revealing that another user's chatbot exists).
+     */
+    Optional<Chatbot> findByIdAndOwner_Id(Long id, Long ownerId);
     
     /**
      * Count chatbots by owner

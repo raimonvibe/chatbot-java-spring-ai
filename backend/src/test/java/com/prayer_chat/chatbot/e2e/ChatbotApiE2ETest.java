@@ -150,7 +150,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
     }
 
     @Test
-    @DisplayName("Chatbot DELETE returns 403 for non-owner")
+    @DisplayName("Chatbot DELETE returns 404 for non-owner (uniform response, no existence leak)")
     void shouldPreventUnauthorizedDeletion() {
         // User 1 creates chatbot
         String creatorEmail = "creator@example.com";
@@ -169,7 +169,7 @@ class ChatbotApiE2ETest extends E2ETestBase {
         createActiveSubscriptionForUser(attackerEmail);
         
         webApiClient.withAuth(attackerToken).deleteChatbot(chatbotId)
-            .expectStatus().isForbidden();
+            .expectStatus().isNotFound();
     }
 
     @Test
