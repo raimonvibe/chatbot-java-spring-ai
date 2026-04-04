@@ -912,21 +912,22 @@
             box-shadow: none !important;
         }
         /*
-         * Touch targets: iOS HIG / Material ~44–48px. The grip is 11px tall on desktop; phones and
-         * coarse pointers (incl. iPhone landscape >768px where desktop layout applies) need a larger hit area.
+         * Touch targets: iOS HIG / Material ~44–48px. Grip is 11px on large desktops only.
+         * - pointer:coarse: phones, many Android tablets, some touch laptops
+         * - max-width 1366px: iPad (often reports fine pointer + “desktop” layout), small laptops — still need a fat hit area
          */
-        @media (pointer: coarse) {
+        @media (pointer: coarse), (max-width: 1366px) {
             #prayer-chat-chatbot-widget .prayer-chat-resize-handle {
-                min-height: 44px !important;
+                min-height: 48px !important;
                 height: auto !important;
-                padding: 10px 0 !important;
+                padding: 12px 0 !important;
                 box-sizing: border-box !important;
                 position: relative !important;
                 z-index: 2 !important;
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
             }
             #prayer-chat-chatbot-widget .prayer-chat-resize-handle .prayer-chat-resize-grip-icon {
-                font-size: 20px !important;
+                font-size: 22px !important;
                 line-height: 1 !important;
                 opacity: 0.55 !important;
             }
@@ -981,18 +982,6 @@
             #prayer-chat-chatbot-widget .prayer-chat-resize-handle {
                 flex-shrink: 0 !important;
                 touch-action: none !important;
-                min-height: 44px !important;
-                height: auto !important;
-                padding: 10px 0 !important;
-                box-sizing: border-box !important;
-                position: relative !important;
-                z-index: 2 !important;
-                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
-            }
-            #prayer-chat-chatbot-widget .prayer-chat-resize-handle .prayer-chat-resize-grip-icon {
-                font-size: 20px !important;
-                line-height: 1 !important;
-                opacity: 0.55 !important;
             }
             #prayer-chat-chatbot-widget .prayer-chat-widget-header {
                 padding-top: max(15px, env(safe-area-inset-top)) !important;
