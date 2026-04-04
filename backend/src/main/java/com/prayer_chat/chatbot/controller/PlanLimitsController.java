@@ -3,6 +3,7 @@ package com.prayer_chat.chatbot.controller;
 import com.prayer_chat.chatbot.config.BillingProperties;
 import com.prayer_chat.chatbot.config.PlanLimits;
 import com.prayer_chat.chatbot.model.Subscription;
+import com.prayer_chat.chatbot.service.BillingModeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,7 +47,7 @@ public class PlanLimitsController {
             // same server-enforced quotas as BillingModeService.
             boolean billingEnabled = billingProperties.isEnabled();
             if (!billingEnabled && plan == Subscription.SubscriptionPlan.FREE) {
-                p.put("monthlyScanQuota", 3);
+                p.put("monthlyScanQuota", BillingModeService.FREE_PRODUCT_MONTHLY_SCAN_QUOTA);
                 p.put("messagesPerDay", 30);
             } else {
                 p.put("monthlyScanQuota", PlanLimits.monthlyScanQuota(plan));

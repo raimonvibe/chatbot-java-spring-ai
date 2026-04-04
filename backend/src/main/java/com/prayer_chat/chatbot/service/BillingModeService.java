@@ -31,7 +31,8 @@ public class BillingModeService {
      * This is only enforced when billing is disabled (Stripe off / preview/free product).
      */
     private static final int FREE_PRODUCT_MESSAGES_PER_IP_PER_DAY = 60;
-    private static final int FREE_PRODUCT_MONTHLY_SCAN_QUOTA = 3;
+    /** Public so {@link com.prayer_chat.chatbot.controller.PlanLimitsController} can mirror enforcement in /api/plans/limits. */
+    public static final int FREE_PRODUCT_MONTHLY_SCAN_QUOTA = 5;
     private static final int FREE_PRODUCT_DAILY_SCAN_LIMIT = 3;
 
     public BillingModeService(BillingProperties billingProperties) {

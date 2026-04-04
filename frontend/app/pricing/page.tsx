@@ -27,7 +27,7 @@ type PlanKey = 'BASIC' | 'PRO' | 'ENTERPRISE';
  * backend BillingModeService effective limits (messages/day, monthly scans).
  */
 const FREE_ROLLOUT_MESSAGES_PER_DAY = 30;
-const FREE_ROLLOUT_SCANS_PER_MONTH = 3;
+const FREE_ROLLOUT_SCANS_PER_MONTH = 5;
 
 // One chatbot per user; plan tier = website size (max pages). Aligned with backend PlanLimits.
 // Full set kept for when app.billing.enabled is true; UI may filter to FREE only for a simpler page.
