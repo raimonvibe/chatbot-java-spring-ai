@@ -826,7 +826,7 @@ export default function ChatbotPreview() {
                       aria-valuemax={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.max : undefined}
                       aria-valuenow={previewResizeAriaValueNow}
                       title="Drag to resize height"
-                      className="flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 py-1 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1"
+                      className="preview-widget-resize-grip flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 py-1 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1"
                       style={{
                         borderRadius: `${widgetGripTopBorderRadius} ${widgetGripTopBorderRadius} 0 0`,
                       }}

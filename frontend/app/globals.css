@@ -79,3 +79,22 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--accent-brown), 0.8);
 }
+
+/*
+ * Chatbot preview (/chatbot/[id]): height grip must meet ~44px touch targets on phones
+ * (incl. iPhone landscape where width > 768px). Coarse pointer covers Android/iOS touch.
+ */
+@media (pointer: coarse), (max-width: 768px) {
+  .preview-widget-resize-grip {
+    min-height: 44px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: rgba(139, 90, 60, 0.12);
+  }
+
+  .preview-widget-resize-grip > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
