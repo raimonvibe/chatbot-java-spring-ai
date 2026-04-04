@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
@@ -46,6 +46,9 @@ export default function Dashboard() {
   } | null>(null);
   const [embedFetchingId, setEmbedFetchingId] = useState<number | null>(null);
   const [chatbotDeletingId, setChatbotDeletingId] = useState<number | null>(null);
+  /** In-page delete confirmation (replaces window.confirm). */
+  const [deleteConfirmChatbot, setDeleteConfirmChatbot] = useState<Chatbot | null>(null);
+  const [deleteFlowError, setDeleteFlowError] = useState<string | null>(null);
 
   const offerPaymentUi = (status: SubscriptionStatus | null) =>
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
@@ -178,11 +181,20 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteChatbot = async (chatbot: Chatbot) => {
-    const confirmed = window.confirm(
-      `Delete “${chatbot.name}”? This cannot be undone.\n\nWebsite scan limits are tied to your account and do not reset if you delete a chatbot—you won’t get extra scans by creating a new one.`
-    );
-    if (!confirmed) return;
+  const closeDeleteConfirmModal = () => {
+    if (chatbotDeletingId !== null) return;
+    setDeleteConfirmChatbot(null);
+    setDeleteFlowError(null);
+  };
+
+  const openDeleteConfirmModal = (chatbot: Chatbot) => {
+    setDeleteFlowError(null);
+    setDeleteConfirmChatbot(chatbot);
+  };
+
+  const performConfirmedDelete = async () => {
+    const chatbot = deleteConfirmChatbot;
+    if (!chatbot) return;
     setChatbotDeletingId(chatbot.id);
     setEmbedFetchError(null);
     try {
@@ -193,16 +205,39 @@ export default function Dashboard() {
         setSelectedChatbot(null);
         setEmbedCode('');
       }
+      setDeleteConfirmChatbot(null);
+      setDeleteFlowError(null);
       await loadSubscriptionStatus(remaining.length);
       if (remaining.length === 0) {
         router.push('/onboarding');
       }
     } catch (err: unknown) {
-      alert(getUserFacingFetchError(err, 'Could not delete chatbot. Please try again.'));
+      setDeleteFlowError(getUserFacingFetchError(err, 'Could not delete chatbot. Please try again.'));
     } finally {
       setChatbotDeletingId(null);
     }
   };
+
+  useEffect(() => {
+    if (!deleteConfirmChatbot) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (chatbotDeletingId !== null) return;
+      setDeleteConfirmChatbot(null);
+      setDeleteFlowError(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [deleteConfirmChatbot, chatbotDeletingId]);
+
+  useEffect(() => {
+    if (!deleteConfirmChatbot) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [deleteConfirmChatbot]);
 
   const handleCreateFromUrl = async (canonicalUrl: string) => {
     setCreateFormError('');
@@ -351,6 +386,104 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen p-4 sm:p-6 md:p-8">
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
+      <AnimatePresence>
+        {deleteConfirmChatbot && (
+          <motion.div
+            key="delete-chatbot-modal"
+            role="presentation"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/45 backdrop-blur-[2px] cursor-default"
+              aria-label="Close delete confirmation"
+              disabled={chatbotDeletingId !== null}
+              onClick={closeDeleteConfirmModal}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-chatbot-dialog-title"
+              aria-describedby="delete-chatbot-dialog-desc"
+              initial={{ opacity: 0, scale: 0.97, y: 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+              className="relative z-10 w-full max-w-md rounded-2xl border border-brown-200 bg-white shadow-xl shadow-brown-900/10 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 border border-red-100">
+                    <Trash2 className="h-5 w-5" aria-hidden />
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 text-brown-500 hover:bg-brown-100 hover:text-brown-800 disabled:opacity-40"
+                    aria-label="Close"
+                    disabled={chatbotDeletingId !== null}
+                    onClick={closeDeleteConfirmModal}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <h2
+                  id="delete-chatbot-dialog-title"
+                  className="text-xl font-bold text-brown-900 tracking-tight"
+                >
+                  Delete this chatbot?
+                </h2>
+                <p id="delete-chatbot-dialog-desc" className="mt-3 text-sm text-brown-700 leading-relaxed">
+                  You&apos;re about to remove{' '}
+                  <span className="font-semibold text-brown-900">{deleteConfirmChatbot.name}</span>. This cannot be
+                  undone.
+                </p>
+                <p className="mt-3 text-sm text-brown-600 leading-relaxed rounded-xl bg-amber-50/90 border border-amber-100 px-3 py-2.5">
+                  Website scan limits stay on your account—deleting does not reset them, so you won&apos;t get extra
+                  scans by creating a new chatbot.
+                </p>
+                {deleteFlowError && (
+                  <div
+                    role="alert"
+                    className="mt-4 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"
+                  >
+                    {deleteFlowError}
+                  </div>
+                )}
+                <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-brown-200 bg-white text-brown-800 font-medium hover:bg-brown-50 disabled:opacity-50"
+                    disabled={chatbotDeletingId !== null}
+                    onClick={closeDeleteConfirmModal}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-700 text-white font-semibold hover:bg-red-800 disabled:opacity-60 flex items-center justify-center gap-2"
+                    disabled={chatbotDeletingId !== null}
+                    onClick={() => void performConfirmedDelete()}
+                  >
+                    {chatbotDeletingId === deleteConfirmChatbot.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                        Deleting…
+                      </>
+                    ) : (
+                      'Delete permanently'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="max-w-4xl mx-auto min-w-0">
         <h1 className="sr-only">Prayer-Chat Dashboard</h1>
         {chatbotsLoadError && (
@@ -598,7 +731,7 @@ export default function Dashboard() {
                     type="button"
                     title="Delete chatbot"
                     disabled={chatbotDeletingId === chatbot.id || embedFetchingId === chatbot.id}
-                    onClick={() => void handleDeleteChatbot(chatbot)}
+                    onClick={() => openDeleteConfirmModal(chatbot)}
                     className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-brown-200 bg-white text-brown-700 hover:bg-red-50 hover:text-red-900 hover:border-red-200/80 transition-colors font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {chatbotDeletingId === chatbot.id ? (
