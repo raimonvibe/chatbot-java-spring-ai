@@ -434,12 +434,27 @@
                 })
             });
         })
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.error) {
-                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+        .then(function(response) {
+            return response.json().then(function(data) {
+                return { ok: response.ok, status: response.status, data: data || {} };
+            });
+        })
+        .then(function(result) {
+            var data = result.data;
+            var errMsg = (typeof data.error === 'string' && data.error.trim()) ? data.error.trim() : '';
+            if (errMsg.length > 500) {
+                errMsg = errMsg.substring(0, 497) + '...';
+            }
+            if (errMsg) {
+                addMessage(errMsg, 'bot');
+            } else if (!result.ok) {
+                if (result.status === 429) {
+                    addMessage('Too many messages right now. Please try again in a little while.', 'bot');
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                }
             } else {
-                addMessage(data.message, 'bot');
+                addMessage(data.message || 'Sorry, I encountered an error. Please try again.', 'bot');
             }
         })
         .catch(function(error) {
