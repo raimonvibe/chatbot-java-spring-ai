@@ -138,7 +138,48 @@ public class RateLimitingService {
         return new RateLimitResult(allowed, overMonthly ? monthlyQuota : dailyLimit, current, isPreviewMode, "scan",
             isPreviewMode && billingModeService.isBillingEnabled());
     }
-    
+
+    /**
+     * Current website-scan usage for UI (e.g. delete-chatbot confirmation). Remaining = min of monthly and daily
+     * headroom, matching {@link #checkScanLimit(User)}.
+     */
+    @Transactional(readOnly = true)
+    public WebsiteScanQuotaSnapshot getWebsiteScanQuotaSnapshot(User user) {
+        Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
+        int dailyLimit = billingModeService.effectiveDailyScanLimit(plan);
+        int monthlyQuota = billingModeService.effectiveMonthlyScanQuota(plan);
+
+        LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
+        Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
+        if (scansInLastDay == null) {
+            scansInLastDay = 0L;
+        }
+
+        LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
+        long scansThisMonth = websiteScanAuditRepository.countScansByUserAndScanDateAfter(user.getId(), startOfMonth);
+
+        long remMonthly = Math.max(0L, (long) monthlyQuota - scansThisMonth);
+        long remDaily = Math.max(0L, (long) dailyLimit - scansInLastDay);
+        int remainingEffective = (int) Math.min(remMonthly, remDaily);
+
+        return new WebsiteScanQuotaSnapshot(
+            monthlyQuota,
+            scansThisMonth,
+            dailyLimit,
+            scansInLastDay.intValue(),
+            remainingEffective
+        );
+    }
+
+    /** Website scan limits and usage for authenticated subscription/status API. */
+    public record WebsiteScanQuotaSnapshot(
+        int monthlyQuota,
+        long usedThisMonth,
+        int dailyLimit,
+        int usedDistinctDaysInRollingWindow,
+        int remainingScansEffective
+    ) {}
+
     /**
      * Get the maximum number of messages allowed per day for a user
      */

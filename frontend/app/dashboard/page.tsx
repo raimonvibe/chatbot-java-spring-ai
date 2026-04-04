@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
+import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, deleteModalWebsiteScanNote, websiteScanFieldsFromSubscriptionApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -93,6 +93,7 @@ export default function Dashboard() {
         plan: api?.plan,
         billingEnabled: api?.billingEnabled,
         paymentActionsAvailable: api?.paymentActionsAvailable,
+        ...websiteScanFieldsFromSubscriptionApi(api),
       });
     } catch (error: unknown) {
       console.error('Error loading subscription status:', error);
@@ -127,6 +128,7 @@ export default function Dashboard() {
         plan: api?.plan,
         billingEnabled: api?.billingEnabled,
         paymentActionsAvailable: api?.paymentActionsAvailable,
+        ...websiteScanFieldsFromSubscriptionApi(api),
       });
 
       // If user has no chatbots, redirect to onboarding
@@ -202,6 +204,7 @@ export default function Dashboard() {
   const openDeleteConfirmModal = (chatbot: Chatbot) => {
     setDeleteFlowError(null);
     setDeleteConfirmChatbot(chatbot);
+    void loadSubscriptionStatus();
   };
 
   const performConfirmedDelete = async () => {
@@ -455,8 +458,7 @@ export default function Dashboard() {
                   undone.
                 </p>
                 <p className="mt-3 text-sm text-brown-600 leading-relaxed rounded-xl bg-amber-50/90 border border-amber-100 px-3 py-2.5">
-                  Website scan limits stay on your account—deleting does not reset them, so you won&apos;t get extra
-                  scans by creating a new chatbot.
+                  {deleteModalWebsiteScanNote(subscriptionStatus)}
                 </p>
                 {deleteFlowError && (
                   <div

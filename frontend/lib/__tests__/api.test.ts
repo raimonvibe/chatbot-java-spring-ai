@@ -6,8 +6,11 @@ import {
   createChatbot,
   analyzeWebsite,
   getEmbedCode,
+  deleteModalWebsiteScanNote,
+  websiteScanFieldsFromSubscriptionApi,
   type ChatResponse,
   type Chatbot,
+  type SubscriptionStatus,
 } from '../api'
 
 // Mock fetch globally
@@ -402,5 +405,63 @@ describe('API Module', () => {
 
       await expect(getEmbedCode(1)).rejects.toThrow('Upgrade to paid tier')
     })
+  })
+
+  describe('deleteModalWebsiteScanNote', () => {
+    const baseStatus = {
+      isPreviewMode: false,
+      canAccessIntegrationScript: true,
+      maxChatbots: 1,
+      currentChatbotCount: 1,
+    } satisfies SubscriptionStatus;
+
+    it('mentions plural scans when remaining > 1', () => {
+      const text = deleteModalWebsiteScanNote({ ...baseStatus, websiteScansRemaining: 4 });
+      expect(text).toContain('4 website scans left');
+      expect(text).toContain('does not reset');
+    });
+
+    it('uses singular when remaining is 1', () => {
+      const text = deleteModalWebsiteScanNote({ ...baseStatus, websiteScansRemaining: 1 });
+      expect(text).toContain('1 website scan left');
+    });
+
+    it('handles zero remaining', () => {
+      const text = deleteModalWebsiteScanNote({ ...baseStatus, websiteScansRemaining: 0 });
+      expect(text).toContain('no website scans left');
+    });
+
+    it('falls back when remaining is missing', () => {
+      const text = deleteModalWebsiteScanNote({ ...baseStatus });
+      expect(text).toContain('Scan limits stay tied');
+    });
+  })
+
+  describe('websiteScanFieldsFromSubscriptionApi', () => {
+    it('maps numeric fields from API', () => {
+      const out = websiteScanFieldsFromSubscriptionApi({
+        hasSubscription: true,
+        status: 'ACTIVE',
+        plan: 'BASIC',
+        isActive: true,
+        canUseChatbot: true,
+        websiteScansRemaining: 2,
+        websiteScansMonthlyQuota: 5,
+        websiteScansUsedThisMonth: 3,
+        websiteScansDailyLimit: 3,
+        websiteScansUsedRollingDay: 1,
+      });
+      expect(out).toEqual({
+        websiteScansRemaining: 2,
+        websiteScansMonthlyQuota: 5,
+        websiteScansUsedThisMonth: 3,
+        websiteScansDailyLimit: 3,
+        websiteScansUsedRollingDay: 1,
+      });
+    });
+
+    it('returns empty when remaining is absent', () => {
+      expect(websiteScanFieldsFromSubscriptionApi({ hasSubscription: true, status: 'ACTIVE', plan: 'FREE', isActive: true, canUseChatbot: false })).toEqual({});
+    });
   })
 })

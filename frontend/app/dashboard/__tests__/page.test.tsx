@@ -91,6 +91,11 @@ describe('Dashboard Page', () => {
       plan: 'BASIC',
       isActive: true,
       canUseChatbot: true,
+      websiteScansRemaining: 4,
+      websiteScansMonthlyQuota: 5,
+      websiteScansUsedThisMonth: 1,
+      websiteScansDailyLimit: 3,
+      websiteScansUsedRollingDay: 0,
     });
   });
 

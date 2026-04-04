@@ -137,9 +137,10 @@ class SubscriptionControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(true)))
             .andExpect(jsonPath("$.plan", equalTo("FREE")))
-            .andExpect(jsonPath("$.isActive", equalTo(true)));
+            .andExpect(jsonPath("$.isActive", equalTo(true)))
+            .andExpect(jsonPath("$.websiteScansRemaining").exists());
 
-        verify(subscriptionRepository, times(1)).findByUserId(1L);
+        verify(subscriptionRepository, times(2)).findByUserId(1L);
     }
 
     @Test
@@ -154,7 +155,10 @@ class SubscriptionControllerIT {
                 .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(false)))
-            .andExpect(jsonPath("$.isActive", equalTo(false)));
+            .andExpect(jsonPath("$.isActive", equalTo(false)))
+            .andExpect(jsonPath("$.websiteScansRemaining").exists());
+
+        verify(subscriptionRepository, times(2)).findByUserId(1L);
     }
 
     @Test
@@ -790,7 +794,7 @@ class SubscriptionControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(true)));
 
-        verify(subscriptionRepository, times(1)).findByUserId(testUser.getId());
+        verify(subscriptionRepository, times(2)).findByUserId(testUser.getId());
     }
 
     @Test

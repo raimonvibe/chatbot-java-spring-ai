@@ -706,6 +706,12 @@ export interface SubscriptionStatus {
   /** Mirrors backend when billing integration is off (Stripe checkout/portal hidden). */
   billingEnabled?: boolean;
   paymentActionsAvailable?: boolean;
+  /** From GET /api/subscription/status — min(monthly headroom, daily headroom). */
+  websiteScansRemaining?: number;
+  websiteScansMonthlyQuota?: number;
+  websiteScansUsedThisMonth?: number;
+  websiteScansDailyLimit?: number;
+  websiteScansUsedRollingDay?: number;
 }
 
 /** Response from GET /api/subscription/status */
@@ -719,6 +725,53 @@ export interface SubscriptionStatusApi {
   canceledAt?: string;
   billingEnabled?: boolean;
   paymentActionsAvailable?: boolean;
+  websiteScansMonthlyQuota?: number;
+  websiteScansUsedThisMonth?: number;
+  websiteScansDailyLimit?: number;
+  websiteScansUsedRollingDay?: number;
+  websiteScansRemaining?: number;
+}
+
+/**
+ * Copy for delete-chatbot confirmation: limits + how many scans the account can still run (when API provides it).
+ */
+export function deleteModalWebsiteScanNote(status: SubscriptionStatus | null): string {
+  const n = status?.websiteScansRemaining;
+  const base =
+    'Deleting this chatbot does not reset your website scan limits—you will not get extra scans by creating a new one.';
+  if (typeof n === 'number' && Number.isFinite(n)) {
+    if (n <= 0) {
+      return `${base} You currently have no website scans left on your account (your monthly quota and rolling daily cap both still apply).`;
+    }
+    return `${base} Right now you have ${n} website scan${n === 1 ? '' : 's'} left on your account (limited by whichever is stricter: monthly quota or per-day cap).`;
+  }
+  return `${base} Scan limits stay tied to your account.`;
+}
+
+/** Maps scan quota fields from subscription status API into dashboard state. */
+export function websiteScanFieldsFromSubscriptionApi(
+  api: SubscriptionStatusApi | null
+): Pick<
+  SubscriptionStatus,
+  | 'websiteScansRemaining'
+  | 'websiteScansMonthlyQuota'
+  | 'websiteScansUsedThisMonth'
+  | 'websiteScansDailyLimit'
+  | 'websiteScansUsedRollingDay'
+> {
+  if (!api || typeof api.websiteScansRemaining !== 'number' || !Number.isFinite(api.websiteScansRemaining)) {
+    return {};
+  }
+  return {
+    websiteScansRemaining: api.websiteScansRemaining,
+    websiteScansMonthlyQuota:
+      typeof api.websiteScansMonthlyQuota === 'number' ? api.websiteScansMonthlyQuota : undefined,
+    websiteScansUsedThisMonth:
+      typeof api.websiteScansUsedThisMonth === 'number' ? api.websiteScansUsedThisMonth : undefined,
+    websiteScansDailyLimit: typeof api.websiteScansDailyLimit === 'number' ? api.websiteScansDailyLimit : undefined,
+    websiteScansUsedRollingDay:
+      typeof api.websiteScansUsedRollingDay === 'number' ? api.websiteScansUsedRollingDay : undefined,
+  };
 }
 
 /** Public GET /api/plans/limits (no auth). */

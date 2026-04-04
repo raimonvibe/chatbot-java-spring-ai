@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
+import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.StripeService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
@@ -35,6 +36,9 @@ public class SubscriptionController {
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
+
+    @Autowired
+    private RateLimitingService rateLimitingService;
 
     @Autowired
     private BillingProperties billingProperties;
@@ -84,6 +88,17 @@ public class SubscriptionController {
                 response.put("plan", "FREE");
                 response.put("isActive", false);
                 response.put("canUseChatbot", false);
+            }
+
+            try {
+                RateLimitingService.WebsiteScanQuotaSnapshot scan = rateLimitingService.getWebsiteScanQuotaSnapshot(user);
+                response.put("websiteScansMonthlyQuota", scan.monthlyQuota());
+                response.put("websiteScansUsedThisMonth", scan.usedThisMonth());
+                response.put("websiteScansDailyLimit", scan.dailyLimit());
+                response.put("websiteScansUsedRollingDay", scan.usedDistinctDaysInRollingWindow());
+                response.put("websiteScansRemaining", scan.remainingScansEffective());
+            } catch (Exception ex) {
+                logger.warn("Could not attach website scan quota to subscription status: {}", ex.getMessage());
             }
 
             return ResponseEntity.ok(response);
