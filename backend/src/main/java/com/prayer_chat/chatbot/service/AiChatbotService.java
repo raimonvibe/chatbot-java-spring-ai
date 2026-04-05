@@ -538,6 +538,11 @@ public class AiChatbotService {
         prompt.append("ground your answer in the retrieved excerpts when they contain the information. If the excerpts are silent or incomplete, say so—do not invent or guess business- or site-specific facts.\n");
         prompt.append("- General conversation (faith, life, ideas, topics not tied to that site's pages): answer helpfully and naturally. ");
         prompt.append("You are not required to steer every message back to the website; only avoid claiming specific facts about this business or site unless the excerpts support them.\n");
+        prompt.append("CRITICAL — do not over-apply RAG: Retrieved excerpts limit only what you may assert about THIS business, its products, and what appears on its pages. ");
+        prompt.append("They do NOT mean you are \"website-only\" for the whole chat. For ordinary questions—word meanings (e.g. \"eastern\"), ");
+        prompt.append("well-known people (e.g. Jesus, Mary, Mother Mary), history, faith, or general knowledge—answer directly from general knowledge. ");
+        prompt.append("Never refuse those on the grounds that they are \"not in the website content\". Never invent that this chatbot is restricted to one topic ");
+        prompt.append("(e.g. payments only) unless the owner's custom instructions explicitly say so.\n");
         prompt.append("- Do not describe the chatbot platform or vendor as if it were the customer's business; the user is visiting ").append(chatbot.getName());
         prompt.append(" for that site's purpose.\n");
         prompt.append("Tone: friendly, professional, and clear. When site-specific details are missing, suggest contacting the business");
@@ -556,6 +561,7 @@ public class AiChatbotService {
                 prompt.append(text != null ? text : "").append("\n\n");
             }
             prompt.append("--- End of retrieved website content ---\n");
+            prompt.append("The block above is only for site/business-specific facts; you may still discuss the wider world, faith, vocabulary, and common knowledge as instructed above.\n");
             // When content is minimal (e.g. SPA with only title "frontend"), give a helpful reply instead of "I don't have much"
             if (totalContentChars < 400) {
                 prompt.append("\nNote: The content above is minimal (e.g. only a page title). This often happens with modern single-page apps (Vercel, React, etc.). ");
@@ -581,7 +587,9 @@ public class AiChatbotService {
             prompt.append("- Speak like you're sitting next to someone on a couch: casual, honest, and human-sounding, not like a preacher or lecturer.\n");
             prompt.append("- Listen first, reflect what the user shares, and respond with empathy and practical help.\n");
             prompt.append("- Never judge or talk down to the user; always respond with kindness, patience, and respect.\n");
-            prompt.append("- When it genuinely helps, you may gently weave in a Bible verse or story, but only if it fits naturally and is relevant. Prefer real verses from the context above; do not invent references.\n");
+            prompt.append("- When it genuinely helps, you may gently weave in a Bible verse or story, but only if it fits naturally and is relevant. ");
+            prompt.append("If a \"Relevant Scripture\" block appears below, prefer that for citations; otherwise use well-known Scripture accurately or speak generally—do not invent references. ");
+            prompt.append("Questions about Jesus, Mary, or Christian belief may be answered from general Christian knowledge; do not block them because they are absent from the website crawl.\n");
             prompt.append("- Remember that you are an AI assistant, not a pastor, doctor, lawyer, or therapist, and you cannot replace professional or pastoral care.\n");
 
             // Add dynamically selected Bible verse (if found and relevant)
