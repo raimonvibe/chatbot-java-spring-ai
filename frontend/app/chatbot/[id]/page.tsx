@@ -728,10 +728,11 @@ export default function ChatbotPreview() {
               {sceneMode === 'website' && websitePreviewUrl && (
                 <iframe
                   src={websitePreviewUrl}
-                  title="Website preview (static — scripts disabled so your live embed does not load here)"
+                  title="Website preview (live page in sandboxed frame)"
                   className="absolute inset-0 z-0 w-full h-full border-0"
-                  // No allow-scripts: customer sites that include our embed would otherwise run a second widget under the dashboard preview.
-                  sandbox="allow-forms allow-popups"
+                  // allow-scripts + allow-same-origin: SPAs (e.g. Vercel) need JS and real origin to render. Tradeoff: sites that
+                  // auto-inject our embed may show a second widget inside this iframe (dashboard overlay still shows your preview widget).
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                   referrerPolicy="no-referrer"
                   loading="lazy"
                   onLoad={() => setWebsiteFrameLoaded(true)}
