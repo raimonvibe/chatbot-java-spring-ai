@@ -523,26 +523,39 @@ public class AiChatbotService {
                                      BibleVerse relevantVerse, String jesusTeachingContext, boolean isFirstMessage) {
         StringBuilder prompt = new StringBuilder();
 
-        // Base role and critical "this site" rule so answers are about the scanned website, not the platform
+        // RAG-style: retrieved excerpts ground site/business answers; general topics can be discussed freely (no fake site facts).
         prompt.append("You are an AI assistant for ").append(chatbot.getName()).append(".\n");
         String websiteUrl = chatbot.getWebsiteUrl() != null ? chatbot.getWebsiteUrl() : "";
         String safeUrl = safeUrlForPrompt(websiteUrl);
-        prompt.append("This chatbot was built from the website: ").append(safeUrl.isEmpty() ? "" : safeUrl).append("\n");
-        prompt.append("When the user says 'this site', 'the site', 'this website', 'tell me about this site', or similar, ")
-            .append("answer ONLY using the website content below (that site). Do not describe the platform creator or the tool—only the website.\n");
-        prompt.append("You help visitors by answering questions about that business and its services. Be helpful, friendly, and professional.\n");
-        prompt.append("If you don't know something, politely say so and suggest contacting the business directly.\n");
+        prompt.append("You are a retrieval-augmented (RAG) assistant: the sections below titled \"Retrieved website content\" are excerpts ");
+        prompt.append("from the crawled site");
+        if (!safeUrl.isEmpty()) {
+            prompt.append(" (").append(safeUrl).append(")");
+        }
+        prompt.append(". They are your primary evidence for anything specific to that business, its pages, or what appears on that website.\n");
+        prompt.append("How to respond:\n");
+        prompt.append("- Site- or business-related questions (e.g. \"this site\", \"this website\", \"what do you offer\", pricing, hours, team, page content): ");
+        prompt.append("ground your answer in the retrieved excerpts when they contain the information. If the excerpts are silent or incomplete, say so—do not invent or guess business- or site-specific facts.\n");
+        prompt.append("- General conversation (faith, life, ideas, topics not tied to that site's pages): answer helpfully and naturally. ");
+        prompt.append("You are not required to steer every message back to the website; only avoid claiming specific facts about this business or site unless the excerpts support them.\n");
+        prompt.append("- Do not describe the chatbot platform or vendor as if it were the customer's business; the user is visiting ").append(chatbot.getName());
+        prompt.append(" for that site's purpose.\n");
+        prompt.append("Tone: friendly, professional, and clear. When site-specific details are missing, suggest contacting the business");
+        if (!safeUrl.isEmpty()) {
+            prompt.append(" or visiting ").append(safeUrl);
+        }
+        prompt.append(".\n");
 
-        // Website content first so the model prioritizes it for "about this site" questions
+        // Retrieved content first (classic RAG ordering: evidence before instructions that reference it)
         if (!relevantDocs.isEmpty()) {
-            prompt.append("\n--- Content from the website (use this to answer questions about the site) ---\n");
+            prompt.append("\n--- Retrieved website content (RAG context — prioritize for site/business questions) ---\n");
             int totalContentChars = 0;
             for (Document doc : relevantDocs) {
                 String text = doc.getText();
                 if (text != null) totalContentChars += text.length();
                 prompt.append(text != null ? text : "").append("\n\n");
             }
-            prompt.append("--- End of website content ---\n");
+            prompt.append("--- End of retrieved website content ---\n");
             // When content is minimal (e.g. SPA with only title "frontend"), give a helpful reply instead of "I don't have much"
             if (totalContentChars < 400) {
                 prompt.append("\nNote: The content above is minimal (e.g. only a page title). This often happens with modern single-page apps (Vercel, React, etc.). ");
@@ -552,11 +565,11 @@ public class AiChatbotService {
             }
         } else {
             // No crawl/DB text yet (analysis still running, failed, or only empty pages saved). Never invent site facts.
-            prompt.append("\n--- No website content is available yet ---\n");
-            prompt.append("There is no stored page text for this chatbot yet (analysis may still be running, or the crawler found no usable text). ");
-            prompt.append("Do NOT invent or guess information about the business or website. ");
-            prompt.append("If the user asks what this site is about, say you do not have the page content yet and suggest trying again after analysis finishes, or contacting the site owner. ");
-            prompt.append("For other questions, answer helpfully without claiming specific facts about this site.\n");
+            prompt.append("\n--- No retrieved website content yet (RAG context empty) ---\n");
+            prompt.append("There are no indexed page excerpts yet (analysis may still be running, or the crawler found no usable text). ");
+            prompt.append("Do NOT invent or guess information about this business or website. ");
+            prompt.append("If the user asks what this site is about, explain that you do not have indexed content yet and suggest trying again later or contacting the site owner. ");
+            prompt.append("For general questions unrelated to site facts, you may still answer helpfully—just do not claim specific details about this business or its pages.\n");
         }
 
         prompt.append("\n").append(ABOUT_RAIMONVIBE).append("\n");
