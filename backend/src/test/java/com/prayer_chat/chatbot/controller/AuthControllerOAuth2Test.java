@@ -120,7 +120,7 @@ class AuthControllerOAuth2Test {
                 any(OAuth2User.class), anyString(), anyString(), anyString()))
                 .thenReturn(mockUser);
 
-        when(jwtTokenProvider.generateToken(anyString()))
+        when(jwtTokenProvider.generateToken(anyString(), anyLong()))
                 .thenReturn("mock-jwt-token");
 
         Map<String, String> request = Map.of(
@@ -295,7 +295,7 @@ class AuthControllerOAuth2Test {
                 any(OAuth2User.class), anyString(), anyString(), anyString()))
                 .thenReturn(mockUser);
 
-        when(jwtTokenProvider.generateToken(anyString()))
+        when(jwtTokenProvider.generateToken(anyString(), anyLong()))
                 .thenReturn("mock-jwt-token");
 
         Map<String, String> request = Map.of(
@@ -429,7 +429,7 @@ class AuthControllerOAuth2Test {
                 any(OAuth2User.class), anyString(), anyString(), anyString()))
                 .thenReturn(mockUser);
 
-        when(jwtTokenProvider.generateToken(anyString()))
+        when(jwtTokenProvider.generateToken(anyString(), anyLong()))
                 .thenReturn("mock-jwt-token");
 
         Map<String, String> request = Map.of(

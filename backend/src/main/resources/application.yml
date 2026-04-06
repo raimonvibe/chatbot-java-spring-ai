@@ -197,10 +197,11 @@ app:
   billing:
     enabled: ${APP_BILLING_ENABLED:false}
 
-  # OAuth JWT delivery: true = also return JWT in JSON (required for mobile Safari with cross-origin API + localStorage Bearer).
-  # Set AUTH_EXPOSE_JWT_IN_RESPONSE=false for cookie-only hardening if all clients accept cross-site PC_AUTH.
+  # OAuth JWT: default cookie-only (HttpOnly PC_AUTH). Set AUTH_EXPOSE_JWT_IN_RESPONSE=true for mobile Safari + Bearer in JSON.
+  # When true, JWT lifetime is min(jwt.expiration, exposed-bearer-ttl-ms) to limit localStorage XSS window.
   auth:
-    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:true}
+    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:false}
+    exposed-bearer-ttl-ms: ${AUTH_EXPOSED_BEARER_TTL_MS:14400000}
 
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry
   security:

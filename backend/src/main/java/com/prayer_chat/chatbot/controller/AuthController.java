@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.CacheControl;
 import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -56,9 +57,19 @@ public class AuthController {
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
-    /** When false (production HTTPS), JWT is only in HttpOnly cookie — not in OAuth JSON (reduces XSS token theft). */
-    @Value("${app.auth.expose-jwt-in-oauth-response:true}")
+    /**
+     * When false (default), JWT is only in HttpOnly cookie — not in OAuth JSON (smaller XSS window).
+     * Set AUTH_EXPOSE_JWT_IN_RESPONSE=true for clients where cross-site PC_AUTH is dropped (e.g. mobile Safari).
+     */
+    @Value("${app.auth.expose-jwt-in-oauth-response:false}")
     private boolean exposeJwtInOAuthResponse;
+
+    /**
+     * When {@link #exposeJwtInOAuthResponse} is true, JWT lifetime is min(jwt.expiration, this value) so a stolen
+     * localStorage bearer expires sooner (milliseconds). Ignored when JSON token is not returned.
+     */
+    @Value("${app.auth.exposed-bearer-ttl-ms:14400000}")
+    private long exposedBearerTtlMs;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -272,14 +283,21 @@ public class AuthController {
             // For simplicity, we'll extract the logic or create a minimal request
             User user = processOAuth2User(oauth2User);
 
-            // Step 4: Generate JWT token
-            String jwtToken = jwtTokenProvider.generateToken(user.getEmail());
+            // Step 4: Generate JWT (shorter TTL when also returned in JSON — limits XSS / localStorage exposure)
+            long configuredTtlMs = jwtTokenProvider.getJwtExpirationMillis();
+            long tokenTtlMs = configuredTtlMs;
+            if (exposeJwtInOAuthResponse) {
+                long capMs = Math.max(60_000L, exposedBearerTtlMs);
+                tokenTtlMs = Math.min(configuredTtlMs, capMs);
+            }
+            String jwtToken = jwtTokenProvider.generateToken(user.getEmail(), tokenTtlMs);
             logger.info("Generated JWT token for user: {}", LogSanitizer.sanitize(user.getEmail()));
 
+            long cookieMaxAgeSeconds = Math.max(1L, tokenTtlMs / 1000L);
             AuthCookieHelper.addAuthCookie(
                 httpResponse,
                 jwtToken,
-                jwtTokenProvider.getJwtExpirationSeconds(),
+                cookieMaxAgeSeconds,
                 httpRequest.isSecure()
             );
 
@@ -301,7 +319,10 @@ public class AuthController {
                     "authProvider", user.getAuthProvider() != null ? user.getAuthProvider().name() : "GOOGLE"
             ));
 
-            return ResponseEntity.ok(response);
+            HttpHeaders responseHeaders = new HttpHeaders();
+            responseHeaders.setCacheControl(CacheControl.noStore());
+            responseHeaders.setPragma("no-cache");
+            return new ResponseEntity<>(response, responseHeaders, HttpStatus.OK);
 
         } catch (RuntimeException e) {
             // Check if it's an invalid_grant error (expired/used code)

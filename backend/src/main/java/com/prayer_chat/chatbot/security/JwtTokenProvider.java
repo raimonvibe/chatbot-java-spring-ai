@@ -43,14 +43,31 @@ public class JwtTokenProvider {
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** JWT time-to-live in seconds (for HttpOnly cookie Max-Age). */
+    /** Configured JWT TTL in milliseconds (from {@code jwt.expiration}). */
+    public long getJwtExpirationMillis() {
+        return jwtExpiration;
+    }
+
+    /** JWT time-to-live in seconds (for HttpOnly cookie Max-Age when token uses full configured TTL). */
     public long getJwtExpirationSeconds() {
         return Math.max(1L, jwtExpiration / 1000L);
     }
 
     public String generateToken(String username) {
+        return buildToken(username, jwtExpiration);
+    }
+
+    /**
+     * OAuth / capped lifetime: TTL clamped to at least 60 seconds (avoids accidental instant-expiry misconfiguration).
+     */
+    public String generateToken(String username, long validityMillis) {
+        long ttl = Math.max(60_000L, validityMillis);
+        return buildToken(username, ttl);
+    }
+
+    private String buildToken(String username, long ttlMillis) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        Date expiryDate = new Date(now.getTime() + ttlMillis);
 
         return Jwts.builder()
                 .subject(username)

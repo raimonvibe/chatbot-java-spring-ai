@@ -35,9 +35,12 @@ services:
       # Security
       - key: JWT_SECRET
         generateValue: true
-      # Mobile Safari: cross-site PC_AUTH cookie is unreliable; JWT in OAuth JSON + Bearer fixes login on iPhone.
+      # Mobile Safari: set AUTH_EXPOSE_JWT_IN_RESPONSE=true in dashboard (not enabled by default — cookie-only is safer).
       - key: AUTH_EXPOSE_JWT_IN_RESPONSE
-        value: "true"
+        sync: false
+      # Optional: max bearer lifetime in ms when JSON JWT is enabled (default 4h in app YAML if unset).
+      - key: AUTH_EXPOSED_BEARER_TTL_MS
+        sync: false
       
       # OAuth (optional - set in dashboard if needed)
       - key: GOOGLE_CLIENT_ID
