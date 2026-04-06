@@ -1,7 +1,9 @@
 # Production profile: avoid logging or exposing anything that could leak credentials.
+# Cross-site HttpOnly cookie (Vercel → API) works on desktop Chrome but often fails on mobile Safari;
+# set AUTH_EXPOSE_JWT_IN_RESPONSE=true so OAuth JSON includes JWT (stored in localStorage + Bearer).
 app:
   auth:
-    expose-jwt-in-oauth-response: false
+    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:false}
 # Spring Boot's H2ConsoleAutoConfiguration logs the DataSource URL when the H2 console is enabled;
 # that URL can contain the database password. Disable the H2 console in production so the URL is never logged.
 spring:
