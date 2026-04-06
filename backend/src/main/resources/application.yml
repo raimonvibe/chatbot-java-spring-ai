@@ -197,9 +197,10 @@ app:
   billing:
     enabled: ${APP_BILLING_ENABLED:false}
 
-  # OAuth JWT delivery: false = HttpOnly cookie only (recommended for HTTPS production). True = also return JWT in JSON (local HTTP / tests).
+  # OAuth JWT delivery: true = also return JWT in JSON (required for mobile Safari with cross-origin API + localStorage Bearer).
+  # Set AUTH_EXPOSE_JWT_IN_RESPONSE=false for cookie-only hardening if all clients accept cross-site PC_AUTH.
   auth:
-    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:false}
+    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:true}
 
   # Security alerting (Phase 2.3) - optional webhook for Slack/PagerDuty/Sentry
   security:

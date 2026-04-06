@@ -57,7 +57,7 @@ public class AuthController {
     private String allowedOrigins;
 
     /** When false (production HTTPS), JWT is only in HttpOnly cookie — not in OAuth JSON (reduces XSS token theft). */
-    @Value("${app.auth.expose-jwt-in-oauth-response:false}")
+    @Value("${app.auth.expose-jwt-in-oauth-response:true}")
     private boolean exposeJwtInOAuthResponse;
 
     @Autowired
