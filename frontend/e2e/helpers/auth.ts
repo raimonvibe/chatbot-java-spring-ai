@@ -1,5 +1,4 @@
 import { Page, expect } from '@playwright/test';
-import { E2E_MOCK_AUTH_TOKEN } from './test-auth-constants';
 
 /**
  * Authentication helper for E2E tests
@@ -33,10 +32,10 @@ export class AuthHelper {
     });
 
     // Set auth state BEFORE setting up route (avoids race condition)
-    await this.page.evaluate(({ userData, token }: { userData: { id: number; email: string; name: string; authProvider: string }; token: string }) => {
-      localStorage.setItem('authToken', token);
+    await this.page.evaluate(({ userData }: { userData: { id: number; email: string; name: string; authProvider: string } }) => {
       localStorage.setItem('user', JSON.stringify(userData));
-    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' }, token: E2E_MOCK_AUTH_TOKEN });
+      sessionStorage.setItem('e2e-auth-marker', 'authenticated');
+    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' } });
 
     // Intercept navigation to Google OAuth (app uses direct redirect to accounts.google.com)
     let navigationPromise: ReturnType<typeof this.page.goto> | null = null;
@@ -104,22 +103,22 @@ export class AuthHelper {
   }
 
   /**
-   * Set authentication token in local storage
-   * Useful for bypassing the login flow in tests
+   * Sets an internal E2E authentication marker.
+   * Cookie auth is the runtime source of truth; this avoids token-in-storage assumptions.
    */
-  async setAuthToken(token: string = E2E_MOCK_AUTH_TOKEN) {
+  async setAuthToken(marker: string = 'authenticated') {
     await this.page.goto('/');
-    await this.page.evaluate((authToken) => {
-      localStorage.setItem('authToken', authToken);
-    }, token);
+    await this.page.evaluate((value) => {
+      sessionStorage.setItem('e2e-auth-marker', value);
+    }, marker);
   }
 
   /**
-   * Get authentication token from local storage
+   * Gets the internal E2E authentication marker.
    */
   async getAuthToken(): Promise<string | null> {
     return await this.page.evaluate(() => {
-      return localStorage.getItem('authToken');
+      return sessionStorage.getItem('e2e-auth-marker');
     });
   }
 
@@ -149,13 +148,13 @@ export class AuthHelper {
    * Check if user is authenticated
    */
   async isAuthenticated(): Promise<boolean> {
-    const token = await this.getAuthToken();
-    return token !== null && token !== '';
+    const marker = await this.getAuthToken();
+    return marker === 'authenticated' || marker === 'new_token' || marker === 'mock_token_from_oauth';
   }
 
   /**
    * Set up authenticated state for tests
-   * Bypasses login flow by setting token directly
+   * Bypasses login flow by setting user storage marker only (cookie auth app path).
    * @param user Mock user data
    */
   async setupAuthenticatedState(user = {
@@ -166,7 +165,7 @@ export class AuthHelper {
   }) {
     await this.page.goto('/');
 
-    await this.setAuthToken(E2E_MOCK_AUTH_TOKEN);
+    await this.setAuthToken('authenticated');
 
     // Set user data
     await this.page.evaluate((userData: { id: number; email: string; name: string; authProvider: string }) => {
