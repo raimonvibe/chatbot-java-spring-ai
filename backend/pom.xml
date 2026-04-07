@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Stay on stable Spring Boot 3.x (avoid 4.x milestones in production). -->
-        <version>4.0.5</version>
+        <version>3.5.13</version>
         <relativePath/>
     </parent>
 
@@ -149,10 +149,10 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
-        <!-- AspectJ / AOP - Spring Boot 4 renamed spring-boot-starter-aop to spring-boot-starter-aspectj (see migration guide) -->
+        <!-- Spring AOP - Required by Spring Retry for @Retryable -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aspectj</artifactId>
+            <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
@@ -229,41 +229,10 @@
                 <version>8.10.1</version>
             </dependency>
 
-        <!-- Testing: Spring Boot 4 uses technology-specific test starters (each brings spring-boot-starter-test transitively) -->
+        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- TestEntityManager lives in spring-boot-jpa-test (not spring-boot-data-jpa-test) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-jpa-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-oauth2-client-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-session-jdbc-test</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 

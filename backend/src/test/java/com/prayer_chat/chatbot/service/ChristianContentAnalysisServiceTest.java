@@ -13,7 +13,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -44,7 +44,7 @@ class ChristianContentAnalysisServiceTest {
     @Autowired
     private EmbeddingModel embeddingModel;
 
-    @MockitoBean
+    @MockBean
     private WebsiteAnalysisService websiteAnalysisService;
 
     private User testUser;

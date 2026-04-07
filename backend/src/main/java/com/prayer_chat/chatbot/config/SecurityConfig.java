@@ -19,7 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -104,7 +104,7 @@ public class SecurityConfig {
             );
 
         // REST /api/**: never redirect to HTML login — return 401/403 so clients and tests get deterministic errors.
-        var apiJsonErrorMatcher = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
+        var apiJsonErrorMatcher = new AntPathRequestMatcher("/api/**");
         http.exceptionHandling(ex -> ex
             .defaultAuthenticationEntryPointFor(
                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),

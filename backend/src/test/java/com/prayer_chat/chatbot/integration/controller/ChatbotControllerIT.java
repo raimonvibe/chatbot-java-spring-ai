@@ -19,10 +19,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -52,31 +52,31 @@ class ChatbotControllerIT {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
+    @MockBean
     private ChatbotService chatbotService;
 
-    @MockitoBean
+    @MockBean
     private ChatbotRepository chatbotRepository;
 
-    @MockitoBean
+    @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockitoBean
+    @MockBean
     private SubscriptionRepository subscriptionRepository;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.service.AccessControlService accessControlService;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.service.CostTrackingService costTrackingService;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.service.WebsiteSizeEstimator websiteSizeEstimator;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.repository.WebsiteContentRepository websiteContentRepository;
 
-    @MockitoBean
+    @MockBean
     private com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository websiteScanAuditRepository;
 
     private User testUser;
