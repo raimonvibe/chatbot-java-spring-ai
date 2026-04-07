@@ -31,8 +31,7 @@ jobs:
           cache: 'maven'
 
       - name: Run OWASP Dependency Check
-        run: mvn dependency-check:check -Ddependency-check.skip=false
-        continue-on-error: true
+        run: mvn dependency-check:check -Ddependency-check.skip=false -DfailBuildOnCVSS=7
 
       - name: Upload dependency check report
         if: always()

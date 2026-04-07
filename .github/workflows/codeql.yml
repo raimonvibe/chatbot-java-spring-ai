@@ -13,13 +13,10 @@ on:
     - cron: '0 0 * * 0'  # Weekly on Sunday
   workflow_dispatch:
 
-# Disable this workflow if Code Scanning is not enabled
-# To enable: Remove the 'if: false' condition below
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    if: false  # Disabled - Code Scanning requires GitHub Advanced Security for private repos
     permissions:
       actions: read
       contents: read
@@ -44,7 +41,6 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
-      continue-on-error: true  # Don't fail if code scanning is not enabled
       with:
         category: "/language:${{matrix.language}}"
 
