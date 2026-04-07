@@ -317,6 +317,13 @@ export async function sendMessage(
     }),
   });
 
+  if (response.status === 401) {
+    const err = new Error(
+      'Your session expired. Please sign in again to use chat preview.'
+    ) as ApiError;
+    err.status = 401;
+    throw err;
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const raw = errorData?.error != null ? errorData.error : `HTTP ${response.status}: ${response.statusText}`;

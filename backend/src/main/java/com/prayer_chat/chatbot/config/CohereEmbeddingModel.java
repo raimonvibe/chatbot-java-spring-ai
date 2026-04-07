@@ -9,10 +9,14 @@ import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.Embedding;
 
+import java.io.IOException;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +27,10 @@ import java.util.stream.Collectors;
  */
 public class CohereEmbeddingModel implements EmbeddingModel {
 
+    private static final int MAX_EMBED_ATTEMPTS = 4;
+    private static final long INITIAL_BACKOFF_MS = 500L;
+    private static final long MAX_BACKOFF_MS = 5_000L;
+
     private final HttpClient httpClient;
     private final String apiKey;
     private final String model;
@@ -32,6 +40,8 @@ public class CohereEmbeddingModel implements EmbeddingModel {
         // Use Java's native HttpClient (no QUIC, no native libraries)
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .version(HttpClient.Version.HTTP_2)
                 .build();
         this.apiKey = apiKey;
         this.model = model;
@@ -63,26 +73,7 @@ public class CohereEmbeddingModel implements EmbeddingModel {
             );
 
             String requestBody = objectMapper.writeValueAsString(cohereRequest);
-            
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.cohere.com/v1/embed"))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .timeout(Duration.ofSeconds(30))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            
-            if (response.statusCode() != 200) {
-                // Don't expose full response body in error (may contain sensitive info)
-                String errorMsg = response.statusCode() == 401 ? "Authentication failed" :
-                                 response.statusCode() == 403 ? "Access forbidden" :
-                                 response.statusCode() == 429 ? "Rate limit exceeded" :
-                                 "Cohere API error: " + response.statusCode();
-                throw new RuntimeException(errorMsg);
-            }
-
+            HttpResponse<String> response = executeEmbedPost(requestBody);
             CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
 
             List<Embedding> embeddings = cohereResponse.embeddings.stream()
@@ -128,26 +119,7 @@ public class CohereEmbeddingModel implements EmbeddingModel {
             );
 
             String requestBody = objectMapper.writeValueAsString(request);
-            
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.cohere.com/v1/embed"))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .timeout(Duration.ofSeconds(30))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            
-            if (response.statusCode() != 200) {
-                // Don't expose full response body in error (may contain sensitive info)
-                String errorMsg = response.statusCode() == 401 ? "Authentication failed" :
-                                 response.statusCode() == 403 ? "Access forbidden" :
-                                 response.statusCode() == 429 ? "Rate limit exceeded" :
-                                 "Cohere API error: " + response.statusCode();
-                throw new RuntimeException(errorMsg);
-            }
-
+            HttpResponse<String> response = executeEmbedPost(requestBody);
             CohereEmbedResponse cohereResponse = objectMapper.readValue(response.body(), CohereEmbedResponse.class);
 
             if (cohereResponse.embeddings == null || cohereResponse.embeddings.isEmpty()) {
@@ -171,6 +143,94 @@ public class CohereEmbeddingModel implements EmbeddingModel {
     @Override
     public int dimensions() {
         return 1024; // embed-multilingual-v3.0 has 1024 dimensions
+    }
+
+    private HttpRequest newEmbedRequest(String requestBody) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create("https://api.cohere.com/v1/embed"))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .timeout(Duration.ofSeconds(30))
+                .build();
+    }
+
+    /**
+     * Retries transient failures (connection reset, timeouts, HTTP 502/503/504, 429, 408).
+     * Does not retry 401/403 — fix credentials instead.
+     */
+    private HttpResponse<String> executeEmbedPost(String requestBody) {
+        HttpRequest httpRequest = newEmbedRequest(requestBody);
+        long backoff = INITIAL_BACKOFF_MS;
+        for (int attempt = 1; attempt <= MAX_EMBED_ATTEMPTS; attempt++) {
+            try {
+                HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                int code = response.statusCode();
+                if (code == 200) {
+                    return response;
+                }
+                if (isTransientHttpStatus(code) && attempt < MAX_EMBED_ATTEMPTS) {
+                    sleepBackoff(backoff);
+                    backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+                    continue;
+                }
+                throw new RuntimeException(cohereErrorMessage(code));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted during Cohere request", e);
+            } catch (IOException e) {
+                if (isTransientNetworkError(e) && attempt < MAX_EMBED_ATTEMPTS) {
+                    sleepBackoff(backoff);
+                    backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+                    continue;
+                }
+                throw new RuntimeException("Failed to get embeddings from Cohere", e);
+            }
+        }
+        throw new RuntimeException("Cohere embed failed after " + MAX_EMBED_ATTEMPTS + " attempts");
+    }
+
+    private static String cohereErrorMessage(int code) {
+        return switch (code) {
+            case 401 -> "Authentication failed";
+            case 403 -> "Access forbidden";
+            case 429 -> "Rate limit exceeded";
+            default -> "Cohere API error: " + code;
+        };
+    }
+
+    private static boolean isTransientHttpStatus(int code) {
+        return code == 408 || code == 429 || code == 502 || code == 503 || code == 504;
+    }
+
+    private static boolean isTransientNetworkError(IOException e) {
+        if (e instanceof HttpTimeoutException || e instanceof HttpConnectTimeoutException) {
+            return true;
+        }
+        if (e instanceof SocketException) {
+            return true;
+        }
+        Throwable cause = e.getCause();
+        if (cause instanceof SocketException) {
+            return true;
+        }
+        String m = e.getMessage();
+        if (m == null) {
+            return false;
+        }
+        String lower = m.toLowerCase();
+        return lower.contains("connection reset")
+                || lower.contains("broken pipe")
+                || lower.contains("connection refused");
+    }
+
+    private static void sleepBackoff(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted during Cohere backoff", e);
+        }
     }
 
     // Request/Response classes for Cohere API

@@ -80,6 +80,19 @@ describe('API Module', () => {
       await expect(sendMessage(1, 'Hello')).rejects.toThrow('Failed to send message')
     })
 
+    it('should throw a session message on 401 (preview chat needs auth)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: async () => ({}),
+      } as Response)
+
+      await expect(sendMessage(1, 'Hello')).rejects.toThrow(
+        'Your session expired. Please sign in again to use chat preview.'
+      )
+    })
+
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
 

@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Stay on stable Spring Boot 3.x (avoid 4.x milestones in production). -->
-        <version>3.5.13</version>
+        <version>4.0.5</version>
         <relativePath/>
     </parent>
 
@@ -34,9 +34,9 @@
         <json-smart.version>2.6.0</json-smart.version>
         <netty.version>4.2.12.Final</netty.version>
         <!-- CVE-2025-27820 fix is in HttpClient 5.4.3+ -->
-        <httpclient5.version>5.4.3</httpclient5.version>
+        <httpclient5.version>5.6</httpclient5.version>
         <!-- HttpClient 5.4.3 is built against HttpCore 5.3.4 -->
-        <httpcore5.version>5.3.5</httpcore5.version>
+        <httpcore5.version>5.4.2</httpcore5.version>
         <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
         <spring-framework.version>6.2.17</spring-framework.version>
         <!-- Jackson patch versions: pinned via dependencyManagement (com.fasterxml.jackson); do not set jackson-bom.version here — Boot 4 used tools.jackson BOM and broke CI. -->
