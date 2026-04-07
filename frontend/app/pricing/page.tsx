@@ -5,18 +5,9 @@ import { Book, Check, Zap, Building2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { createCheckoutSession } from '@/lib/api';
+import { createCheckoutSession, getApiBaseUrl } from '@/lib/api';
 import { isBillingEnabledFromEnv } from '@/lib/billing-config';
 
-function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') return 'https://chatbot-java-spring-ai.onrender.com';
-    if (hostname.includes('vercel.app')) return 'https://chatbot-java-spring-ai.onrender.com';
-  }
-  return 'http://localhost:8081';
-}
 const API_BASE_URL = getApiBaseUrl();
 
 // Plan keys sent to backend (must match backend: BASIC, PRO, ENTERPRISE)

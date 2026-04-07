@@ -165,27 +165,26 @@ export interface ChristianContentAnalysis {
   versesAboveThreshold: number;
 }
 
-/** Backend origin for public fetches (plan limits, etc.). Same rules as authenticated API calls. */
+/**
+ * Backend origin for API fetches.
+ * - Production on Vercel: set NEXT_PUBLIC_API_URL to your public site (e.g. https://prayer-chat.com) and add
+ *   a /api rewrite to the Java service so cookies stay first-party (see vercel.json).
+ * - In the browser, when NEXT_PUBLIC_API_URL is unset, non-localhost hosts use window.location.origin so /api hits the same-origin rewrite.
+ */
 export function getApiBaseUrl(): string {
-  // Use explicit environment variable if set
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, '');
   }
-  
-  // Auto-detect production domain
+
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Production domains - use Render backend
-    if (hostname === 'prayer-chat.com' || hostname === 'www.prayer-chat.com') {
-      return 'https://chatbot-java-spring-ai.onrender.com';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8081';
     }
-    // Vercel preview/test deployments
-    if (hostname.includes('vercel.app')) {
-      return 'https://chatbot-java-spring-ai.onrender.com';
-    }
+    return window.location.origin;
   }
-  
-  // Default to localhost for local development
+
   return 'http://localhost:8081';
 }
 
