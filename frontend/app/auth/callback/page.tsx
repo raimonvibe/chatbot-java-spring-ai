@@ -110,13 +110,7 @@ function AuthCallbackContent() {
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
-        if (data.token) {
-          localStorage.setItem('authToken', data.token);
-        } else {
-          localStorage.removeItem('authToken');
-        }
-
-        if (data.token || data.user) {
+        if (data.user) {
           setStatus('success');
           setTimeout(() => {
             router.push('/dashboard');

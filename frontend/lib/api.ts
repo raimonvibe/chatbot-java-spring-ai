@@ -192,56 +192,14 @@ export function getApiBaseUrl(): string {
 const API_BASE_URL = getApiBaseUrl();
 
 /**
- * JSON + optional Bearer header. When JWT is not in localStorage (production cookie-only auth),
- * authenticated calls still work if fetch uses credentials: 'include' and the API sets PC_AUTH (HttpOnly).
+ * Cookie-first auth client headers.
+ * Authentication is carried by HttpOnly cookies via credentials: 'include',
+ * so we intentionally do not read/store bearer tokens in localStorage.
  */
 function getAuthHeaders(): HeadersInit {
-  const headers: HeadersInit = {
+  return {
     'Content-Type': 'application/json',
   };
-  
-  // Get JWT token from localStorage if available
-  if (typeof window !== 'undefined') {
-    try {
-      const token = localStorage.getItem('authToken');
-      
-      // Security: Validate token exists and is not empty
-      if (token && token.trim().length > 0) {
-        // Security: Basic JWT format validation (3 parts separated by dots)
-        // JWT format: header.payload.signature
-        const tokenParts = token.trim().split('.');
-        
-        // Security: JWT must have exactly 3 parts
-        if (tokenParts.length === 3) {
-          // Security: Sanitize token - remove any newlines or control characters
-          // that could be used for header injection attacks
-          const sanitizedToken = token.trim().replace(/[\r\n\t]/g, '');
-          
-          // Security: Additional validation - ensure no suspicious characters
-          // JWT tokens are base64url encoded, so they should only contain
-          // alphanumeric, dots, hyphens, underscores, and equals signs (for padding)
-          if (/^[A-Za-z0-9._=-]+$/.test(sanitizedToken)) {
-            headers['Authorization'] = `Bearer ${sanitizedToken}`;
-          } else {
-            // Invalid token format - log error but don't expose token
-            console.warn('Invalid token format detected');
-            // Clear potentially malicious token
-            localStorage.removeItem('authToken');
-          }
-        } else {
-          // Invalid JWT format - clear it
-          console.warn('Malformed JWT token detected');
-          localStorage.removeItem('authToken');
-        }
-      }
-    } catch (error) {
-      // Security: Handle localStorage errors gracefully (e.g., in private browsing)
-      // Don't expose error details
-      console.warn('Error accessing localStorage for auth token');
-    }
-  }
-  
-  return headers;
 }
 
 // Analyze Christian content for a chatbot
@@ -283,14 +241,6 @@ export async function checkAuth(): Promise<{ authenticated: boolean; user?: any 
     if (response.ok) {
       const user = await response.json();
       return { authenticated: true, user };
-    }
-    // Server rejected auth (e.g. 401 expired/invalid token) — clear stale token so we don't keep sending it
-    if (response.status === 401 && typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('authToken');
-      } catch {
-        // ignore localStorage errors (e.g. private browsing)
-      }
     }
     return { authenticated: false };
   } catch (error) {

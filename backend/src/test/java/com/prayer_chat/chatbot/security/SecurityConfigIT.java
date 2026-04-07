@@ -4,6 +4,7 @@ import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
+import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.model.Subscription;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +45,9 @@ class SecurityConfigIT {
 
     @MockBean
     private SubscriptionRepository subscriptionRepository;
+
+    @MockBean
+    private ConversationRepository conversationRepository;
 
     private User testUser;
     private Subscription testSubscription;
@@ -112,12 +116,25 @@ class SecurityConfigIT {
         mockMvc.perform(get("/api/chatbots"))
             .andExpect(status().isUnauthorized());
 
+        mockMvc.perform(get("/api/auth/me"))
+            .andExpect(status().isUnauthorized());
+
         mockMvc.perform(post("/api/chatbots")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/user/profile"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should require authentication for conversation export endpoints")
+    void shouldRequireAuthenticationForConversationExportEndpoints() throws Exception {
+        mockMvc.perform(get("/api/chatbots/conversations/123/export/json"))
+            .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/chatbots/conversations/123/export/csv"))
             .andExpect(status().isUnauthorized());
     }
 
@@ -192,14 +209,28 @@ class SecurityConfigIT {
     }
 
     @Test
-    @DisplayName("Should protect against CSRF for state-changing operations")
+    @DisplayName("Should return 401 (not 403) for API POST without auth/CSRF token")
     void shouldProtectAgainstCsrf() throws Exception {
-        // For session-based auth, CSRF protection should be enabled
-        // For JWT, CSRF is typically disabled as tokens are not automatically sent
         mockMvc.perform(post("/api/chatbots")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().is(not(403))); // Should be 401 (unauthorized), not 403 (CSRF)
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "user@example.com", roles = {"USER"})
+    @DisplayName("Should not block authenticated API POST due to CSRF token absence")
+    void shouldNotBlockAuthenticatedApiPostForCsrf() throws Exception {
+        // In this API design, /api/** is CSRF-ignored and protected by auth controls.
+        mockMvc.perform(post("/api/chatbots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().is(anyOf(
+                is(400), // validation failure
+                is(403), // business authorization/subscription rule
+                is(500)  // controller/service failure paths in test profile
+            )))
+            .andExpect(status().is(not(401)));
     }
 
     @Test

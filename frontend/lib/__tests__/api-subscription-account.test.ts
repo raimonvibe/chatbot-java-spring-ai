@@ -21,11 +21,9 @@ describe('getSubscriptionStatusFromApi', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
-    const validToken = 'a.b.c';
-    localStorageMock.setItem('authToken', validToken);
   });
 
-  it('should call GET /api/subscription/status with auth headers', async () => {
+  it('should call GET /api/subscription/status with cookie auth request settings', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -48,7 +46,7 @@ describe('getSubscriptionStatusFromApi', () => {
       })
     );
     const headers = (mockFetch.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers?.Authorization).toBe('Bearer a.b.c');
+    expect(headers?.Authorization).toBeUndefined();
   });
 
   it('should return parsed subscription status when ok', async () => {
@@ -93,8 +91,6 @@ describe('createPortalSession (account page usage)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
-    const validToken = 'a.b.c';
-    localStorageMock.setItem('authToken', validToken);
   });
 
   it('should use POST and credentials: include', async () => {
