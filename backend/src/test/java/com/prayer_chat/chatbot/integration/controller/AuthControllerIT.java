@@ -11,7 +11,7 @@ import com.prayer_chat.chatbot.config.MockAiConfiguration;
 import com.prayer_chat.chatbot.config.TestSecurityConfig;
 import com.prayer_chat.chatbot.config.TestJacksonConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;

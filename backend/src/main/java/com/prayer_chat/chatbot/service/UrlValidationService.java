@@ -196,6 +196,10 @@ public class UrlValidationService {
         } catch (UnknownHostException e) {
             logger.warn("Failed to resolve host: {}", host, e);
             return false;
+        } catch (IllegalArgumentException e) {
+            // JDK rejects some encoded/numeric host forms (e.g. 0x7f000001) before resolution
+            logger.warn("Invalid IP or host literal: {}", host);
+            return false;
         }
     }
 

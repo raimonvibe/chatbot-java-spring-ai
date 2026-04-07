@@ -15,10 +15,10 @@ import com.prayer_chat.chatbot.config.MockAiConfiguration;
 import com.prayer_chat.chatbot.config.TestSecurityConfig;
 import com.prayer_chat.chatbot.config.TestJacksonConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -41,10 +41,10 @@ class StripeWebhookControllerIT {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private StripeService stripeService;
 
-    @MockBean
+    @MockitoBean
     private AuditService auditService;
 
     private User testUser;

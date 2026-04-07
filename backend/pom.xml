@@ -37,9 +37,6 @@
         <httpclient5.version>5.6</httpclient5.version>
         <!-- HttpClient 5.4.3 is built against HttpCore 5.3.4 -->
         <httpcore5.version>5.4.2</httpcore5.version>
-        <!-- Align Spring Framework to single version to avoid NoSuchMethodError (e.g. DefaultParameterNameDiscoverer.getSharedInstance) -->
-        <spring-framework.version>6.2.17</spring-framework.version>
-        <!-- Jackson patch versions: pinned via dependencyManagement (com.fasterxml.jackson); do not set jackson-bom.version here — Boot 4 used tools.jackson BOM and broke CI. -->
         <!-- OWASP dependency-check: set -Ddependency-check.skip=false in CI to run -->
         <dependency-check.skip>true</dependency-check.skip>
         <!-- Set -Djacoco.check.skip=true to skip coverage check when running verify (e.g. without Docker) -->
@@ -108,13 +105,6 @@
         <!-- OAuth2 client will be configured to use Apache HttpClient instead of Reactor Netty -->
         <!-- This fixes NoClassDefFoundError: Could not initialize class reactor.netty.http.client.HttpClientSecure -->
 
-        <!-- Security: Dependabot #23 / GHSA-72hv-8253-57qq - jackson-core async parser DoS. Explicit dependency so scanners see patched version. -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.21.2</version>
-        </dependency>
-
         <!-- Actuator for health checks and metrics -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -159,10 +149,10 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
-        <!-- Spring AOP - Required by Spring Retry for @Retryable -->
+        <!-- AspectJ / AOP - Spring Boot 4 renamed spring-boot-starter-aop to spring-boot-starter-aspectj (see migration guide) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
@@ -239,14 +229,43 @@
                 <version>8.10.1</version>
             </dependency>
 
-        <!-- Testing -->
+        <!-- Testing: Spring Boot 4 uses technology-specific test starters (each brings spring-boot-starter-test transitively) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
-
-        <!-- Spring Boot 3.2.11 test dependencies are included in spring-boot-starter-test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- TestEntityManager lives in spring-boot-jpa-test (not spring-boot-data-jpa-test) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-client-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-session-jdbc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Mockito for mocking (inline version for Java 17+) -->
         <!-- Spring Boot 3.2.11 manages Mockito version -->
@@ -344,104 +363,8 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Security: GHSA-72hv-8253-57qq / Dependabot #112 - jackson-core async parser DoS. Fixed in 2.18.6 -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>2.21.2</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.21.2</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>2.21</version>
-            </dependency>
-            <!-- Security: CVE-2025-41249, CVE-2025-41242, CVE-2025-41234, CVE-2024-38820 - Spring Framework. Fixed in 6.2.11+ -->
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-core</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-web</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-webmvc</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <!-- Force all Spring Framework to same version to avoid NoSuchMethodError (CVE-2025-41249, 41242, 41234, 2024-38820) -->
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-beans</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-context</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-aop</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-expression</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-orm</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-tx</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-jcl</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-aspects</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-jdbc</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-messaging</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-context-support</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-webflux</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-test</artifactId>
-                <version>${spring-framework.version}</version>
-            </dependency>
+            <!-- Jackson: versions managed by Spring Boot 4 (Jackson 3 / tools.jackson BOM). -->
+            <!-- Spring Framework: managed by spring-boot-starter-parent (Boot 4 → Spring Framework 7). Do not pin 6.x here. -->
             <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects -->
             <dependency>
                 <groupId>io.projectreactor.netty</groupId>

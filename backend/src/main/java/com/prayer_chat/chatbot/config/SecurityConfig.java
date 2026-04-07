@@ -19,7 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -104,10 +104,11 @@ public class SecurityConfig {
             );
 
         // REST /api/**: never redirect to HTML login — return 401/403 so clients and tests get deterministic errors.
+        var apiJsonErrorMatcher = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
         http.exceptionHandling(ex -> ex
             .defaultAuthenticationEntryPointFor(
                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                new AntPathRequestMatcher("/api/**"))
+                apiJsonErrorMatcher)
             .defaultAccessDeniedHandlerFor(
                 (request, response, accessDeniedException) -> {
                     if (response.isCommitted()) {
@@ -117,7 +118,7 @@ public class SecurityConfig {
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"error\":\"Forbidden\"}");
                 },
-                new AntPathRequestMatcher("/api/**"))
+                apiJsonErrorMatcher)
         );
         
         // OAuth2 is REQUIRED - configure it
