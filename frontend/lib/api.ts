@@ -167,24 +167,26 @@ export interface ChristianContentAnalysis {
 
 /**
  * Backend origin for API fetches.
- * - Production on Vercel: set NEXT_PUBLIC_API_URL to your public site (e.g. https://prayer-chat.com) and add
- *   a /api rewrite to the Java service so cookies stay first-party (see vercel.json).
- * - In the browser, when NEXT_PUBLIC_API_URL is unset, non-localhost hosts use window.location.origin so /api hits the same-origin rewrite.
+ * - Browser (production): always uses window.location.origin when not on localhost, so /api hits the Vercel
+ *   rewrite on the same host as the page. This avoids www vs apex mismatch: fetching https://prayer-chat.com/api
+ *   from https://www.prayer-chat.com is cross-origin and OPTIONS preflight can fail if the apex redirects.
+ * - Local dev: NEXT_PUBLIC_API_URL or http://localhost:8081 when hostname is localhost.
+ * - SSR (no window): uses NEXT_PUBLIC_API_URL if set, else localhost:8081.
  */
 export function getApiBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.replace(/\/$/, '');
-  }
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, '');
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:8081';
+      return fromEnv || 'http://localhost:8081';
     }
     return window.location.origin;
   }
 
+  if (fromEnv) {
+    return fromEnv;
+  }
   return 'http://localhost:8081';
 }
 
