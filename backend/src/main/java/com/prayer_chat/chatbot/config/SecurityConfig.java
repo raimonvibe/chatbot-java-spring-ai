@@ -84,10 +84,7 @@ public class SecurityConfig {
                 .requestMatchers("/stripe/webhook").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                // Allow public GET requests to read chatbot data
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatbots/**").permitAll()
-                // DELETE allowed for authenticated owners; scan limits use WebsiteScanAudit (per-user), not chatbot rows
-                // Protect write operations (POST, PUT, PATCH, DELETE)
+                // Chatbot endpoints require authentication; controller-level ownership checks apply per resource.
                 .requestMatchers("/api/chatbots/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/plans/limits").permitAll()
                 .requestMatchers("/api/subscription/**").authenticated()

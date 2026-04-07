@@ -26,8 +26,10 @@ import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.BillingModeService;
 import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.WebsiteScanAudit;
+import com.prayer_chat.chatbot.model.Conversation;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
 import com.prayer_chat.chatbot.util.WebsiteDisplayName;
@@ -59,6 +61,7 @@ public class ChatbotController {
     private static final Logger logger = LoggerFactory.getLogger(ChatbotController.class);
     
     private final ChatbotRepository chatbotRepository;
+    private final ConversationRepository conversationRepository;
     private final ChatbotService chatbotService;
     private final AiChatbotService aiChatbotService;
     private final WebsiteAnalysisService websiteAnalysisService;
@@ -80,6 +83,7 @@ public class ChatbotController {
 
     @Autowired
     public ChatbotController(ChatbotRepository chatbotRepository,
+                           ConversationRepository conversationRepository,
                            ChatbotService chatbotService,
                            AiChatbotService aiChatbotService,
                            WebsiteAnalysisService websiteAnalysisService,
@@ -96,6 +100,7 @@ public class ChatbotController {
                            UrlValidationService urlValidationService,
                            BillingModeService billingModeService) {
         this.chatbotRepository = chatbotRepository;
+        this.conversationRepository = conversationRepository;
         this.chatbotService = chatbotService;
         this.aiChatbotService = aiChatbotService;
         this.websiteAnalysisService = websiteAnalysisService;
@@ -111,6 +116,32 @@ public class ChatbotController {
         this.rateLimitingService = rateLimitingService;
         this.urlValidationService = urlValidationService;
         this.billingModeService = billingModeService;
+    }
+
+    /**
+     * Test/backward-compatibility constructor for older unit tests that manually instantiate
+     * this controller and do not need conversation-level export authorization checks.
+     */
+    public ChatbotController(ChatbotRepository chatbotRepository,
+                           ChatbotService chatbotService,
+                           AiChatbotService aiChatbotService,
+                           WebsiteAnalysisService websiteAnalysisService,
+                           ConversationExportService conversationExportService,
+                           BibleVerseService bibleVerseService,
+                           ChristianContentAnalysisService christianContentAnalysisService,
+                           JesusTeachingsService jesusTeachingsService,
+                           JesusVersesTaggingService jesusVersesTaggingService,
+                           CostTrackingService costTrackingService,
+                           WebsiteSizeEstimator websiteSizeEstimator,
+                           WebsiteScanAuditRepository websiteScanAuditRepository,
+                           AccessControlService accessControlService,
+                           RateLimitingService rateLimitingService,
+                           UrlValidationService urlValidationService,
+                           BillingModeService billingModeService) {
+        this(chatbotRepository, null, chatbotService, aiChatbotService, websiteAnalysisService, conversationExportService,
+            bibleVerseService, christianContentAnalysisService, jesusTeachingsService, jesusVersesTaggingService,
+            costTrackingService, websiteSizeEstimator, websiteScanAuditRepository, accessControlService,
+            rateLimitingService, urlValidationService, billingModeService);
     }
 
     // ============================================================================
@@ -967,8 +998,23 @@ public class ChatbotController {
      * NEW FEATURE: Export conversation to JSON
      */
     @GetMapping("/conversations/{conversationId}/export/json")
-    public ResponseEntity<String> exportConversationJson(@PathVariable Long conversationId) {
+    public ResponseEntity<String> exportConversationJson(@PathVariable Long conversationId,
+                                                         @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            if (conversationRepository == null) {
+                logger.error("Conversation repository not configured for conversation export");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+            User user = currentUser.getUser();
+            Optional<Conversation> conversationOpt =
+                conversationRepository.findByIdAndChatbot_Owner_Id(conversationId, user.getId());
+            if (conversationOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
             String jsonExport = conversationExportService.exportConversationToJson(conversationId);
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
@@ -984,8 +1030,19 @@ public class ChatbotController {
      * NEW FEATURE: Export conversation to CSV
      */
     @GetMapping("/conversations/{conversationId}/export/csv")
-    public ResponseEntity<String> exportConversationCsv(@PathVariable Long conversationId) {
+    public ResponseEntity<String> exportConversationCsv(@PathVariable Long conversationId,
+                                                        @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            User user = currentUser.getUser();
+            Optional<Conversation> conversationOpt =
+                conversationRepository.findByIdAndChatbot_Owner_Id(conversationId, user.getId());
+            if (conversationOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
             String csvExport = conversationExportService.exportConversationToCsv(conversationId);
             return ResponseEntity.ok()
                     .header("Content-Type", "text/csv")

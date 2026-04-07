@@ -34,6 +34,11 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     List<Conversation> findByChatbotId(@Param("chatbotId") Long chatbotId);
 
     /**
+     * Find conversation by id only if it belongs to a chatbot owned by the given user.
+     */
+    Optional<Conversation> findByIdAndChatbot_Owner_Id(Long id, Long ownerId);
+
+    /**
      * Find active conversations for a chatbot
      */
     List<Conversation> findByChatbotAndIsActiveTrue(Chatbot chatbot);

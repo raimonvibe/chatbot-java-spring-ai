@@ -45,6 +45,7 @@ function AuthCallbackContent() {
     }
     hasProcessed.current = true;
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
@@ -63,6 +64,18 @@ function AuthCallbackContent() {
       setErrorMessage('No authorization code received');
       setTimeout(() => {
         router.push('/login?error=no_code');
+      }, 3000);
+      return;
+    }
+
+    // OAuth CSRF protection: the callback must include the same state generated at login start.
+    const expectedState = sessionStorage.getItem('oauth_state');
+    sessionStorage.removeItem('oauth_state');
+    if (!expectedState || !state || state !== expectedState) {
+      setStatus('error');
+      setErrorMessage('Invalid login state. Please try signing in again.');
+      setTimeout(() => {
+        router.push('/login?error=invalid_oauth_state');
       }, 3000);
       return;
     }

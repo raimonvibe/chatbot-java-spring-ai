@@ -6,6 +6,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { checkAuth } from '@/lib/api';
 
+function generateOAuthState(): string {
+  const bytes = new Uint8Array(32);
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
@@ -40,6 +46,9 @@ function LoginContent() {
     // Construct redirect URI - frontend callback page
     const redirectUri = `${window.location.origin}/auth/callback`;
     
+    const state = generateOAuthState();
+    sessionStorage.setItem('oauth_state', state);
+
     // Google OAuth2 parameters
     const params = new URLSearchParams({
       client_id: clientId,
@@ -48,6 +57,7 @@ function LoginContent() {
       scope: 'email profile',
       access_type: 'offline',
       prompt: 'consent',
+      state,
     });
     
     // Redirect to Google OAuth
