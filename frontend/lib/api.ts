@@ -699,9 +699,9 @@ export function deleteModalWebsiteScanNote(status: SubscriptionStatus | null): s
     'Deleting this chatbot does not reset your website scan limits—you will not get extra scans by creating a new one.';
   if (typeof n === 'number' && Number.isFinite(n)) {
     if (n <= 0) {
-      return `${base} You currently have no website scans left on your account (your monthly quota and rolling daily cap both still apply).`;
+      return `${base} You currently have no website scans left on your account (monthly quota + daily cap still apply).`;
     }
-    return `${base} Right now you have ${n} website scan${n === 1 ? '' : 's'} left on your account (limited by whichever is stricter: monthly quota or per-day cap).`;
+    return `${base} Right now you have ${n} website scan${n === 1 ? '' : 's'} left on your account (monthly quota + daily cap, whichever is stricter).`;
   }
   return `${base} Scan limits stay tied to your account.`;
 }

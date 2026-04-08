@@ -16,24 +16,19 @@ import java.time.LocalDateTime;
 public interface WebsiteScanAuditRepository extends JpaRepository<WebsiteScanAudit, Long> {
     
     /**
-     * Count distinct scan dates for a user after a specific date.
-     * This counts how many different days the user has scanned websites.
-     * Uses native query for H2 and PostgreSQL compatibility
-     * 
-     * @param userId The user ID
-     * @param date The date to count from
-     * @return Number of distinct scan dates
+     * Count scans for a user in a rolling window that starts at {@code date}.
+     * Uses native query for H2 and PostgreSQL compatibility.
      */
-    @Query(value = "SELECT COUNT(DISTINCT CAST(wsa.scan_date AS DATE)) FROM website_scan_audits wsa " +
+    @Query(value = "SELECT COUNT(*) FROM website_scan_audits wsa " +
            "WHERE wsa.user_id = :userId " +
            "AND wsa.scan_date >= :date", nativeQuery = true)
-    Long countDistinctScanDatesByUserAndDateAfter(@Param("userId") Long userId, @Param("date") LocalDateTime date);
+    Long countScansByUserAndDateAfter(@Param("userId") Long userId, @Param("date") LocalDateTime date);
     
     /**
      * Count scans today for a user
      * Uses native query for H2 and PostgreSQL compatibility
      */
-    @Query(value = "SELECT COUNT(DISTINCT CAST(wsa.scan_date AS DATE)) FROM website_scan_audits wsa " +
+    @Query(value = "SELECT COUNT(*) FROM website_scan_audits wsa " +
            "WHERE wsa.user_id = :userId " +
            "AND CAST(wsa.scan_date AS DATE) = CURRENT_DATE", nativeQuery = true)
     Long countScansTodayByUserId(@Param("userId") Long userId);

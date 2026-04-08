@@ -112,7 +112,7 @@ class ChatbotControllerIT {
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
         
         // Mock website scan audit repository (no scans today) - SECURITY: Use audit table, not WebsiteContent
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
         
         // Mock chatbot repository count (no chatbots yet)
         when(chatbotRepository.countByOwner(anyLong())).thenReturn(0L);
@@ -620,7 +620,7 @@ class ChatbotControllerIT {
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
         // Mock WebsiteScanAuditRepository (controller uses this, not WebsiteContentRepository)
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(1L); // Already scanned today
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10); // Small website
 
         // Act & Assert - controller returns 402 PAYMENT_REQUIRED when scan limit reached
@@ -652,7 +652,7 @@ class ChatbotControllerIT {
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
         when(costTrackingService.isPreviewMode(previewUser)).thenReturn(true);
         // Mock WebsiteScanAuditRepository (controller uses this, not WebsiteContentRepository)
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(java.time.LocalDateTime.class))).thenReturn(0L);
         when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(600); // > PlanLimits.FREE_MAX_PAGES (500)
 
         // Act & Assert

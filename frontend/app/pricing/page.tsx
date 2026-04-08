@@ -239,7 +239,9 @@ function PricingContent() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-brown-700">{plan.scansPerMonth} scan{plan.scansPerMonth !== 1 ? 's' : ''}/month</span>
+                  <span className="text-brown-700">
+                    {plan.scansPerMonth} scan{plan.scansPerMonth !== 1 ? 's' : ''}/month (monthly quota + daily cap)
+                  </span>
                 </li>
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">

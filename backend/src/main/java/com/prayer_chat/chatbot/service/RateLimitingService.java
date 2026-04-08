@@ -120,7 +120,7 @@ public class RateLimitingService {
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
 
         LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
-        Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
+        Long scansInLastDay = websiteScanAuditRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
         if (scansInLastDay == null) scansInLastDay = 0L;
 
         LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
@@ -150,7 +150,7 @@ public class RateLimitingService {
         int monthlyQuota = billingModeService.effectiveMonthlyScanQuota(plan);
 
         LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
-        Long scansInLastDay = websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(user.getId(), oneDayAgo);
+        Long scansInLastDay = websiteScanAuditRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
         if (scansInLastDay == null) {
             scansInLastDay = 0L;
         }
@@ -176,7 +176,7 @@ public class RateLimitingService {
         int monthlyQuota,
         long usedThisMonth,
         int dailyLimit,
-        int usedDistinctDaysInRollingWindow,
+        int usedScansInRollingWindow,
         int remainingScansEffective
     ) {}
 
@@ -257,9 +257,9 @@ public class RateLimitingService {
             }
             if (upgradeSuggested) {
                 return String.format(
-                    "Scan limit reached for your current plan (preview). Upgrade to run more scans.", limit);
+                    "Website scan limit reached (monthly quota + daily cap). Upgrade to run more scans.", limit);
             }
-            return String.format("Scan limit reached. Please try again later or contact support if this persists.", limit);
+            return "Website scan limit reached (monthly quota + daily cap). Please try again later.";
         }
     }
 

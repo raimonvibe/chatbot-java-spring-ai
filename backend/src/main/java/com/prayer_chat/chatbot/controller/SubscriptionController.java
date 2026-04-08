@@ -95,7 +95,7 @@ public class SubscriptionController {
                 response.put("websiteScansMonthlyQuota", scan.monthlyQuota());
                 response.put("websiteScansUsedThisMonth", scan.usedThisMonth());
                 response.put("websiteScansDailyLimit", scan.dailyLimit());
-                response.put("websiteScansUsedRollingDay", scan.usedDistinctDaysInRollingWindow());
+                response.put("websiteScansUsedRollingDay", scan.usedScansInRollingWindow());
                 response.put("websiteScansRemaining", scan.remainingScansEffective());
             } catch (Exception ex) {
                 logger.warn("Could not attach website scan quota to subscription status: {}", ex.getMessage());

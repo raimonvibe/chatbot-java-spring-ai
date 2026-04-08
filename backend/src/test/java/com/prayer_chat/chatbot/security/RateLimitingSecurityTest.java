@@ -126,7 +126,7 @@ class RateLimitingSecurityTest {
     void shouldPreventScanLimitBypassUsingWebsiteScanAudit() {
         // Arrange: User has scanned today
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
             eq(testUser.getId()), any(LocalDateTime.class))).thenReturn(1L); // At limit
 
         // Act: Check scan limit
@@ -138,7 +138,7 @@ class RateLimitingSecurityTest {
         assertEquals(1, result.getLimit());
         
         // Verify: Uses WebsiteScanAudit (not WebsiteContent) to prevent bypass via deletion
-        verify(websiteScanAuditRepository).countDistinctScanDatesByUserAndDateAfter(
+        verify(websiteScanAuditRepository).countScansByUserAndDateAfter(
             eq(testUser.getId()), any(LocalDateTime.class));
     }
 
@@ -246,7 +246,7 @@ class RateLimitingSecurityTest {
     void shouldHandleNullScanCountGracefully() {
         // Arrange: Repository returns null
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
             anyLong(), any(LocalDateTime.class))).thenReturn(null);
 
         // Act
@@ -277,14 +277,14 @@ class RateLimitingSecurityTest {
     void shouldUseCorrectTimeWindowForScanLimits() {
         // Arrange
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
             eq(testUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
 
         // Act
         realRateLimitingService.checkScanLimit(testUser);
 
         // Assert: Should use 24-hour window (oneDayAgo)
-        verify(websiteScanAuditRepository).countDistinctScanDatesByUserAndDateAfter(
+        verify(websiteScanAuditRepository).countScansByUserAndDateAfter(
             eq(testUser.getId()),
             argThat(date -> {
                 LocalDateTime expected = LocalDateTime.now().minusDays(1);

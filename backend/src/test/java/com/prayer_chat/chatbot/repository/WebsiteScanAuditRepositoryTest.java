@@ -66,23 +66,23 @@ class WebsiteScanAuditRepositoryTest {
     }
 
     @Test
-    @DisplayName("Should count distinct scan dates for user")
-    void shouldCountDistinctScanDates() {
+    @DisplayName("Should count scans in rolling window for user")
+    void shouldCountScansInRollingWindow() {
         // Arrange
         LocalDateTime twoDaysAgo = LocalDateTime.now().minusDays(2);
         
-        when(auditRepository.countDistinctScanDatesByUserAndDateAfter(
+        when(auditRepository.countScansByUserAndDateAfter(
             eq(testUser.getId()), any(LocalDateTime.class))).thenReturn(3L);
 
         // Act
-        Long count = auditRepository.countDistinctScanDatesByUserAndDateAfter(
+        Long count = auditRepository.countScansByUserAndDateAfter(
             testUser.getId(),
             twoDaysAgo.minusDays(1)
         );
 
-        // Assert - should count 3 distinct dates
+        // Assert - should count 3 scans in the rolling window
         assertThat(count).isEqualTo(3L);
-        verify(auditRepository, times(1)).countDistinctScanDatesByUserAndDateAfter(
+        verify(auditRepository, times(1)).countScansByUserAndDateAfter(
             eq(testUser.getId()), any(LocalDateTime.class));
     }
 
@@ -140,7 +140,7 @@ class WebsiteScanAuditRepositoryTest {
         // Act
         Long count = auditRepository.countScansTodayByUserId(testUser.getId());
 
-        // Assert - should count as 1 distinct day (not 2 separate scans)
+        // Assert - today's query now counts all scans on the current date
         assertThat(count).isEqualTo(1L);
         verify(auditRepository, times(1)).countScansTodayByUserId(testUser.getId());
     }

@@ -126,7 +126,7 @@ class RateLimitingServiceTest {
     void shouldAllowPreviewUserWithinScanLimit() {
         when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
         when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
 
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(previewUser);
@@ -144,7 +144,7 @@ class RateLimitingServiceTest {
     void shouldBlockPreviewUserWhenScanLimitReached() {
         when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(1L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(1L);
         when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(1L);
 
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(previewUser);
@@ -165,7 +165,7 @@ class RateLimitingServiceTest {
         pro.setPlan(Subscription.SubscriptionPlan.PRO);
         when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(5L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(5L);
         when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(5L);
 
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(paidUser);
@@ -184,7 +184,7 @@ class RateLimitingServiceTest {
         pro.setPlan(Subscription.SubscriptionPlan.PRO);
         when(subscriptionRepository.findByUserId(paidUser.getId())).thenReturn(Optional.of(pro));
         when(accessControlService.isPreviewMode(paidUser)).thenReturn(false);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(10L);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(10L);
         when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(10L);
 
         RateLimitingService.RateLimitResult result = rateLimitingService.checkScanLimit(paidUser);
@@ -216,7 +216,7 @@ class RateLimitingServiceTest {
     void shouldHandleNullScanCount() {
         when(subscriptionRepository.findByUserId(previewUser.getId())).thenReturn(Optional.empty());
         when(accessControlService.isPreviewMode(previewUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countDistinctScanDatesByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(null);
+        when(websiteScanAuditRepository.countScansByUserAndDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(null);
         when(websiteScanAuditRepository.countScansByUserAndScanDateAfter(anyLong(), any(LocalDateTime.class))).thenReturn(0L);
 
         // Act
