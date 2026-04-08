@@ -419,7 +419,8 @@ public class AiChatbotService {
 
         LinkedHashSet<String> seen = new LinkedHashSet<>();
         List<Document> merged = new ArrayList<>();
-        for (Document d : fromDb) {
+        // Query-focused docs first so explicit entity requests ("Nigeria projects") are not drowned by generic site snapshots.
+        for (Document d : fromDbKeyword) {
             if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
                 break;
             }
@@ -428,7 +429,7 @@ public class AiChatbotService {
                 merged.add(d);
             }
         }
-        for (Document d : fromDbKeyword) {
+        for (Document d : fromDb) {
             if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
                 break;
             }
@@ -447,11 +448,24 @@ public class AiChatbotService {
             }
         }
 
-        if (!fromDb.isEmpty() || !fromVector.isEmpty()) {
-            logger.debug("Context for chatbot {}: {} DB page(s), {} vector hit(s), {} merged doc(s)",
-                wantId, fromDb.size(), fromVector.size(), merged.size());
+        if (!fromDb.isEmpty() || !fromVector.isEmpty() || !fromDbKeyword.isEmpty()) {
+            logger.info("Context for chatbot {}: {} keyword DB doc(s), {} DB snapshot doc(s), {} vector hit(s), {} merged doc(s)",
+                wantId, fromDbKeyword.size(), fromDb.size(), fromVector.size(), merged.size());
+            if (!tokens.isEmpty()) {
+                logger.info("Context tokens for chatbot {}: {}", wantId, String.join(",", tokens));
+            }
+            List<String> mergedUrls = merged.stream()
+                .map(d -> d.getMetadata() != null ? d.getMetadata().get("url") : null)
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .filter(s -> !s.isBlank())
+                .limit(8)
+                .toList();
+            if (!mergedUrls.isEmpty()) {
+                logger.info("Merged context urls for chatbot {}: {}", wantId, String.join(" | ", mergedUrls));
+            }
         } else {
-            logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
+            logger.info("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
         }
         return merged;
     }
