@@ -406,8 +406,32 @@ public class AiChatbotService {
             logger.warn("Vector similarity search failed for chatbot {}: {}", wantId, e.getMessage());
         }
 
-        // If vector retrieval is empty (common with in-memory vector store after restarts), add a small DB keyword search fallback.
-        List<Document> fromDbKeyword = fromVector.isEmpty()
+        // If vector retrieval is empty OR looks irrelevant (no token overlap), add a small DB keyword search fallback.
+        // This helps when the vector store is in-memory and gets wiped/rebuilt across restarts, or when the store returns
+        // generic matches that miss obvious query terms like "nigeria".
+        List<String> tokens = keywordTokens(userMessage);
+        boolean vectorHasToken = false;
+        if (!tokens.isEmpty() && !fromVector.isEmpty()) {
+            for (Document d : fromVector) {
+                if (d == null) continue;
+                String text = d.getText();
+                String hay = (text != null ? text : "").toLowerCase(Locale.ROOT);
+                if (d.getMetadata() != null) {
+                    Object u = d.getMetadata().get("url");
+                    Object t = d.getMetadata().get("title");
+                    if (u != null) hay += " " + String.valueOf(u).toLowerCase(Locale.ROOT);
+                    if (t != null) hay += " " + String.valueOf(t).toLowerCase(Locale.ROOT);
+                }
+                for (String tok : tokens) {
+                    if (tok != null && !tok.isBlank() && hay.contains(tok)) {
+                        vectorHasToken = true;
+                        break;
+                    }
+                }
+                if (vectorHasToken) break;
+            }
+        }
+        List<Document> fromDbKeyword = (!tokens.isEmpty() && (fromVector.isEmpty() || !vectorHasToken))
             ? documentsByKeywordFallback(chatbot, userMessage)
             : List.of();
 
