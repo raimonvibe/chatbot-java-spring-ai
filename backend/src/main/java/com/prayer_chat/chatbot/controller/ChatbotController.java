@@ -417,6 +417,7 @@ public class ChatbotController {
                         try {
                             Chatbot c = chatbotRepository.findById(savedId).orElse(null);
                             if (c == null) return;
+                            logger.info("Onboarding analysis finished for chatbot {} ({} page(s) saved). Starting indexing.", savedId, contents.size());
                             aiChatbotService.indexWebsiteContent(c);
                             logger.info("Indexed {} pages for onboarding chatbot {}", contents.size(), savedId);
                             List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
@@ -432,7 +433,7 @@ public class ChatbotController {
                                 logger.info("Auto-enabled Christian content for onboarding chatbot {} with verse {}", savedId, v.getReference());
                             }
                         } catch (Exception e) {
-                            logger.warn("Onboarding post-analysis step failed for chatbot {}: {}", savedId, e.getMessage());
+                            logger.warn("Onboarding post-analysis step failed for chatbot {}", savedId, e);
                         }
                     });
                 }
@@ -756,6 +757,7 @@ public class ChatbotController {
                 try {
                     Chatbot c = chatbotRepository.findById(chatbot.getId()).orElse(null);
                     if (c == null) return;
+                    logger.info("Website analysis finished for chatbot {} ({} page(s) saved). Starting indexing.", c.getId(), contents.size());
                     aiChatbotService.indexWebsiteContent(c);
                     logger.info("Indexed {} pages for chatbot {} after analysis", contents.size(), c.getId());
                     List<BibleVerseMatch> matches = christianContentAnalysisService.findRelevantVerses(c, 5, 0.25);
@@ -771,7 +773,7 @@ public class ChatbotController {
                         logger.info("Auto-enabled Christian content for chatbot {} with verse {}", c.getId(), v.getReference());
                     }
                 } catch (Exception e) {
-                    logger.warn("Could not auto-apply Christian content for chatbot {}: {}", chatbot.getId(), e.getMessage());
+                    logger.warn("Post-analysis indexing/auto-apply failed for chatbot {}", chatbot.getId(), e);
                 }
             };
 

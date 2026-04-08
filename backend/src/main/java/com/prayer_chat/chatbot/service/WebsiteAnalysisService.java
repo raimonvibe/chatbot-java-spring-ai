@@ -226,9 +226,14 @@ public class WebsiteAnalysisService {
         seeds.add(websiteUrl);
         try {
             URL url = new URL(websiteUrl);
-            String base = url.getProtocol() + "://" + url.getHost();
-            String sitemapUrl = base + "/sitemap.xml";
-            List<String> sitemapUrls = fetchUrlsFromSitemap(sitemapUrl, base);
+            String scheme = url.getProtocol();
+            String host = url.getHost();
+            if (scheme == null || host == null || scheme.isBlank() || host.isBlank()) {
+                return seeds;
+            }
+            // SECURITY: Only treat apex and www as equivalent hosts. Do NOT broaden scope to arbitrary subdomains.
+            Set<String> allowedHosts = allowedHostVariants(host);
+            List<String> sitemapUrls = fetchUrlsFromSitemap(scheme, allowedHosts);
             for (String u : sitemapUrls) {
                 if (seeds.size() >= maxPages) break;
                 if (!seeds.contains(u) && urlValidationService.isValidAndSafe(u) && robotsTxtService.isCrawlAllowed(u)) {
@@ -244,36 +249,97 @@ public class WebsiteAnalysisService {
     /**
      * Fetch URLs from sitemap (handles sitemap index and plain sitemap).
      */
-    private List<String> fetchUrlsFromSitemap(String sitemapUrl, String baseUrl) {
+    private List<String> fetchUrlsFromSitemap(String scheme, Set<String> allowedHosts) {
         List<String> urls = new ArrayList<>();
-        if (!urlValidationService.isValidAndSafe(sitemapUrl)) {
-            logger.debug("Sitemap URL failed validation (SSRF protection): {}", sitemapUrl);
-            return urls;
-        }
         try {
-            Document doc = Jsoup.connect(sitemapUrl)
-                .userAgent(userAgent)
-                .timeout(timeoutSeconds * 1000)
-                .ignoreContentType(true)
-                .maxBodySize(5 * 1024 * 1024)
-                .get();
+            // Try sitemap on the entered host first; if it fails, try the www/apex variant.
+            // SECURITY: We only try the explicit host variants (no discovery of other hosts).
+            Document doc = null;
+            for (String host : allowedHosts) {
+                String sitemapUrl = scheme + "://" + host + "/sitemap.xml";
+                if (!urlValidationService.isValidAndSafe(sitemapUrl)) {
+                    logger.debug("Sitemap URL failed validation (SSRF protection): {}", sitemapUrl);
+                    continue;
+                }
+                try {
+                    doc = Jsoup.connect(sitemapUrl)
+                        .userAgent(userAgent)
+                        .timeout(timeoutSeconds * 1000)
+                        .ignoreContentType(true)
+                        .maxBodySize(5 * 1024 * 1024)
+                        .get();
+                    if (doc != null) {
+                        break;
+                    }
+                } catch (IOException e) {
+                    // Try the next allowed host variant
+                    logger.debug("Could not fetch sitemap {}: {}", sitemapUrl, e.getMessage());
+                }
+            }
+            if (doc == null) {
+                return urls;
+            }
             Elements locs = doc.select("loc");
             if (locs.isEmpty()) {
                 locs = doc.select("url loc");
             }
             for (Element loc : locs) {
                 String href = loc.text();
-                if (href != null && href.startsWith(baseUrl) && !SKIP_PATTERNS.matcher(href).matches()) {
+                if (href == null || href.isBlank()) continue;
+                if (SKIP_PATTERNS.matcher(href).matches()) continue;
+                // SECURITY: only accept sitemap URLs for the homepage host or its www/apex equivalent.
+                // This prevents the sitemap from expanding crawl scope to arbitrary subdomains/domains.
+                if (isAllowedSitemapUrl(href, allowedHosts)) {
                     urls.add(href);
                 }
             }
             if (urls.size() > maxPages) {
                 urls = urls.subList(0, maxPages);
             }
-        } catch (IOException e) {
-            logger.debug("Could not fetch sitemap {}: {}", sitemapUrl, e.getMessage());
+        } catch (Exception e) {
+            logger.debug("Could not parse sitemap: {}", e.getMessage());
         }
         return urls;
+    }
+
+    /**
+     * Returns a conservative set of equivalent hosts for crawling.
+     * Only toggles the "www." prefix; does NOT include arbitrary subdomains.
+     */
+    private static Set<String> allowedHostVariants(String host) {
+        if (host == null) return Set.of();
+        String h = host.trim().toLowerCase(Locale.ROOT);
+        if (h.isEmpty()) return Set.of();
+        String toggled = toggleWww(h);
+        if (toggled.equals(h)) return Set.of(h);
+        // Keep deterministic iteration order (helpful for logs/debugging).
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        out.add(h);
+        out.add(toggled);
+        return out;
+    }
+
+    private static String toggleWww(String host) {
+        if (host == null) return "";
+        String h = host.trim();
+        if (h.toLowerCase(Locale.ROOT).startsWith("www.")) {
+            return h.substring(4);
+        }
+        return "www." + h;
+    }
+
+    private static boolean isAllowedSitemapUrl(String href, Set<String> allowedHosts) {
+        try {
+            URI u = URI.create(href.trim());
+            String scheme = u.getScheme();
+            String host = u.getHost();
+            if (scheme == null || host == null) return false;
+            String s = scheme.toLowerCase(Locale.ROOT);
+            if (!"http".equals(s) && !"https".equals(s)) return false;
+            return allowedHosts.contains(host.toLowerCase(Locale.ROOT));
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**
@@ -630,8 +696,8 @@ public class WebsiteAnalysisService {
             URL urlObj = new URL(url);
             URL baseUrlObj = new URL(baseUrl);
             
-            // Check if it's the same domain
-            if (!urlObj.getHost().equals(baseUrlObj.getHost())) {
+            // Check if it's the same site host. SECURITY: allow only www<->apex equivalence.
+            if (!isSameSiteHost(urlObj.getHost(), baseUrlObj.getHost())) {
                 return false;
             }
             
@@ -645,6 +711,16 @@ public class WebsiteAnalysisService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private static boolean isSameSiteHost(String a, String b) {
+        if (a == null || b == null) return false;
+        String ha = a.trim().toLowerCase(Locale.ROOT);
+        String hb = b.trim().toLowerCase(Locale.ROOT);
+        if (ha.isEmpty() || hb.isEmpty()) return false;
+        if (ha.equals(hb)) return true;
+        // Only allow the conservative www↔apex toggle.
+        return toggleWww(ha).equals(hb) || toggleWww(hb).equals(ha);
     }
     
     /**
@@ -688,12 +764,17 @@ public class WebsiteAnalysisService {
      * Used by frontend to keep loading screen until ready.
      */
     public Map<String, Object> getAnalysisStatus(Chatbot chatbot) {
-        // Single COUNT query — avoid loading every row on each preview poll (was very slow for large sites).
+        // COUNT queries only — avoid loading rows on each preview poll.
         Long indexedCount = websiteContentRepository.countIndexedByChatbot(chatbot);
+        Long savedCount = websiteContentRepository.countByChatbot(chatbot);
         long indexed = indexedCount != null ? indexedCount : 0L;
+        long saved = savedCount != null ? savedCount : 0L;
         Map<String, Object> status = new HashMap<>();
-        status.put("ready", indexed > 0);
+        // If indexing lags/fails, we still have DB content to answer "about this site" (AiChatbotService uses DB snapshot).
+        // So "ready" means at least some content is available, not strictly that vector indexing succeeded.
+        status.put("ready", indexed > 0 || saved > 0);
         status.put("pagesIndexed", indexed);
+        status.put("pagesSaved", saved);
         return status;
     }
 
