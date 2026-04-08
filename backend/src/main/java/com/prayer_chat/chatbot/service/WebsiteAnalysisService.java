@@ -572,7 +572,6 @@ public class WebsiteAnalysisService {
                     bestLength = text.length();
                 }
             }
-            if (best != null) break;
         }
 
         if (best == null) {
