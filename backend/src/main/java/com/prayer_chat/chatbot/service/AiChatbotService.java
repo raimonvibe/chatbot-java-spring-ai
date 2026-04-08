@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 /**
  * Service for AI-powered chatbot interactions using Spring AI
@@ -261,6 +262,14 @@ public class AiChatbotService {
     private static final int DB_SNAPSHOT_PAGES = 8;
     private static final int MERGED_CONTEXT_DOCS_MAX = 14;
     private static final int DB_SNIPPET_MAX_CHARS = 3500;
+    private static final int DB_KEYWORD_FALLBACK_DOCS_MAX = 4;
+    private static final int DB_KEYWORD_TOKENS_MAX = 3;
+    private static final Pattern SAFE_TOKEN_SPLIT = Pattern.compile("[^\\p{L}\\p{N}]+");
+    private static final Set<String> STOPWORDS = Set.of(
+        "the", "and", "for", "with", "this", "that", "from", "into", "about", "tell", "more", "what", "which", "who",
+        "are", "is", "was", "were", "to", "of", "in", "on", "at", "as", "it", "its", "a", "an", "my", "your", "their",
+        "website", "site", "page", "pages", "project", "projects"
+    );
 
     private static String contextDedupeKey(Document d) {
         Object url = d.getMetadata() != null ? d.getMetadata().get("url") : null;
@@ -315,6 +324,64 @@ public class AiChatbotService {
         return out;
     }
 
+    private static List<String> keywordTokens(String userMessage) {
+        if (userMessage == null) return List.of();
+        String msg = userMessage.trim();
+        if (msg.isEmpty()) return List.of();
+        if (msg.length() > 500) msg = msg.substring(0, 500); // prevent worst-case tokenization cost
+
+        LinkedHashSet<String> tokens = new LinkedHashSet<>();
+        for (String raw : SAFE_TOKEN_SPLIT.split(msg.toLowerCase(Locale.ROOT))) {
+            if (tokens.size() >= DB_KEYWORD_TOKENS_MAX) break;
+            if (raw == null) continue;
+            String t = raw.trim();
+            if (t.length() < 3 || t.length() > 24) continue;
+            if (STOPWORDS.contains(t)) continue;
+            // Avoid wildcard-y tokens that would match everything; allow alnum and a few safe chars.
+            if (!t.matches("^[\\p{L}\\p{N}][\\p{L}\\p{N}_-]*$")) continue;
+            tokens.add(t);
+        }
+        return new ArrayList<>(tokens);
+    }
+
+    /**
+     * Fallback retrieval when vector store is empty/unavailable (e.g. SimpleVectorStore wiped on restart).
+     * Uses a small, parameterized LIKE search scoped to this chatbot, with strict token limits.
+     */
+    private List<Document> documentsByKeywordFallback(Chatbot chatbot, String userMessage) {
+        if (chatbot == null) return List.of();
+        List<String> tokens = keywordTokens(userMessage);
+        if (tokens.isEmpty()) return List.of();
+
+        List<Document> out = new ArrayList<>();
+        for (String token : tokens) {
+            try {
+                var page = websiteContentRepository.searchByChatbotAndKeyword(
+                    chatbot,
+                    token,
+                    PageRequest.of(0, DB_KEYWORD_FALLBACK_DOCS_MAX)
+                );
+                for (WebsiteContent c : page.getContent()) {
+                    if (c == null) continue;
+                    String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
+                    if (text.trim().length() < 8) continue;
+                    if (text.length() > DB_SNIPPET_MAX_CHARS) {
+                        text = text.substring(0, DB_SNIPPET_MAX_CHARS) + "...";
+                    }
+                    out.add(new Document(text, Map.of(
+                        "chatbotId", chatbot.getId() != null ? chatbot.getId().toString() : "",
+                        "url", c.getUrl() != null ? c.getUrl() : "",
+                        "title", c.getTitle() != null ? c.getTitle() : ""
+                    )));
+                    if (out.size() >= DB_KEYWORD_FALLBACK_DOCS_MAX) return out;
+                }
+            } catch (Exception e) {
+                logger.warn("DB keyword fallback search failed for chatbot {}: {}", chatbot.getId(), e.getMessage());
+            }
+        }
+        return out;
+    }
+
     /**
      * Hybrid context: stored website pages (broad coverage for "about this site") plus vector matches (query-specific).
      * Vector hits are post-filtered by {@code chatbotId} in-process so tenant isolation does not depend on store filter syntax.
@@ -339,9 +406,23 @@ public class AiChatbotService {
             logger.warn("Vector similarity search failed for chatbot {}: {}", wantId, e.getMessage());
         }
 
+        // If vector retrieval is empty (common with in-memory vector store after restarts), add a small DB keyword search fallback.
+        List<Document> fromDbKeyword = fromVector.isEmpty()
+            ? documentsByKeywordFallback(chatbot, userMessage)
+            : List.of();
+
         LinkedHashSet<String> seen = new LinkedHashSet<>();
         List<Document> merged = new ArrayList<>();
         for (Document d : fromDb) {
+            if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
+                break;
+            }
+            String key = contextDedupeKey(d);
+            if (seen.add(key)) {
+                merged.add(d);
+            }
+        }
+        for (Document d : fromDbKeyword) {
             if (merged.size() >= MERGED_CONTEXT_DOCS_MAX) {
                 break;
             }

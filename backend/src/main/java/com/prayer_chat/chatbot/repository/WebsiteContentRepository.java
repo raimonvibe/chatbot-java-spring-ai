@@ -69,6 +69,21 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
      */
     @Query("SELECT wc FROM WebsiteContent wc WHERE wc.chatbot = :chatbot AND wc.wordCount >= :minWords")
     List<WebsiteContent> findByChatbotWithMinWords(@Param("chatbot") Chatbot chatbot, @Param("minWords") Integer minWords);
+
+    /**
+     * Keyword search scoped to a chatbot. Used as a fallback when vector retrieval is unavailable (e.g. in-memory store wiped on restart).
+     * SECURITY: query is parameterized and always scoped to the given chatbot.
+     */
+    @Query("""
+        SELECT wc FROM WebsiteContent wc
+        WHERE wc.chatbot = :chatbot
+          AND (
+            LOWER(wc.title) LIKE CONCAT('%', LOWER(:q), '%')
+            OR LOWER(wc.url) LIKE CONCAT('%', LOWER(:q), '%')
+            OR LOWER(wc.content) LIKE CONCAT('%', LOWER(:q), '%')
+          )
+        """)
+    Page<WebsiteContent> searchByChatbotAndKeyword(@Param("chatbot") Chatbot chatbot, @Param("q") String q, Pageable pageable);
     
     /**
      * Count scans today for a chatbot (based on chatbot owner)
