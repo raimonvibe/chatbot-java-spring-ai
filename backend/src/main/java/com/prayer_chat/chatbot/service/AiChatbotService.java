@@ -46,6 +46,10 @@ public class AiChatbotService {
         + "For 'this site', 'the site', 'this website', or 'tell me about this site'—answer ONLY from the website content below (the site this chatbot was built from), not about Raimonvibe.";
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);
+    private static final String RELATED_SCRIPTURE_PREFIX = "Related Scripture:";
+    private static final int VERSE_CADENCE_RESPONSES = 3;
+    private static final int VERSE_COOLDOWN_RECENT_AI_MESSAGES = 2;
+    private static final int VERSE_EXCERPT_MAX_CHARS = 180;
     
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
@@ -241,7 +245,11 @@ public class AiChatbotService {
         try {
             Prompt prompt = new Prompt(messages);
             ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
-            return response.getResult().getOutput().getText();
+            String aiText = response.getResult().getOutput().getText();
+            if (shouldAppendRelatedScripture(chatbot, conversation, recentMessages, relevantVerse, isFirstMessage)) {
+                aiText = appendRelatedScripture(aiText, relevantVerse);
+            }
+            return aiText;
         } catch (IllegalStateException e) {
             // This usually means ChatModel is not configured (missing API key)
             if (e.getMessage() != null && (e.getMessage().contains("ANTHROPIC_API_KEY") || 
@@ -255,6 +263,51 @@ public class AiChatbotService {
             logger.error("Error generating AI response: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to generate AI response: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Option C policy: include scripture on first turn when relevant, then occasionally with cadence + cooldown.
+     */
+    private boolean shouldAppendRelatedScripture(Chatbot chatbot,
+                                                 Conversation conversation,
+                                                 List<com.prayer_chat.chatbot.model.Message> recentMessages,
+                                                 BibleVerse relevantVerse,
+                                                 boolean isFirstMessage) {
+        if (chatbot == null || conversation == null || relevantVerse == null) return false;
+        if (chatbot.getChristianMessagingEnabled() == null || !chatbot.getChristianMessagingEnabled()) return false;
+        if (isFirstMessage) return true;
+
+        // Cooldown: avoid scripture in consecutive responses.
+        long recentAiWithScripture = recentMessages.stream()
+            .filter(m -> m != null && Boolean.FALSE.equals(m.getIsUserMessage()))
+            .limit(VERSE_COOLDOWN_RECENT_AI_MESSAGES)
+            .map(com.prayer_chat.chatbot.model.Message::getContent)
+            .filter(Objects::nonNull)
+            .filter(t -> t.contains(RELATED_SCRIPTURE_PREFIX))
+            .count();
+        if (recentAiWithScripture > 0) return false;
+
+        // Cadence by assistant response number (3rd, 6th, 9th, ...), if relevant verse exists.
+        long priorAiCount = Optional.ofNullable(messageRepository.countAiMessagesByConversation(conversation)).orElse(0L);
+        long nextAiIndex = priorAiCount + 1L;
+        return nextAiIndex % VERSE_CADENCE_RESPONSES == 0;
+    }
+
+    private String appendRelatedScripture(String aiResponse, BibleVerse verse) {
+        if (verse == null) return aiResponse;
+        String response = aiResponse == null ? "" : aiResponse.trim();
+        String reference = verse.getReference() != null ? verse.getReference().trim() : "";
+        String verseText = verse.getText() != null ? verse.getText().replaceAll("\\s+", " ").trim() : "";
+        if (verseText.length() > VERSE_EXCERPT_MAX_CHARS) {
+            verseText = verseText.substring(0, VERSE_EXCERPT_MAX_CHARS).trim() + "...";
+        }
+        // If the model already cited this exact reference, avoid duplicate scripture blocks.
+        if (!reference.isEmpty() && response.toLowerCase(Locale.ROOT).contains(reference.toLowerCase(Locale.ROOT))) {
+            return response;
+        }
+        String line = (reference.isEmpty() ? RELATED_SCRIPTURE_PREFIX : (RELATED_SCRIPTURE_PREFIX + " " + reference))
+            + (verseText.isEmpty() ? "" : " — \"" + verseText + "\"");
+        return response.isEmpty() ? line : (response + "\n\n" + line);
     }
     
     private static final int VECTOR_SEARCH_TOP_K = 48;
