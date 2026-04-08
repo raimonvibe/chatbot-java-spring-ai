@@ -637,8 +637,6 @@ public class AiChatbotService {
         prompt.append("How to respond:\n");
         prompt.append("- Site- or business-related questions (e.g. \"this site\", \"this website\", \"what do you offer\", pricing, hours, team, page content): ");
         prompt.append("ground your answer in the retrieved excerpts when they contain the information. If the excerpts are silent or incomplete, say so—do not invent or guess business- or site-specific facts.\n");
-        prompt.append("- If the user asks about a specific topic/entity (for example, a country, service, product, or page theme), actively look for matching terms in the retrieved excerpts and summarize the concrete items you do find (names, examples, links, short descriptions).\n");
-        prompt.append("- Do not say \"there are no details\" when retrieved excerpts clearly contain concrete details. Prefer: brief summary of found items + note any remaining gaps.\n");
         prompt.append("- General conversation (faith, life, ideas, topics not tied to that site's pages): answer helpfully and naturally. ");
         prompt.append("You are not required to steer every message back to the website; only avoid claiming specific facts about this business or site unless the excerpts support them.\n");
         prompt.append("CRITICAL — do not over-apply RAG: Retrieved excerpts limit only what you may assert about THIS business, its products, and what appears on its pages. ");

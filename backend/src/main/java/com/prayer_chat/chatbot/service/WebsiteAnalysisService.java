@@ -577,7 +577,11 @@ public class WebsiteAnalysisService {
         if (best == null) {
             best = body;
         }
-        String content = best.text().replaceAll("\\s+", " ").trim();
+        String selectorContent = best.text().replaceAll("\\s+", " ").trim();
+        String bodyContent = body.text().replaceAll("\\s+", " ").trim();
+        // Prefer fuller cleaned body text when selector-only extraction under-captures page details.
+        // This is a conservative fallback that improves robustness across varying site layouts.
+        String content = bodyContent.length() > selectorContent.length() + 120 ? bodyContent : selectorContent;
         return content;
     }
     
