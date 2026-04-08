@@ -82,6 +82,13 @@ public interface WebsiteContentRepository extends JpaRepository<WebsiteContent, 
             OR LOWER(wc.url) LIKE CONCAT('%', LOWER(:q), '%')
             OR LOWER(wc.content) LIKE CONCAT('%', LOWER(:q), '%')
           )
+        ORDER BY
+          CASE WHEN LOWER(wc.url) LIKE CONCAT('%/', LOWER(:q), '/%') THEN 0 ELSE 1 END,
+          CASE WHEN LOWER(wc.url) LIKE CONCAT('%', LOWER(:q), '%') THEN 0 ELSE 1 END,
+          CASE WHEN LOWER(wc.title) LIKE CONCAT('%', LOWER(:q), '%') THEN 0 ELSE 1 END,
+          CASE WHEN LOWER(wc.content) LIKE CONCAT('%', LOWER(:q), '%') THEN 0 ELSE 1 END,
+          wc.wordCount DESC,
+          wc.id DESC
         """)
     Page<WebsiteContent> searchByChatbotAndKeyword(@Param("chatbot") Chatbot chatbot, @Param("q") String q, Pageable pageable);
     

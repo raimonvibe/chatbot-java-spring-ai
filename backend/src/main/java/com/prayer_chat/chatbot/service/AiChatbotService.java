@@ -361,6 +361,8 @@ public class AiChatbotService {
                     token,
                     PageRequest.of(0, DB_KEYWORD_FALLBACK_DOCS_MAX)
                 );
+                logger.debug("DB keyword fallback token '{}' for chatbot {} returned {} row(s)",
+                    token, chatbot.getId(), page.getNumberOfElements());
                 for (WebsiteContent c : page.getContent()) {
                     if (c == null) continue;
                     String text = (c.getTitle() != null ? c.getTitle() + ". " : "") + (c.getContent() != null ? c.getContent() : "");
@@ -373,6 +375,7 @@ public class AiChatbotService {
                         "url", c.getUrl() != null ? c.getUrl() : "",
                         "title", c.getTitle() != null ? c.getTitle() : ""
                     )));
+                    logger.debug("DB keyword fallback selected url for chatbot {}: {}", chatbot.getId(), c.getUrl());
                     if (out.size() >= DB_KEYWORD_FALLBACK_DOCS_MAX) return out;
                 }
             } catch (Exception e) {
