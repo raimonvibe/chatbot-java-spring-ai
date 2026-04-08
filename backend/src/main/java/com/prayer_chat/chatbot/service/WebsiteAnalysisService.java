@@ -472,21 +472,18 @@ public class WebsiteAnalysisService {
 
             if (depth < maxDepth && visitedUrls.size() < maxPages) {
                 Elements links = document.select("a[href]");
-                List<CompletableFuture<Void>> futures = new ArrayList<>();
                 for (Element link : links) {
                     String href = link.attr("abs:href");
                     if (href == null || href.isEmpty()) continue;
                     String norm = normalizeUrl(href);
                     if (isValidUrl(href, baseUrlForDomain) && !visitedUrls.contains(norm)
                             && robotsTxtService.isCrawlAllowed(href)) {
-                        CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
-                            crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed),
-                            executorService
-                        );
-                        futures.add(future);
+                        // SECURITY/STABILITY: crawl synchronously to avoid deadlocks.
+                        // We use a very small fixed pool to keep memory stable on Render; blocking waits inside crawl can
+                        // deadlock if tasks schedule further tasks onto the same pool. Sequential recursion avoids that.
+                        crawlWebsite(href, norm, baseUrlForDomain, chatbotRef, visitedUrls, extractedContent, depth + 1, headlessUsed);
                     }
                 }
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             }
         } catch (IOException e) {
             logger.warn("Failed to crawl URL: {} - {}", urlToFetch, e.getMessage());
