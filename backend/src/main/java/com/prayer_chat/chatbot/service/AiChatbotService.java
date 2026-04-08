@@ -449,23 +449,10 @@ public class AiChatbotService {
         }
 
         if (!fromDb.isEmpty() || !fromVector.isEmpty() || !fromDbKeyword.isEmpty()) {
-            logger.info("Context for chatbot {}: {} keyword DB doc(s), {} DB snapshot doc(s), {} vector hit(s), {} merged doc(s)",
+            logger.debug("Context for chatbot {}: {} keyword DB doc(s), {} DB snapshot doc(s), {} vector hit(s), {} merged doc(s)",
                 wantId, fromDbKeyword.size(), fromDb.size(), fromVector.size(), merged.size());
-            if (!tokens.isEmpty()) {
-                logger.info("Context tokens for chatbot {}: {}", wantId, String.join(",", tokens));
-            }
-            List<String> mergedUrls = merged.stream()
-                .map(d -> d.getMetadata() != null ? d.getMetadata().get("url") : null)
-                .filter(Objects::nonNull)
-                .map(String::valueOf)
-                .filter(s -> !s.isBlank())
-                .limit(8)
-                .toList();
-            if (!mergedUrls.isEmpty()) {
-                logger.info("Merged context urls for chatbot {}: {}", wantId, String.join(" | ", mergedUrls));
-            }
         } else {
-            logger.info("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
+            logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
         }
         return merged;
     }
