@@ -14,11 +14,12 @@ describe('Footer', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('should have internal links only for Contact, Privacy, Legal (no open redirect)', () => {
+  it('should have internal links for footer pages (no open redirect)', () => {
     render(<Footer />);
     expect(screen.getByRole('link', { name: /Contact/i })).toHaveAttribute('href', '/contact');
     expect(screen.getByRole('link', { name: /Privacy Notice/i })).toHaveAttribute('href', '/privacy');
     expect(screen.getByRole('link', { name: /Legal Notice/i })).toHaveAttribute('href', '/legal');
+    expect(screen.getByRole('link', { name: /Troubleshooting/i })).toHaveAttribute('href', '/troubleshooting');
     const contactHref = screen.getByRole('link', { name: /Contact/i }).getAttribute('href');
     expect(contactHref).not.toMatch(/^https?:/);
     expect(contactHref).toMatch(/^\/contact$/);

@@ -894,6 +894,13 @@ export default function Dashboard() {
               <p className="text-brown-700 text-sm mb-3">
                 Paste this snippet just before the closing <code className="bg-brown-200 px-1 rounded">&lt;/body&gt;</code> on your website. A chat button will appear so visitors can ask questions—like planting a small seed of encouragement on your site.
               </p>
+              <p className="text-brown-700 text-xs sm:text-sm mb-3">
+                If the widget does not appear or styles look off, open{' '}
+                <Link href="/troubleshooting" className="font-semibold text-brown-900 underline underline-offset-2 hover:text-gold-700">
+                  Troubleshooting
+                </Link>
+                .
+              </p>
               <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900 text-sm sm:text-base">
                 <code>{embedCode}</code>
               </pre>

@@ -36,6 +36,12 @@ export default function Footer() {
             >
               Legal Notice
             </Link>
+            <Link
+              href="/troubleshooting"
+              className="hover:text-gold-700 transition-colors py-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+            >
+              Troubleshooting
+            </Link>
           </nav>
         </div>
       </div>
