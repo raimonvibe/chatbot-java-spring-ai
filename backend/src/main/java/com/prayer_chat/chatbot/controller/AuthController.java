@@ -336,7 +336,7 @@ public class AuthController {
                         ));
             }
             // Security: Don't leak sensitive error details for other errors
-            logger.error("OAuth2 callback failed: {}", errorMessage);
+            logger.error("OAuth2 callback failed: {}", LogSanitizer.sanitizeForLogging(errorMessage));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication failed"));
         } catch (Exception e) {
@@ -433,7 +433,9 @@ public class AuthController {
                         ? (String) errorBody.get("error_description") 
                         : "Unknown error";
                     
-                    logger.error("OAuth2 token exchange failed: {} - {}", error, errorDescription);
+                    logger.error("OAuth2 token exchange failed: {} - {}",
+                        LogSanitizer.sanitizeForLogging(error),
+                        LogSanitizer.sanitizeForLogging(errorDescription));
                     
                     // Provide more specific error messages
                     if ("invalid_grant".equals(error)) {
@@ -459,13 +461,17 @@ public class AuthController {
             // RestClientException might wrap an HTTP error response
             String errorMessage = e.getMessage();
             if (errorMessage != null && errorMessage.contains("invalid_grant")) {
-                logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"", 
-                    e.getClass().getSimpleName(), tokenUrl, errorMessage);
+                logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"",
+                    e.getClass().getSimpleName(),
+                    tokenUrl,
+                    LogSanitizer.sanitizeForLogging(errorMessage));
                 throw new RuntimeException("Authorization code expired or already used. Please try logging in again.");
             }
             // Log the full error for debugging
-            logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"", 
-                e.getClass().getSimpleName(), tokenUrl, errorMessage);
+            logger.error("OAuth2 callback failed: {} on POST request for \"{}\": \"{}\"",
+                e.getClass().getSimpleName(),
+                tokenUrl,
+                LogSanitizer.sanitizeForLogging(errorMessage));
             throw new RuntimeException("Failed to exchange authorization code: " + errorMessage, e);
         }
     }

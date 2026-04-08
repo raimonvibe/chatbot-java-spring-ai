@@ -186,7 +186,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         logger.warn("JWT token contained null or empty username");
                     }
                 } else {
-                    logger.warn("JWT token validation failed for token: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
+                    logger.warn("JWT token validation failed");
                 }
             } else {
                 logger.debug("No JWT token found in request");

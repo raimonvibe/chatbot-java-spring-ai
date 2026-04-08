@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,16 +129,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
      * Get client identifier (IP address or API key)
      */
     private String getClientIdentifier(HttpServletRequest request) {
-        // Use API key if provided
+        // Use a fingerprint for API key if provided (never store raw key material)
         String apiKey = request.getHeader("X-API-Key");
         if (apiKey != null && !apiKey.isEmpty()) {
-            return "api-key:" + apiKey;
+            return "api-key:" + fingerprint(apiKey);
         }
 
-        // Use Authorization token if present
+        // Use a fingerprint for Authorization token if present
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return "token:" + authHeader.substring(7, Math.min(authHeader.length(), 20));
+            return "token:" + fingerprint(authHeader.substring(7));
         }
 
         // Otherwise use IP address
@@ -159,5 +162,25 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return xRealIp;
         }
         return request.getRemoteAddr();
+    }
+
+    /**
+     * Create a short stable fingerprint for sensitive values so logs/caches avoid raw secrets.
+     */
+    private String fingerprint(String value) {
+        if (value == null || value.isBlank()) {
+            return "empty";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 6 && i < hash.length; i++) {
+                sb.append(String.format("%02x", hash[i]));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return "hash-error";
+        }
     }
 }

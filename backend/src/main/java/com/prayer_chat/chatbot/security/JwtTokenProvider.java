@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.security;
 
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -87,17 +88,17 @@ public class JwtTokenProvider {
             logger.debug("JWT token validation successful");
             return true;
         } catch (io.jsonwebtoken.security.SecurityException ex) {
-            logger.error("Invalid JWT signature: {}", ex.getMessage());
+            logger.error("Invalid JWT signature: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()));
         } catch (MalformedJwtException ex) {
-            logger.error("Invalid JWT token format: {}", ex.getMessage());
+            logger.error("Invalid JWT token format: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()));
         } catch (ExpiredJwtException ex) {
-            logger.error("Expired JWT token: {}", ex.getMessage());
+            logger.error("Expired JWT token: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()));
         } catch (UnsupportedJwtException ex) {
-            logger.error("Unsupported JWT token: {}", ex.getMessage());
+            logger.error("Unsupported JWT token: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            logger.error("JWT token is empty or null: {}", ex.getMessage());
+            logger.error("JWT token is empty or null: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()));
         } catch (Exception ex) {
-            logger.error("JWT validation failed: {}", ex.getMessage(), ex);
+            logger.error("JWT validation failed: {}", LogSanitizer.sanitizeForLogging(ex.getMessage()), ex);
         }
         return false;
     }
