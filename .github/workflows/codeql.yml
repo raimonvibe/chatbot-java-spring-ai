@@ -36,8 +36,31 @@ jobs:
       with:
         languages: ${{ matrix.language }}
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+    # CodeQL autobuild is often unreliable for multi-dir repos and custom Maven configs.
+    # Use explicit Maven steps so dependency resolution/build behavior is deterministic.
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "temurin"
+        java-version: "17"
+        cache: "maven"
+
+    - name: Build backend (Maven)
+      run: >
+        mvn clean package
+        -f backend/pom.xml
+        -B -V -e
+        -Dfindbugs.skip=true
+        -Dcheckstyle.skip=true
+        -Dpmd.skip=true
+        -Dspotbugs.skip=true
+        -Denforcer.skip=true
+        -Dmaven.javadoc.skip=true
+        -DskipTests=true
+        -Dmaven.test.skip.exec=true
+        -Dlicense.skip=true
+        -Drat.skip=true
+        -Dspotless.check.skip=true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
