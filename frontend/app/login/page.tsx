@@ -6,12 +6,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { checkAuth } from '@/lib/api';
 
-function generateOAuthState(): string {
-  const bytes = new Uint8Array(32);
-  window.crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
@@ -32,7 +26,7 @@ function LoginContent() {
     return () => { cancelled = true; };
   }, [router]);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     // Hybrid OAuth flow: Frontend directly initiates OAuth with Google
     // This ensures the frontend domain appears in the Google consent screen
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -42,12 +36,32 @@ function LoginContent() {
       alert('OAuth configuration error. Please contact support.');
       return;
     }
-    
+
+    let state: string;
+    try {
+      const res = await fetch('/api/auth/oauth-state', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        console.error('Failed to mint OAuth state:', res.status);
+        alert('Could not start sign-in. Please try again.');
+        return;
+      }
+      const data = (await res.json()) as { state?: string };
+      if (typeof data.state !== 'string' || !/^[a-f0-9]{64}$/i.test(data.state)) {
+        alert('Could not start sign-in. Please try again.');
+        return;
+      }
+      state = data.state;
+    } catch (e) {
+      console.error(e);
+      alert('Could not start sign-in. Please try again.');
+      return;
+    }
+
     // Construct redirect URI - frontend callback page
     const redirectUri = `${window.location.origin}/auth/callback`;
-    
-    const state = generateOAuthState();
-    sessionStorage.setItem('oauth_state', state);
 
     // Google OAuth2 parameters
     const params = new URLSearchParams({

@@ -32,6 +32,7 @@ import {
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
+import { isGoogleUserContentProfilePictureUrl } from '@/lib/profile-picture-url';
 
 function AccountPageFallback() {
   return (
@@ -327,7 +328,7 @@ function AccountPageContent() {
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden bg-brown-700/80 flex items-center justify-center ring-2 ring-brown-600/80">
-              {user?.picture && user.picture.startsWith('https://') && user.picture.includes('googleusercontent.com') ? (
+              {user?.picture && isGoogleUserContentProfilePictureUrl(user.picture) ? (
                 <img
                   src={user.picture}
                   alt="Profile"

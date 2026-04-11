@@ -45,17 +45,20 @@ function AuthCallbackContent() {
       return;
     }
 
-    // OAuth CSRF protection: the callback must include the same state generated at login start.
-    const expectedState = sessionStorage.getItem('oauth_state');
-    sessionStorage.removeItem('oauth_state');
-    if (!expectedState || !state || state !== expectedState) {
-      setStatus('error');
-      setErrorMessage('Invalid login state. Please try signing in again.');
-      setTimeout(() => {
-        router.push('/login?error=invalid_oauth_state');
-      }, 3000);
-      return;
-    }
+    // OAuth CSRF protection: state is stored in an HttpOnly cookie at login; verify server-side.
+    const verifyState = async (): Promise<boolean> => {
+      try {
+        const verifyRes = await fetch('/api/auth/oauth-state/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: state ?? '' }),
+          credentials: 'same-origin',
+        });
+        return verifyRes.ok;
+      } catch {
+        return false;
+      }
+    };
 
     // Send authorization code to backend for token exchange
     const exchangeCode = async () => {
@@ -107,7 +110,20 @@ function AuthCallbackContent() {
       }
     };
 
-    exchangeCode();
+    const runCallback = async () => {
+      const stateOk = await verifyState();
+      if (!stateOk) {
+        setStatus('error');
+        setErrorMessage('Invalid login state. Please try signing in again.');
+        setTimeout(() => {
+          router.push('/login?error=invalid_oauth_state');
+        }, 3000);
+        return;
+      }
+      await exchangeCode();
+    };
+
+    void runCallback();
   }, [searchParams, router]);  // Removed errorMessage to prevent re-execution loop
 
   return (
