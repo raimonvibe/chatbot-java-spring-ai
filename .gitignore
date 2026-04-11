@@ -52,6 +52,9 @@ Thumbs.db
 # Local copies of other projects (not part of this repo)
 Documents/
 
+# Local Trivy binary (optional download for dev scans)
+trivy-bin/
+
 # Node (for frontend)
 node_modules/
 npm-debug.log*

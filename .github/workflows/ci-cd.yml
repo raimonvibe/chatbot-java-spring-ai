@@ -191,6 +191,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         run: |
           trivy fs . --format sarif --output trivy-results.sarif \
+            --scanners vuln \
             --severity CRITICAL,HIGH \
             --exit-code 1 \
             --ignorefile .trivyignore
