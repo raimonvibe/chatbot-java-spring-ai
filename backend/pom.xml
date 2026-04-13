@@ -186,7 +186,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>4.42.0</version>
+            <version>4.43.0</version>
         </dependency>
 
         <!-- Jackson 2.x from Spring Boot 3.3.x parent (RestAssured and export compatible) -->
