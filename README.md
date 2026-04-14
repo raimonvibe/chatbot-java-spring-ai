@@ -602,6 +602,7 @@ If you prefer manual deployment:
 - **[LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)** – Running locally
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** – Full deployment guide
 - **[TESTING.md](TESTING.md)** – How to run and write tests
+- **[docs/UPGRADE_ROADMAP_JAVA_BOOT_AI.md](docs/UPGRADE_ROADMAP_JAVA_BOOT_AI.md)** – Staged upgrade plan for Java, Spring Boot, Spring AI, and related dependencies
 - **[docs/OAUTH_AND_STRIPE_SETUP.md](docs/OAUTH_AND_STRIPE_SETUP.md)** – Google OAuth and Stripe setup and troubleshooting
 - **[docs/SESSION_AND_AUTH.md](docs/SESSION_AND_AUTH.md)** – Session timeout and auth security
 - **[SECURITY_PLAN.md](SECURITY_PLAN.md)** – Security approach
