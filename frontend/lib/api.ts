@@ -762,6 +762,7 @@ export async function getSubscriptionStatusFromApi(): Promise<SubscriptionStatus
       method: 'GET',
       credentials: 'include',
       headers,
+      cache: 'no-store',
     });
     if (!response.ok) return null;
     return await response.json();
