@@ -939,8 +939,9 @@ public class ChatbotController {
     }
     
     private static final String DEFAULT_BASE_URL = "https://chatbot-java-spring-ai.onrender.com";
-    /** Deprecated backend host; redirect embed to current default so old env vars don't leak into snippets. */
+    /** Deprecated backend hosts; redirect embed to current default so old env vars don't leak into snippets. */
     private static final String DEPRECATED_BASE_URL = "https://chatbot-backend-4mp4.onrender.com";
+    private static final String DEPRECATED_BASE_URL_2 = "https://prayer-chat-backend-web-service.onrender.com";
 
     /**
      * Generate embed code for chatbot.
@@ -951,7 +952,9 @@ public class ChatbotController {
      */
     private String generateEmbedCode(Chatbot chatbot) {
         String configured = baseUrl == null ? "" : baseUrl.trim();
-        if (DEPRECATED_BASE_URL.equals(configured) || DEPRECATED_BASE_URL.equals(configured.replaceAll("/$", ""))) {
+        String configuredNoSlash = configured.replaceAll("/$", "");
+        if (DEPRECATED_BASE_URL.equals(configured) || DEPRECATED_BASE_URL.equals(configuredNoSlash)
+            || DEPRECATED_BASE_URL_2.equals(configured) || DEPRECATED_BASE_URL_2.equals(configuredNoSlash)) {
             configured = DEFAULT_BASE_URL;
         }
         String cleanBaseUrl = EmbedSecurity.validateAndNormalizeBaseUrl(configured, DEFAULT_BASE_URL);

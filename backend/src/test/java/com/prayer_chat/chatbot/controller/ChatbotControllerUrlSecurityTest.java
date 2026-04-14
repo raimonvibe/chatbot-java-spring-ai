@@ -190,6 +190,23 @@ class ChatbotControllerUrlSecurityTest {
     }
 
     @Test
+    @DisplayName("Should replace legacy prayer-chat-backend Render URL with current default in embed snippet")
+    void shouldReplaceLegacyPrayerChatBackendUrlInEmbedSnippet() {
+        ReflectionTestUtils.setField(chatbotController, "baseUrl",
+            "https://prayer-chat-backend-web-service.onrender.com");
+
+        ResponseEntity<?> response = chatbotController.getEmbedCode(100L, customOAuth2User);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        String embedCode = (String) body.get("embedCode");
+        assertNotNull(embedCode);
+        assertTrue(embedCode.contains("https://chatbot-java-spring-ai.onrender.com"));
+        assertFalse(embedCode.contains("prayer-chat-backend-web-service"));
+    }
+
+    @Test
     @DisplayName("Should use production URL from configuration")
     void shouldUseProductionUrlFromConfiguration() {
         // Arrange - current production URL (deprecated one is overridden in controller)
