@@ -388,6 +388,34 @@ public class ChatbotController {
                         estimatedPagesOnboarding, maxPagesOnboarding, suggested, suggestedMaxPages));
             }
 
+            // Enforce the same scan quotas/cost protection as manual analyze endpoint.
+            RateLimitingService.RateLimitResult scanLimitResult = rateLimitingService.checkScanLimit(user);
+            if (!scanLimitResult.isAllowed()) {
+                logger.warn("User {} attempted onboarding scan but limit reached (current: {}, limit: {}, preview: {})",
+                    LogSanitizer.sanitize(user.getEmail()), scanLimitResult.getCurrent(), scanLimitResult.getLimit(), scanLimitResult.isPreviewMode());
+                return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+                    "error", scanLimitResult.getErrorMessage(),
+                    "current", scanLimitResult.getCurrent(),
+                    "limit", scanLimitResult.getLimit(),
+                    "upgradeRequired", scanLimitResult.isUpgradeSuggested()
+                ));
+            }
+
+            int estimatedTokensOnboarding = estimatedPagesOnboarding * 2000;
+            java.math.BigDecimal estimatedCostOnboarding =
+                costTrackingService.calculateWebsiteScanCost(estimatedPagesOnboarding, estimatedTokensOnboarding);
+            try {
+                costTrackingService.checkCostLimit(user, estimatedCostOnboarding);
+            } catch (RuntimeException e) {
+                logger.warn("User {} attempted onboarding scan but cost limit would be exceeded: {}",
+                    LogSanitizer.sanitize(user.getEmail()), e.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", e.getMessage(),
+                    "estimatedCost", estimatedCostOnboarding.toString(),
+                    "upgradeRequired", billingModeService.shouldSuggestPaidUpgrade()
+                ));
+            }
+
             // Auto-generate name from URL
             String generatedName = WebsiteDisplayName.suggestedChatbotNameFromUrl(websiteUrl);
             
@@ -405,6 +433,16 @@ public class ChatbotController {
             Chatbot savedChatbot = chatbotService.createChatbotEnforcingLimit(chatbot, user, 1);
             logger.info("Created chatbot via onboarding: {} for user: {}", 
                 LogSanitizer.sanitize(savedChatbot.getName()), LogSanitizer.sanitize(user.getEmail()));
+
+            // Persist scan usage for onboarding flow too (prevents delete/recreate bypass of account-level quotas).
+            WebsiteScanAudit onboardingAudit = new WebsiteScanAudit(
+                user,
+                websiteUrl,
+                estimatedPagesOnboarding,
+                estimatedCostOnboarding,
+                savedChatbot.getId()
+            );
+            websiteScanAuditRepository.save(onboardingAudit);
 
             // Website analysis: run async only so 201 returns quickly; preview page shows "Setting up..." until ready
             try {
