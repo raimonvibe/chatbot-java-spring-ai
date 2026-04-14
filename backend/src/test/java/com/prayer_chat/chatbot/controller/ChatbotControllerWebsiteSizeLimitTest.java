@@ -29,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
@@ -169,6 +170,13 @@ class ChatbotControllerWebsiteSizeLimitTest {
         lenient().when(accessControlService.getMaxChatbotsAllowed(any(User.class))).thenReturn(1);
         lenient().when(accessControlService.getSubscriptionPlan(any(User.class)))
             .thenReturn(Subscription.SubscriptionPlan.FREE);
+        lenient().when(rateLimitingService.checkScanLimit(any(User.class)))
+            .thenReturn(new RateLimitingService.RateLimitResult(true, 3, 0, true, "scan", false));
+        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt()))
+            .thenReturn(BigDecimal.ZERO);
+        lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        lenient().when(websiteScanAuditRepository.save(any(com.prayer_chat.chatbot.model.WebsiteScanAudit.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
