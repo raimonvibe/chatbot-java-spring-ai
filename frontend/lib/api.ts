@@ -167,25 +167,27 @@ export interface ChristianContentAnalysis {
 
 /**
  * Backend origin for API fetches.
- * - Browser (production): always uses window.location.origin when not on localhost, so /api hits the Vercel
- *   rewrite on the same host as the page. This avoids www vs apex mismatch: fetching https://prayer-chat.com/api
- *   from https://www.prayer-chat.com is cross-origin and OPTIONS preflight can fail if the apex redirects.
- * - Local dev: NEXT_PUBLIC_API_URL or http://localhost:8081 when hostname is localhost.
- * - SSR (no window): uses NEXT_PUBLIC_API_URL if set, else localhost:8081.
+ * - Preferred in all environments: NEXT_PUBLIC_API_URL (explicit backend origin).
+ * - Browser fallback for local dev: localhost:8081 when on localhost.
+ * - Browser fallback for production when env is missing: window.location.origin.
+ * - SSR fallback: localhost:8081.
+ *
+ * NOTE:
+ * We prefer explicit backend origin because OAuth callback auth cookies (PC_AUTH) must be
+ * set/read consistently by the backend domain; relying on proxy rewrites can drop/alter cookie behavior.
  */
 export function getApiBaseUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, '');
+  if (fromEnv) {
+    return fromEnv;
+  }
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return fromEnv || 'http://localhost:8081';
+      return 'http://localhost:8081';
     }
     return window.location.origin;
-  }
-
-  if (fromEnv) {
-    return fromEnv;
   }
   return 'http://localhost:8081';
 }
