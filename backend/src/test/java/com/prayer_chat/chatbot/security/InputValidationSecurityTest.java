@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -49,22 +50,22 @@ class InputValidationSecurityTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private ChatbotRepository chatbotRepository;
 
-    @MockBean
+    @MockitoBean
     private PasswordEncoder passwordEncoder;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private AuditService auditService;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.repository.SubscriptionRepository subscriptionRepository;
 
     private User testUser;
@@ -114,6 +115,7 @@ class InputValidationSecurityTest {
         request.setDescription("Test description");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -136,6 +138,7 @@ class InputValidationSecurityTest {
         request.setDescription("Test description");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -151,6 +154,7 @@ class InputValidationSecurityTest {
         request.setDescription("Test description");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -166,6 +170,7 @@ class InputValidationSecurityTest {
         request.setDescription("Test description");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -183,6 +188,7 @@ class InputValidationSecurityTest {
         request.setPrimaryLanguage("en");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -210,6 +216,7 @@ class InputValidationSecurityTest {
         request.setPrimaryLanguage("en");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -235,6 +242,7 @@ class InputValidationSecurityTest {
             request.setDescription("Test description");
 
             mockMvc.perform(post("/api/chatbots")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request))
                     .with(authentication(createTestAuthentication())))
@@ -251,6 +259,7 @@ class InputValidationSecurityTest {
         request.setDescription("Test description");
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .with(authentication(createTestAuthentication())))
@@ -276,6 +285,7 @@ class InputValidationSecurityTest {
         String malformedJson = "{\"name\": \"Test Bot\", invalid json}";
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(malformedJson)
                 .with(authentication(createTestAuthentication())))
@@ -296,6 +306,7 @@ class InputValidationSecurityTest {
         """;
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_XML)
                 .content(xxePayload)
                 .with(authentication(createTestAuthentication())))

@@ -22,8 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -52,31 +52,31 @@ class ChatbotControllerIT {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private ChatbotService chatbotService;
 
-    @MockBean
+    @MockitoBean
     private ChatbotRepository chatbotRepository;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private SubscriptionRepository subscriptionRepository;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.service.AccessControlService accessControlService;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.service.CostTrackingService costTrackingService;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.service.WebsiteSizeEstimator websiteSizeEstimator;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.repository.WebsiteContentRepository websiteContentRepository;
 
-    @MockBean
+    @MockitoBean
     private com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository websiteScanAuditRepository;
 
     private User testUser;

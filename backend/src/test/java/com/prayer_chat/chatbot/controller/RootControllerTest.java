@@ -1,128 +1,112 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.config.FrontendBaseUrlProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for RootController
- * 
+ *
  * Security tests:
  * - Root endpoint is publicly accessible
  * - No sensitive information is leaked
- * - Frontend URL is properly sanitized
+ * - Frontend URL comes from {@link FrontendBaseUrlProvider} (configuration only)
  * - Response format is correct
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RootController Tests")
 class RootControllerTest {
 
+    @Mock
+    private FrontendBaseUrlProvider frontendBaseUrlProvider;
+
     @InjectMocks
     private RootController rootController;
 
     @BeforeEach
     void setUp() {
-        // Reset controller state
+        lenient().when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://prayer-chat.com");
     }
 
     @Test
     @DisplayName("Should return JSON API info for root endpoint")
     void shouldReturnApiInfo() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", "http://localhost:3000,https://prayer-chat.com");
-
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        
+
         Map<String, Object> body = response.getBody();
         assertTrue(body.containsKey("message"));
         assertTrue(body.containsKey("frontend_url"));
         assertTrue(body.containsKey("api_docs"));
         assertTrue(body.containsKey("status"));
-        
+
         assertEquals("active", body.get("status"));
         assertTrue(body.get("message").toString().contains("Prayer-Chat API"));
     }
 
     @Test
-    @DisplayName("Should use FRONTEND_URL environment variable when set")
-    void shouldUseFrontendUrlEnvVar() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://custom-frontend.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", "http://localhost:3000");
+    @DisplayName("Should expose configured frontend base URL from provider")
+    void shouldExposeConfiguredFrontendBaseUrl() {
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://custom-frontend.com");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         Map<String, Object> body = response.getBody();
         assertEquals("https://custom-frontend.com", body.get("frontend_url"));
     }
 
     @Test
-    @DisplayName("Should extract frontend URL from CORS allowed origins")
-    void shouldExtractFromCorsOrigins() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", 
-            "http://localhost:3000,https://prayer-chat.com,https://staging.prayer-chat.com");
+    @DisplayName("Should return provider URL when it points at production host")
+    void shouldReturnProductionUrlFromProvider() {
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://www.prayer-chat.com");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         Map<String, Object> body = response.getBody();
-        // Should prefer prayer-chat.com from CORS origins
         String frontendUrl = (String) body.get("frontend_url");
         assertTrue(frontendUrl.contains("prayer-chat.com"));
         assertFalse(frontendUrl.contains("localhost"));
     }
 
     @Test
-    @DisplayName("Should skip localhost URLs when extracting from CORS")
-    void shouldSkipLocalhostUrls() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", 
-            "http://localhost:3000,http://127.0.0.1:3000,https://production.com");
+    @DisplayName("Should return non-localhost URL from provider")
+    void shouldReturnNonLocalhostFromProvider() {
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://production.com");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         Map<String, Object> body = response.getBody();
         String frontendUrl = (String) body.get("frontend_url");
         assertFalse(frontendUrl.contains("localhost"));
         assertFalse(frontendUrl.contains("127.0.0.1"));
-        assertTrue(frontendUrl.contains("production.com") || frontendUrl.contains("prayer-chat.com"));
+        assertTrue(frontendUrl.contains("production.com"));
     }
 
     @Test
-    @DisplayName("Should use default frontend URL when no configuration available")
-    void shouldUseDefaultFrontendUrl() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", "");
+    @DisplayName("Should use default-like URL from provider when configured")
+    void shouldUseDefaultLikeUrlFromProvider() {
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://prayer-chat.com");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         Map<String, Object> body = response.getBody();
         assertEquals("https://prayer-chat.com", body.get("frontend_url"));
     }
@@ -130,18 +114,11 @@ class RootControllerTest {
     @Test
     @DisplayName("Should not leak sensitive information in response")
     void shouldNotLeakSensitiveInfo() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", "http://localhost:3000");
-
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         Map<String, Object> body = response.getBody();
         String bodyString = body.toString().toLowerCase();
-        
-        // Should not contain sensitive information
+
         assertFalse(bodyString.contains("password"));
         assertFalse(bodyString.contains("secret"));
         assertFalse(bodyString.contains("key"));
@@ -151,36 +128,14 @@ class RootControllerTest {
     }
 
     @Test
-    @DisplayName("Should handle null frontend URL gracefully")
-    void shouldHandleNullFrontendUrl() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", null);
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", "https://prayer-chat.com");
+    @DisplayName("Should always include frontend_url when provider returns a value")
+    void shouldAlwaysIncludeFrontendUrl() {
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn("https://fallback.example");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = rootController.root();
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        // Should fallback to CORS or default
         assertNotNull(response.getBody().get("frontend_url"));
     }
-
-    @Test
-    @DisplayName("Should handle empty CORS origins gracefully")
-    void shouldHandleEmptyCorsOrigins() {
-        // Arrange
-        ReflectionTestUtils.setField(rootController, "frontendUrl", "https://prayer-chat.com");
-        ReflectionTestUtils.setField(rootController, "allowedOrigins", null);
-
-        // Act
-        ResponseEntity<Map<String, Object>> response = rootController.root();
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        Map<String, Object> body = response.getBody();
-        assertEquals("https://prayer-chat.com", body.get("frontend_url"));
-    }
 }
-

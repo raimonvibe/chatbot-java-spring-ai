@@ -198,9 +198,24 @@ const API_BASE_URL = getApiBaseUrl();
  * so we intentionally do not read/store bearer tokens in localStorage.
  */
 function getAuthHeaders(): HeadersInit {
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+  const csrfToken = getCookieValue('XSRF-TOKEN');
+  if (csrfToken) {
+    headers['X-XSRF-TOKEN'] = csrfToken;
+  }
+  return headers;
+}
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const cookie = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  if (!cookie) return null;
+  return decodeURIComponent(cookie.substring(name.length + 1));
 }
 
 // Analyze Christian content for a chatbot

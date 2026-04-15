@@ -21,7 +21,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -39,13 +38,8 @@ import java.util.Map;
  * require complex test setup.
  *
  * SECURITY JUSTIFICATION:
- * - CSRF is disabled in tests because:
- *   1. Tests focus on business logic and input validation, not CSRF protection
- *   2. Production uses JWT-based stateless authentication (no session cookies)
- *   3. CSRF protection is properly configured in production SecurityConfig.java
- *   4. This config is NEVER loaded in production (test profile only)
- *
- * See TESTING_TODO.md task #4 for plan to add dedicated CSRF protection tests.
+ * - Mirrors production CSRF behavior closely so integration tests can verify token requirements.
+ * - CSRF is only ignored for explicitly exempt endpoints (embed widget, OAuth handshakes, Stripe webhook).
  */
 @Configuration
 @EnableWebSecurity
@@ -55,9 +49,6 @@ public class TestSecurityConfig {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSecurityConfig.class);
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.prayer_chat.chatbot.security.RateLimitingFilter rateLimitingFilter;
-    
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.prayer_chat.chatbot.security.JwtAuthenticationFilter jwtAuthenticationFilter;
     
@@ -74,10 +65,15 @@ public class TestSecurityConfig {
      * for testing purposes.
      */
     @Bean
-    @SuppressWarnings("lgtm[java/spring-disabled-csrf-protection]")
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers(
+                "/stripe/webhook",
+                "/login/**",
+                "/oauth2/**",
+                "/api/chat/embed/**",
+                "/api/auth/oauth2/callback"
+            ))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 // CRITICAL: Rules are evaluated in order - first match wins!

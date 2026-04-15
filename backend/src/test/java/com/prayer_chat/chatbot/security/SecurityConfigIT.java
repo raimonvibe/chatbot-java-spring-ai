@@ -12,13 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import com.prayer_chat.chatbot.security.CustomOAuth2User;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,13 +39,13 @@ class SecurityConfigIT {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private SubscriptionRepository subscriptionRepository;
 
-    @MockBean
+    @MockitoBean
     private ConversationRepository conversationRepository;
 
     private User testUser;
@@ -96,6 +95,7 @@ class SecurityConfigIT {
     @DisplayName("Should require authentication for POST /api/chat/{id} (numeric preview chat)")
     void shouldRequireAuthForNumericChatEndpoint() throws Exception {
         mockMvc.perform(post("/api/chat/999")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"message\":\"test\"}"))
             .andExpect(status().isUnauthorized());
@@ -120,6 +120,7 @@ class SecurityConfigIT {
             .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isUnauthorized());
@@ -209,20 +210,30 @@ class SecurityConfigIT {
     }
 
     @Test
-    @DisplayName("Should return 401 (not 403) for API POST without auth/CSRF token")
+    @DisplayName("Should return 403 for API POST without CSRF token")
     void shouldProtectAgainstCsrf() throws Exception {
         mockMvc.perform(post("/api/chatbots")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isForbidden());
     }
 
     @Test
     @WithMockUser(username = "user@example.com", roles = {"USER"})
-    @DisplayName("Should not block authenticated API POST due to CSRF token absence")
-    void shouldNotBlockAuthenticatedApiPostForCsrf() throws Exception {
-        // In this API design, /api/** is CSRF-ignored and protected by auth controls.
+    @DisplayName("Should block authenticated API POST when CSRF token is missing")
+    void shouldBlockAuthenticatedApiPostWithoutCsrf() throws Exception {
         mockMvc.perform(post("/api/chatbots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "user@example.com", roles = {"USER"})
+    @DisplayName("Should allow authenticated API POST when CSRF token is provided")
+    void shouldAllowAuthenticatedApiPostWithCsrf() throws Exception {
+        mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().is(anyOf(
@@ -349,6 +360,7 @@ class SecurityConfigIT {
 
         mockMvc.perform(post("/api/chatbots")
                 .with(authentication(auth))
+                .with(csrf())
                 .contentType(MediaType.TEXT_PLAIN)
                 .content("not json"))
             .andExpect(status().isUnsupportedMediaType());

@@ -1,6 +1,7 @@
 package com.prayer_chat.chatbot.security;
 
 import com.prayer_chat.chatbot.config.BillingProperties;
+import com.prayer_chat.chatbot.config.FrontendBaseUrlProvider;
 import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.Subscription.SubscriptionPlan;
 import com.prayer_chat.chatbot.model.Subscription.SubscriptionStatus;
@@ -18,14 +19,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.DefaultRedirectStrategy;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for OAuth2AuthenticationSuccessHandler
@@ -40,6 +42,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     @Mock
     private BillingProperties billingProperties;
+
+    @Mock
+    private FrontendBaseUrlProvider frontendBaseUrlProvider;
 
     @Mock
     private HttpServletRequest request;
@@ -68,7 +73,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(successHandler, "allowedOrigins", FRONTEND_URL);
+        lenient().when(frontendBaseUrlProvider.getBaseUrl()).thenReturn(FRONTEND_URL);
         successHandler.setRedirectStrategy(redirectStrategy);
         lenient().when(billingProperties.isEnabled()).thenReturn(true);
 
@@ -254,7 +259,6 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // Create a spy to verify superclass method is called
         OAuth2AuthenticationSuccessHandler spyHandler = spy(successHandler);
-        ReflectionTestUtils.setField(spyHandler, "allowedOrigins", FRONTEND_URL);
         spyHandler.setRedirectStrategy(redirectStrategy);
 
         // Act
@@ -288,7 +292,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
     void shouldUseConfiguredFrontendUrl_inRedirect() throws Exception {
         // Arrange
         String customFrontendUrl = "https://example.com";
-        ReflectionTestUtils.setField(successHandler, "allowedOrigins", customFrontendUrl);
+        when(frontendBaseUrlProvider.getBaseUrl()).thenReturn(customFrontendUrl);
 
         Subscription activeSubscription = createActiveSubscription();
         when(authentication.getPrincipal()).thenReturn(customOAuth2User);

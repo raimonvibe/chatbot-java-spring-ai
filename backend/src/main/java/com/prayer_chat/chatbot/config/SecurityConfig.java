@@ -19,6 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
@@ -28,6 +31,11 @@ import org.springframework.context.annotation.Profile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -65,8 +73,21 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        CookieCsrfTokenRepository csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfRepo.setCookiePath("/");
+        CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
+
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/stripe/webhook", "/login/**", "/oauth2/**"))
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(csrfRepo)
+                .csrfTokenRequestHandler(csrfRequestHandler)
+                .ignoringRequestMatchers(
+                    "/stripe/webhook",
+                    "/login/**",
+                    "/oauth2/**",
+                    "/api/chat/embed/**",
+                    "/api/auth/oauth2/callback"
+                ))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 // Allow all OPTIONS requests for CORS preflight (industry standard, secure)
@@ -234,6 +255,7 @@ public class SecurityConfig {
 
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(new CsrfCookieFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -271,6 +293,7 @@ public class SecurityConfig {
         dashboardChatCors.setAllowedHeaders(Arrays.asList(
             "Authorization",
             "Content-Type",
+            "X-XSRF-TOKEN",
             "X-Requested-With",
             "Accept",
             "Origin",
@@ -289,6 +312,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(Arrays.asList(
             "Authorization",
             "Content-Type",
+            "X-XSRF-TOKEN",
             "X-Requested-With",
             "Accept",
             "Origin",
@@ -329,5 +353,20 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration c) throws Exception {
         return c.getAuthenticationManager();
+    }
+
+    /**
+     * Ensures the CSRF token is loaded so CookieCsrfTokenRepository writes XSRF-TOKEN for SPA clients.
+     */
+    static final class CsrfCookieFilter extends OncePerRequestFilter {
+        @Override
+        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+                throws ServletException, IOException {
+            CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (csrfToken != null) {
+                csrfToken.getToken();
+            }
+            filterChain.doFilter(request, response);
+        }
     }
 }
