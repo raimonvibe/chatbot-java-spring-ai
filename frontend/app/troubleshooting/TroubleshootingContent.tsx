@@ -73,6 +73,19 @@ const TOPICS: Topic[] = [
       'Check cookie banners/popups that may cover the widget button.',
     ],
   },
+  {
+    id: 'nextjs-react-setup',
+    title: '7) Next.js / React setup from plain embed code',
+    summary:
+      'If you only have a plain HTML embed snippet, convert it into a client component and mount that component once in your app layout.',
+    steps: [
+      "Create a dedicated client component (example: src/components/PrayerChatWidget.tsx) and move script loading into useEffect([]).",
+      'Set script src to your Prayer Chat backend URL + /js/chatbot-widget.js.',
+      'Call PrayerChat.init({ embedCode, apiUrl }) in script.onload.',
+      'Render one container div with id/data-embed-code that matches your embed code.',
+      'Import that component in your Next.js layout and mount it once near the bottom of <body>.',
+    ],
+  },
 ];
 
 export default function TroubleshootingContent() {
@@ -128,13 +141,128 @@ export default function TroubleshootingContent() {
 
         <section className="mt-6 rounded-2xl border border-brown-200 bg-white p-5 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-brown-900">Start here first (2-minute check)</h2>
+          <p className="mt-2 text-sm text-brown-700">
+            First choose your website type so you do not accidentally install the widget twice.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <article className="rounded-xl border border-brown-200 bg-brown-50 p-3">
+              <p className="text-sm font-semibold text-brown-900">Plain HTML websites</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-brown-800">
+                <li>Copy the newest embed code from your Dashboard.</li>
+                <li>Paste it before the closing <code>&lt;/body&gt;</code> tag.</li>
+                <li>Save and republish your site.</li>
+              </ol>
+            </article>
+            <article className="rounded-xl border border-brown-200 bg-brown-50 p-3">
+              <p className="text-sm font-semibold text-brown-900">Next.js / React websites</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-brown-800">
+                <li>Do not paste the raw script directly in random components.</li>
+                <li>Use one dedicated client component (guide in next section).</li>
+                <li>Mount that component once in your app layout.</li>
+              </ol>
+            </article>
+          </div>
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-brown-800">
-            <li>Copy the newest embed code from your Dashboard.</li>
-            <li>Paste it before the closing <code>&lt;/body&gt;</code> tag.</li>
-            <li>Save, publish, then hard refresh (Ctrl+F5 on Windows, Cmd+Shift+R on Mac).</li>
+            <li>Hard refresh after publish (Ctrl+F5 on Windows, Cmd+Shift+R on Mac).</li>
             <li>Open your site in private/incognito mode and test again.</li>
           </ol>
           <p className="mt-3 text-xs text-brown-700">If it still does not work, use the sections below.</p>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-brown-200 bg-white p-5 sm:p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-brown-900">Beginner guide: convert embed script for Next.js / React</h2>
+          <p className="mt-2 text-sm leading-relaxed text-brown-700">
+            Some sites use the chatbot embed directly in plain HTML. In Next.js and React, it is usually safer to place
+            this logic in a dedicated client component and import it into your layout once.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-brown-700">
+            Quick glossary: <code>'use client'</code> means the file runs in the browser, <code>useEffect([])</code>{' '}
+            means run once when the component loads, and <code>layout.tsx</code> is the shared wrapper for your pages.
+          </p>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">1) Create a widget component file</h3>
+          <p className="mt-1 text-sm text-brown-700">
+            Create <code>src/components/PrayerChatWidget.tsx</code> (or your own name). Use this format:
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-xl border border-brown-200 bg-brown-50 p-3 text-xs text-brown-900">
+{`'use client'
+import { useEffect } from 'react'
+
+export default function PrayerChatWidget() {
+  useEffect(() => {
+    const embedCode = 'your-embed-code'
+    const baseUrl = 'https://your-backend-domain.com'
+
+    const script = document.createElement('script')
+    script.src = baseUrl + '/js/chatbot-widget.js'
+    script.async = true
+    script.onerror = () => {
+      const el = document.getElementById('prayer-chat-chatbot-' + embedCode)
+      if (el) {
+        el.innerHTML =
+          '<p style="padding:12px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-family:sans-serif;font-size:14px;">Chat could not load. Check browser console (F12).</p>'
+      }
+    }
+    script.onload = () => {
+      if (typeof (window as any).PrayerChat !== 'undefined') {
+        ;(window as any).PrayerChat.init({
+          embedCode,
+          apiUrl: baseUrl + '/api',
+        })
+      } else {
+        const el = document.getElementById('prayer-chat-chatbot-' + embedCode)
+        if (el) {
+          el.innerHTML =
+            '<p style="padding:12px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;font-family:sans-serif;font-size:14px;">Chat failed to start. Open console (F12) for details.</p>'
+        }
+      }
+    }
+    document.head.appendChild(script)
+  }, [])
+
+  return (
+    <div
+      id={'prayer-chat-chatbot-' + 'your-embed-code'}
+      data-embed-code="your-embed-code"
+      suppressHydrationWarning={true}
+    />
+  )
+}`}
+          </pre>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">2) Import it in your layout</h3>
+          <p className="mt-1 text-sm text-brown-700">
+            In Next.js, import the component in <code>src/app/layout.tsx</code> and render it once near the bottom of{' '}
+            <code>&lt;body&gt;</code>, for example right before closing <code>&lt;/body&gt;</code>.
+          </p>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">3) Verify values carefully</h3>
+          <ul className="mt-1 space-y-1 text-sm text-brown-800">
+            <li>- Use the exact embed code from your Prayer Chat dashboard.</li>
+            <li>- Use your real backend URL for <code>baseUrl</code> (HTTPS).</li>
+            <li>- Keep only one mounted widget component in your app.</li>
+          </ul>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">Optional: ask AI to convert it for you</h3>
+          <p className="mt-1 text-sm text-brown-700">
+            If you are not comfortable coding this by hand, paste your plain embed script into your AI assistant and ask
+            it to convert it into a Next.js/React client component.
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-xl border border-brown-200 bg-brown-50 p-3 text-xs text-brown-900">
+{`Convert this Prayer Chat embed snippet into:
+1) a Next.js client component file: src/components/PrayerChatWidget.tsx
+2) the import + usage snippet for src/app/layout.tsx
+
+Requirements:
+- use useEffect([]) so init runs once
+- load script from baseUrl + '/js/chatbot-widget.js'
+- call PrayerChat.init({ embedCode, apiUrl: baseUrl + '/api' })
+- include script onerror/onload fallback text
+- keep the code beginner-friendly and fully copy/paste ready.`}
+          </pre>
+          <p className="mt-2 text-xs text-brown-700">
+            Always double-check the generated code, especially your <code>embedCode</code> and backend URL.
+          </p>
         </section>
 
         <section className="mt-6 space-y-4">
@@ -155,9 +283,9 @@ export default function TroubleshootingContent() {
                 <p className="mt-3 break-words text-sm leading-relaxed text-brown-700">{topic.summary}</p>
                 <div className="mt-3 break-words rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
                   <p className="font-semibold">What to do</p>
-                  <ul className="mt-1 space-y-1">
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
                     {topic.steps.map((step) => (
-                      <li key={step}>- {step}</li>
+                      <li key={step}>{step}</li>
                     ))}
                   </ul>
                 </div>
@@ -200,10 +328,10 @@ export default function TroubleshootingContent() {
             If you followed this guide and still have issues, send us:
           </p>
           <ul className="mt-2 space-y-1 text-sm text-emerald-900">
-            <li>- Your website URL</li>
-            <li>- Your chatbot name</li>
-            <li>- What you expected vs what happened</li>
-            <li>- A screenshot (desktop or mobile)</li>
+            <li>Your website URL</li>
+            <li>Your chatbot name</li>
+            <li>What you expected vs what happened</li>
+            <li>A screenshot (desktop or mobile)</li>
           </ul>
           <p className="mt-3 text-xs text-emerald-900">We will do our best to help quickly and kindly.</p>
         </section>
