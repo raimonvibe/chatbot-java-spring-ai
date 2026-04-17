@@ -1,8 +1,47 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Wrench, Heart, ShieldCheck, Search } from 'lucide-react';
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Wraps case-insensitive matches of `query` in <mark> (soft gold, matches page theme). */
+function HighlightMatches({ text, query }: { text: string; query: string }): ReactNode {
+  const needle = query.trim();
+  if (!needle) return text;
+
+  const re = new RegExp(escapeRegExp(needle), 'gi');
+  const parts: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+
+  const markClassName =
+    'rounded-sm bg-gold-200/85 px-0.5 py-px font-medium text-brown-900 [text-decoration:none] [box-decoration-break:clone]';
+
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      parts.push(<span key={`t-${key++}`}>{text.slice(last, m.index)}</span>);
+    }
+    parts.push(
+      <mark key={`m-${key++}`} className={markClassName}>
+        {m[0]}
+      </mark>
+    );
+    last = m.index + m[0].length;
+    if (m[0].length === 0) {
+      re.lastIndex++;
+    }
+  }
+  if (last < text.length) {
+    parts.push(<span key={`t-${key++}`}>{text.slice(last)}</span>);
+  }
+  return parts.length > 0 ? <>{parts}</> : text;
+}
 
 type Topic = {
   id: string;
@@ -120,6 +159,10 @@ export default function TroubleshootingContent() {
 
         <section className="mt-6 rounded-2xl border border-brown-200 bg-white p-5 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-brown-900">Search this page</h2>
+          <p id="troubleshooting-search-hint" className="mt-2 text-sm leading-relaxed text-brown-600">
+            Type a word or phrase. Topics that contain it stay listed below, and each match is highlighted in soft gold
+            so you can see it at a glance. Press Esc to clear.
+          </p>
           <div className="mt-3 relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brown-500" />
             <input
@@ -129,13 +172,45 @@ export default function TroubleshootingContent() {
               spellCheck={false}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Try keywords like "mobile", "CSS", "React", "cache", "HTTPS"'
-              className="w-full rounded-xl border border-brown-300 bg-white py-2.5 pl-10 pr-3 text-sm text-brown-900 placeholder:text-brown-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-200"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setQuery('');
+              }}
+              placeholder='Examples: mobile, CSS, React, cache, HTTPS'
+              className="w-full rounded-xl border border-brown-300 bg-white py-2.5 pl-10 pr-[4.5rem] text-sm text-brown-900 placeholder:text-brown-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-200"
               aria-label="Search troubleshooting topics"
+              aria-describedby="troubleshooting-search-hint troubleshooting-search-status"
             />
+            {query.trim() !== '' ? (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-brown-700 underline decoration-brown-400 underline-offset-2 hover:bg-brown-50 hover:text-brown-900 focus:outline-none focus:ring-2 focus:ring-gold-300"
+              >
+                Clear
+              </button>
+            ) : null}
           </div>
-          <p className="mt-2 text-xs text-brown-700">
-            Showing {filteredTopics.length} of {TOPICS.length} topics.
+          <p id="troubleshooting-search-status" className="mt-3 text-sm text-brown-800" aria-live="polite">
+            {q ? (
+              filteredTopics.length > 0 ? (
+                <>
+                  <span className="font-semibold text-brown-900">{filteredTopics.length}</span> topic
+                  {filteredTopics.length !== 1 ? 's' : ''} match &quot;{query.trim()}&quot;. Gold highlights show where
+                  those words appear.
+                </>
+              ) : (
+                <>
+                  No topics match &quot;{query.trim()}&quot;. Try a shorter word (for example{' '}
+                  <strong className="font-semibold text-brown-900">mobile</strong> or{' '}
+                  <strong className="font-semibold text-brown-900">cache</strong>), or press Clear and browse the full
+                  list.
+                </>
+              )
+            ) : (
+              <>
+                Showing all <span className="font-semibold text-brown-900">{TOPICS.length}</span> topics below.
+              </>
+            )}
           </p>
         </section>
 
@@ -277,15 +352,21 @@ Requirements:
             filteredTopics.map((topic) => (
               <article key={topic.id} className="rounded-2xl border border-brown-200 bg-white p-5 sm:p-6 shadow-sm">
                 <h2 className="flex items-center gap-2 text-lg font-semibold text-brown-900">
-                  <AlertCircle className="h-5 w-5 text-red-700" />
-                  {topic.title}
+                  <AlertCircle className="h-5 w-5 shrink-0 text-red-700" />
+                  <span className="min-w-0">
+                    <HighlightMatches text={topic.title} query={query} />
+                  </span>
                 </h2>
-                <p className="mt-3 break-words text-sm leading-relaxed text-brown-700">{topic.summary}</p>
+                <p className="mt-3 break-words text-sm leading-relaxed text-brown-700">
+                  <HighlightMatches text={topic.summary} query={query} />
+                </p>
                 <div className="mt-3 break-words rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
                   <p className="font-semibold">What to do</p>
                   <ul className="mt-1 list-disc space-y-1 pl-5">
-                    {topic.steps.map((step) => (
-                      <li key={step}>{step}</li>
+                    {topic.steps.map((step, stepIdx) => (
+                      <li key={`${topic.id}-step-${stepIdx}`}>
+                        <HighlightMatches text={step} query={query} />
+                      </li>
                     ))}
                   </ul>
                 </div>

@@ -12,8 +12,9 @@ public class ChatRequest {
 
     @NotBlank(message = "Message is required")
     @Size(min = 1, max = 2000, message = "Message must be between 1 and 2000 characters")
+    /** \p{S} allows Unicode symbols (e.g. emoji); message bodies are rendered as plain text in clients. */
     @Pattern(
-        regexp = "^[\\p{L}\\p{N}\\p{P}\\p{Z}\\p{M}\\s]*$",
+        regexp = "^[\\p{L}\\p{N}\\p{P}\\p{Z}\\p{M}\\p{S}\\s]*$",
         message = "Message contains invalid characters"
     )
     private String message;
