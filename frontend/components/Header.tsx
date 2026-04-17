@@ -108,7 +108,6 @@ export default function Header() {
 
   useEffect(() => {
     let cancelled = false;
-    setAuthChecked(false);
     checkAuth().then((auth) => {
       if (!cancelled) {
         setIsLoggedIn(!!auth.authenticated);
@@ -121,6 +120,7 @@ export default function Header() {
   }, [pathname]);
 
   const showAppNav = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && nav;
+  const showAppNavLoadingShell = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && !nav;
 
   const showMarketingMenu =
     !isHomePage &&
@@ -225,7 +225,7 @@ export default function Header() {
         {/* Marketing / legal / login / pricing: auth-aware menu + Help & policies */}
         {showMarketingMenu && (
           <div className="relative flex h-10 shrink-0 items-center justify-end gap-2" ref={menuRef} aria-label="Menu">
-            {authChecked && isLoggedIn && (
+            {isLoggedIn && (
               <Link
                 href="/account"
                 className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-brown-200 bg-white px-3 text-sm font-medium leading-none text-brown-800 transition-colors hover:bg-brown-50"
@@ -247,7 +247,7 @@ export default function Header() {
             </button>
             {mobileMenuOpen && (
               <div className={MENU_PANEL_CLASS} role="menu">
-                {!authChecked && (
+                {!authChecked && !isLoggedIn && (
                   <p className="px-4 py-2 text-xs text-brown-500" role="status">
                     Checking session…
                   </p>
@@ -439,29 +439,18 @@ export default function Header() {
           </div>
         )}
 
-        {/* Dashboard loading: same bar height as menu button to avoid vertical shift */}
-        {isDashboardPage && !nav && (
+        {/* App nav loading shell: keep right-side geometry stable while nav context initializes */}
+        {showAppNavLoadingShell && (
           <div className="flex h-10 shrink-0 items-center justify-end">
-            <Link
-              href="/"
-              className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className={`${NAV_LINK_BASE} border border-brown-200 bg-brown-100/70 text-brown-700 opacity-80`}
             >
-              <Home className="h-5 w-5 shrink-0" />
-              <span>Public Site Home</span>
-            </Link>
-          </div>
-        )}
-
-        {/* Account / Preview loading: match loaded-state right column geometry */}
-        {(isAccountPage || isChatbotPreviewPage) && !nav && (
-          <div className="flex h-10 shrink-0 items-center justify-end">
-            <Link
-              href="/"
-              className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
-            >
-              <Home className="h-5 w-5 shrink-0" />
-              <span>Public Site Home</span>
-            </Link>
+              <Menu className="h-5 w-5 shrink-0" />
+              <span>Menu</span>
+            </button>
           </div>
         )}
       </div>
