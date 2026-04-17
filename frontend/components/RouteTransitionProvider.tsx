@@ -55,7 +55,7 @@ export default function RouteTransitionProvider({ children }: { children: React.
           {Array.from({ length: SWEEP_BLOCK_COUNT }).map((_, idx) => {
             const ratio = idx / (SWEEP_BLOCK_COUNT - 1);
             const tiltInset = idx % 2 === 0 ? 10 : 18;
-            const blockOpacity = 0.28 + ratio * 0.3;
+            const blockOpacity = 0.36 + ratio * 0.34;
             const blockBlur = 8 + idx * 0.75;
 
             return (
@@ -69,15 +69,15 @@ export default function RouteTransitionProvider({ children }: { children: React.
                   rotate: -42,
                   mixBlendMode: 'screen',
                   filter: `blur(${blockBlur}px)`,
-                  opacity: blockOpacity,
                   clipPath: `polygon(0% ${tiltInset}%, 100% 0%, 100% ${100 - tiltInset}%, 0% 100%)`,
                   willChange: 'transform, opacity',
                 }}
                 initial={{ x: '-142vmin', y: '-42vmin', opacity: 0 }}
-                animate={{ x: '142vmin', y: '42vmin', opacity: 0 }}
+                animate={{ x: '142vmin', y: '42vmin', opacity: [0, blockOpacity, 0] }}
                 transition={{
                   duration: SWEEP_DURATION_S,
                   delay: idx * SWEEP_STAGGER_S,
+                  times: [0, 0.35, 1],
                   ease: [0.33, 0, 0.2, 1],
                 }}
               />
