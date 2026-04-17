@@ -5,9 +5,24 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 /** Total time the overlay stays mounted (slightly longer than Framer duration so the sweep finishes cleanly). */
-const SWEEP_MS = 1400;
-const SWEEP_DURATION_S = 0.74;
+const SWEEP_MS = 1900;
+const SWEEP_DURATION_S = 1.05;
 const TOOTH_COUNT = 7;
+const TOOTH_DEPTH_PCT = 10;
+
+function buildToothedClipPath(teeth: number, depthPct: number) {
+  const points: string[] = ['0% 8%', '100% 0%'];
+  const segment = 100 / teeth;
+
+  for (let i = 0; i < teeth; i += 1) {
+    const yMid = i * segment + segment / 2;
+    const yEnd = (i + 1) * segment;
+    points.push(`${100 - depthPct}% ${yMid}%`, `100% ${yEnd}%`);
+  }
+
+  points.push('0% 100%');
+  return `polygon(${points.join(', ')})`;
+}
 
 /**
  * Client navigations: instant scroll to top (less jumpy than leaving scroll position)
@@ -21,6 +36,7 @@ export default function RouteTransitionProvider({ children }: { children: React.
   const prevPath = useRef(pathname);
   const sweepId = useRef(0);
   const [sweepKey, setSweepKey] = useState(0);
+  const toothedClipPath = buildToothedClipPath(TOOTH_COUNT, TOOTH_DEPTH_PCT);
 
   useEffect(() => {
     if (isFirstPath.current) {
@@ -56,36 +72,19 @@ export default function RouteTransitionProvider({ children }: { children: React.
             className="absolute left-1/2 top-1/2 h-[220vmax] w-[92vmin] max-w-none -translate-x-1/2 -translate-y-1/2"
             style={{ rotate: -42, willChange: 'transform, opacity' }}
             initial={{ x: '-142vmin', y: '-42vmin', opacity: 0 }}
-            animate={{ x: '142vmin', y: '42vmin', opacity: [0, 0.92, 0] }}
-            transition={{ duration: SWEEP_DURATION_S, times: [0, 0.2, 1], ease: [0.33, 0, 0.2, 1] }}
+            animate={{ x: '142vmin', y: '42vmin', opacity: [0, 0.96, 0.96, 0] }}
+            transition={{ duration: SWEEP_DURATION_S, times: [0, 0.18, 0.82, 1], ease: [0.33, 0, 0.2, 1] }}
           >
             <div
               className="absolute inset-0"
               style={{
                 background:
-                  'linear-gradient(180deg, rgba(66,42,30,0) 0%, rgba(66,42,30,0.82) 24%, rgba(138,97,66,0.8) 50%, rgba(236,214,190,0.72) 72%, rgba(255,249,240,0) 100%)',
-                clipPath: 'polygon(0% 8%, 100% 0%, 100% 92%, 0% 100%)',
+                  'linear-gradient(180deg, rgba(59,37,26,0) 0%, rgba(59,37,26,0.9) 26%, rgba(125,84,54,0.84) 52%, rgba(240,219,196,0.72) 74%, rgba(255,249,241,0) 100%)',
+                clipPath: toothedClipPath,
                 boxShadow:
                   'inset 0 0 0 1px rgba(255,244,228,0.28), inset 0 0 26px rgba(58,36,24,0.28)',
               }}
             />
-
-            {Array.from({ length: TOOTH_COUNT }).map((_, idx) => {
-              const y = (idx / TOOTH_COUNT) * 100;
-              return (
-                <div
-                  key={`tooth-${idx}`}
-                  className="absolute right-[-7vmin] h-[18%] w-[18vmin]"
-                  style={{
-                    top: `${y}%`,
-                    background:
-                      'linear-gradient(180deg, rgba(80,52,37,0.9) 0%, rgba(226,199,171,0.75) 70%, rgba(255,248,238,0.2) 100%)',
-                    clipPath: 'polygon(0 0, 100% 50%, 0 100%, 18% 50%)',
-                    filter: 'saturate(1.06)',
-                  }}
-                />
-              );
-            })}
           </motion.div>
         </div>
       )}
