@@ -5,19 +5,19 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 /** Total time the overlay stays mounted (slightly longer than Framer duration so the sweep finishes cleanly). */
-const SWEEP_MS = 1900;
-const SWEEP_DURATION_S = 1.05;
+const SWEEP_MS = 2300;
+const SWEEP_DURATION_S = 1.28;
 const TOOTH_COUNT = 7;
-const TOOTH_DEPTH_PCT = 10;
+const TOOTH_DEPTH_PCT = 11;
 
-function buildToothedClipPath(teeth: number, depthPct: number) {
+function buildSteppedClipPath(teeth: number, depthPct: number) {
   const points: string[] = ['0% 8%', '100% 0%'];
   const segment = 100 / teeth;
 
   for (let i = 0; i < teeth; i += 1) {
-    const yMid = i * segment + segment / 2;
+    const yStart = i * segment;
     const yEnd = (i + 1) * segment;
-    points.push(`${100 - depthPct}% ${yMid}%`, `100% ${yEnd}%`);
+    points.push(`${100 - depthPct}% ${yStart}%`, `${100 - depthPct}% ${yEnd}%`, `100% ${yEnd}%`);
   }
 
   points.push('0% 100%');
@@ -36,7 +36,7 @@ export default function RouteTransitionProvider({ children }: { children: React.
   const prevPath = useRef(pathname);
   const sweepId = useRef(0);
   const [sweepKey, setSweepKey] = useState(0);
-  const toothedClipPath = buildToothedClipPath(TOOTH_COUNT, TOOTH_DEPTH_PCT);
+  const toothedClipPath = buildSteppedClipPath(TOOTH_COUNT, TOOTH_DEPTH_PCT);
 
   useEffect(() => {
     if (isFirstPath.current) {
@@ -69,11 +69,11 @@ export default function RouteTransitionProvider({ children }: { children: React.
         >
           <motion.div
             key={sweepKey}
-            className="absolute left-1/2 top-1/2 h-[220vmax] w-[92vmin] max-w-none -translate-x-1/2 -translate-y-1/2"
+            className="absolute left-1/2 top-1/2 h-[260vmax] w-[118vmin] max-w-none -translate-x-1/2 -translate-y-1/2"
             style={{ rotate: -42, willChange: 'transform, opacity' }}
-            initial={{ x: '-142vmin', y: '-42vmin', opacity: 0 }}
-            animate={{ x: '142vmin', y: '42vmin', opacity: [0, 0.96, 0.96, 0] }}
-            transition={{ duration: SWEEP_DURATION_S, times: [0, 0.18, 0.82, 1], ease: [0.33, 0, 0.2, 1] }}
+            initial={{ x: '-172vmin', y: 0, opacity: 0 }}
+            animate={{ x: '172vmin', y: 0, opacity: [0, 0.96, 0.96, 0] }}
+            transition={{ duration: SWEEP_DURATION_S, times: [0, 0.16, 0.84, 1], ease: [0.33, 0, 0.2, 1] }}
           >
             <div
               className="absolute inset-0"
