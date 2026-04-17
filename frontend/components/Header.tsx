@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   Plus,
   X,
   LogOut,
+  LogIn,
   Menu,
   BookOpen,
   LayoutTemplate,
@@ -22,24 +23,76 @@ import {
 import { useDashboardNav } from '@/context/DashboardNavContext';
 import { useChatbotPreviewControls } from '@/context/ChatbotPreviewControlsContext';
 import PreviewLayoutPanel from '@/components/PreviewLayoutPanel';
+import { checkAuth, logout as apiLogout } from '@/lib/api';
 
 /** Single height for all bar controls so the row does not shift between breakpoints or loading states. */
 const NAV_LINK_BASE =
   'inline-flex items-center justify-center gap-1.5 h-10 shrink-0 px-3 rounded-xl text-sm font-medium leading-none whitespace-nowrap';
 
-const PUBLIC_INFO_PATHS = ['/contact', '/privacy', '/legal', '/troubleshooting'] as const;
+const MENU_PANEL_CLASS =
+  'z-50 rounded-xl border border-brown-200 bg-white py-2 shadow-lg max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:w-auto max-sm:max-h-[min(70dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:overflow-y-auto max-sm:overscroll-contain sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-56 sm:max-h-none sm:overflow-visible';
+
+function HelpPoliciesLinks({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  return (
+    <>
+      <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Help & policies</p>
+      <Link
+        href="/contact"
+        className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+        role="menuitem"
+        aria-current={pathname === '/contact' ? 'page' : undefined}
+        onClick={onNavigate}
+      >
+        <Mail className="h-4 w-4 shrink-0" aria-hidden />
+        Contact
+      </Link>
+      <Link
+        href="/privacy"
+        className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+        role="menuitem"
+        aria-current={pathname === '/privacy' ? 'page' : undefined}
+        onClick={onNavigate}
+      >
+        <Shield className="h-4 w-4 shrink-0" aria-hidden />
+        Privacy Notice
+      </Link>
+      <Link
+        href="/legal"
+        className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+        role="menuitem"
+        aria-current={pathname === '/legal' ? 'page' : undefined}
+        onClick={onNavigate}
+      >
+        <Scale className="h-4 w-4 shrink-0" aria-hidden />
+        Legal Notice
+      </Link>
+      <Link
+        href="/troubleshooting"
+        className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+        role="menuitem"
+        aria-current={pathname === '/troubleshooting' ? 'page' : undefined}
+        onClick={onNavigate}
+      >
+        <Wrench className="h-4 w-4 shrink-0" aria-hidden />
+        Troubleshooting
+      </Link>
+    </>
+  );
+}
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const isHomePage = pathname === '/';
   const isDashboardPage = pathname === '/dashboard';
   const isAccountPage = pathname === '/account';
   const isChatbotPreviewPage = pathname.startsWith('/chatbot/');
-  const isPricingPage = pathname === '/pricing';
-  const isPublicInfoPage = (PUBLIC_INFO_PATHS as readonly string[]).includes(pathname);
+  const isLoginPage = pathname === '/login';
   const nav = useDashboardNav();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [previewLayoutOpen, setPreviewLayoutOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const previewLayoutRef = useRef<HTMLDivElement>(null);
   const previewControls = useChatbotPreviewControls();
@@ -53,7 +106,46 @@ export default function Header() {
     setPreviewLayoutOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setAuthChecked(false);
+    checkAuth().then((auth) => {
+      if (!cancelled) {
+        setIsLoggedIn(!!auth.authenticated);
+        setAuthChecked(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   const showAppNav = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && nav;
+
+  const showMarketingMenu =
+    !isHomePage &&
+    !showAppNav &&
+    !(isDashboardPage && !nav) &&
+    !(isAccountPage && !nav) &&
+    !(isChatbotPreviewPage && !nav);
+
+  const closeMenu = useCallback(() => setMobileMenuOpen(false), []);
+
+  const handleHeaderLogout = useCallback(async () => {
+    setMobileMenuOpen(false);
+    try {
+      await apiLogout();
+      setIsLoggedIn(false);
+      router.replace('/');
+      window.location.href = '/';
+    } catch {
+      setIsLoggedIn(false);
+      router.replace('/');
+      window.location.href = '/';
+    }
+  }, [router]);
+
+  const signInHref = `/login?redirect=${encodeURIComponent(pathname || '/')}`;
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -130,20 +222,9 @@ export default function Header() {
           )}
         </div>
 
-        {/* Pricing: single Dashboard button */}
-        {isPricingPage && (
-          <Link
-            href="/dashboard"
-            className={`${NAV_LINK_BASE} border border-brown-200 bg-white text-brown-800 transition-colors hover:bg-brown-50`}
-          >
-            <LayoutDashboard className="h-5 w-5 shrink-0" />
-            <span>Dashboard</span>
-          </Link>
-        )}
-
-        {/* Contact / legal / help: same footer links in a mobile-friendly menu */}
-        {isPublicInfoPage && (
-          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Site pages">
+        {/* Marketing / legal / login / pricing: auth-aware menu + Help & policies */}
+        {showMarketingMenu && (
+          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Menu">
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
@@ -154,56 +235,65 @@ export default function Header() {
               {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
             </button>
             {mobileMenuOpen && (
-              <div
-                className="z-50 rounded-xl border border-brown-200 bg-white py-2 shadow-lg max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:w-auto max-sm:max-h-[min(70dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:overflow-y-auto max-sm:overscroll-contain sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-56 sm:max-h-none sm:overflow-visible"
-                role="menu"
-              >
-                <Link
-                  href="/contact"
-                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
-                  role="menuitem"
-                  aria-current={pathname === '/contact' ? 'page' : undefined}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Mail className="h-4 w-4 shrink-0" aria-hidden />
-                  Contact
-                </Link>
-                <Link
-                  href="/privacy"
-                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
-                  role="menuitem"
-                  aria-current={pathname === '/privacy' ? 'page' : undefined}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Shield className="h-4 w-4 shrink-0" aria-hidden />
-                  Privacy Notice
-                </Link>
-                <Link
-                  href="/legal"
-                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
-                  role="menuitem"
-                  aria-current={pathname === '/legal' ? 'page' : undefined}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Scale className="h-4 w-4 shrink-0" aria-hidden />
-                  Legal Notice
-                </Link>
-                <Link
-                  href="/troubleshooting"
-                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
-                  role="menuitem"
-                  aria-current={pathname === '/troubleshooting' ? 'page' : undefined}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Wrench className="h-4 w-4 shrink-0" aria-hidden />
-                  Troubleshooting
-                </Link>
+              <div className={MENU_PANEL_CLASS} role="menu">
+                {!authChecked && (
+                  <p className="px-4 py-2 text-xs text-brown-500" role="status">
+                    Checking session…
+                  </p>
+                )}
+                {authChecked && isLoggedIn && (
+                  <>
+                    <p className="px-4 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-brown-500">
+                      Your account
+                    </p>
+                    <Link
+                      href="/dashboard"
+                      className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+                      role="menuitem"
+                      onClick={closeMenu}
+                    >
+                      <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden />
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/account"
+                      className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+                      role="menuitem"
+                      onClick={closeMenu}
+                    >
+                      <User className="h-4 w-4 shrink-0" aria-hidden />
+                      Account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleHeaderLogout}
+                      className="flex w-full min-h-[44px] items-center gap-2 px-4 py-3 text-left text-sm font-medium text-brown-800 hover:bg-brown-50"
+                      role="menuitem"
+                    >
+                      <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                      Log out
+                    </button>
+                  </>
+                )}
+                {authChecked && !isLoggedIn && !isLoginPage && (
+                  <Link
+                    href={signInHref}
+                    className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
+                    role="menuitem"
+                    onClick={closeMenu}
+                  >
+                    <LogIn className="h-4 w-4 shrink-0" aria-hidden />
+                    Sign in
+                  </Link>
+                )}
+                <div className="my-2 border-t border-brown-100" aria-hidden />
+                <HelpPoliciesLinks pathname={pathname} onNavigate={closeMenu} />
                 <div className="my-2 border-t border-brown-100" aria-hidden />
                 <Link
                   href="/"
-                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  className="flex min-h-[44px] items-center gap-2 px-4 py-3 text-sm font-medium text-brown-800 hover:bg-brown-50"
                   role="menuitem"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={closeMenu}
                 >
                   <Home className="h-4 w-4 shrink-0" aria-hidden />
                   Back to Home
@@ -259,10 +349,7 @@ export default function Header() {
                 {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
               </button>
               {mobileMenuOpen && (
-                <div
-                  className="z-50 rounded-xl border border-brown-200 bg-white py-2 shadow-lg max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:w-auto max-sm:max-h-[min(70dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:overflow-y-auto max-sm:overscroll-contain sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-56 sm:max-h-none sm:overflow-visible"
-                  role="menu"
-                >
+                <div className={MENU_PANEL_CLASS} role="menu">
                   <Link
                     href="/dashboard"
                     className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
@@ -320,9 +407,11 @@ export default function Header() {
                     role="menuitem"
                   >
                     <LogOut className="w-4 h-4 flex-shrink-0" />
-                    Logout
+                    Log out
                   </button>
-                  <div className="border-t border-brown-100 my-2" aria-hidden />
+                  <div className="my-2 border-t border-brown-100" aria-hidden />
+                  <HelpPoliciesLinks pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
+                  <div className="my-2 border-t border-brown-100" aria-hidden />
                   <Link
                     href="/"
                     className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
