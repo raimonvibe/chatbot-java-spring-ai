@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 /** Total time the overlay stays mounted (slightly longer than Framer duration so the sweep finishes cleanly). */
-const SWEEP_MS = 2800;
-const SWEEP_DURATION_S = 2.45;
+const SWEEP_MS = 1300;
+const SWEEP_DURATION_S = 0.62;
 const SWEEP_BLOCK_COUNT = 7;
-const SWEEP_STAGGER_S = 0.11;
+const SWEEP_STAGGER_S = 0.055;
 
 /**
  * Client navigations: instant scroll to top (less jumpy than leaving scroll position)
@@ -55,20 +55,17 @@ export default function RouteTransitionProvider({ children }: { children: React.
           {Array.from({ length: SWEEP_BLOCK_COUNT }).map((_, idx) => {
             const ratio = idx / (SWEEP_BLOCK_COUNT - 1);
             const tiltInset = idx % 2 === 0 ? 10 : 18;
-            const blockOpacity = 0.36 + ratio * 0.34;
-            const blockBlur = 8 + idx * 0.75;
+            const blockOpacity = 0.22 + ratio * 0.2;
 
             return (
               <motion.div
                 key={`${sweepKey}-${idx}`}
-                className="absolute left-1/2 top-1/2 h-[320vmax] max-w-none -translate-x-1/2 -translate-y-1/2 shadow-[0_0_90px_rgba(122,90,70,0.18)]"
+                className="absolute left-1/2 top-1/2 h-[220vmax] max-w-none -translate-x-1/2 -translate-y-1/2"
                 style={{
-                  width: `${76 + idx * 4}vmin`,
+                  width: `${70 + idx * 3}vmin`,
                   background:
-                    'linear-gradient(180deg, rgba(74,52,40,0) 0%, rgba(74,52,40,0.26) 26%, rgba(186,154,126,0.46) 56%, rgba(250,245,235,0.34) 78%, rgba(250,245,235,0) 100%)',
+                    'linear-gradient(180deg, rgba(74,52,40,0) 0%, rgba(74,52,40,0.2) 28%, rgba(186,154,126,0.36) 58%, rgba(250,245,235,0.24) 78%, rgba(250,245,235,0) 100%)',
                   rotate: -42,
-                  mixBlendMode: 'screen',
-                  filter: `blur(${blockBlur}px)`,
                   clipPath: `polygon(0% ${tiltInset}%, 100% 0%, 100% ${100 - tiltInset}%, 0% 100%)`,
                   willChange: 'transform, opacity',
                 }}
