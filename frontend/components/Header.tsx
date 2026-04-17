@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutDashboard, User, CreditCard, Plus, X, LogOut, Menu, BookOpen, LayoutTemplate } from 'lucide-react';
+import {
+  Home,
+  LayoutDashboard,
+  User,
+  CreditCard,
+  Plus,
+  X,
+  LogOut,
+  Menu,
+  BookOpen,
+  LayoutTemplate,
+  Mail,
+  Shield,
+  Scale,
+  Wrench,
+} from 'lucide-react';
 import { useDashboardNav } from '@/context/DashboardNavContext';
 import { useChatbotPreviewControls } from '@/context/ChatbotPreviewControlsContext';
 import PreviewLayoutPanel from '@/components/PreviewLayoutPanel';
@@ -12,6 +27,8 @@ import PreviewLayoutPanel from '@/components/PreviewLayoutPanel';
 const NAV_LINK_BASE =
   'inline-flex items-center justify-center gap-1.5 h-10 shrink-0 px-3 rounded-xl text-sm font-medium leading-none whitespace-nowrap';
 
+const PUBLIC_INFO_PATHS = ['/contact', '/privacy', '/legal', '/troubleshooting'] as const;
+
 export default function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
@@ -19,6 +36,7 @@ export default function Header() {
   const isAccountPage = pathname === '/account';
   const isChatbotPreviewPage = pathname.startsWith('/chatbot/');
   const isPricingPage = pathname === '/pricing';
+  const isPublicInfoPage = (PUBLIC_INFO_PATHS as readonly string[]).includes(pathname);
   const nav = useDashboardNav();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [previewLayoutOpen, setPreviewLayoutOpen] = useState(false);
@@ -29,6 +47,11 @@ export default function Header() {
   useEffect(() => {
     if (!previewControls) setPreviewLayoutOpen(false);
   }, [previewControls]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setPreviewLayoutOpen(false);
+  }, [pathname]);
 
   const showAppNav = (isDashboardPage || isAccountPage || isChatbotPreviewPage) && nav;
 
@@ -116,6 +139,78 @@ export default function Header() {
             <LayoutDashboard className="h-5 w-5 shrink-0" />
             <span>Dashboard</span>
           </Link>
+        )}
+
+        {/* Contact / legal / help: same footer links in a mobile-friendly menu */}
+        {isPublicInfoPage && (
+          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Site pages">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className={`${NAV_LINK_BASE} border border-brown-200 bg-brown-100/70 text-brown-800 transition-colors hover:bg-brown-100`}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
+            </button>
+            {mobileMenuOpen && (
+              <div
+                className="z-50 rounded-xl border border-brown-200 bg-white py-2 shadow-lg max-sm:fixed max-sm:left-[max(0.75rem,env(safe-area-inset-left))] max-sm:right-[max(0.75rem,env(safe-area-inset-right))] max-sm:top-14 max-sm:mt-1 max-sm:w-auto max-sm:max-h-[min(70dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-4rem))] max-sm:overflow-y-auto max-sm:overscroll-contain sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-56 sm:max-h-none sm:overflow-visible"
+                role="menu"
+              >
+                <Link
+                  href="/contact"
+                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  role="menuitem"
+                  aria-current={pathname === '/contact' ? 'page' : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Mail className="h-4 w-4 shrink-0" aria-hidden />
+                  Contact
+                </Link>
+                <Link
+                  href="/privacy"
+                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  role="menuitem"
+                  aria-current={pathname === '/privacy' ? 'page' : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Shield className="h-4 w-4 shrink-0" aria-hidden />
+                  Privacy Notice
+                </Link>
+                <Link
+                  href="/legal"
+                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  role="menuitem"
+                  aria-current={pathname === '/legal' ? 'page' : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Scale className="h-4 w-4 shrink-0" aria-hidden />
+                  Legal Notice
+                </Link>
+                <Link
+                  href="/troubleshooting"
+                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  role="menuitem"
+                  aria-current={pathname === '/troubleshooting' ? 'page' : undefined}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Wrench className="h-4 w-4 shrink-0" aria-hidden />
+                  Troubleshooting
+                </Link>
+                <div className="my-2 border-t border-brown-100" aria-hidden />
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px]"
+                  role="menuitem"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Home className="h-4 w-4 shrink-0" aria-hidden />
+                  Back to Home
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         {/* App nav: chatbot preview layout (dropdown) + hamburger */}
