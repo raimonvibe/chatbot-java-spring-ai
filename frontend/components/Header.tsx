@@ -217,14 +217,24 @@ export default function Header() {
               className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 transition-colors bg-transparent border-0`}
             >
               <Home className="h-5 w-5 shrink-0" />
-              <span>Back to Home</span>
+              <span>Public Site Home</span>
             </Link>
           )}
         </div>
 
         {/* Marketing / legal / login / pricing: auth-aware menu + Help & policies */}
         {showMarketingMenu && (
-          <div className="relative flex h-10 shrink-0 items-center justify-end" ref={menuRef} aria-label="Menu">
+          <div className="relative flex h-10 shrink-0 items-center justify-end gap-2" ref={menuRef} aria-label="Menu">
+            {authChecked && isLoggedIn && (
+              <Link
+                href="/account"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-brown-200 bg-white px-3 text-sm font-medium leading-none text-brown-800 transition-colors hover:bg-brown-50"
+                aria-label="Go to account"
+              >
+                <User className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="hidden min-[360px]:inline">Account</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
@@ -233,6 +243,7 @@ export default function Header() {
               aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
+              <span className="text-sm font-medium">{mobileMenuOpen ? 'Close' : 'Menu'}</span>
             </button>
             {mobileMenuOpen && (
               <div className={MENU_PANEL_CLASS} role="menu">
@@ -267,7 +278,7 @@ export default function Header() {
                     <button
                       type="button"
                       onClick={handleHeaderLogout}
-                      className="flex w-full min-h-[44px] items-center gap-2 px-4 py-3 text-left text-sm font-medium text-brown-800 hover:bg-brown-50"
+                      className="flex w-full min-h-[44px] items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-700 hover:bg-red-50"
                       role="menuitem"
                     >
                       <LogOut className="h-4 w-4 shrink-0" aria-hidden />
@@ -296,7 +307,7 @@ export default function Header() {
                   onClick={closeMenu}
                 >
                   <Home className="h-4 w-4 shrink-0" aria-hidden />
-                  Back to Home
+                  Public Site Home
                 </Link>
               </div>
             )}
@@ -347,6 +358,7 @@ export default function Header() {
                 aria-expanded={mobileMenuOpen}
               >
                 {mobileMenuOpen ? <X className="h-5 w-5 shrink-0" /> : <Menu className="h-5 w-5 shrink-0" />}
+                <span className="text-sm font-medium">{mobileMenuOpen ? 'Close' : 'Menu'}</span>
               </button>
               {mobileMenuOpen && (
                 <div className={MENU_PANEL_CLASS} role="menu">
@@ -403,7 +415,7 @@ export default function Header() {
                       nav.logout();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-brown-800 hover:bg-brown-50 text-sm font-medium min-h-[44px] text-left"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-red-700 hover:bg-red-50 text-sm font-medium min-h-[44px] text-left"
                     role="menuitem"
                   >
                     <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -419,7 +431,7 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Home className="w-4 h-4 flex-shrink-0" />
-                    Back to Home
+                    Public Site Home
                   </Link>
                 </div>
               )}
@@ -435,7 +447,7 @@ export default function Header() {
               className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
             >
               <Home className="h-5 w-5 shrink-0" />
-              <span>Back to Home</span>
+              <span>Public Site Home</span>
             </Link>
           </div>
         )}
@@ -448,7 +460,7 @@ export default function Header() {
               className={`${NAV_LINK_BASE} border border-transparent bg-transparent text-brown-700 transition-colors hover:text-gold-700`}
             >
               <Home className="h-5 w-5 shrink-0" />
-              <span>Back to Home</span>
+              <span>Public Site Home</span>
             </Link>
           </div>
         )}
