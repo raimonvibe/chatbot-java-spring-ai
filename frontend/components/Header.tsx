@@ -217,7 +217,7 @@ export default function Header() {
               className={`${NAV_LINK_BASE} text-brown-700 hover:text-gold-700 transition-colors bg-transparent border-0`}
             >
               <Home className="h-5 w-5 shrink-0" />
-              <span>Public Site Home</span>
+              <span>Home</span>
             </Link>
           )}
         </div>
@@ -307,7 +307,7 @@ export default function Header() {
                   onClick={closeMenu}
                 >
                   <Home className="h-4 w-4 shrink-0" aria-hidden />
-                  Public Site Home
+                  Home
                 </Link>
               </div>
             )}
@@ -431,7 +431,7 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Home className="w-4 h-4 flex-shrink-0" />
-                    Public Site Home
+                    Home
                   </Link>
                 </div>
               )}
