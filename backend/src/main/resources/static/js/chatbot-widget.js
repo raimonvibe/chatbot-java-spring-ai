@@ -221,7 +221,7 @@
         `;
         header.innerHTML = `
             <div>
-                <h6 id="prayer-chat-widget-title" style="margin: 0; font-weight: 600;">
+                <h6 id="prayer-chat-widget-title" style="margin: 0; font-weight: 600; color: #ffffff;">
                     <i class="fas fa-robot" style="margin-right: 8px;"></i>
                     AI Assistant
                 </h6>
@@ -839,6 +839,12 @@
         if (header) {
             header.style.setProperty('background', primary, 'important');
             header.style.setProperty('background-color', primary, 'important');
+            /* Host themes often set h6/button colors with high specificity — keep title readable on dark primaries (e.g. Graphite). */
+            header.style.setProperty('color', '#ffffff', 'important');
+        }
+        const titleHeading = widgetContainer.querySelector('#prayer-chat-widget-title');
+        if (titleHeading) {
+            titleHeading.style.setProperty('color', '#ffffff', 'important');
         }
 
         const chatContainerEl = widgetContainer.querySelector('#prayer-chat-chat-container');
@@ -910,6 +916,13 @@
             background: transparent !important;
             background-color: transparent !important;
             box-shadow: none !important;
+            color: #ffffff !important;
+        }
+        /* Host CSS often sets h6/heading colors — keep title visible on dark primaries (e.g. Graphite). */
+        #prayer-chat-chatbot-widget .prayer-chat-widget-header,
+        #prayer-chat-chatbot-widget .prayer-chat-widget-header h6,
+        #prayer-chat-chatbot-widget #prayer-chat-widget-title {
+            color: #ffffff !important;
         }
         /*
          * Shorter grip on mouse-driven desktop/laptop (fine pointer, wide enough for corner widget).
