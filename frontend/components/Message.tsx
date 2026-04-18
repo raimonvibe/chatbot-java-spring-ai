@@ -33,7 +33,8 @@ export default function Message({
   assistantAvatarId,
 }: MessageProps) {
   const isUser = message.role === 'user';
-  const validAssistantAvatar = !!assistantAvatarId && /^[1-6]$/.test(assistantAvatarId);
+  const validAssistantAvatar =
+    !!assistantAvatarId && /^(?:[1-9]|1[0-2])$/.test(assistantAvatarId);
 
   return (
     <motion.div

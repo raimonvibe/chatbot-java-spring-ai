@@ -215,8 +215,10 @@ class EmbedSecurityTest {
     class ValidateAvatarId {
 
         @ParameterizedTest
-        @ValueSource(strings = { "1", "2", "3", "4", "5", "6" })
-        @DisplayName("Accepts allowed avatar ids 1-6")
+        @ValueSource(strings = {
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+        })
+        @DisplayName("Accepts allowed avatar ids 1-12")
         void acceptsAllowedIds(String id) {
             assertThat(EmbedSecurity.validateAvatarId(id)).isEqualTo(id);
         }
@@ -230,10 +232,18 @@ class EmbedSecurityTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = { "0", "7", "10", "../1", "1;", "1'", "1.png", "a", "01" })
+        @ValueSource(strings = {
+                "0", "13", "../1", "1;", "1'", "1.png", "a", "01", "02", "00", "999"
+        })
         @DisplayName("Rejects invalid or path-traversal values")
         void rejectsInvalid(String input) {
             assertThat(EmbedSecurity.validateAvatarId(input)).isNull();
+        }
+
+        @Test
+        @DisplayName("Rejects overly long strings (not in allowlist)")
+        void rejectsLongString() {
+            assertThat(EmbedSecurity.validateAvatarId("123")).isNull();
         }
     }
 }

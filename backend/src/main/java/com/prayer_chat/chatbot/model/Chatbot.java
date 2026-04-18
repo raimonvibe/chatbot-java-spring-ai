@@ -55,7 +55,7 @@ public class Chatbot {
     @Column(columnDefinition = "TEXT")
     private String brandingConfig;
 
-    /** Optional avatar id: "1".."6" for static images, or null/blank for no avatar. Validated on update. */
+    /** Optional avatar id: "1".."12" for static images, or null/blank for no avatar. Validated on update. */
     @Column(name = "avatar_id", length = 2)
     private String avatarId;
 

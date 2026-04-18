@@ -122,12 +122,25 @@ export interface Chatbot {
   christianMessagingEnabled?: boolean;
   jesusTeachingsEnabled?: boolean;
   bibleVerse?: string;
-  /** Avatar image id: "1".."6" or null/empty for no avatar. Server-validated. */
+  /** Avatar image id: "1".."12" or null/empty for no avatar. Server-validated. */
   avatarId?: string | null;
 }
 
 /** Allowed avatar ids for picker and display (must match backend EmbedSecurity.ALLOWED_AVATAR_IDS). */
-export const AVATAR_IDS = ['1', '2', '3', '4', '5', '6'] as const;
+export const AVATAR_IDS = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+] as const;
 export type AvatarId = (typeof AVATAR_IDS)[number];
 
 export interface JesusTeachingPreview {

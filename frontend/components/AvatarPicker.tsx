@@ -2,7 +2,20 @@
 
 // Local list of allowed avatar ids. Must stay in sync with backend EmbedSecurity.ALLOWED_AVATAR_IDS
 // and frontend lib/api.ts AVATAR_IDS, but we keep it local here so tests that mock '@/lib/api' do not break.
-const AVATAR_IDS = ['1', '2', '3', '4', '5', '6'] as const;
+const AVATAR_IDS = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+] as const;
 type AvatarId = (typeof AVATAR_IDS)[number];
 
 const AVATAR_LABELS: Record<string, string> = {
@@ -12,6 +25,12 @@ const AVATAR_LABELS: Record<string, string> = {
   '4': 'Queen Esther',
   '5': 'Mary / Saint Monica',
   '6': 'Saint Martin de Porres',
+  '7': 'Moses',
+  '8': 'Peter',
+  '9': 'Gabriel',
+  '10': 'Mary Magdalene (Mary M.)',
+  '11': 'Ruth',
+  '12': 'Deborah',
 };
 
 interface AvatarPickerProps {

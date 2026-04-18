@@ -730,8 +730,8 @@
                 if (data.turnstileSiteKey) {
                     config.turnstileSiteKey = data.turnstileSiteKey;
                 }
-                // Avatar: only allow ids 1-6 (server already validates; defense in depth)
-                var allowedAvatarIds = ['1', '2', '3', '4', '5', '6'];
+                // Avatar: only allow ids 1-12 (server already validates; defense in depth)
+                var allowedAvatarIds = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
                 var avatarId = data.avatar && allowedAvatarIds.indexOf(String(data.avatar)) !== -1 ? String(data.avatar) : null;
                 if (avatarId && widgetContainer) {
                     var headerEl = widgetContainer.querySelector('.prayer-chat-widget-header');

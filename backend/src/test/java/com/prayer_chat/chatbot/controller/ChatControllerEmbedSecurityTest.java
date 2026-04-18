@@ -154,7 +154,7 @@ class ChatControllerEmbedSecurityTest {
     }
 
     @Test
-    @DisplayName("Embed returns avatar when chatbot has valid avatarId 1-6")
+    @DisplayName("Embed returns avatar when chatbot has valid avatarId 1-12")
     void embedReturnsAvatarWhenValid() {
         Chatbot bot = new Chatbot();
         bot.setId(6L);
