@@ -28,7 +28,7 @@ const AVATAR_LABELS: Record<string, string> = {
   '7': 'Moses',
   '8': 'Peter',
   '9': 'Gabriel',
-  '10': 'Mary Magdalene (Mary M.)',
+  '10': 'Mary Magdalene',
   '11': 'Ruth',
   '12': 'Deborah',
 };
