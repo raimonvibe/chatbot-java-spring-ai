@@ -20,6 +20,12 @@ const PASTEL_PRESETS: PastelTheme[] = [
   { id: 'mint', name: 'Mint', primaryColor: '#5FB38A', secondaryColor: '#A3D9C2', borderRadius: '8px' },
   { id: 'peach', name: 'Peach', primaryColor: '#D4A574', secondaryColor: '#F0D4A8', borderRadius: '8px' },
   { id: 'warm', name: 'Warm', primaryColor: '#B8956B', secondaryColor: '#E8DCC4', borderRadius: '8px' },
+  { id: 'coral', name: 'Coral', primaryColor: '#C77F6E', secondaryColor: '#EDD5CC', borderRadius: '8px' },
+  { id: 'butter', name: 'Butter', primaryColor: '#C4B456', secondaryColor: '#F0E9B8', borderRadius: '8px' },
+  { id: 'teal', name: 'Teal', primaryColor: '#4A938E', secondaryColor: '#A5D4CF', borderRadius: '8px' },
+  { id: 'periwinkle', name: 'Periwinkle', primaryColor: '#7486B5', secondaryColor: '#B8C4E8', borderRadius: '8px' },
+  { id: 'graphite', name: 'Graphite', primaryColor: '#4E5054', secondaryColor: '#A3A5A9', borderRadius: '8px' },
+  { id: 'ivory', name: 'Ivory', primaryColor: '#8F8A84', secondaryColor: '#EFE9E2', borderRadius: '8px' },
 ];
 
 export interface ThemePickerProps {
