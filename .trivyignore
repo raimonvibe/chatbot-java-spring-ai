@@ -1,0 +1,40 @@
+# Trivy suppressions: fixed via dependencyManagement (see docs/SECURITY_TRIVY_REMEDIATION_PLAN.md).
+# Policy:
+# - Every suppression must have a documented reason, owner, and expiry.
+# - Expired suppressions must be revalidated or removed before merge.
+# owner:<team-or-person>, exp:YYYY-MM-DD = re-review by this date.
+#
+# Spring Security (#92, #93) - we use 6.3.x, CVE affects 6.4.0-6.4.5 only
+# owner:backend-security, exp:2026-06-01
+CVE-2025-41232 exp:2026-06-01
+GHSA-9pp5-9c7g-4r83 exp:2026-06-01
+CVE-2025-41248 exp:2026-06-01
+# Spring Framework (#95, #97, #96, #94) - we pin 6.2.16
+# owner:backend-security, exp:2026-06-01
+CVE-2025-41249 exp:2026-06-01
+CVE-2025-41242 exp:2026-06-01
+CVE-2025-41234 exp:2026-06-01
+CVE-2024-38820 exp:2026-06-01
+# Tomcat - we use 10.1.49
+# owner:backend-security, exp:2026-06-01
+CVE-2025-55754 exp:2026-06-01
+CVE-2025-55752 exp:2026-06-01
+CVE-2025-48989 exp:2026-06-01
+CVE-2025-48988 exp:2026-06-01
+CVE-2025-61795 exp:2026-06-01
+CVE-2025-49125 exp:2026-06-01
+CVE-2025-49124 exp:2026-06-01
+CVE-2025-46701 exp:2026-06-01
+# Commons Lang3 (#83) - we pin 3.20.0
+# owner:backend-security, exp:2026-06-01
+CVE-2025-48924 exp:2026-06-01
+# Reactor Netty (#82) - we pin 1.3.3
+# owner:backend-security, exp:2026-06-01
+CVE-2025-22227 exp:2026-06-01
+# Nimbus JOSE+JWT (#81) - we pin 10.8
+# owner:backend-security, exp:2026-06-01
+CVE-2025-53864 exp:2026-06-01
+# Logback (#79, #80) - we pin 1.5.32
+# owner:backend-security, exp:2026-06-01
+CVE-2025-11226 exp:2026-06-01
+CVE-2024-12798 exp:2026-06-01

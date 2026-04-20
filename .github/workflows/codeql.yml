@@ -1,0 +1,69 @@
+# CodeQL Analysis
+# This workflow is disabled for private repositories without GitHub Advanced Security
+# If you have GitHub Advanced Security, you can enable this workflow
+
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+      - cron: '40 0 * * *'   # Every day at 00:30
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'java' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+
+    # CodeQL autobuild is often unreliable for multi-dir repos and custom Maven configs.
+    # Use explicit Maven steps so dependency resolution/build behavior is deterministic.
+    - name: Set up Java
+      uses: actions/setup-java@v5
+      with:
+        distribution: "temurin"
+        java-version: "17"
+        cache: "maven"
+
+    - name: Build backend (Maven)
+      run: >
+        mvn clean package
+        -f backend/pom.xml
+        -B -V -e
+        -Dfindbugs.skip=true
+        -Dcheckstyle.skip=true
+        -Dpmd.skip=true
+        -Dspotbugs.skip=true
+        -Denforcer.skip=true
+        -Dmaven.javadoc.skip=true
+        -DskipTests=true
+        -Dmaven.test.skip.exec=true
+        -Dlicense.skip=true
+        -Drat.skip=true
+        -Dspotless.check.skip=true
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{matrix.language}}"
+

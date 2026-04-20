@@ -1,0 +1,13 @@
+# Production profile: avoid logging or exposing anything that could leak credentials.
+# Secure default: cookie-only JWT. For iPhone/Safari set AUTH_EXPOSE_JWT_IN_RESPONSE=true on the host (e.g. Render).
+# When true, bearer TTL is capped by AUTH_EXPOSED_BEARER_TTL_MS (default 4h).
+app:
+  auth:
+    expose-jwt-in-oauth-response: ${AUTH_EXPOSE_JWT_IN_RESPONSE:false}
+    exposed-bearer-ttl-ms: ${AUTH_EXPOSED_BEARER_TTL_MS:14400000}
+# Spring Boot's H2ConsoleAutoConfiguration logs the DataSource URL when the H2 console is enabled;
+# that URL can contain the database password. Disable the H2 console in production so the URL is never logged.
+spring:
+  h2:
+    console:
+      enabled: false

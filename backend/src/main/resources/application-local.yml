@@ -1,0 +1,24 @@
+# Local development profile configuration
+# This profile enables admin endpoints and local-only features
+# 
+# To run with this profile:
+#   java -jar app.jar --spring.profiles.active=local
+#   or set SPRING_PROFILES_ACTIVE=local environment variable
+#
+# Note: Do NOT set spring.profiles.active in this file - it's a profile-specific config file
+
+# Enable admin endpoints for local development
+app:
+  # Server-side OAuth redirects; override with FRONTEND_URL if needed (e.g. different port).
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  admin:
+    enabled: true
+  auth:
+    # Local HTTP cross-origin (e.g. :3000 → :8081): browser may not send cross-site cookies; JSON token keeps dev UX.
+    expose-jwt-in-oauth-response: true
+
+spring:
+  h2:
+    console:
+      enabled: true
+

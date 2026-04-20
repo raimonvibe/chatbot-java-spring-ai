@@ -1,0 +1,118 @@
+spring:
+  datasource:
+    # Use H2 for integration tests (PostgreSQL is only for E2E tests via Testcontainers)
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  h2:
+    console:
+      enabled: false
+
+  # Security OAuth2 (will be mocked in tests)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - email
+              - profile
+        provider:
+          google:
+            authorization-uri: http://localhost:8080/oauth2/authorize
+            token-uri: http://localhost:8080/oauth2/token
+            user-info-uri: http://localhost:8080/oauth2/userinfo
+
+# JWT configuration
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-do-not-use-in-production
+  expiration: 86400000
+
+# Stripe configuration (will be mocked in tests)
+stripe:
+  api-key: sk_test_mock
+  webhook-secret: whsec_test_mock
+  success-url: http://localhost:3000/account?payment=success&session_id={CHECKOUT_SESSION_ID}
+  cancel-url: http://localhost:3000/pricing
+  allowed-redirect-origins: http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com
+  price-id: ${STRIPE_PRICE_ID:price_test_default}
+  price-id-basic: price_test_basic
+  price-id-pro: price_test_pro
+  price-id-enterprise: price_test_enterprise
+  price:
+    basic: price_test_basic
+    pro: price_test_pro
+
+# Anthropic AI configuration (will be mocked in tests)
+anthropic:
+  api-key: test-anthropic-key
+
+# Cohere configuration (will be mocked in tests)
+cohere:
+  api-key: test-cohere-key
+
+# Pinecone configuration (will be mocked in tests)
+pinecone:
+  api-key: test-pinecone-key
+  environment: test
+  index-name: test-index
+
+# App config for tests (disable headless crawl so tests don't need Chrome)
+app:
+  auth:
+    expose-jwt-in-oauth-response: true
+  billing:
+    enabled: true
+  website-analysis:
+    headless-enabled: false
+  bible:
+    auto-load: false
+    auto-generate-embeddings: false
+
+# Actuator configuration for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+      base-path: /actuator
+  endpoint:
+    health:
+      enabled: true
+    metrics:
+      enabled: true
+
+# Server configuration for tests
+server:
+  servlet:
+    session:
+      cookie:
+        name: JSESSIONID
+        http-only: true
+        secure: false  # Tests don't use HTTPS
+        same-site: "lax"  # Lax is fine for test environment
+        max-age: 3600  # 1 hour for tests
+
+# Logging
+logging:
+  level:
+    root: WARN
+    com.prayer_chat.chatbot: DEBUG  # Enable debug logging for filter debugging
+    com.prayer_chat.chatbot.security: DEBUG  # Enable debug logging for security filters
+    org.springframework.web: WARN
+    org.springframework.security: DEBUG  # Enable debug logging for Spring Security
+    org.hibernate: WARN
+    org.testcontainers: WARN

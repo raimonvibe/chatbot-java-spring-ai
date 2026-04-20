@@ -1,0 +1,80 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# Spring Boot
+*.log
+logs/
+spring.log
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.metadata/
+
+# Environment
+.env
+.env.local
+.env.*.local
+# Keep .env.example in git (it's a template)
+!.env.example
+# Keep .env.example in git (it's a template)
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local copies of other projects (not part of this repo)
+Documents/
+
+# Local Trivy binary (optional download for dev scans)
+trivy-bin/
+
+# Node (for frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+backend/.env.real
+data/bible_embeddings.json
+backend/data/test-*.json
+backend/data/*.txt
+# Bible embeddings are too large for GitHub (>100MB)
+backend/src/main/resources/data/bible/data/bible_embeddings.json
+**/bible_embeddings.json
