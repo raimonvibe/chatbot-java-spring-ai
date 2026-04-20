@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  issues: write
 
 jobs:
   dependency-check:
@@ -31,7 +33,29 @@ jobs:
           cache: 'maven'
 
       - name: Run OWASP Dependency Check
-        run: mvn dependency-check:check -Ddependency-check.skip=false -DfailBuildOnCVSS=7
+        id: owasp_scan
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: mvn dependency-check:check -Ddependency-check.skip=false -DfailBuildOnCVSS=7 -DfailOnError=false
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+
+      - name: Run Trivy vulnerability scanner (backup hard fail)
+        run: |
+          trivy fs . --format sarif --output trivy-results.sarif \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
+            --ignorefile .trivyignore
+        env:
+          TRIVY_NO_PROGRESS: 'true'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-results.sarif'
 
       - name: Upload dependency check report
         if: always()
@@ -41,3 +65,115 @@ jobs:
           path: backend/target/dependency-check-report.html
           retention-days: 30
           if-no-files-found: ignore
+
+      - name: Update OWASP incident issue on failure
+        if: always() && steps.owasp_scan.outcome == 'failure'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'OWASP Dependency Check incident';
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const incidentIssue = openIssues.find((issue) => issue.title === title);
+
+            const commentBody = [
+              '## OWASP scan failed',
+              '',
+              `- Workflow run: ${runUrl}`,
+              `- Trigger: \`${context.eventName}\``,
+              `- Branch/ref: \`${context.ref}\``,
+              '',
+              '### Suggested next steps',
+              '- Inspect logs for NVD/feed outage vs real dependency findings.',
+              '- Keep Trivy as blocking gate until OWASP feed is healthy.',
+              '- Re-run this workflow after remediation or outage recovery.'
+            ].join('\n');
+
+            if (incidentIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: incidentIssue.number,
+                body: commentBody
+              });
+              core.info(`Updated existing incident issue: #${incidentIssue.number}`);
+              return;
+            }
+
+            const body = [
+              '## OWASP Dependency Check Incident',
+              '',
+              'This issue tracks OWASP Dependency Check failures over time.',
+              '',
+              `- Repository: \`${context.repo.owner}/${context.repo.repo}\``,
+              `- Workflow: \`${context.workflow}\``,
+              `- Latest failed run: ${runUrl}`,
+              '',
+              '### Suggested next steps',
+              '- Open the workflow run and inspect OWASP logs.',
+              '- If this is an NVD/feed outage, retry later.',
+              '- If vulnerabilities were found, update dependencies and re-run scans.'
+            ].join('\n');
+
+            const created = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['security']
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: created.data.number,
+              body: commentBody
+            });
+
+      - name: Resolve OWASP incident issue on success
+        if: always() && steps.owasp_scan.outcome == 'success'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'OWASP Dependency Check incident';
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const incidentIssue = openIssues.find((issue) => issue.title === title);
+            if (!incidentIssue) {
+              core.info('No open OWASP incident issue to resolve.');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: incidentIssue.number,
+              body: [
+                '## OWASP scan recovered',
+                '',
+                `Latest successful run: ${runUrl}`,
+                '',
+                'Closing this incident issue.'
+              ].join('\n')
+            });
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: incidentIssue.number,
+              state: 'closed'
+            });

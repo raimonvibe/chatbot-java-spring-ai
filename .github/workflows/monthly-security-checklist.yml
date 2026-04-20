@@ -1,0 +1,56 @@
+name: Monthly Security Checklist
+
+on:
+  schedule:
+    - cron: '0 8 1 * *' # Every month, day 1 at 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  open-security-checklist-issue:
+    name: Open Monthly Security Checklist Issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create monthly security checklist issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const now = new Date();
+            const ym = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+            const title = `Monthly Security Checklist (${ym})`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const alreadyOpen = issues.some((issue) => issue.title === title);
+            if (alreadyOpen) {
+              core.info(`Issue already exists: ${title}`);
+              return;
+            }
+
+            const body = [
+              '## Monthly Security Checklist',
+              '',
+              '- [ ] Review open Dependabot PRs and security alerts.',
+              '- [ ] Review and minimize entries in `.trivyignore`.',
+              '- [ ] Verify required branch protection checks are still enforced on `main`.',
+              '- [ ] Confirm security workflows are passing (`Dependency Check`, `Security Scan`).',
+              '- [ ] Re-evaluate whether `failOnError=false` is still needed for OWASP Dependency-Check.',
+              '- [ ] Upgrade high-risk dependencies where fixes are available.',
+              '',
+              '_This issue is auto-generated every month._'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });

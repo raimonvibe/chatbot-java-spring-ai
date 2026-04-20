@@ -477,6 +477,11 @@
                 <version>12.2.1</version>
                 <configuration>
                     <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
+                    <!-- Do not fail the build on transient feed/network errors (e.g. NVD/Cloudflare outages) -->
+                    <failOnError>false</failOnError>
+                    <!-- Use an NVD API key in CI to avoid HTTP 429 rate limits -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <nvdMaxRetryCount>10</nvdMaxRetryCount>
                     <formats>
                         <format>HTML</format>
                         <format>JUNIT</format>
