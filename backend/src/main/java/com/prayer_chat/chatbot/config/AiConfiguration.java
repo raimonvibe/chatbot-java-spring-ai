@@ -81,7 +81,7 @@ public class AiConfiguration {
         try {
             AnthropicApi anthropicApi = AnthropicApi.builder().apiKey(apiKey).build();
             AnthropicChatOptions options = AnthropicChatOptions.builder()
-                    .model("claude-3-haiku-20240307")
+                    .model("claude-haiku-4-5-20251001")
                     .temperature(0.7)
                     .maxTokens(1000)
                     .build();
