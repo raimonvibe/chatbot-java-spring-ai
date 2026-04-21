@@ -1,4 +1,4 @@
-# 🙏  Prayer-Chat AI Chatbot Generator
+# 🙏 Prayer-Chat AI Chatbot Generator
 
 **Live Demo:** [https://www.prayer-chat.com/](https://www.prayer-chat.com/)
 
