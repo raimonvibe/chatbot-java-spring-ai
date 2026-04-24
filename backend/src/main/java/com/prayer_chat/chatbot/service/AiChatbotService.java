@@ -459,7 +459,7 @@ public class AiChatbotService {
                 .limit(VECTOR_MATCHES_MAX)
                 .collect(Collectors.toList());
         } catch (Exception e) {
-            logger.warn("Vector similarity search failed for chatbot {}: {}", wantId, e.getMessage());
+            logger.warn("Vector similarity search failed for chatbot {}", wantId, e);
         }
 
         // Always add a small token-based DB keyword slice for the current query (when tokens are present).
