@@ -1,0 +1,30 @@
+name: Render Keepalive
+
+on:
+  schedule:
+    # Every 30 minutes (UTC).
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-render-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Render health endpoint
+        env:
+          HEALTH_URL: https://chatbot-java-spring-ai.onrender.com/actuator/health
+        run: |
+          set -euo pipefail
+          echo "Pinging: ${HEALTH_URL}"
+          code="$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 20 "${HEALTH_URL}")"
+          echo "HTTP ${code}"
+          cat /tmp/health.json
+          echo
+          if [ "${code}" -ne 200 ]; then
+            echo "Health check failed with HTTP ${code}" >&2
+            exit 1
+          fi
