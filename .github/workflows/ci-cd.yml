@@ -284,7 +284,7 @@ jobs:
           fetch-depth: 0  # Full history for better analysis
 
       - name: SonarCloud Scan
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -298,7 +298,9 @@ jobs:
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
 
       - name: SonarCloud Scan Skipped
-        if: ${{ secrets.SONAR_TOKEN == '' }}
+        if: ${{ env.SONAR_TOKEN == '' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: echo "Skipping SonarCloud scan because SONAR_TOKEN is not configured."
 
   # Deployment (only on main branch - customize for your deployment target)
