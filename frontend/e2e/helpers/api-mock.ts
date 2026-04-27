@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { E2E_MOCK_AUTH_TOKEN, E2E_MOCK_TOKEN_MARKER } from './test-auth-constants';
+import { E2E_MOCK_AUTH_TOKEN } from './test-auth-constants';
 
 /**
  * API Mock helper for E2E tests
@@ -27,14 +27,11 @@ export class ApiMock {
       },
     } = options;
 
-    // Mock /api/auth/me endpoint (used by checkAuth)
+    // Mock /api/auth/me endpoint (used by checkAuth).
+    // App auth is cookie-based now (credentials: include), so tests should not
+    // depend on legacy Authorization headers.
     await this.page.route('**/api/auth/me', async (route) => {
-      const authHeader = route.request().headers()['authorization'];
-      // Login page calls /api/auth/me without Authorization header to check if already authenticated
-      // If no header, return 401 (not authenticated) to stay on login page
-      // If header present with token, return user (authenticated)
-      if (authHeader && authHeader.includes(E2E_MOCK_TOKEN_MARKER)) {
-        // Return user data directly (checkAuth wraps this)
+      if (loginSuccess) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -117,16 +114,6 @@ export class ApiMock {
   async mockChatbotEndpoints(chatbots: any[] = []) {
     // Mock get all chatbots
     await this.page.route('**/api/chatbots', async (route) => {
-      const authHeader = route.request().headers()['authorization'];
-      if (!authHeader || !authHeader.includes(E2E_MOCK_TOKEN_MARKER)) {
-        await route.fulfill({
-          status: 401,
-          contentType: 'application/json',
-          body: JSON.stringify({ error: 'Unauthorized' }),
-        });
-        return;
-      }
-
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
