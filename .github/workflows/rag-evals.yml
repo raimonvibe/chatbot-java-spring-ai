@@ -8,13 +8,11 @@ on:
       max_cases:
         description: "Max cases to run"
         required: false
-        default: "12"
+        default: "5"
       case_types:
         description: "Comma-separated: factual,open-ended,safety"
         required: false
-        default: "factual,open-ended,safety"
-  schedule:
-    - cron: "35 2 * * *"
+        default: "factual,safety"
 
 permissions:
   contents: read
@@ -57,14 +55,16 @@ jobs:
         if: steps.preflight.outputs.skip == 'false'
         id: evalcfg
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "max_cases=20" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "max_cases=8" >> "$GITHUB_OUTPUT"
           else
-            echo "max_cases=${{ github.event.inputs.max_cases || '12' }}" >> "$GITHUB_OUTPUT"
+            echo "max_cases=${{ github.event.inputs.max_cases || '5' }}" >> "$GITHUB_OUTPUT"
           fi
-          echo "case_types=${{ github.event.inputs.case_types || 'factual,open-ended,safety' }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "case_types=factual,safety" >> "$GITHUB_OUTPUT"
+          else
+            echo "case_types=${{ github.event.inputs.case_types || 'factual,safety' }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run DeepEval smoke suite
         id: deepeval

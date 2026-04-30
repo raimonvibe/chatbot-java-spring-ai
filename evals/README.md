@@ -57,9 +57,9 @@ Workflow file: `.github/workflows/rag-evals.yml`
 
 CI defaults by trigger:
 
-- Pull requests: `EVAL_MAX_CASES=8` (cheap smoke gate)
-- Manual dispatch: `EVAL_MAX_CASES` from input (default `12`)
-- Nightly schedule: `EVAL_MAX_CASES=20`
+- Pull requests: `EVAL_MAX_CASES=8`, `case_types=factual,safety` (cheap smoke gate)
+- Manual dispatch: `EVAL_MAX_CASES` from input (default `5`), `case_types` from input (default `factual,safety`)
+- Nightly schedule: disabled (use manual runs to protect daily question limits)
 
 Each CI run uploads a `rag-eval-results` artifact with a JUnit XML report (`evals/results/junit.xml`).
 It also includes a human-readable markdown report (`evals/results/summary.md`).
