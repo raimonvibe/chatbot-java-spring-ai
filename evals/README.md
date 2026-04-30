@@ -78,12 +78,37 @@ We completed:
 2. Click **RAG Evals (Step 3)**.
 3. Click **Run workflow**.
 4. Optional inputs:
-   - `max_cases`: start with `8` or `12`
-   - `case_types`: keep `factual,open-ended,safety`
+   - `max_cases`: start with `5` (safe for low daily limits)
+   - `case_types`: start with `factual,safety`
 5. Open the run -> `DeepEval Smoke` job to watch logs.
 6. Download artifact `rag-eval-results` and open:
    - `summary.md` (easy report)
    - `junit.xml` (structured test output)
+
+### Manual run (click-by-click, beginner friendly)
+
+Use this when you want to test safely without consuming too many daily chatbot calls.
+
+1. Go to your GitHub repository.
+2. Click the **Actions** tab.
+3. In the left menu, select **RAG Evals (Step 3)**.
+4. Click **Run workflow** (top-right).
+5. Select branch `main`.
+6. Set:
+   - `max_cases` = `5`
+   - `case_types` = `factual,safety`
+7. Click **Run workflow**.
+8. Open the latest run and click **DeepEval Smoke** to see live logs.
+9. Scroll to **Artifacts** and download `rag-eval-results`.
+10. Open:
+    - `summary.md` for a quick human-readable result
+    - `junit.xml` for detailed structured results
+
+Recommended daily usage with a 30-question limit:
+
+- Start with 1 manual run/day at `max_cases=5`.
+- If you fix something, run one more verification (`+5` calls).
+- Keep enough headroom for real users.
 
 ### How to monitor live retrieval quality
 
@@ -101,6 +126,12 @@ We completed:
 - If many factual failures happen, improve website content/retrieval relevance.
 - If safety failures happen, tighten prompt/policy behavior.
 - Re-run with smaller `max_cases` while iterating, then run larger batch.
+
+Quick troubleshooting:
+
+- **404 Chatbot not found**: `EVAL_EMBED_CODE` is likely wrong format or outdated; use full code with prefix, for example `prayer-chat-bot-...`.
+- **Skipped run**: make sure GitHub secrets `EVAL_BASE_URL` and `EVAL_EMBED_CODE` are set.
+- **No judge scoring**: add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` if you want LLM-as-judge checks.
 
 ## JSONL reminder
 
