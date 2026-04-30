@@ -12,8 +12,11 @@ Create a high-quality dataset of 50-100 ground-truth question/answer cases focus
 - `evals/datasets/dataset_v1_schema.md` - field definitions and rules
 - `evals/datasets/dataset_v1_todo.md` - practical checklist to complete dataset v1
 - `evals/datasets/dataset_v1.jsonl` - current 50-case dataset
+- `evals/datasets/ragas_dataset_v1_template.jsonl` - Step 4 template for Ragas diagnostics
+- `evals/datasets/ragas_dataset_v1_schema.md` - Step 4 schema for Ragas input rows
 - `evals/tests/test_deepeval_chatbot.py` - DeepEval pytest suite hitting embed chat API
 - `evals/requirements.txt` - Python dependencies for evals
+- `evals/scripts/run_ragas_diagnostics.py` - Step 4 Ragas diagnostics runner
 
 ## Quick start
 
@@ -145,3 +148,21 @@ Security + config hardening:
 
 Each line must be one valid JSON object.
 Do not wrap the file in `[` `]`.
+
+## Step 4: run Ragas retrieval diagnostics
+
+1. Copy template:
+   - `cp evals/datasets/ragas_dataset_v1_template.jsonl evals/datasets/ragas_dataset_v1.jsonl`
+2. Fill each row using real retrieval traces (`RAG_OBS`) so `retrieved_contexts` are actual retrieved chunks.
+3. Install deps if needed:
+   - `pip install -r evals/requirements.txt`
+4. Set judge key:
+   - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+5. Run:
+   - `python3 evals/scripts/run_ragas_diagnostics.py`
+
+Outputs:
+
+- `evals/results/ragas_summary.md` (quick human summary)
+- `evals/results/ragas_metrics.json` (aggregate metrics)
+- `evals/results/ragas_metrics.csv` (per-row scores)
