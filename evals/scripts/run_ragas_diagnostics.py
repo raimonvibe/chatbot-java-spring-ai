@@ -94,18 +94,33 @@ def _build_summary(metrics: dict[str, Any], row_count: int) -> str:
     )
 
 
+def _safe_mean(df: pd.DataFrame, column: str) -> float | None:
+    if column not in df.columns:
+        return None
+    series = pd.to_numeric(df[column], errors="coerce").dropna()
+    if series.empty:
+        return None
+    return float(series.mean())
+
+
 def run() -> int:
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not anthropic_key:
         raise EnvironmentError(
             "Missing ANTHROPIC_API_KEY. This Step 4 runner is configured for Anthropic-only judging."
         )
+    model_name = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001").strip()
+    if model_name == "claude-3-5-haiku-latest":
+        raise EnvironmentError(
+            "ANTHROPIC_MODEL is set to deprecated/unavailable value 'claude-3-5-haiku-latest'. "
+            "Unset it or set ANTHROPIC_MODEL=claude-haiku-4-5-20251001."
+        )
 
     rows = _normalize_rows(_parse_jsonl(INPUT_PATH))
     dataset = Dataset.from_list(rows)
     llm = LangchainLLMWrapper(
         ChatAnthropic(
-            model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+            model=model_name,
             temperature=0,
             max_tokens=512,
             anthropic_api_key=anthropic_key,
@@ -129,7 +144,14 @@ def run() -> int:
     df = result.to_pandas()
     df.to_csv(CSV_PATH, index=False)
 
-    metrics = result.to_dict()
+    metrics = {
+        "model": model_name,
+        "cases_evaluated": len(df),
+        "faithfulness": _safe_mean(df, "faithfulness"),
+        "answer_relevancy": _safe_mean(df, "answer_relevancy"),
+        "context_precision": _safe_mean(df, "context_precision"),
+        "context_recall": _safe_mean(df, "context_recall"),
+    }
     JSON_PATH.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     MD_PATH.write_text(_build_summary(metrics, row_count=len(df)), encoding="utf-8")
 

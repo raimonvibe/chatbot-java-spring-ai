@@ -161,6 +161,7 @@ Do not wrap the file in `[` `]`.
    - optional: `ANTHROPIC_MODEL` (default: `claude-haiku-4-5-20251001`)
    - optional: `RAGAS_EMBEDDING_MODEL` (default: `sentence-transformers/all-MiniLM-L6-v2`)
    - optional safety: `unset OPENAI_API_KEY`
+   - if you previously exported `claude-3-5-haiku-latest`, clear it first: `unset ANTHROPIC_MODEL`
 5. Run:
    - `python3 evals/scripts/run_ragas_diagnostics.py`
 

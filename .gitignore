@@ -82,3 +82,5 @@ backend/src/main/resources/data/bible/data/bible_embeddings.json
 # Python eval artifacts
 **/__pycache__/
 evals/results/
+evals/datasets/ragas_dataset_v1.jsonl
+.venv-evals/
