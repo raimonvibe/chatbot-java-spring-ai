@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.ConversationRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.WebsiteContentRepository;
+import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -68,6 +69,15 @@ public class AiChatbotService {
     @Value("${app.chatbot.default-language:en}")
     private String defaultLanguage;
 
+    @Value("${app.rag-observability.enabled:true}")
+    private boolean ragObservabilityEnabled;
+
+    @Value("${app.rag-observability.max-docs-logged:8}")
+    private int ragObservabilityMaxDocsLogged;
+
+    @Value("${app.rag-observability.max-snippet-chars:220}")
+    private int ragObservabilityMaxSnippetChars;
+
     @Autowired
     public AiChatbotService(ChatClient chatClient, VectorStore vectorStore, EmbeddingModel embeddingModel,
                            ChatbotRepository chatbotRepository, ConversationRepository conversationRepository,
@@ -116,6 +126,7 @@ public class AiChatbotService {
                                      String userLanguage, String userIp, String userAgent) {
         
         long startTime = System.currentTimeMillis();
+        String traceId = UUID.randomUUID().toString().substring(0, 8);
         
         try {
             // Get chatbot
@@ -136,8 +147,19 @@ public class AiChatbotService {
             // NEW FEATURE: Send webhook event for new message
             webhookService.sendNewMessageEvent(chatbot, conversation, userMsg);
 
+            if (ragObservabilityEnabled) {
+                logger.info(
+                    "RAG_OBS query trace={} chatbotId={} sessionId={} lang={} message={}",
+                    traceId,
+                    chatbotId,
+                    LogSanitizer.sanitizeForLogging(sessionId),
+                    userLanguage,
+                    LogSanitizer.sanitizeForLogging(userMessage)
+                );
+            }
+
             // Generate AI response
-            String aiResponse = generateResponse(chatbot, conversation, userMessage, userLanguage);
+            String aiResponse = generateResponse(chatbot, conversation, userMessage, userLanguage, traceId);
 
             // Calculate response time
             long responseTime = System.currentTimeMillis() - startTime;
@@ -190,10 +212,14 @@ public class AiChatbotService {
     /**
      * Generate AI response using RAG (Retrieval Augmented Generation)
      */
-    private String generateResponse(Chatbot chatbot, Conversation conversation, String userMessage, String userLanguage) {
+    private String generateResponse(Chatbot chatbot, Conversation conversation, String userMessage, String userLanguage, String traceId) {
 
         // Retrieve relevant context from vector store
         List<Document> relevantDocs = retrieveRelevantContext(chatbot, userMessage);
+
+        if (ragObservabilityEnabled) {
+            logRetrievedContext(traceId, chatbot, relevantDocs);
+        }
 
         // Build conversation history
         List<com.prayer_chat.chatbot.model.Message> recentMessages = getRecentMessages(conversation);
@@ -248,6 +274,9 @@ public class AiChatbotService {
             String aiText = response.getResult().getOutput().getText();
             if (shouldAppendRelatedScripture(chatbot, conversation, recentMessages, relevantVerse, isFirstMessage)) {
                 aiText = appendRelatedScripture(aiText, relevantVerse);
+            }
+            if (ragObservabilityEnabled) {
+                logAnswerGrounding(traceId, relevantDocs, aiText);
             }
             return aiText;
         } catch (IllegalStateException e) {
@@ -371,7 +400,8 @@ public class AiChatbotService {
             out.add(new Document(text, Map.of(
                 "chatbotId", chatbot.getId().toString(),
                 "url", c.getUrl() != null ? c.getUrl() : "",
-                "title", c.getTitle() != null ? c.getTitle() : ""
+                "title", c.getTitle() != null ? c.getTitle() : "",
+                "retrievalSource", "db_snapshot"
             )));
         }
         return out;
@@ -426,7 +456,8 @@ public class AiChatbotService {
                     out.add(new Document(text, Map.of(
                         "chatbotId", chatbot.getId() != null ? chatbot.getId().toString() : "",
                         "url", c.getUrl() != null ? c.getUrl() : "",
-                        "title", c.getTitle() != null ? c.getTitle() : ""
+                        "title", c.getTitle() != null ? c.getTitle() : "",
+                        "retrievalSource", "db_keyword"
                     )));
                     logger.debug("DB keyword fallback selected url for chatbot {}: {}", chatbot.getId(), c.getUrl());
                     if (out.size() >= DB_KEYWORD_FALLBACK_DOCS_MAX) return out;
@@ -508,6 +539,114 @@ public class AiChatbotService {
             logger.debug("No website content for chatbot {} (analysis may still be running or crawl returned no pages)", wantId);
         }
         return merged;
+    }
+
+    private void logRetrievedContext(String traceId, Chatbot chatbot, List<Document> relevantDocs) {
+        int limit = Math.max(1, ragObservabilityMaxDocsLogged);
+        int snippetMax = Math.max(40, ragObservabilityMaxSnippetChars);
+        for (int i = 0; i < relevantDocs.size() && i < limit; i++) {
+            Document doc = relevantDocs.get(i);
+            String source = inferRetrievalSource(doc);
+            String url = sanitizeMetadataValue(doc, "url");
+            String title = sanitizeMetadataValue(doc, "title");
+            String similarity = readSimilarityScore(doc);
+            String snippet = snippetForLog(doc.getText(), snippetMax);
+            logger.info(
+                "RAG_OBS chunk trace={} chatbotId={} rank={} source={} score={} title={} url={} snippet={}",
+                traceId,
+                chatbot != null ? chatbot.getId() : null,
+                i + 1,
+                source,
+                similarity,
+                title,
+                url,
+                snippet
+            );
+        }
+        logger.info(
+            "RAG_OBS retrieval_summary trace={} chatbotId={} totalRetrieved={} logged={}",
+            traceId,
+            chatbot != null ? chatbot.getId() : null,
+            relevantDocs.size(),
+            Math.min(relevantDocs.size(), limit)
+        );
+    }
+
+    private void logAnswerGrounding(String traceId, List<Document> relevantDocs, String aiText) {
+        String safeAnswer = aiText == null ? "" : aiText.toLowerCase(Locale.ROOT);
+        int matchedDocs = 0;
+        int inspected = 0;
+        int limit = Math.max(1, ragObservabilityMaxDocsLogged);
+        for (Document doc : relevantDocs) {
+            if (inspected >= limit) {
+                break;
+            }
+            inspected++;
+            String title = metadataLower(doc, "title");
+            String url = metadataLower(doc, "url");
+            boolean used = (!title.isEmpty() && safeAnswer.contains(title))
+                || (!url.isEmpty() && safeAnswer.contains(url));
+            if (used) {
+                matchedDocs++;
+            }
+        }
+        logger.info(
+            "RAG_OBS grounding trace={} referencedRetrievedDocs={} inspectedDocs={} answerPreview={}",
+            traceId,
+            matchedDocs,
+            inspected,
+            snippetForLog(aiText, 260)
+        );
+    }
+
+    private static String inferRetrievalSource(Document doc) {
+        Object explicit = doc.getMetadata() != null ? doc.getMetadata().get("retrievalSource") : null;
+        if (explicit != null && !explicit.toString().isBlank()) {
+            return explicit.toString();
+        }
+        String score = readSimilarityScore(doc);
+        if (!"n/a".equals(score)) {
+            return "vector";
+        }
+        return "unknown";
+    }
+
+    private static String readSimilarityScore(Document doc) {
+        if (doc.getMetadata() == null) {
+            return "n/a";
+        }
+        String[] candidateKeys = {"score", "similarity", "distance"};
+        for (String key : candidateKeys) {
+            Object value = doc.getMetadata().get(key);
+            if (value != null) {
+                return LogSanitizer.sanitizeForLogging(String.valueOf(value));
+            }
+        }
+        return "n/a";
+    }
+
+    private static String sanitizeMetadataValue(Document doc, String key) {
+        if (doc.getMetadata() == null) {
+            return "";
+        }
+        Object value = doc.getMetadata().get(key);
+        if (value == null) {
+            return "";
+        }
+        return LogSanitizer.sanitizeForLogging(String.valueOf(value));
+    }
+
+    private static String metadataLower(Document doc, String key) {
+        String value = sanitizeMetadataValue(doc, key);
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    private static String snippetForLog(String text, int maxChars) {
+        if (text == null) {
+            return "";
+        }
+        String compact = text.replaceAll("\\s+", " ").trim();
+        return LogSanitizer.sanitizeForLogging(LogSanitizer.truncate(compact, maxChars));
     }
     
     /**

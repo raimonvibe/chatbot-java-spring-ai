@@ -325,3 +325,45 @@ These references were used to align this plan with current framework guidance an
 - **Day 5**: complete Step 5 and enable production scoring sample.
 
 If this feels too much at once, do Days 1-3 first, then continue next week.
+
+---
+
+## 🧭 How to read Step 1 logs on Render
+
+After deployment, open Render logs and search for `RAG_OBS`.
+
+Expected log lines per request:
+
+- `RAG_OBS query` → user query + trace id
+- `RAG_OBS chunk` → retrieved chunk details (rank, source, score, title, url, snippet)
+- `RAG_OBS retrieval_summary` → number of docs retrieved/logged
+- `RAG_OBS grounding` → heuristic count of whether answer referenced retrieved docs
+
+Quick interpretation guide:
+
+- ✅ Good retrieval signal:
+  - `retrieval_summary totalRetrieved` is non-zero
+  - top chunks are clearly relevant to the query
+- ⚠️ Possible retrieval miss:
+  - irrelevant chunk titles/snippets in top ranks
+  - `totalRetrieved` is low on questions that should have rich context
+- ⚠️ Possible grounding issue:
+  - `grounding referencedRetrievedDocs=0` repeatedly on factual/site-specific questions
+  - answer preview looks generic while chunk snippets are specific
+
+Render log workflow:
+
+1. Trigger a test chat question.
+2. Copy the `trace` id from `RAG_OBS query`.
+3. Filter logs by that trace id.
+4. Inspect chunk ranking and score patterns.
+5. Compare final answer preview against retrieved snippets.
+
+Starter test prompts for manual verification:
+
+- "What does this website offer?"
+- "Tell me your pricing options."
+- "Who is this site for?"
+- One niche question with domain-specific terms from your content.
+
+These checks are enough to validate Step 1 before moving to dataset and CI harness work.
