@@ -158,7 +158,7 @@ Do not wrap the file in `[` `]`.
    - `pip install -r evals/requirements.txt`
 4. Set Anthropic judge key:
    - `ANTHROPIC_API_KEY`
-   - optional: `ANTHROPIC_MODEL` (default: `claude-3-5-haiku-latest`)
+   - optional: `ANTHROPIC_MODEL` (default: `claude-haiku-4-5-20251001`)
    - optional: `RAGAS_EMBEDDING_MODEL` (default: `sentence-transformers/all-MiniLM-L6-v2`)
    - optional safety: `unset OPENAI_API_KEY`
 5. Run:

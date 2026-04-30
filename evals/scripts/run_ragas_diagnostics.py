@@ -105,7 +105,7 @@ def run() -> int:
     dataset = Dataset.from_list(rows)
     llm = LangchainLLMWrapper(
         ChatAnthropic(
-            model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"),
+            model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
             temperature=0,
             max_tokens=512,
             anthropic_api_key=anthropic_key,
