@@ -55,6 +55,14 @@ Set these repository secrets to run CI evals:
 
 Workflow file: `.github/workflows/rag-evals.yml`
 
+CI defaults by trigger:
+
+- Pull requests: `EVAL_MAX_CASES=8` (cheap smoke gate)
+- Manual dispatch: `EVAL_MAX_CASES` from input (default `12`)
+- Nightly schedule: `EVAL_MAX_CASES=20`
+
+Each CI run uploads a `rag-eval-results` artifact with a JUnit XML report (`evals/results/junit.xml`).
+
 ## JSONL reminder
 
 Each line must be one valid JSON object.

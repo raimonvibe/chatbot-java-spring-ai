@@ -417,6 +417,49 @@ Requirements:
           <p className="mt-3 text-xs text-emerald-900">We will do our best to help quickly and kindly.</p>
         </section>
 
+        <section className="mt-6 rounded-2xl border border-brown-200 bg-white p-5 sm:p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-brown-900">Keep Your Secrets Safe (General Solution)</h2>
+          <p className="mt-2 text-sm leading-relaxed text-brown-700">
+            Never put your <code>embedCode</code> or <code>apiUrl</code> directly in source code files.
+          </p>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">Correct way</h3>
+          <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-brown-800">
+            <li>
+              Use environment variables:
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>
+                  <code>NEXT_PUBLIC_PRAYER_EMBED_CODE=your-embed-code-here</code>
+                </li>
+                <li>
+                  <code>NEXT_PUBLIC_CHAT_BASE_URL=https://chatbot-java-spring-ai.onrender.com</code>
+                </li>
+              </ul>
+            </li>
+            <li>Add them to <code>.env.local</code> (for local development) and in your hosting platform settings (for live site).</li>
+          </ol>
+
+          <h3 className="mt-4 text-sm font-semibold text-brown-900">Examples</h3>
+          <ul className="mt-2 space-y-1 text-sm text-brown-800">
+            <li>
+              <strong>Vercel:</strong> Project Settings {'->'} Environment Variables {'->'} Add both keys {'->'} Redeploy
+            </li>
+            <li>
+              <strong>Netlify:</strong> Site settings {'->'} Environment variables {'->'} Add both keys {'->'} Trigger deploy
+            </li>
+            <li>
+              <strong>Railway / Render / Cloudflare Pages:</strong> Add the variables in the dashboard variables section
+            </li>
+            <li>
+              <strong>GitHub + any host:</strong> Set them in hosting dashboard only (GitHub secrets are for Actions only)
+            </li>
+          </ul>
+
+          <p className="mt-3 text-sm leading-relaxed text-brown-700">
+            This keeps your secrets out of GitHub and safe.
+          </p>
+        </section>
+
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard"

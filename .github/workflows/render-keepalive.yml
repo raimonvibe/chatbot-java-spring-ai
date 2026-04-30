@@ -9,10 +9,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: render-keepalive
+  cancel-in-progress: true
+
 jobs:
   ping-render-health:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - name: Ping Render health endpoint
         env:
@@ -20,9 +24,20 @@ jobs:
         run: |
           set -euo pipefail
           echo "Pinging: ${HEALTH_URL}"
-          code="$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 20 "${HEALTH_URL}")"
+          code="$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 20 --retry 2 --retry-delay 2 --retry-connrefused "${HEALTH_URL}")"
           echo "HTTP ${code}"
-          cat /tmp/health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("/tmp/health.json")
+          try:
+              data = json.loads(p.read_text())
+              # Print compact JSON to keep Actions log readable.
+              print(json.dumps(data, separators=(",", ":")))
+          except Exception:
+              # Fallback if response is not JSON.
+              print(p.read_text()[:500])
+          PY
           echo
           if [ "${code}" -ne 200 ]; then
             echo "Health check failed with HTTP ${code}" >&2

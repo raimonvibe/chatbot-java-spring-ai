@@ -19,11 +19,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rag-evals-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deepeval-smoke:
     name: DeepEval Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -49,6 +53,19 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Compute eval limits for this trigger
+        if: steps.preflight.outputs.skip == 'false'
+        id: evalcfg
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "max_cases=20" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "max_cases=8" >> "$GITHUB_OUTPUT"
+          else
+            echo "max_cases=${{ github.event.inputs.max_cases || '12' }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "case_types=${{ github.event.inputs.case_types || 'factual,open-ended,safety' }}" >> "$GITHUB_OUTPUT"
+
       - name: Run DeepEval smoke suite
         if: steps.preflight.outputs.skip == 'false'
         env:
@@ -56,8 +73,18 @@ jobs:
           EVAL_EMBED_CODE: ${{ secrets.EVAL_EMBED_CODE }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          EVAL_CASE_TYPES: ${{ github.event.inputs.case_types || 'factual,open-ended,safety' }}
-          EVAL_MAX_CASES: ${{ github.event.inputs.max_cases || '12' }}
+          EVAL_CASE_TYPES: ${{ steps.evalcfg.outputs.case_types }}
+          EVAL_MAX_CASES: ${{ steps.evalcfg.outputs.max_cases }}
           EVAL_G_EVAL_THRESHOLD: "0.65"
           EVAL_REQUIRE_LLM_JUDGE: "false"
-        run: pytest -q evals/tests/test_deepeval_chatbot.py
+        run: |
+          mkdir -p evals/results
+          pytest -q --junitxml=evals/results/junit.xml evals/tests/test_deepeval_chatbot.py
+
+      - name: Upload eval results artifact
+        if: always() && steps.preflight.outputs.skip == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rag-eval-results
+          path: evals/results/
+          retention-days: 7
