@@ -11,12 +11,16 @@ from typing import Any
 import pandas as pd
 from datasets import Dataset
 from ragas import evaluate
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import (
     answer_relevancy,
     context_precision,
     context_recall,
     faithfulness,
 )
+from langchain_anthropic import ChatAnthropic
+from langchain_huggingface import HuggingFaceEmbeddings
 
 
 ROOT = Path("evals")
@@ -91,19 +95,33 @@ def _build_summary(metrics: dict[str, Any], row_count: int) -> str:
 
 
 def run() -> int:
-    if not (
-        os.getenv("OPENAI_API_KEY", "").strip() or os.getenv("ANTHROPIC_API_KEY", "").strip()
-    ):
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not anthropic_key:
         raise EnvironmentError(
-            "Missing judge model credentials. Set OPENAI_API_KEY or ANTHROPIC_API_KEY before running Ragas."
+            "Missing ANTHROPIC_API_KEY. This Step 4 runner is configured for Anthropic-only judging."
         )
 
     rows = _normalize_rows(_parse_jsonl(INPUT_PATH))
     dataset = Dataset.from_list(rows)
+    llm = LangchainLLMWrapper(
+        ChatAnthropic(
+            model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"),
+            temperature=0,
+            max_tokens=512,
+            anthropic_api_key=anthropic_key,
+        )
+    )
+    embeddings = LangchainEmbeddingsWrapper(
+        HuggingFaceEmbeddings(
+            model_name=os.getenv("RAGAS_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        )
+    )
 
     result = evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
+        llm=llm,
+        embeddings=embeddings,
     )
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

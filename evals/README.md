@@ -156,8 +156,11 @@ Do not wrap the file in `[` `]`.
 2. Fill each row using real retrieval traces (`RAG_OBS`) so `retrieved_contexts` are actual retrieved chunks.
 3. Install deps if needed:
    - `pip install -r evals/requirements.txt`
-4. Set judge key:
-   - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+4. Set Anthropic judge key:
+   - `ANTHROPIC_API_KEY`
+   - optional: `ANTHROPIC_MODEL` (default: `claude-3-5-haiku-latest`)
+   - optional: `RAGAS_EMBEDDING_MODEL` (default: `sentence-transformers/all-MiniLM-L6-v2`)
+   - optional safety: `unset OPENAI_API_KEY`
 5. Run:
    - `python3 evals/scripts/run_ragas_diagnostics.py`
 

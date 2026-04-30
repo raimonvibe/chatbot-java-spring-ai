@@ -4,3 +4,6 @@ requests
 ragas
 pandas
 datasets
+langchain-anthropic
+langchain-huggingface
+sentence-transformers
