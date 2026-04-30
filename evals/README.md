@@ -62,6 +62,45 @@ CI defaults by trigger:
 - Nightly schedule: `EVAL_MAX_CASES=20`
 
 Each CI run uploads a `rag-eval-results` artifact with a JUnit XML report (`evals/results/junit.xml`).
+It also includes a human-readable markdown report (`evals/results/summary.md`).
+
+## User-friendly guide: what we implemented today
+
+We completed:
+
+1. **Step 1 (observability)**: backend now logs RAG traces (`RAG_OBS ...`) on Render.
+2. **Step 2 (dataset)**: you have a 50-case eval dataset in `evals/datasets/dataset_v1.jsonl`.
+3. **Step 3 (automation)**: GitHub workflow runs DeepEval checks and uploads reports.
+
+### How to use it (quick path)
+
+1. Open GitHub repo -> **Actions**.
+2. Click **RAG Evals (Step 3)**.
+3. Click **Run workflow**.
+4. Optional inputs:
+   - `max_cases`: start with `8` or `12`
+   - `case_types`: keep `factual,open-ended,safety`
+5. Open the run -> `DeepEval Smoke` job to watch logs.
+6. Download artifact `rag-eval-results` and open:
+   - `summary.md` (easy report)
+   - `junit.xml` (structured test output)
+
+### How to monitor live retrieval quality
+
+1. Open Render backend logs.
+2. Search for `RAG_OBS`.
+3. Follow one `trace` id across:
+   - `RAG_OBS query`
+   - `RAG_OBS chunk`
+   - `RAG_OBS retrieval_summary`
+   - `RAG_OBS grounding`
+
+### If you see failures
+
+- `summary.md` shows which cases failed first.
+- If many factual failures happen, improve website content/retrieval relevance.
+- If safety failures happen, tighten prompt/policy behavior.
+- Re-run with smaller `max_cases` while iterating, then run larger batch.
 
 ## JSONL reminder
 

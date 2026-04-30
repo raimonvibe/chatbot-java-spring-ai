@@ -78,3 +78,7 @@ backend/data/*.txt
 # Bible embeddings are too large for GitHub (>100MB)
 backend/src/main/resources/data/bible/data/bible_embeddings.json
 **/bible_embeddings.json
+
+# Python eval artifacts
+**/__pycache__/
+evals/results/

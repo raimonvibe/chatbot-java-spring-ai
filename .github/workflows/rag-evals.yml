@@ -67,6 +67,7 @@ jobs:
           echo "case_types=${{ github.event.inputs.case_types || 'factual,open-ended,safety' }}" >> "$GITHUB_OUTPUT"
 
       - name: Run DeepEval smoke suite
+        id: deepeval
         if: steps.preflight.outputs.skip == 'false'
         env:
           EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
@@ -80,6 +81,10 @@ jobs:
         run: |
           mkdir -p evals/results
           pytest -q --junitxml=evals/results/junit.xml evals/tests/test_deepeval_chatbot.py
+
+      - name: Build markdown summary
+        if: always() && steps.preflight.outputs.skip == 'false'
+        run: python evals/scripts/build_eval_summary.py
 
       - name: Upload eval results artifact
         if: always() && steps.preflight.outputs.skip == 'false'
