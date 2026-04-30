@@ -133,6 +133,14 @@ Quick troubleshooting:
 - **Skipped run**: make sure GitHub secrets `EVAL_BASE_URL` and `EVAL_EMBED_CODE` are set.
 - **No judge scoring**: add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` if you want LLM-as-judge checks.
 
+Security + config hardening:
+
+- `EVAL_BASE_URL` must be root origin only (scheme + host), for example `https://chatbot-java-spring-ai.onrender.com`.
+- Do not include path suffixes like `/api`, `/api/chat`, query params, or trailing fragments in `EVAL_BASE_URL`.
+- Keep all eval secrets in GitHub Actions repository secrets only (never commit keys to git, never expose them in frontend env vars).
+- Verify backend route exists: `POST /api/chat/embed/{embedCode}`.
+- Use a real active embed code from your dashboard; stale/deleted bot codes return 404.
+
 ## JSONL reminder
 
 Each line must be one valid JSON object.

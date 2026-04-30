@@ -4,12 +4,19 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List
+from urllib.parse import urlparse
 
 import pytest
 import requests
 from deepeval import assert_test
 from deepeval.metrics import GEval
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.test_case import LLMTestCase
+
+try:
+    # Newer DeepEval API
+    from deepeval.test_case import SingleTurnParams as EvalParams
+except ImportError:  # pragma: no cover - compatibility with older versions
+    from deepeval.test_case import LLMTestCaseParams as EvalParams
 
 
 DATASET_PATH = Path(__file__).resolve().parents[1] / "datasets" / "dataset_v1.jsonl"
@@ -92,12 +99,26 @@ def _is_rejection_like(text: str) -> bool:
 
 def _call_embed_chat(base_url: str, embed_code: str, question: str) -> str:
     session_id = f"eval_{uuid.uuid4().hex[:12]}"
-    endpoint = f"{base_url.rstrip('/')}/api/chat/embed/{embed_code}"
+    parsed = urlparse(base_url.strip())
+    if not parsed.scheme or not parsed.netloc:
+        raise AssertionError(
+            f"Invalid EVAL_BASE_URL='{base_url}'. Use a root URL like https://your-app.onrender.com"
+        )
+
+    # Build from origin only so accidental '/api' suffixes don't produce wrong paths.
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    endpoint = f"{origin}/api/chat/embed/{embed_code}"
     response = requests.post(
         endpoint,
         json={"message": question, "sessionId": session_id, "language": "en"},
         timeout=DEFAULT_TIMEOUT_SECONDS,
     )
+    if response.status_code == 404:
+        raise AssertionError(
+            "Embed chat endpoint returned 404. "
+            f"Tried URL: {endpoint}. "
+            "Verify deployment exposes POST /api/chat/embed/{embedCode} and that EVAL_BASE_URL points to the app root."
+        )
     response.raise_for_status()
     payload = response.json()
     return str(payload.get("message", "")).strip()
@@ -113,7 +134,7 @@ def _build_metric(case: EvalCase) -> GEval:
     return GEval(
         name=f"quality_{case.case_type}",
         criteria=criteria,
-        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+        evaluation_params=[EvalParams.INPUT, EvalParams.ACTUAL_OUTPUT, EvalParams.EXPECTED_OUTPUT],
         threshold=float(os.getenv("EVAL_G_EVAL_THRESHOLD", "0.65")),
     )
 
