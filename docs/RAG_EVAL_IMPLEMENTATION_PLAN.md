@@ -367,3 +367,49 @@ Starter test prompts for manual verification:
 - One niche question with domain-specific terms from your content.
 
 These checks are enough to validate Step 1 before moving to dataset and CI harness work.
+
+---
+
+## 📌 Progress update (Apr 30, 2026)
+
+Current status after today’s implementation and validation:
+
+- ✅ **Step 1 complete**: retrieval observability is implemented (`RAG_OBS query/chunk/retrieval_summary/grounding`) and usable in Render logs.
+- ✅ **Step 2 complete**: dataset scaffolding exists and dataset v1 is present in `evals/datasets/`.
+- ✅ **Step 3 complete**: DeepEval smoke workflow is active in GitHub Actions with manual/PR runs and artifact output.
+- ✅ **Step 4 runner implemented**: Ragas diagnostics script, schema, templates, and documentation are in place.
+- ✅ **Step 4 first run succeeded locally**: outputs generated in `evals/results/` (`ragas_summary.md`, `ragas_metrics.json`, `ragas_metrics.csv`).
+- ✅ **Security hardening completed**:
+  - Anthropic-only Step 4 path enforced
+  - model default aligned with backend (`claude-haiku-4-5-20251001`)
+  - local eval outputs/dataset/venv added to `.gitignore`
+
+### 📊 Latest evaluation snapshot (first local Step 4 run)
+
+- Cases evaluated: `2`
+- Faithfulness: `1.00`
+- Answer relevancy: `0.3832`
+- Context precision: `0.50`
+- Context recall: `0.50`
+
+Interpretation:
+
+- Grounding is strong on current examples (high faithfulness).
+- Retrieval quality conclusions are **not stable yet** because sample size is too small.
+- One "unknown/not found" style case likely under-scored relevancy/precision/recall due to reference formatting.
+
+## ▶️ Next steps (priority order)
+
+1. Expand Step 4 dataset from `2` to at least `20-30` real cases from `RAG_OBS` traces.
+2. Normalize reference answers for "missing info" cases (concise expected answer, no rubric text inside `reference` field).
+3. Re-run Ragas and compare aggregate metrics against this baseline.
+4. Run two retriever experiments and compare with Ragas:
+   - baseline config (current)
+   - increased top-k and/or reranker enabled
+5. Promote stable thresholds for ongoing gate decisions once metrics are based on 20+ cases.
+
+**Definition of immediate success for next iteration:**
+
+- Ragas run with >= `20` cases
+- reproducible metrics report saved to `evals/results/`
+- one documented retriever tuning decision backed by metrics
