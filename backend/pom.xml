@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Stay on stable Spring Boot 3.x. 3.5.14+: CVE-2026-40972/40973/40975 (dev tooling / framework) -->
-        <version>3.5.14</version>
+        <version>4.0.6</version>
         <relativePath/>
     </parent>
 
