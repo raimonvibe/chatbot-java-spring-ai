@@ -156,11 +156,14 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
-        <!-- Spring AOP - Required by Spring Retry for @Retryable -->
+        <!-- AOP: use managed spring-aop + aspectjweaver (same as starter-aop / starter-aspectj) so Boot 3 and 4 both resolve; Boot 4 does not publish spring-boot-starter-aop. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-            <version>${project.parent.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
         </dependency>
 
         <!-- HTTP client for Cohere API -->
