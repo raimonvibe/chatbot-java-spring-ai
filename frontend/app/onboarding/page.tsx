@@ -172,7 +172,7 @@ export default function OnboardingPage() {
             Welcome to Prayer-Chat
           </h1>
           <p className="text-brown-700 text-base sm:text-lg text-pretty px-1">
-            Let&apos;s create your first AI chatbot in seconds
+            Enter your website URL below. We&apos;ll analyze it and create a biblical chatbot trained on your content.
           </p>
         </div>
 
