@@ -36,7 +36,7 @@ import { isGoogleUserContentProfilePictureUrl } from '@/lib/profile-picture-url'
 
 function AccountPageFallback() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-brown-900 via-brown-800 to-brown-900 flex items-center justify-center">
+    <main className="min-h-screen flex items-center justify-center text-brown-50">
       <div className="flex flex-col items-center gap-4 text-brown-100">
         <Loader2 className="w-10 h-10 animate-spin" />
         <p className="text-brown-200">Loading account…</p>
@@ -278,7 +278,7 @@ function AccountPageContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-brown-900 via-brown-800 to-brown-900 flex items-center justify-center">
+      <main className="min-h-screen flex items-center justify-center text-brown-50">
         <div className="flex flex-col items-center gap-4 text-brown-100">
           <Loader2 className="w-10 h-10 animate-spin" />
           <p className="text-brown-200">Loading account…</p>
@@ -288,8 +288,8 @@ function AccountPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-brown-900 via-brown-800 to-brown-900 text-brown-50">
-      <div className="max-w-2xl mx-auto px-4 py-10">
+    <main className="min-h-screen text-brown-50">
+      <div className="max-w-2xl mx-auto px-4 py-10 rounded-3xl bg-brown-950/25 backdrop-blur-[1px]">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
