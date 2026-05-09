@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import StructuredData from '../components/StructuredData';
 import Providers from '../components/Providers';
+import BackgroundBodyClass from '@/components/BackgroundBodyClass';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -67,6 +68,7 @@ export default function RootLayout({
         <StructuredData />
       </head>
       <body className={`${inter.className} flex min-h-screen flex-col antialiased`}>
+        <BackgroundBodyClass />
         <Providers>
           <Header />
           <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
