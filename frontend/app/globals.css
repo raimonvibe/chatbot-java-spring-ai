@@ -73,15 +73,15 @@ body.app-account-background {
   background-image:
     linear-gradient(
       135deg,
-      rgba(var(--background-start-rgb), 0.72) 0%,
-      rgba(var(--background-mid-rgb), 0.68) 50%,
-      rgba(var(--background-end-rgb), 0.74) 100%
+      rgba(var(--background-start-rgb), 0.28) 0%,
+      rgba(var(--background-mid-rgb), 0.24) 50%,
+      rgba(var(--background-end-rgb), 0.3) 100%
     ),
     url('/background-account.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
 }
 
 @layer utilities {
