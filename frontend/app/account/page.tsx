@@ -324,7 +324,7 @@ function AccountPageContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.05 }}
-          className="rounded-2xl bg-brown-900/90 border border-brown-700/90 shadow-2xl p-6 mb-6"
+          className="rounded-2xl bg-brown-900 border border-brown-700 shadow-2xl p-6 mb-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden bg-brown-700/80 flex items-center justify-center ring-2 ring-brown-600/80">
@@ -369,7 +369,7 @@ function AccountPageContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="rounded-2xl bg-brown-900/90 border border-brown-700/90 shadow-2xl p-6 mb-6"
+          className="rounded-2xl bg-brown-900 border border-brown-700 shadow-2xl p-6 mb-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-xl bg-brown-700/80">
@@ -439,7 +439,7 @@ function AccountPageContent() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.12 }}
-            className="rounded-2xl bg-brown-900/90 border border-brown-700/90 shadow-2xl p-6 mb-6"
+            className="rounded-2xl bg-brown-900 border border-brown-700 shadow-2xl p-6 mb-6"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-xl bg-brown-700/80">
@@ -586,7 +586,7 @@ function AccountPageContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.15 }}
-          className="rounded-2xl bg-brown-900/90 border border-brown-700/90 shadow-2xl p-6 mb-6"
+          className="rounded-2xl bg-brown-900 border border-brown-700 shadow-2xl p-6 mb-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-xl bg-brown-700/80">
@@ -612,7 +612,7 @@ function AccountPageContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="rounded-2xl bg-brown-900/90 border border-brown-700/90 shadow-2xl p-6"
+          className="rounded-2xl bg-brown-900 border border-brown-700 shadow-2xl p-6"
         >
           <h2 className="text-lg font-semibold text-brown-100 mb-3">Legal & support</h2>
           <ul className="space-y-2">
