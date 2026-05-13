@@ -1,8 +1,7 @@
 name: RAG Evals (Step 3)
 
+# Manual runs only — avoids hitting prod APIs on every Dependabot/PR update.
 on:
-  pull_request:
-    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       max_cases:
@@ -51,20 +50,12 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Compute eval limits for this trigger
+      - name: Compute eval limits from workflow inputs
         if: steps.preflight.outputs.skip == 'false'
         id: evalcfg
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "max_cases=8" >> "$GITHUB_OUTPUT"
-          else
-            echo "max_cases=${{ github.event.inputs.max_cases || '5' }}" >> "$GITHUB_OUTPUT"
-          fi
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "case_types=factual,safety" >> "$GITHUB_OUTPUT"
-          else
-            echo "case_types=${{ github.event.inputs.case_types || 'factual,safety' }}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "max_cases=${{ github.event.inputs.max_cases }}" >> "$GITHUB_OUTPUT"
+          echo "case_types=${{ github.event.inputs.case_types }}" >> "$GITHUB_OUTPUT"
 
       - name: Run DeepEval smoke suite
         id: deepeval
