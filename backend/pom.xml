@@ -35,9 +35,11 @@
         <!-- CVE-2026-42198 SCRAM PBKDF2 DoS; fixed in 42.7.11+ -->
         <postgresql.version>42.7.11</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
-        <netty.version>4.2.12.Final</netty.version>
-        <!-- Tomcat embedded: CVE-2026-34483, CVE-2026-34486, CVE-2026-34487 (Trivy HIGH on 10.1.53); fixed in 10.1.54 -->
-        <tomcat.version>10.1.54</tomcat.version>
+        <!-- CVE-2026-41417 HTTP request smuggling via setUri(); fixed in 4.2.13+ -->
+        <netty.version>4.2.13.Final</netty.version>
+        <!-- Tomcat embedded: CVE-2026-41293/41284/43512/42498/43513/43514/43515 (OWASP CVSS≥7 on 10.1.54); fixed in 10.1.55 -->
+        <tomcat.version>10.1.55</tomcat.version>
+        <!-- PDFBox 3.0.8 (CVE-2026-23907/33929 in ExtractEmbeddedFiles example) not on Maven Central yet; CVSS &lt; 7 via spring-ai-pdf-document-reader -->
         <!-- CVE-2025-27820 fix is in HttpClient 5.4.3+ -->
         <httpclient5.version>5.6.1</httpclient5.version>
         <!-- HttpClient 5.4.3 is built against HttpCore 5.3.4 -->
