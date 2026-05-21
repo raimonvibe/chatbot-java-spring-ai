@@ -3,6 +3,29 @@
 #prayer-chat-chatbot-widget {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     z-index: 9999;
+    color-scheme: light;
+    isolation: isolate;
+    color: #212529;
+}
+
+/* Host-page isolation (readable text when parent site uses global/light typography) */
+#prayer-chat-chatbot-widget #prayer-chat-chat-container,
+#prayer-chat-chatbot-widget #prayer-chat-messages,
+#prayer-chat-chatbot-widget .prayer-chat-input-area {
+    color: #212529 !important;
+}
+
+#prayer-chat-chatbot-widget #prayer-chat-message-input {
+    color: #212529 !important;
+    -webkit-text-fill-color: #212529 !important;
+    background-color: #ffffff !important;
+    border-color: #ced4da !important;
+}
+
+#prayer-chat-chatbot-widget .prayer-chat-bubble-bot,
+#prayer-chat-chatbot-widget .prayer-chat-typing-bubble {
+    color: #212529 !important;
+    background-color: #ffffff !important;
 }
 
 #prayer-chat-chat-container {
@@ -310,38 +333,7 @@
     background: #a8a8a8;
 }
 
-/* Dark Theme Support */
-@media (prefers-color-scheme: dark) {
-    #prayer-chat-chat-container {
-        background: #1a1a1a;
-        border-color: #333;
-    }
-    
-    #prayer-chat-messages {
-        background: #2a2a2a;
-    }
-    
-    .prayer-chat-message.bot .prayer-chat-message-bubble {
-        background: #333;
-        color: #fff;
-        border-color: #444;
-    }
-    
-    .prayer-chat-input-area {
-        background: #1a1a1a;
-        border-color: #333;
-    }
-    
-    #prayer-chat-message-input {
-        background: #333;
-        color: #fff;
-        border-color: #444;
-    }
-    
-    #prayer-chat-message-input:focus {
-        border-color: #667eea;
-    }
-}
+/* Embed widget always uses a light, readable palette (host dark-mode must not wash out text). */
 
 /* Custom Branding Variables */
 :root {

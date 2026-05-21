@@ -6,7 +6,7 @@
  * - Only adds window.PrayerChat; all other state is in closure.
  * - We never modify document.body or document.documentElement (preserves host dark mode, theme toggles, etc.).
  * - Scroll lock uses a transparent backdrop; backdrop has pointer-events: none so host controls (theme toggles, links, etc.) still work.
- * - Injected CSS is scoped to #prayer-chat-chatbot-widget so host styles are unaffected.
+ * - Injected CSS is scoped to #prayer-chat-chatbot-widget; host-isolation rules keep text/input readable on themed sites (e.g. light-on-light Tailwind).
  * - DOM queries are scoped to our container; we never modify host elements.
  * - Document click listener does not call preventDefault/stopPropagation so host events work as usual.
  * - We only append our widget to the placeholder or body; we do not remove or replace host content.
@@ -314,6 +314,7 @@
         addMessage('Hello! How can I help you today?', 'bot');
 
         updateWidgetStyling();
+        applyHostStyleIsolation();
         applySavedPanelHeight();
         setupResizeHandle();
     }
@@ -649,6 +650,7 @@
         `;
         
         const bubble = document.createElement('div');
+        bubble.className = type === 'user' ? 'prayer-chat-bubble-user' : 'prayer-chat-bubble-bot';
         bubble.style.cssText = `
             max-width: 80%;
             min-width: 0;
@@ -662,6 +664,7 @@
             }
         `;
         bubble.textContent = content;
+        applyBubbleHostIsolation(bubble, type);
         
         messageDiv.appendChild(bubble);
         messageContainer.appendChild(messageDiv);
@@ -687,7 +690,7 @@
             font-style: italic;
         `;
         typingDiv.innerHTML = `
-            <div style="background: white; padding: 10px 15px; border-radius: 18px; border: 1px solid #e0e0e0;">
+            <div class="prayer-chat-typing-bubble" style="background: white; padding: 10px 15px; border-radius: 18px; border: 1px solid #e0e0e0;">
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite;"></i>
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.2s;"></i>
                 <i class="fas fa-circle fa-xs" style="animation: prayer-chat-pulse 1s infinite 0.4s;"></i>
@@ -768,6 +771,7 @@
                 }
                 /* Always re-apply (host CSS cannot override; works when branding is missing or empty) */
                 updateWidgetStyling();
+                applyHostStyleIsolation();
             })
             .catch(error => {
                 console.error('Error loading chatbot config:', error);
@@ -825,6 +829,59 @@
         }
     }
     
+    /**
+     * Force readable colors on bot bubbles (host themes often set light text on all divs).
+     */
+    function applyBubbleHostIsolation(bubble, type) {
+        if (!bubble) return;
+        if (type === 'user') {
+            bubble.style.setProperty('color', '#ffffff', 'important');
+            return;
+        }
+        bubble.style.setProperty('color', '#212529', 'important');
+        bubble.style.setProperty('background-color', '#ffffff', 'important');
+        bubble.style.setProperty('border-color', '#dee2e6', 'important');
+    }
+
+    /**
+     * Beat host/global CSS inheritance (e.g. Tailwind text-beige-* on parent, input { color: ... }).
+     * Scoped to our widget root; header/send/toggle keep their own contrast rules.
+     */
+    function applyHostStyleIsolation() {
+        if (!widgetContainer) return;
+        widgetContainer.style.setProperty('color-scheme', 'light', 'important');
+
+        var chatPanel = widgetContainer.querySelector('#prayer-chat-chat-container');
+        if (chatPanel) {
+            chatPanel.style.setProperty('background-color', '#ffffff', 'important');
+            chatPanel.style.setProperty('color', '#212529', 'important');
+        }
+
+        if (messageContainer) {
+            messageContainer.style.setProperty('background-color', '#f8f9fa', 'important');
+            messageContainer.style.setProperty('color', '#212529', 'important');
+        }
+
+        var inputArea = widgetContainer.querySelector('.prayer-chat-input-area');
+        if (inputArea) {
+            inputArea.style.setProperty('background-color', '#ffffff', 'important');
+            inputArea.style.setProperty('color', '#212529', 'important');
+        }
+
+        if (inputField) {
+            inputField.style.setProperty('color', '#212529', 'important');
+            inputField.style.setProperty('-webkit-text-fill-color', '#212529', 'important');
+            inputField.style.setProperty('background-color', '#ffffff', 'important');
+            inputField.style.setProperty('border-color', '#ced4da', 'important');
+            inputField.style.setProperty('caret-color', '#212529', 'important');
+        }
+
+        var bubbles = widgetContainer.querySelectorAll('.prayer-chat-bubble-bot');
+        for (var i = 0; i < bubbles.length; i++) {
+            applyBubbleHostIsolation(bubbles[i], 'bot');
+        }
+    }
+
     /**
      * Update widget styling based on branding
      */
@@ -886,6 +943,8 @@
         if (config.fontFamily) {
             widgetContainer.style.fontFamily = config.fontFamily;
         }
+
+        applyHostStyleIsolation();
     }
     
     // Add CSS animations and mobile-responsive overrides
@@ -902,6 +961,56 @@
             display: none !important;
             visibility: hidden !important;
             pointer-events: none !important;
+        }
+        /*
+         * Host isolation: themed sites (Tailwind, global input/div rules) often inherit light text
+         * into the embed — fixes unreadable chat body + input without site-specific overrides.
+         */
+        #prayer-chat-chatbot-widget {
+            color-scheme: light !important;
+            isolation: isolate;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container {
+            background-color: #ffffff !important;
+            color: #212529 !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-messages {
+            background-color: #f8f9fa !important;
+            color: #212529 !important;
+        }
+        #prayer-chat-chatbot-widget .prayer-chat-input-area {
+            background-color: #ffffff !important;
+            color: #212529 !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-message-input {
+            color: #212529 !important;
+            -webkit-text-fill-color: #212529 !important;
+            background-color: #ffffff !important;
+            border: 1px solid #ced4da !important;
+            border-color: #ced4da !important;
+            caret-color: #212529 !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-message-input::placeholder {
+            color: #6c757d !important;
+            opacity: 1 !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill,
+        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill:hover,
+        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #212529 !important;
+            box-shadow: 0 0 0 1000px #ffffff inset !important;
+        }
+        #prayer-chat-chatbot-widget .prayer-chat-bubble-bot,
+        #prayer-chat-chatbot-widget .prayer-chat-typing-bubble {
+            color: #212529 !important;
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-typing {
+            color: #495057 !important;
+        }
+        #prayer-chat-chatbot-widget .prayer-chat-bubble-user {
+            color: #ffffff !important;
         }
         /* Host pages often style all buttons (e.g. Bootstrap) — keep our launcher/send on-brand */
         #prayer-chat-chatbot-widget button#prayer-chat-toggle-btn,

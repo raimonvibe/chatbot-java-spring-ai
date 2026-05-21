@@ -75,10 +75,11 @@ const TOPICS: Topic[] = [
   {
     id: 'input-style-broken',
     title: '3) Chat input text is light or hard to read',
-    summary: "Your website's global CSS is likely overriding widget styles.",
+    summary:
+      "Your website's global CSS (common on Tailwind/Vercel themes) can inherit light text into the embed. The widget script now forces readable colors automatically.",
     steps: [
-      'Add a scoped CSS override in globals.css for [id^="prayer-chat-chatbot"].',
-      'Reset only widget input styles so your site styles stay untouched.',
+      'Hard-refresh your site (or bust CDN cache) so the latest /js/chatbot-widget.js loads.',
+      'If it still happens, add a scoped override in globals.css for #prayer-chat-chatbot-widget (input + message area only).',
     ],
   },
   {
