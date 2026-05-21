@@ -58,6 +58,7 @@ jest.mock('@/lib/api', () => ({
   createPortalSession: (...args: unknown[]) => mockCreatePortalSession(...args),
   updateChatbot: (...args: unknown[]) => mockUpdateChatbot(...args),
   getSubscriptionStatusFromApi: (...args: unknown[]) => mockGetSubscriptionStatusFromApi(...args),
+  websiteScanFieldsFromSubscriptionApi: () => ({}),
   isApiError: (e: unknown): e is Error & { status?: number; upgradeRequired?: boolean } =>
     e instanceof Error && 'status' in e,
   getSafeErrorMessage: (e: unknown, fallback: string) =>
@@ -108,6 +109,20 @@ describe('Dashboard Page', () => {
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith('/login');
       });
+    });
+
+    it('should redirect to onboarding without empty-state flash when user has no chatbots', async () => {
+      mockGetAllChatbots.mockResolvedValueOnce([]);
+
+      render(<Dashboard />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/onboarding');
+      });
+
+      expect(mockPush).not.toHaveBeenCalledWith('/onboarding');
+      expect(screen.queryByRole('button', { name: /Create Your First Chatbot/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/Setting up your account/i)).toBeInTheDocument();
     });
 
     it('should stay signed in on network error when checkAuth still succeeds', async () => {

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
-import { checkAuth } from '@/lib/api';
+import { checkAuth, getAllChatbots, isApiError } from '@/lib/api';
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -19,7 +19,15 @@ function LoginContent() {
       const auth = await checkAuth();
       if (cancelled) return;
       if (auth.authenticated) {
-        router.replace('/dashboard');
+        try {
+          const chatbots = await getAllChatbots();
+          router.replace(chatbots.length > 0 ? '/dashboard' : '/onboarding');
+        } catch (listErr) {
+          if (isApiError(listErr) && listErr.status === 401) {
+            return;
+          }
+          router.replace('/dashboard');
+        }
       }
     };
     run();

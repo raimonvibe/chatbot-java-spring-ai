@@ -5,7 +5,24 @@
     z-index: 9999;
     color-scheme: light;
     isolation: isolate;
-    color: #212529;
+    background: transparent;
+    background-color: transparent;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+}
+
+#prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    background-image: none !important;
+}
+
+#prayer-chat-chatbot-widget #prayer-chat-toggle-btn i,
+#prayer-chat-chatbot-widget #prayer-chat-toggle-btn .fas {
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 /* Host-page isolation (readable text when parent site uses global/light typography) */

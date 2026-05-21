@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Book } from 'lucide-react';
-import { getApiBaseUrl } from '@/lib/api';
+import { getApiBaseUrl, getAllChatbots, isApiError } from '@/lib/api';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -89,12 +89,18 @@ function AuthCallbackContent() {
         // HttpOnly cookie may carry the session when the API omits token (production hardening).
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
-        }
-        if (data.user) {
-          setStatus('success');
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 1000);
+          // Route by chatbot count so new users skip dashboard empty-state flash (Option C).
+          try {
+            const chatbots = await getAllChatbots();
+            router.replace(chatbots.length > 0 ? '/dashboard' : '/onboarding');
+          } catch (listErr) {
+            if (isApiError(listErr) && listErr.status === 401) {
+              router.replace('/login?error=session_expired');
+              return;
+            }
+            console.warn('Post-login chatbot list failed; sending to onboarding:', listErr);
+            router.replace('/onboarding');
+          }
         } else {
           throw new Error('No session data received from server');
         }
@@ -150,18 +156,6 @@ function AuthCallbackContent() {
               </h2>
               <p className="text-brown-600">
                 Please wait while we complete your authentication...
-              </p>
-            </div>
-          )}
-
-          {status === 'success' && (
-            <div className="text-center">
-              <div className="text-green-600 text-5xl mb-4">✓</div>
-              <h2 className="text-2xl font-semibold text-brown-800 mb-2">
-                Login Successful!
-              </h2>
-              <p className="text-brown-600">
-                Redirecting to dashboard...
               </p>
             </div>
           )}

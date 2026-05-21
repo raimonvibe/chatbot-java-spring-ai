@@ -161,6 +161,9 @@
             max-width: calc(100vw - 24px);
             max-height: calc(100dvh - 24px);
             box-sizing: border-box;
+            background: transparent;
+            padding: 0;
+            border: none;
         `;
         
         // Create chat container (sized for desktop; overridden to bottom sheet on mobile via CSS)
@@ -301,6 +304,13 @@
         const placeholderById = document.getElementById(placeholderId);
         const placeholderByData = document.querySelector('[data-embed-code="' + config.embedCode + '"]');
         const mountPoint = placeholderById || placeholderByData || document.body;
+        if (mountPoint !== document.body) {
+            mountPoint.style.setProperty('background', 'transparent', 'important');
+            mountPoint.style.setProperty('background-color', 'transparent', 'important');
+            mountPoint.style.setProperty('padding', '0', 'important');
+            mountPoint.style.setProperty('border', 'none', 'important');
+            mountPoint.style.setProperty('box-shadow', 'none', 'important');
+        }
         mountPoint.appendChild(widgetContainer);
         
         // Get references to interactive elements (scoped to our widget so we never touch host DOM)
@@ -850,6 +860,11 @@
     function applyHostStyleIsolation() {
         if (!widgetContainer) return;
         widgetContainer.style.setProperty('color-scheme', 'light', 'important');
+        widgetContainer.style.setProperty('background', 'transparent', 'important');
+        widgetContainer.style.setProperty('background-color', 'transparent', 'important');
+        widgetContainer.style.setProperty('padding', '0', 'important');
+        widgetContainer.style.setProperty('border', 'none', 'important');
+        widgetContainer.style.setProperty('box-shadow', 'none', 'important');
 
         var chatPanel = widgetContainer.querySelector('#prayer-chat-chat-container');
         if (chatPanel) {
@@ -930,7 +945,22 @@
         if (toggleBtn) {
             toggleBtn.style.setProperty('background', primary, 'important');
             toggleBtn.style.setProperty('background-color', primary, 'important');
+            toggleBtn.style.setProperty('background-image', 'none', 'important');
             toggleBtn.style.setProperty('color', '#ffffff', 'important');
+            toggleBtn.style.setProperty('border', 'none', 'important');
+            toggleBtn.style.setProperty('border-radius', '50%', 'important');
+            toggleBtn.style.setProperty('overflow', 'hidden', 'important');
+            toggleBtn.style.setProperty('padding', '0', 'important');
+            toggleBtn.style.setProperty('width', '60px', 'important');
+            toggleBtn.style.setProperty('height', '60px', 'important');
+            toggleBtn.style.setProperty('min-width', '60px', 'important');
+            toggleBtn.style.setProperty('min-height', '60px', 'important');
+            var toggleIcons = toggleBtn.querySelectorAll('i, .fas, .fa');
+            for (var ti = 0; ti < toggleIcons.length; ti++) {
+                toggleIcons[ti].style.setProperty('color', '#ffffff', 'important');
+                toggleIcons[ti].style.setProperty('background', 'transparent', 'important');
+                toggleIcons[ti].style.setProperty('background-color', 'transparent', 'important');
+            }
         }
 
         const closeBtn = widgetContainer.querySelector('#prayer-chat-close-btn');
@@ -969,20 +999,32 @@
         #prayer-chat-chatbot-widget {
             color-scheme: light !important;
             isolation: isolate;
+            background: transparent !important;
+            background-color: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        #prayer-chat-chatbot-widget:not(.prayer-chat-panel-open) #prayer-chat-chat-container {
+            display: none !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
         }
         #prayer-chat-chatbot-widget #prayer-chat-chat-container {
             background-color: #ffffff !important;
             color: #212529 !important;
         }
-        #prayer-chat-chatbot-widget #prayer-chat-messages {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-messages {
             background-color: #f8f9fa !important;
             color: #212529 !important;
         }
-        #prayer-chat-chatbot-widget .prayer-chat-input-area {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container .prayer-chat-input-area {
             background-color: #ffffff !important;
             color: #212529 !important;
         }
-        #prayer-chat-chatbot-widget #prayer-chat-message-input {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input {
             color: #212529 !important;
             -webkit-text-fill-color: #212529 !important;
             background-color: #ffffff !important;
@@ -990,30 +1032,53 @@
             border-color: #ced4da !important;
             caret-color: #212529 !important;
         }
-        #prayer-chat-chatbot-widget #prayer-chat-message-input::placeholder {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input::placeholder {
             color: #6c757d !important;
             opacity: 1 !important;
         }
-        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill,
-        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill:hover,
-        #prayer-chat-chatbot-widget #prayer-chat-message-input:-webkit-autofill:focus {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input:-webkit-autofill,
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input:-webkit-autofill:hover,
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input:-webkit-autofill:focus {
             -webkit-text-fill-color: #212529 !important;
             box-shadow: 0 0 0 1000px #ffffff inset !important;
         }
-        #prayer-chat-chatbot-widget .prayer-chat-bubble-bot,
-        #prayer-chat-chatbot-widget .prayer-chat-typing-bubble {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container .prayer-chat-bubble-bot,
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container .prayer-chat-typing-bubble {
             color: #212529 !important;
             background-color: #ffffff !important;
             border-color: #dee2e6 !important;
         }
-        #prayer-chat-chatbot-widget #prayer-chat-typing {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-typing {
             color: #495057 !important;
         }
-        #prayer-chat-chatbot-widget .prayer-chat-bubble-user {
+        #prayer-chat-chatbot-widget #prayer-chat-chat-container .prayer-chat-bubble-user {
             color: #ffffff !important;
         }
-        /* Host pages often style all buttons (e.g. Bootstrap) — keep our launcher/send on-brand */
-        #prayer-chat-chatbot-widget button#prayer-chat-toggle-btn,
+        /* Floating launcher: circular FAB only — no white square from host button/div rules (desktop) */
+        #prayer-chat-chatbot-widget #prayer-chat-toggle-btn {
+            background-color: var(--prayer-chat-primary, #8B5E34) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 50% !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            width: 60px !important;
+            height: 60px !important;
+            min-width: 60px !important;
+            min-height: 60px !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+        }
+        #prayer-chat-chatbot-widget #prayer-chat-toggle-btn i,
+        #prayer-chat-chatbot-widget #prayer-chat-toggle-btn .fas,
+        #prayer-chat-chatbot-widget #prayer-chat-toggle-btn .fa {
+            color: #ffffff !important;
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+        /* Host pages often style all buttons (e.g. Bootstrap) — keep send on-brand */
         #prayer-chat-chatbot-widget button#prayer-chat-send-btn {
             background-color: var(--prayer-chat-primary, #8B5E34) !important;
             color: #fff !important;
@@ -1140,7 +1205,7 @@
                 box-sizing: border-box !important;
             }
             /* 16px input prevents iOS Safari auto-zoom on focus (Apple a11y threshold); avoids viewport "pop" */
-            #prayer-chat-chatbot-widget #prayer-chat-message-input {
+            #prayer-chat-chatbot-widget #prayer-chat-chat-container #prayer-chat-message-input {
                 font-size: max(16px, 1em) !important;
             }
             #prayer-chat-chatbot-widget #prayer-chat-chat-container {

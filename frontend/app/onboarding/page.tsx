@@ -55,7 +55,7 @@ export default function OnboardingPage() {
         try {
           const chatbots = await getAllChatbots();
           if (chatbots.length > 0) {
-            router.push('/dashboard');
+            router.replace('/dashboard');
             return;
           }
         } catch (loadErr: unknown) {

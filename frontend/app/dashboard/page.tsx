@@ -51,6 +51,8 @@ export default function Dashboard() {
   /** In-page delete confirmation (replaces window.confirm). */
   const [deleteConfirmChatbot, setDeleteConfirmChatbot] = useState<Chatbot | null>(null);
   const [deleteFlowError, setDeleteFlowError] = useState<string | null>(null);
+  /** True while sending users with zero chatbots to onboarding — avoids empty-state button flash. */
+  const [redirectingToOnboarding, setRedirectingToOnboarding] = useState(false);
 
   const offerPaymentUi = (status: SubscriptionStatus | null) =>
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
@@ -77,6 +79,15 @@ export default function Dashboard() {
       router.replace('/login');
     }
   }, [loading, authenticated, router]);
+
+  /** If client navigation stalls, retry onboarding so the user is not stuck on a spinner forever. */
+  useEffect(() => {
+    if (!redirectingToOnboarding) return;
+    const retry = setTimeout(() => {
+      router.replace('/onboarding');
+    }, 10_000);
+    return () => clearTimeout(retry);
+  }, [redirectingToOnboarding, router]);
 
   /** Fetch subscription from API for plan limits and embed access (canUseChatbot); UI styling differs in preview vs full access.
    *  Security: subscription is from authenticated API only; embed access is enforced by backend on GET /embed. */
@@ -112,10 +123,18 @@ export default function Dashboard() {
 
   const loadChatbots = async () => {
     setChatbotsLoadError(null);
+    let skipFinishLoading = false;
     try {
       const data = await getAllChatbots();
       setChatbots(data);
       setAuthenticated(true);
+
+      if (data.length === 0) {
+        skipFinishLoading = true;
+        setRedirectingToOnboarding(true);
+        router.replace('/onboarding');
+        return;
+      }
 
       // Refetch subscription from API so embed button styling matches access tier
       const api = await getSubscriptionStatusFromApi();
@@ -130,12 +149,6 @@ export default function Dashboard() {
         paymentActionsAvailable: api?.paymentActionsAvailable,
         ...websiteScanFieldsFromSubscriptionApi(api),
       });
-
-      // If user has no chatbots, redirect to onboarding
-      if (data.length === 0) {
-        router.push('/onboarding');
-        return;
-      }
     } catch (error: unknown) {
       console.error('Error loading chatbots:', error);
       const status = isApiError(error) ? error.status : undefined;
@@ -158,7 +171,9 @@ export default function Dashboard() {
         }
       }
     } finally {
-      setLoading(false);
+      if (!skipFinishLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -224,7 +239,8 @@ export default function Dashboard() {
       setDeleteFlowError(null);
       await loadSubscriptionStatus(remaining.length);
       if (remaining.length === 0) {
-        router.push('/onboarding');
+        setRedirectingToOnboarding(true);
+        router.replace('/onboarding');
       }
     } catch (err: unknown) {
       setDeleteFlowError(getUserFacingFetchError(err, 'Could not delete chatbot. Please try again.'));
@@ -348,7 +364,7 @@ export default function Dashboard() {
 
   const setNav = useSetDashboardNav();
   useEffect(() => {
-    if (!authenticated || loading) {
+    if (!authenticated || loading || redirectingToOnboarding) {
       setNav(null);
       return;
     }
@@ -368,6 +384,7 @@ export default function Dashboard() {
   }, [
     authenticated,
     loading,
+    redirectingToOnboarding,
     openSubscription,
     showCreateForm,
     chatbots.length,
@@ -379,11 +396,13 @@ export default function Dashboard() {
     setNav,
   ]);
 
-  if (loading) {
+  if (loading || redirectingToOnboarding) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <Book className="w-16 h-16 text-brown-600 animate-pulse mb-4" strokeWidth={1.5} />
-        <div className="text-xl text-brown-700">Loading your chatbots...</div>
+        <div className="text-xl text-brown-700">
+          {redirectingToOnboarding ? 'Setting up your account...' : 'Loading your chatbots...'}
+        </div>
       </div>
     );
   }
