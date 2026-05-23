@@ -7,11 +7,16 @@ import org.springframework.ai.anthropic.api.AnthropicApi;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.embedding.EmbeddingRequest;
+import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+
+import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -47,6 +52,12 @@ public class AiConfiguration {
 
     @Value("${app.embedding.model:embed-multilingual-v3.0}")
     private String embeddingModel;
+
+    @Value("${app.embedding.request-timeout-seconds:60}")
+    private int embedRequestTimeoutSeconds;
+
+    @Value("${app.embedding.max-text-chars:2048}")
+    private int embedMaxTextChars;
 
     /**
      * ChatModel bean - Spring AI will auto-configure this if spring.ai.anthropic.api-key is set.
@@ -116,7 +127,60 @@ public class AiConfiguration {
      */
     @Bean
     public EmbeddingModel embeddingModel() {
-        return new CohereEmbeddingModel(cohereApiKey, embeddingModel);
+        String apiKey = cohereApiKey != null && !cohereApiKey.trim().isEmpty()
+                ? cohereApiKey
+                : System.getenv("COHERE_API_KEY");
+
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            logger.error("COHERE_API_KEY is not set! Embeddings will not work.");
+            return unconfiguredEmbeddingModel();
+        }
+
+        int timeoutSeconds = clamp(embedRequestTimeoutSeconds,
+                CohereEmbeddingModel.MIN_REQUEST_TIMEOUT_SECONDS,
+                CohereEmbeddingModel.MAX_REQUEST_TIMEOUT_SECONDS);
+        int maxChars = clamp(embedMaxTextChars,
+                CohereEmbeddingModel.MIN_MAX_TEXT_CHARS,
+                CohereEmbeddingModel.MAX_MAX_TEXT_CHARS);
+
+        return new CohereEmbeddingModel(
+                apiKey,
+                embeddingModel,
+                Duration.ofSeconds(timeoutSeconds),
+                maxChars);
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static EmbeddingModel unconfiguredEmbeddingModel() {
+        return new EmbeddingModel() {
+            @Override
+            public EmbeddingResponse call(EmbeddingRequest request) {
+                throw notConfigured();
+            }
+
+            @Override
+            public float[] embed(Document document) {
+                throw notConfigured();
+            }
+
+            @Override
+            public float[] embed(String text) {
+                throw notConfigured();
+            }
+
+            @Override
+            public int dimensions() {
+                return 1024;
+            }
+
+            private IllegalStateException notConfigured() {
+                return new IllegalStateException(
+                        "EmbeddingModel not configured. Set COHERE_API_KEY in environment variables.");
+            }
+        };
     }
 
     /**

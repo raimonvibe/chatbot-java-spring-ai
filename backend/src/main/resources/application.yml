@@ -259,6 +259,10 @@ app:
     dimensions: 1024
     batch-size: 100
     cache-enabled: true
+    # Cohere embed API: bounded for security (DoS) and latency (~512 tokens per Cohere text)
+    # Timeout clamped 5–120s; max-text-chars clamped 256–4096 in AiConfiguration / CohereEmbeddingModel
+    request-timeout-seconds: ${COHERE_EMBED_TIMEOUT_SECONDS:60}
+    max-text-chars: ${COHERE_EMBED_MAX_TEXT_CHARS:2048}
 
   # Cloudflare Turnstile bot protection for the public embed widget chat endpoint.
   # When enabled, the widget must send a Turnstile token with chat requests.

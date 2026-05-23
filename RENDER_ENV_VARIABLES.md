@@ -24,6 +24,10 @@ JWT_REFRESH_EXPIRATION=604800000
 ```
 ANTHROPIC_API_KEY=<jouw-anthropic-api-key>
 COHERE_API_KEY=<jouw-cohere-api-key>
+# Optional: if Render logs show "HttpTimeoutException" from Cohere during indexing
+# (values are clamped server-side: timeout 5–120s, max-text-chars 256–4096)
+COHERE_EMBED_TIMEOUT_SECONDS=90
+COHERE_EMBED_MAX_TEXT_CHARS=2048
 ```
 
 ### 🔑 OAuth2 (Google Login)
