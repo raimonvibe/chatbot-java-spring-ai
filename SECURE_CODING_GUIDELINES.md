@@ -67,7 +67,7 @@
 
 ## 7. Dependencies & builds
 
-- **Backend:** Run OWASP Dependency Check when updating dependencies (`mvn dependency-check:check -Ddependency-check.skip=false`). Address high/critical before release. Use Dependabot and the repo’s dependency-check workflow.
+- **Backend:** Address high/critical dependency alerts before release. Use Dependabot, Trivy (CI), and CodeQL for vulnerability scanning.
 - **Frontend:** Keep `npm audit` clean; fix high/critical. Update dependencies regularly.
 - **Pin versions** in production (exact or narrow range); avoid floating tags for security-sensitive images or actions.
 
