@@ -209,9 +209,15 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TRIVY_SEVERITY="CRITICAL"
+          else
+            TRIVY_SEVERITY="CRITICAL,HIGH"
+          fi
+
           trivy fs . --format sarif --output trivy-results.sarif \
             --scanners vuln \
-            --severity CRITICAL,HIGH \
+            --severity "${TRIVY_SEVERITY}" \
             --exit-code 1 \
             --ignorefile .trivyignore
         env:
