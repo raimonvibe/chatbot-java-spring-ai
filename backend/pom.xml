@@ -26,7 +26,7 @@
         <!-- Align with log4j BOM used by Spring Boot: 2.25.4+ fixes CVE-2026-34478/34480/34481, CVE-2025-68161 (transitive log4j-api / bridges) -->
         <log4j2.version>2.25.4</log4j2.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
-        <logback.version>1.5.32</logback.version>
+        <logback.version>1.5.34</logback.version>
         <!-- Spring Security version managed by Spring Boot 3.3.13 (7.x requires Spring Framework 6.4+ / HttpMessageConverters$ClientBuilder) -->
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
