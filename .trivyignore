@@ -4,6 +4,12 @@
 # - Expired suppressions must be revalidated or removed before merge.
 # owner:<team-or-person>, exp:YYYY-MM-DD = re-review by this date.
 #
+# MCP Java SDK via spring-ai-client-chat transitively pulls mcp-core 0.18.2.
+# Upstream fix is mcp-core 1.0.0 (CVE-2026-35568), which requires a Spring AI upgrade path.
+# Temporary suppression while validating compatible Spring AI update.
+# owner:backend-security, exp:2026-07-15
+CVE-2026-35568 exp:2026-07-15
+#
 # Spring Security (#92, #93) - we use 6.3.x, CVE affects 6.4.0-6.4.5 only
 # owner:backend-security, exp:2026-06-01
 CVE-2025-41232 exp:2026-06-01
