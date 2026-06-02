@@ -185,6 +185,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Warm Maven dependency cache for Trivy
+        run: mvn -B -DskipTests dependency:go-offline
+        working-directory: ./backend
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-cache-${{ runner.os }}-${{ hashFiles('backend/pom.xml', 'frontend/package-lock.json') }}
+          restore-keys: |
+            trivy-cache-${{ runner.os }}-
+
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@v0.2.6
 
