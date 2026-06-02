@@ -360,7 +360,7 @@
             <dependency>
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
-                <version>10.9</version>
+                <version>10.9.1</version>
             </dependency>
             <!-- Security: CVE-2024-12798, CVE-2025-11226, malicious logback.xml, ACE config (Dependabot #11). Fixed in 1.5.25+ -->
             <dependency>
