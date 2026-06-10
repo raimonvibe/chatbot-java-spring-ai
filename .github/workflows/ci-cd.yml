@@ -205,7 +205,7 @@ jobs:
             trivy-cache-${{ runner.os }}-
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.3.0
+        uses: aquasecurity/setup-trivy@v0.3.1
 
       - name: Run Trivy vulnerability scanner
         run: |
