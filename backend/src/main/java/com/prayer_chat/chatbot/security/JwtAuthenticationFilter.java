@@ -148,6 +148,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             throw e;
                         }
                         
+                        // SECURITY: this filter sets authentication directly, bypassing Spring's
+                        // AuthenticationProvider account-status checks — enforce them here so a
+                        // disabled/locked/expired account can't keep using a still-valid JWT.
+                        if (userDetails != null && (!userDetails.isEnabled()
+                                || !userDetails.isAccountNonLocked()
+                                || !userDetails.isAccountNonExpired()
+                                || !userDetails.isCredentialsNonExpired())) {
+                            logger.warn("JWT presented for disabled/locked account: {} — rejecting authentication",
+                                LogSanitizer.sanitize(username));
+                            filterChain.doFilter(request, response);
+                            return;
+                        }
+
                         // Convert UserDetails (User entity) to CustomOAuth2User for controller compatibility
                         // Controllers expect @AuthenticationPrincipal CustomOAuth2User
                         if (userDetails instanceof User) {

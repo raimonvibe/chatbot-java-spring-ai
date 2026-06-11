@@ -107,7 +107,8 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('/login');
+        // Login redirect preserves the intended destination so users return after auth
+        expect(mockReplace).toHaveBeenCalledWith('/login?redirect=%2Fdashboard');
       });
     });
 

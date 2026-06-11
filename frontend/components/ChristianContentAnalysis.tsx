@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Book, Sparkles, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ClipLoader } from 'react-spinners';
 import { analyzeChristianContent, type ChristianContentAnalysis, type VerseMatch } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 interface ChristianContentAnalysisProps {
   chatbotId: number;
@@ -204,8 +205,10 @@ export default function ChristianContentAnalysisComponent({
 function VerseCard({ verse, rank }: { verse: VerseMatch; rank: number }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`${verse.reference} - ${verse.text}`);
+  const handleCopy = async () => {
+    // Fallback-aware copy: navigator.clipboard is unavailable on non-HTTPS/some iframes
+    const ok = await copyTextToClipboard(`${verse.reference} - ${verse.text}`);
+    if (!ok) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

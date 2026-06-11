@@ -7,6 +7,7 @@ import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
+import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.*;
@@ -59,6 +60,9 @@ class RateLimitingSecurityTest {
     private SubscriptionRepository subscriptionRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private BillingModeService billingModeService;
 
     @Mock
@@ -93,11 +97,14 @@ class RateLimitingSecurityTest {
             .thenAnswer(inv -> com.prayer_chat.chatbot.config.PlanLimits.monthlyScanQuota(inv.getArgument(0)));
 
         // Create real RateLimitingService for some tests
+        lenient().when(userRepository.findByIdWithLock(any())).thenReturn(Optional.of(testUser));
+
         realRateLimitingService = new RateLimitingService(
             messageRepository,
             websiteScanAuditRepository,
             accessControlService,
             subscriptionRepository,
+            userRepository,
             billingModeService
         );
     }
@@ -126,8 +133,7 @@ class RateLimitingSecurityTest {
     void shouldPreventScanLimitBypassUsingWebsiteScanAudit() {
         // Arrange: User has scanned today
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
-            eq(testUser.getId()), any(LocalDateTime.class))).thenReturn(1L); // At limit
+        when(websiteScanAuditRepository.countScansTodayByUserId(testUser.getId())).thenReturn(1L); // At limit
 
         // Act: Check scan limit
         RateLimitingService.RateLimitResult result = realRateLimitingService.checkScanLimit(testUser);
@@ -138,8 +144,7 @@ class RateLimitingSecurityTest {
         assertEquals(1, result.getLimit());
         
         // Verify: Uses WebsiteScanAudit (not WebsiteContent) to prevent bypass via deletion
-        verify(websiteScanAuditRepository).countScansByUserAndDateAfter(
-            eq(testUser.getId()), any(LocalDateTime.class));
+        verify(websiteScanAuditRepository).countScansTodayByUserId(testUser.getId());
     }
 
     @Test
@@ -166,22 +171,13 @@ class RateLimitingSecurityTest {
     @Test
     @DisplayName("Should handle null user ID gracefully")
     void shouldHandleNullUserId() {
-        // Arrange: User with null ID
         User nullIdUser = new User();
         nullIdUser.setId(null);
-        when(accessControlService.isPreviewMode(nullIdUser)).thenReturn(true);
-        when(messageRepository.countUserMessagesTodayByUserId(null)).thenReturn(0L);
 
-        // Act: Should handle null ID (may throw NPE or handle gracefully)
-        // Note: Repository will handle null ID based on implementation
-        try {
-            RateLimitingService.RateLimitResult result = realRateLimitingService.checkMessageLimit(nullIdUser);
-            // If no exception, verify result is valid
-            assertNotNull(result);
-        } catch (NullPointerException e) {
-            // Also acceptable - null ID should be caught earlier in validation
-            assertTrue(true);
-        }
+        RateLimitingService.RateLimitResult result = realRateLimitingService.checkMessageLimit(nullIdUser);
+
+        assertNotNull(result);
+        assertFalse(result.isAllowed());
     }
 
     @Test
@@ -246,8 +242,7 @@ class RateLimitingSecurityTest {
     void shouldHandleNullScanCountGracefully() {
         // Arrange: Repository returns null
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
-            anyLong(), any(LocalDateTime.class))).thenReturn(null);
+        when(websiteScanAuditRepository.countScansTodayByUserId(anyLong())).thenReturn(null);
 
         // Act
         RateLimitingService.RateLimitResult result = realRateLimitingService.checkScanLimit(testUser);
@@ -273,25 +268,21 @@ class RateLimitingSecurityTest {
     }
 
     @Test
-    @DisplayName("Should use correct time window for scan limits (24 hours)")
+    @DisplayName("Should use calendar-day window for daily scan limits")
     void shouldUseCorrectTimeWindowForScanLimits() {
         // Arrange
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
-        when(websiteScanAuditRepository.countScansByUserAndDateAfter(
-            eq(testUser.getId()), any(LocalDateTime.class))).thenReturn(0L);
+        when(websiteScanAuditRepository.countScansTodayByUserId(testUser.getId())).thenReturn(0L);
 
         // Act
         realRateLimitingService.checkScanLimit(testUser);
 
-        // Assert: Should use 24-hour window (oneDayAgo)
-        verify(websiteScanAuditRepository).countScansByUserAndDateAfter(
+        // Assert: daily limit uses the calendar-day query (consistent with daily message limit),
+        // and the monthly quota uses a window starting at the first of the current month.
+        verify(websiteScanAuditRepository).countScansTodayByUserId(testUser.getId());
+        verify(websiteScanAuditRepository).countScansByUserAndScanDateAfter(
             eq(testUser.getId()),
-            argThat(date -> {
-                LocalDateTime expected = LocalDateTime.now().minusDays(1);
-                // Allow 1 second tolerance for test execution time
-                return date.isAfter(expected.minusSeconds(1)) && 
-                       date.isBefore(expected.plusSeconds(1));
-            })
+            argThat(date -> date.equals(java.time.YearMonth.now().atDay(1).atStartOfDay()))
         );
     }
 

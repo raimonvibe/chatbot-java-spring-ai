@@ -122,6 +122,16 @@
             console.warn('PrayerChat: duplicate init skipped (embed already mounted or initializing)');
             return;
         }
+        // Widget state (config, DOM refs, session) lives in one shared closure. A second init
+        // with a DIFFERENT embed code would silently corrupt the first widget (messages routed
+        // to the wrong bot) — refuse it explicitly instead.
+        var alreadyActive = Object.keys(prayerChatEmbedInitTaken);
+        if (alreadyActive.length > 0) {
+            console.error('PrayerChat: a widget for another embed code is already active on this page. ' +
+                'Only one Prayer-Chat widget per page is supported; init for "' + ec + '" was ignored.');
+            showEmbedError('Only one Prayer-Chat widget per page is supported.');
+            return;
+        }
         if (document.querySelector('[data-prayer-chat-widget-for="' + ec + '"]')) {
             console.warn('PrayerChat: widget node already present for this embed — skipping duplicate init');
             prayerChatEmbedInitTaken[ec] = true;

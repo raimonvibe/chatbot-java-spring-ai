@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   User,
   Mail,
@@ -47,8 +47,10 @@ function AccountPageFallback() {
 
 function AccountPageContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [user, setUser] = useState<{ id: number; username: string; email?: string; authProvider?: string; picture?: string } | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatusApi | null | 'error'>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -89,10 +91,17 @@ function AccountPageContent() {
   useEffect(() => {
     const load = async () => {
       const auth = await checkAuth();
-      if (!auth.authenticated || !auth.user) {
-        router.replace('/login');
+      if (auth.networkError) {
+        // Backend unreachable: show an explicit error with retry instead of an empty account page.
+        setLoadError(true);
+        setLoading(false);
         return;
       }
+      if (!auth.authenticated || !auth.user) {
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+        return;
+      }
+      setLoadError(false);
       setUser(auth.user);
       try {
         const sub = await getSubscriptionStatusFromApi();
@@ -121,8 +130,10 @@ function AccountPageContent() {
     }
     if (!sessionId || payment !== 'success' || loading) return;
     setSyncError(null);
+    let cancelled = false;
     const run = async () => {
       const result = await syncSubscriptionFromCheckoutSession(sessionId);
+      if (cancelled) return;
       if (result.ok) {
         setSubscription(result.data);
         setSyncError(null);
@@ -131,29 +142,32 @@ function AccountPageContent() {
       }
       try {
         const sub = await getSubscriptionStatusFromApi();
-        setSubscription(sub ?? 'error');
+        if (!cancelled) setSubscription(sub ?? 'error');
       } catch {
         // keep current state
       }
     };
-    run();
+    void run();
     const t1 = setTimeout(async () => {
+      if (cancelled) return;
       try {
         const sub = await getSubscriptionStatusFromApi();
-        setSubscription(sub ?? 'error');
+        if (!cancelled) setSubscription(sub ?? 'error');
       } catch {
         // keep current state
       }
     }, 1500);
     const t2 = setTimeout(async () => {
+      if (cancelled) return;
       try {
         const sub = await getSubscriptionStatusFromApi();
-        setSubscription(sub ?? 'error');
+        if (!cancelled) setSubscription(sub ?? 'error');
       } catch {
         // keep current state
       }
     }, 5000);
     return () => {
+      cancelled = true;
       clearTimeout(t1);
       clearTimeout(t2);
     };
@@ -245,8 +259,10 @@ function AccountPageContent() {
     try {
       await logout();
       router.replace('/');
+      if (typeof window !== 'undefined') window.location.href = '/';
     } catch {
       router.replace('/');
+      if (typeof window !== 'undefined') window.location.href = '/';
     } finally {
       setLogoutLoading(false);
     }
@@ -282,6 +298,26 @@ function AccountPageContent() {
         <div className="flex flex-col items-center gap-4 text-brown-100">
           <Loader2 className="w-10 h-10 animate-spin" />
           <p className="text-brown-200">Loading account…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-brown-50">
+        <div className="flex flex-col items-center gap-4 text-brown-100 max-w-md text-center px-4">
+          <p className="text-lg font-semibold text-brown-100">Could not load your account</p>
+          <p className="text-brown-300">
+            We couldn&apos;t reach the server. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-2 px-5 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 text-brown-950 font-semibold transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </main>
     );

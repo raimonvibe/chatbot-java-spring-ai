@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ChristianContentAnalysisComponent from '../ChristianContentAnalysis';
 import * as api from '@/lib/api';
+import type { ChristianContentAnalysis, VerseMatch } from '@/lib/api';
 
 // Mock the API
 jest.mock('@/lib/api', () => ({
@@ -32,10 +33,13 @@ describe('ChristianContentAnalysis', () => {
   });
 
   it('should call analyzeChristianContent when button is clicked', async () => {
-    const mockAnalysis = {
-      totalVerses: 10,
-      matches: [],
-      summary: 'Test summary',
+    const mockAnalysis: ChristianContentAnalysis = {
+      chatbotId: 1,
+      websiteUrl: 'https://example.com',
+      relevantVerses: [],
+      averageSimilarity: 0,
+      totalVersesAnalyzed: 10,
+      versesAboveThreshold: 0,
     };
     mockAnalyzeChristianContent.mockResolvedValue(mockAnalysis);
 
@@ -84,16 +88,24 @@ describe('ChristianContentAnalysis', () => {
   });
 
   it('should display analysis results when successful', async () => {
-    const mockAnalysis = {
-      totalVerses: 5,
+    const verse: VerseMatch = {
+      id: 1,
+      reference: 'John 3:16',
+      book: 'John',
+      chapter: 3,
+      verse: 16,
+      text: 'For God so loved the world...',
+      translation: 'KJV',
+      similarity: 0.9,
+      similarityPercentage: 90,
+    };
+    const mockAnalysis: ChristianContentAnalysis = {
+      chatbotId: 1,
+      websiteUrl: 'https://example.com',
+      relevantVerses: [verse],
+      averageSimilarity: 0.9,
       totalVersesAnalyzed: 5,
-      matches: [
-        { verse: 'John 3:16', similarity: 0.9, context: 'Test context' },
-      ],
-      relevantVerses: [
-        { verse: 'John 3:16', similarity: 0.9, context: 'Test context' },
-      ],
-      summary: 'Found 1 matching verse',
+      versesAboveThreshold: 1,
     };
     mockAnalyzeChristianContent.mockResolvedValue(mockAnalysis);
 

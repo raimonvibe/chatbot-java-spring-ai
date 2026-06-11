@@ -34,8 +34,11 @@ public class WebhookService {
 
     public WebhookService(UrlValidationService urlValidationService) {
         this.urlValidationService = urlValidationService;
+        // SSRF protection: never follow redirects — the URL is validated once before sending,
+        // and a redirect could point the request at internal/metadata endpoints after validation.
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
         this.objectMapper = new ObjectMapper();
     }

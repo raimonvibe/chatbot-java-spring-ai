@@ -93,7 +93,14 @@ public class Subscription {
 
     // Helper methods
     public boolean isActive() {
-        return status == SubscriptionStatus.ACTIVE || status == SubscriptionStatus.TRIALING;
+        if (status == SubscriptionStatus.ACTIVE || status == SubscriptionStatus.TRIALING) {
+            return true;
+        }
+        // Grace period: a PAST_DUE subscription keeps its access until the grace window
+        // expires, instead of instantly dropping the user to free-tier limits.
+        return status == SubscriptionStatus.PAST_DUE
+            && gracePeriodEnd != null
+            && LocalDateTime.now().isBefore(gracePeriodEnd);
     }
 
     public boolean canUseChatbot() {

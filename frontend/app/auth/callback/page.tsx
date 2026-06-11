@@ -8,12 +8,26 @@ import { getApiBaseUrl, getAllChatbots, isApiError } from '@/lib/api';
 
 const API_BASE_URL = getApiBaseUrl();
 
+function safeRedirectPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
+  return raw;
+}
+
 function AuthCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hasProcessed = useRef(false);
+  // Track redirect timers so they don't fire after unmount (stale navigation)
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     // Prevent multiple executions (React Strict Mode, re-renders, etc.)
@@ -21,27 +35,30 @@ function AuthCallbackContent() {
       return;
     }
     hasProcessed.current = true;
+
+    const redirectAfterDelay = (path: string) => {
+      timersRef.current.push(setTimeout(() => {
+        router.push(path);
+      }, 3000));
+    };
+
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
     if (error) {
+      const message = errorDescription || error || 'Authentication failed';
       setStatus('error');
-      setErrorMessage(errorDescription || error || 'Authentication failed');
-      // Redirect to login page after 3 seconds
-      setTimeout(() => {
-        router.push(`/login?error=${encodeURIComponent(errorMessage || error)}`);
-      }, 3000);
+      setErrorMessage(message);
+      redirectAfterDelay(`/login?error=${encodeURIComponent(message)}`);
       return;
     }
 
     if (!code) {
       setStatus('error');
       setErrorMessage('No authorization code received');
-      setTimeout(() => {
-        router.push('/login?error=no_code');
-      }, 3000);
+      redirectAfterDelay('/login?error=no_code');
       return;
     }
 
@@ -89,6 +106,20 @@ function AuthCallbackContent() {
         // HttpOnly cookie may carry the session when the API omits token (production hardening).
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
+
+          // Honor the destination the user originally tried to reach (?redirect= on /login).
+          let storedRedirect: string | null = null;
+          try {
+            storedRedirect = safeRedirectPath(sessionStorage.getItem('postLoginRedirect'));
+            sessionStorage.removeItem('postLoginRedirect');
+          } catch {
+            // sessionStorage unavailable — fall through to default routing
+          }
+          if (storedRedirect) {
+            router.replace(storedRedirect);
+            return;
+          }
+
           // Route by chatbot count so new users skip dashboard empty-state flash (Option C).
           try {
             const chatbots = await getAllChatbots();
@@ -98,21 +129,18 @@ function AuthCallbackContent() {
               router.replace('/login?error=session_expired');
               return;
             }
-            console.warn('Post-login chatbot list failed; sending to onboarding:', listErr);
-            router.replace('/onboarding');
+            console.warn('Post-login chatbot list failed; sending to dashboard:', listErr);
+            router.replace('/dashboard');
           }
         } else {
           throw new Error('No session data received from server');
         }
       } catch (err) {
         console.error('OAuth callback error:', err);
+        const message = err instanceof Error ? err.message : 'Authentication failed';
         setStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Authentication failed');
-        
-        // Redirect to login page after 3 seconds
-        setTimeout(() => {
-          router.push(`/login?error=${encodeURIComponent(errorMessage || 'authentication_failed')}`);
-        }, 3000);
+        setErrorMessage(message);
+        redirectAfterDelay(`/login?error=${encodeURIComponent(message)}`);
       }
     };
 
@@ -121,9 +149,7 @@ function AuthCallbackContent() {
       if (!stateOk) {
         setStatus('error');
         setErrorMessage('Invalid login state. Please try signing in again.');
-        setTimeout(() => {
-          router.push('/login?error=invalid_oauth_state');
-        }, 3000);
+        redirectAfterDelay('/login?error=invalid_oauth_state');
         return;
       }
       await exchangeCode();

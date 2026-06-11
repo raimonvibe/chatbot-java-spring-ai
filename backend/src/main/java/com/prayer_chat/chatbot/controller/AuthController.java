@@ -208,7 +208,10 @@ public class AuthController {
      * Note: CORS is handled globally by SecurityConfig.corsConfigurationSource()
      * which reads from CORS_ALLOWED_ORIGINS environment variable.
      */
-    @PostMapping("/oauth2/callback")
+    // SECURITY: consumes=application/json is load-bearing CSRF protection — HTML forms cannot send
+    // JSON content type, and cross-origin fetch with JSON triggers a CORS preflight that is denied
+    // for untrusted origins. Do not relax this to accept form-encoded bodies.
+    @PostMapping(value = "/oauth2/callback", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> handleOAuth2Callback(
             @RequestBody Map<String, String> request,
             HttpServletRequest httpRequest,

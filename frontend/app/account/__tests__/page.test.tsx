@@ -38,6 +38,7 @@ beforeAll(() => {
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn(), pathname: '/account', prefetch: jest.fn() }),
+  usePathname: () => '/account',
   useSearchParams: () => ({
     get: jest.fn((_key: string) => null),
   }),
@@ -77,7 +78,8 @@ describe('Account Page', () => {
       render(<AccountPage />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('/login');
+        // Login redirect preserves the intended destination so users return after auth
+        expect(mockReplace).toHaveBeenCalledWith('/login?redirect=%2Faccount');
       });
     });
 

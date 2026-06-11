@@ -57,6 +57,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (userOptional.isPresent()) {
             // Existing user - update last login and profile image
             user = userOptional.get();
+            requireEnabled(user, email);
             user.setLastLogin(LocalDateTime.now());
             if (pictureUrl != null && !pictureUrl.isBlank()) {
                 user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
@@ -69,6 +70,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (existingEmailUser.isPresent()) {
                 // Link Google account to existing user
                 user = existingEmailUser.get();
+                requireEnabled(user, email);
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setLastLogin(LocalDateTime.now());
@@ -98,6 +100,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return new CustomOAuth2User(oAuth2User, user);
     }
 
+    /** SECURITY: a disabled account must not be able to sign back in via OAuth. */
+    private void requireEnabled(User user, String email) {
+        if (!user.isEnabled()) {
+            logger.warn("OAuth login rejected for disabled account: {}", LogSanitizer.sanitize(email));
+            throw new RuntimeException("Account is disabled");
+        }
+    }
+
     /**
      * Process OAuth2 user directly from OAuth2User attributes
      * Used by hybrid OAuth flow where we already have the user info
@@ -114,6 +124,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (userOptional.isPresent()) {
             // Existing user - update last login and profile image
             user = userOptional.get();
+            requireEnabled(user, email);
             user.setLastLogin(LocalDateTime.now());
             if (pictureUrl != null && !pictureUrl.isBlank()) {
                 user.setProfileImageUrl(pictureUrl.length() > 512 ? pictureUrl.substring(0, 512) : pictureUrl);
@@ -126,6 +137,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (existingEmailUser.isPresent()) {
                 // Link Google account to existing user
                 user = existingEmailUser.get();
+                requireEnabled(user, email);
                 user.setGoogleId(googleId);
                 user.setAuthProvider(User.AuthProvider.GOOGLE);
                 user.setLastLogin(LocalDateTime.now());

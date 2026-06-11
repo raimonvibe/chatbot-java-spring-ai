@@ -1,6 +1,9 @@
 package com.prayer_chat.chatbot.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.prayer_chat.chatbot.validation.SafeUrl;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -8,24 +11,63 @@ import java.util.List;
  * Partial update body for PUT/PATCH /api/chatbots/{id}. All fields optional: {@code null} means
  * "leave existing value unchanged" (unlike deserializing into {@link com.prayer_chat.chatbot.model.Chatbot},
  * where getters and field defaults make omission indistinguishable from false).
+ *
+ * <p>Validation mirrors {@link ChatbotRequest} (minus required-ness) so updates can't bypass
+ * the size/format constraints enforced at creation time.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatbotUpdatePayload {
 
+    @Size(min = 2, max = 100, message = "Chatbot name must be between 2 and 100 characters")
+    @Pattern(
+        regexp = "^[\\p{L}\\p{N}\\p{P}\\p{Z}\\s]*$",
+        message = "Chatbot name contains invalid characters"
+    )
     private String name;
+
+    @SafeUrl
+    @Size(max = 500, message = "Website URL must not exceed 500 characters")
     private String websiteUrl;
+
+    @Size(max = 1000, message = "Description must not exceed 1000 characters")
     private String description;
+
+    @Size(max = 10, message = "Primary language code must not exceed 10 characters")
+    @Pattern(
+        regexp = "^[a-z]{2}(-[A-Z]{2})?$",
+        message = "Invalid primary language code format"
+    )
     private String primaryLanguage;
-    private List<String> supportedLanguages;
+
+    @Size(max = 50, message = "Too many supported languages")
+    private List<@Size(max = 10, message = "Language code too long") String> supportedLanguages;
+
+    @Size(max = 2000, message = "Custom prompt must not exceed 2000 characters")
+    @Pattern(regexp = "^[^<>]*$", message = "Custom prompt contains invalid characters")
     private String customPrompt;
+
     private Boolean isActive;
+
+    @SafeUrl
+    @Size(max = 500, message = "Webhook URL must not exceed 500 characters")
     private String webhookUrl;
-    private List<String> webhookEvents;
+
+    @Size(max = 20, message = "Too many webhook events")
+    private List<@Size(max = 50, message = "Webhook event name too long") String> webhookEvents;
+
+    @Size(max = 5000, message = "Quick replies must not exceed 5000 characters")
     private String quickReplies;
+
+    @Size(max = 1000, message = "Bible verse must not exceed 1000 characters")
     private String bibleVerse;
+
     private Boolean christianMessagingEnabled;
     private Boolean jesusTeachingsEnabled;
+
+    @Size(max = 5000, message = "Branding config must not exceed 5000 characters")
     private String brandingConfig;
+
+    @Size(max = 100, message = "Avatar ID must not exceed 100 characters")
     private String avatarId;
 
     public String getName() {

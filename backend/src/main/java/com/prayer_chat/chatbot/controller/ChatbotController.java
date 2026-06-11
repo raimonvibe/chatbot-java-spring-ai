@@ -247,7 +247,8 @@ public class ChatbotController {
             // Simple search implementation (can be enhanced)
             List<Chatbot> results = chatbotRepository.findAll().stream()
                 .filter(chatbot -> isOwner(user, chatbot))
-                .filter(chatbot -> chatbot.getName().toLowerCase().contains(query.toLowerCase()) ||
+                .filter(chatbot -> chatbot.getName() != null &&
+                                   chatbot.getName().toLowerCase().contains(query.toLowerCase()) ||
                                    (chatbot.getDescription() != null &&
                                     chatbot.getDescription().toLowerCase().contains(query.toLowerCase())))
                 .toList();
@@ -335,6 +336,7 @@ public class ChatbotController {
      * Auto-generates name, pre-configures Christian values, and starts analysis
      */
     @PostMapping("/onboarding")
+    @Transactional
     public ResponseEntity<?> createChatbotFromUrl(@RequestBody Map<String, String> request,
                                                   @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
@@ -405,7 +407,7 @@ public class ChatbotController {
             java.math.BigDecimal estimatedCostOnboarding =
                 costTrackingService.calculateWebsiteScanCost(estimatedPagesOnboarding, estimatedTokensOnboarding);
             try {
-                costTrackingService.checkCostLimit(user, estimatedCostOnboarding);
+                costTrackingService.trackWebsiteScanCost(user, estimatedPagesOnboarding, estimatedTokensOnboarding);
             } catch (RuntimeException e) {
                 logger.warn("User {} attempted onboarding scan but cost limit would be exceeded: {}",
                     LogSanitizer.sanitize(user.getEmail()), e.getMessage());
@@ -488,7 +490,7 @@ public class ChatbotController {
         } catch (Exception e) {
             logger.error("Error creating chatbot via onboarding", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to create chatbot: " + e.getMessage()));
+                .body(Map.of("error", "Failed to create chatbot. Please try again."));
         }
     }
 
@@ -596,9 +598,12 @@ public class ChatbotController {
      */
     @RequestMapping(value = "/{id}", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<Chatbot> updateChatbot(@PathVariable Long id,
-                                                 @RequestBody ChatbotUpdatePayload patch,
+                                                 @Valid @RequestBody ChatbotUpdatePayload patch,
                                                  @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
@@ -617,7 +622,11 @@ public class ChatbotController {
                 chatbot.setName(patch.getName());
             }
             if (patch.getWebsiteUrl() != null) {
-                chatbot.setWebsiteUrl(patch.getWebsiteUrl());
+                String websiteUrl = patch.getWebsiteUrl().trim();
+                if (!websiteUrl.isEmpty() && !urlValidationService.isValidAndSafe(websiteUrl)) {
+                    return ResponseEntity.badRequest().build();
+                }
+                chatbot.setWebsiteUrl(websiteUrl.isEmpty() ? null : websiteUrl);
             }
             if (patch.getDescription() != null) {
                 chatbot.setDescription(patch.getDescription());
@@ -635,7 +644,11 @@ public class ChatbotController {
                 chatbot.setIsActive(patch.getIsActive());
             }
             if (patch.getWebhookUrl() != null) {
-                chatbot.setWebhookUrl(patch.getWebhookUrl());
+                String webhookUrl = patch.getWebhookUrl().trim();
+                if (!webhookUrl.isEmpty() && !urlValidationService.isValidAndSafe(webhookUrl)) {
+                    return ResponseEntity.badRequest().build();
+                }
+                chatbot.setWebhookUrl(webhookUrl.isEmpty() ? null : webhookUrl);
             }
             if (patch.getWebhookEvents() != null) {
                 chatbot.setWebhookEvents(patch.getWebhookEvents());
@@ -722,9 +735,13 @@ public class ChatbotController {
      * - Cost limit ($5/month for preview)
      */
     @PostMapping("/{id}/analyze")
+    @Transactional
     public ResponseEntity<Map<String, Object>> analyzeWebsite(@PathVariable Long id,
                                                               @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
@@ -769,11 +786,11 @@ public class ChatbotController {
                         estimatedPages, maxPagesForUser, suggested, suggestedMaxPages));
             }
 
-            // 3. Estimate cost and check plan cost limit (all plans have a monthly cap)
+            // 3. Track scan cost and enforce plan monthly cap (all plans have a monthly cap)
             int estimatedTokens = estimatedPages * 2000;
             java.math.BigDecimal estimatedCost = costTrackingService.calculateWebsiteScanCost(estimatedPages, estimatedTokens);
             try {
-                costTrackingService.checkCostLimit(user, estimatedCost);
+                costTrackingService.trackWebsiteScanCost(user, estimatedPages, estimatedTokens);
             } catch (RuntimeException e) {
                 logger.warn("User {} attempted to scan website but cost limit would be exceeded: {}", 
                     LogSanitizer.sanitize(user.getEmail()), e.getMessage());
@@ -1206,6 +1223,12 @@ public class ChatbotController {
             @RequestParam(required = false, defaultValue = "0.5") double similarityThreshold,
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            // Clamp client-supplied parameters (negative/huge values cause errors or excess cost)
+            maxVerses = Math.min(Math.max(1, maxVerses), 100);
+            similarityThreshold = Math.min(Math.max(0.0, similarityThreshold), 1.0);
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 
@@ -1269,6 +1292,11 @@ public class ChatbotController {
             @RequestParam(required = false, defaultValue = "5") int maxTeachings,
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            // Clamp client-supplied parameter (negative/huge values cause errors or excess cost)
+            maxTeachings = Math.min(Math.max(1, maxTeachings), 20);
             User user = currentUser.getUser();
             Optional<Chatbot> chatbotOpt = chatbotRepository.findById(id);
 

@@ -65,6 +65,14 @@ class JwtAuthenticationFilterTest {
         when(request.getRequestURI()).thenReturn("/api/test");
     }
 
+    /** The filter now enforces account-status flags; mock booleans default to false. */
+    private void stubEnabledAccount() {
+        when(userDetails.isEnabled()).thenReturn(true);
+        when(userDetails.isAccountNonLocked()).thenReturn(true);
+        when(userDetails.isAccountNonExpired()).thenReturn(true);
+        when(userDetails.isCredentialsNonExpired()).thenReturn(true);
+    }
+
     @Test
     @DisplayName("Should authenticate user with valid JWT token")
     void shouldAuthenticateUser_whenValidTokenProvided() throws ServletException, IOException {
@@ -73,6 +81,7 @@ class JwtAuthenticationFilterTest {
         when(jwtTokenProvider.validateToken(VALID_TOKEN)).thenReturn(true);
         when(jwtTokenProvider.getUsernameFromToken(VALID_TOKEN)).thenReturn(TEST_USERNAME);
         when(userDetailsService.loadUserByUsername(TEST_USERNAME)).thenReturn(userDetails);
+        stubEnabledAccount();
         when(userDetails.getAuthorities()).thenReturn(Collections.emptyList());
 
         // Act
@@ -191,6 +200,7 @@ class JwtAuthenticationFilterTest {
         when(jwtTokenProvider.validateToken(VALID_TOKEN)).thenReturn(true);
         when(jwtTokenProvider.getUsernameFromToken(VALID_TOKEN)).thenReturn(TEST_USERNAME);
         when(userDetailsService.loadUserByUsername(TEST_USERNAME)).thenReturn(userDetails);
+        stubEnabledAccount();
         when(userDetails.getAuthorities()).thenReturn(Collections.emptyList());
 
         // Act
@@ -260,6 +270,7 @@ class JwtAuthenticationFilterTest {
         when(jwtTokenProvider.validateToken(VALID_TOKEN)).thenReturn(true);
         when(jwtTokenProvider.getUsernameFromToken(VALID_TOKEN)).thenReturn(TEST_USERNAME);
         when(userDetailsService.loadUserByUsername(TEST_USERNAME)).thenReturn(userDetails);
+        stubEnabledAccount();
         when(userDetails.getAuthorities()).thenReturn(Collections.emptyList());
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");
 
@@ -270,6 +281,26 @@ class JwtAuthenticationFilterTest {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         assertThat(authentication).isNotNull();
         assertThat(authentication.getDetails()).isNotNull();
+
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Should not authenticate when account is disabled, even with a valid JWT")
+    void shouldNotAuthenticate_whenAccountIsDisabled() throws ServletException, IOException {
+        // Arrange
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
+        when(jwtTokenProvider.validateToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken(VALID_TOKEN)).thenReturn(TEST_USERNAME);
+        when(userDetailsService.loadUserByUsername(TEST_USERNAME)).thenReturn(userDetails);
+        when(userDetails.isEnabled()).thenReturn(false);
+
+        // Act
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNull();
 
         verify(filterChain).doFilter(request, response);
     }

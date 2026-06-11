@@ -260,7 +260,7 @@ export async function analyzeChristianContent(
 }
 
 // Check if user is authenticated (server-validated; only trust this for UI state)
-export async function checkAuth(): Promise<{ authenticated: boolean; user?: any }> {
+export async function checkAuth(): Promise<{ authenticated: boolean; user?: any; networkError?: boolean }> {
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
@@ -273,9 +273,14 @@ export async function checkAuth(): Promise<{ authenticated: boolean; user?: any 
       const user = await response.json();
       return { authenticated: true, user };
     }
-    return { authenticated: false };
-  } catch (error) {
-    return { authenticated: false };
+    // Only 401/403 mean "not logged in" — a 5xx during a backend blip must not
+    // be treated as logged-out (would bounce an authenticated user to /login).
+    if (response.status === 401 || response.status === 403) {
+      return { authenticated: false };
+    }
+    return { authenticated: false, networkError: true };
+  } catch {
+    return { authenticated: false, networkError: true };
   }
 }
 
@@ -324,7 +329,9 @@ export async function getChatbot(chatbotId: number): Promise<Chatbot> {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch chatbot');
+    const err = new Error('Failed to fetch chatbot') as ApiError;
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();

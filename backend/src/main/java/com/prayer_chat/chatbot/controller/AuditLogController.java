@@ -33,6 +33,9 @@ public class AuditLogController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditLogController.class);
 
+    /** Max page size — prevents a single request from materializing huge result sets. */
+    private static final int MAX_PAGE_SIZE = 200;
+
     @Autowired
     private AuditService auditService;
 
@@ -40,18 +43,59 @@ public class AuditLogController {
     private AuditExportService auditExportService;
 
     /**
+     * API response shape for audit logs. Never expose the raw entity: it carries a lazy
+     * {@code User} association (serialization would leak account fields or fail on lazy init).
+     */
+    public record AuditLogResponse(
+        Long id,
+        String eventType,
+        String severity,
+        String action,
+        String description,
+        String resourceType,
+        String resourceId,
+        String ipAddress,
+        String userAgent,
+        LocalDateTime createdAt
+    ) {
+        static AuditLogResponse from(AuditLog log) {
+            return new AuditLogResponse(
+                log.getId(),
+                log.getEventType() != null ? log.getEventType().name() : null,
+                log.getSeverity() != null ? log.getSeverity().name() : null,
+                log.getAction(),
+                log.getDescription(),
+                log.getResourceType(),
+                log.getResourceId(),
+                log.getIpAddress(),
+                log.getUserAgent(),
+                log.getCreatedAt()
+            );
+        }
+    }
+
+    private static Pageable clampedPage(int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(Math.max(1, size), MAX_PAGE_SIZE);
+        return PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
+    }
+
+    /**
      * Get user's audit logs with pagination
      */
     @GetMapping
-    public ResponseEntity<Page<AuditLog>> getAuditLogs(
+    public ResponseEntity<Page<AuditLogResponse>> getAuditLogs(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         User user = currentUser.getUser();
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = clampedPage(page, size);
 
         Page<AuditLog> logs;
         if (startDate != null && endDate != null) {
@@ -73,7 +117,7 @@ public class AuditLogController {
             null
         );
 
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(logs.map(AuditLogResponse::from));
     }
 
     /**
@@ -85,6 +129,9 @@ public class AuditLogController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         User user = currentUser.getUser();
 
         try {
@@ -127,6 +174,9 @@ public class AuditLogController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         User user = currentUser.getUser();
 
         try {
@@ -164,20 +214,23 @@ public class AuditLogController {
      * Get security events (for admin/monitoring)
      */
     @GetMapping("/security-events")
-    public ResponseEntity<Page<AuditLog>> getSecurityEvents(
+    public ResponseEntity<Page<AuditLogResponse>> getSecurityEvents(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         User user = currentUser.getUser();
 
         // Only allow users to see their own security events (admins could see all, but that's a future enhancement)
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = clampedPage(page, size);
         Page<AuditLog> logs = auditService.getUserAuditLogs(user.getId(), pageable);
 
         logger.info("Retrieved security events for user: {}",
             LogSanitizer.sanitize(user.getEmail()));
 
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(logs.map(AuditLogResponse::from));
     }
 }

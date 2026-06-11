@@ -239,6 +239,16 @@
                 <artifactId>bucket4j-core</artifactId>
                 <version>8.10.1</version>
             </dependency>
+            <!-- Distributed rate limiting: shared bucket state in Redis so limits hold across instances -->
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j-redis</artifactId>
+                <version>8.10.1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.lettuce</groupId>
+                <artifactId>lettuce-core</artifactId>
+            </dependency>
 
         <!-- Testing -->
         <dependency>

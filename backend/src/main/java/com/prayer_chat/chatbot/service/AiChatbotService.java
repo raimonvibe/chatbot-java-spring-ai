@@ -22,6 +22,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,10 @@ public class AiChatbotService {
     
     private static final Logger logger = LoggerFactory.getLogger(AiChatbotService.class);
     private static final String RELATED_SCRIPTURE_PREFIX = "Related Scripture:";
+    /** Per-document cap for RAG context (matches the DB-snapshot truncation used elsewhere). */
+    private static final int RAG_DOC_MAX_CHARS = 3500;
+    /** Total cap for the retrieved-content block in the system prompt. */
+    private static final int RAG_CONTEXT_MAX_CHARS = 24_000;
     private static final int VERSE_CADENCE_RESPONSES = 3;
     private static final int VERSE_COOLDOWN_RECENT_AI_MESSAGES = 2;
     private static final int VERSE_EXCERPT_MAX_CHARS = 180;
@@ -120,8 +125,16 @@ public class AiChatbotService {
     }
 
     /**
-     * Process a user message and generate a response
+     * Process a user message and generate a response.
+     *
+     * <p>Runs WITHOUT a wrapping transaction (overriding the class-level @Transactional):
+     * the LLM call can take seconds and must not hold a DB connection for its duration
+     * (pool exhaustion under load). Each repository operation commits in its own short
+     * transaction, which also means messages are committed before webhooks fire — no
+     * phantom webhook events for rolled-back messages. The flow touches no lazy
+     * associations, so detached entities are safe here.
      */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public ChatResponse processMessage(Long chatbotId, String userMessage, String sessionId, 
                                      String userLanguage, String userIp, String userAgent) {
         
@@ -200,10 +213,13 @@ public class AiChatbotService {
             conversation.setUserLanguage(userLanguage != null ? userLanguage : defaultLanguage);
             conversation.setUserIp(userIp);
             conversation.setUserAgent(userAgent);
-            conversation = conversationRepository.save(conversation);
-
-            // NEW FEATURE: Send webhook event for new conversation
-            webhookService.sendNewConversationEvent(chatbot, conversation);
+            try {
+                conversation = conversationRepository.save(conversation);
+                webhookService.sendNewConversationEvent(chatbot, conversation);
+            } catch (DataIntegrityViolationException ex) {
+                conversation = conversationRepository.findByChatbotAndSessionId(chatbot, sessionId)
+                    .orElseThrow(() -> ex);
+            }
         }
 
         return conversation;
@@ -224,8 +240,8 @@ public class AiChatbotService {
         // Build conversation history
         List<com.prayer_chat.chatbot.model.Message> recentMessages = getRecentMessages(conversation);
 
-        // Check if this is the first message (for Christian greeting)
-        boolean isFirstMessage = recentMessages.isEmpty();
+        // First turn: user message was saved before this call; no assistant replies exist yet.
+        boolean isFirstMessage = recentMessages.stream().noneMatch(m -> !Boolean.TRUE.equals(m.getIsUserMessage()));
 
         // Find relevant Bible verse if Christian messaging is enabled
         BibleVerse relevantVerse = null;
@@ -255,8 +271,18 @@ public class AiChatbotService {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(systemPrompt));
 
+        // The current user message was already saved before this call, so it is the last
+        // entry of recentMessages — exclude it from history to avoid sending it twice.
+        List<com.prayer_chat.chatbot.model.Message> history = new ArrayList<>(recentMessages);
+        if (!history.isEmpty()) {
+            com.prayer_chat.chatbot.model.Message last = history.get(history.size() - 1);
+            if (Boolean.TRUE.equals(last.getIsUserMessage()) && Objects.equals(last.getContent(), userMessage)) {
+                history.remove(history.size() - 1);
+            }
+        }
+
         // Add conversation history
-        for (com.prayer_chat.chatbot.model.Message msg : recentMessages) {
+        for (com.prayer_chat.chatbot.model.Message msg : history) {
             if (msg.getIsUserMessage()) {
                 messages.add(new UserMessage(msg.getContent()));
             } else {
@@ -837,8 +863,23 @@ public class AiChatbotService {
             int totalContentChars = 0;
             for (Document doc : relevantDocs) {
                 String text = doc.getText();
-                if (text != null) totalContentChars += text.length();
-                prompt.append(text != null ? text : "").append("\n\n");
+                if (text == null || text.isEmpty()) {
+                    continue;
+                }
+                // Vector-store documents hold full crawled pages — cap per-doc and total size
+                // so a huge page can't blow the prompt up to megabytes (cost/OOM/API rejection).
+                if (text.length() > RAG_DOC_MAX_CHARS) {
+                    text = text.substring(0, RAG_DOC_MAX_CHARS);
+                }
+                if (totalContentChars + text.length() > RAG_CONTEXT_MAX_CHARS) {
+                    int remaining = RAG_CONTEXT_MAX_CHARS - totalContentChars;
+                    if (remaining <= 0) {
+                        break;
+                    }
+                    text = text.substring(0, remaining);
+                }
+                totalContentChars += text.length();
+                prompt.append(text).append("\n\n");
             }
             prompt.append("--- End of retrieved website content ---\n");
             prompt.append("The block above is only for site/business-specific facts; you may still discuss the wider world, faith, vocabulary, and common knowledge as instructed above.\n");

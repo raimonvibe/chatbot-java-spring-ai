@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Book, Sparkles } from 'lucide-react';
 import {
   createChatbotFromUrl,
@@ -19,6 +19,7 @@ import PaywallModal from '@/components/PaywallModal';
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -36,13 +37,18 @@ export default function OnboardingPage() {
   // This must be before early returns to maintain hook order
   useEffect(() => {
     if (!loading && !authenticated) {
-      router.replace('/login');
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [loading, authenticated, router]);
+  }, [loading, authenticated, router, pathname]);
 
   const checkAuthAndChatbots = async () => {
     try {
       const authResult = await checkAuth();
+      if (authResult.networkError) {
+        setAuthenticated(true);
+        setLoading(false);
+        return;
+      }
       setAuthenticated(authResult.authenticated);
       
       if (authResult.authenticated) {
@@ -82,6 +88,7 @@ export default function OnboardingPage() {
   };
 
   const handleCreateFromUrl = async (canonicalUrl: string) => {
+    if (creating) return; // guard against double submit (duplicate chatbot + double scan cost)
     setError('');
     setCreating(true);
 

@@ -6,11 +6,31 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { checkAuth, getAllChatbots, isApiError } from '@/lib/api';
 
+function safeRedirectPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
+  return raw;
+}
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const message = searchParams.get('message');
+  const redirectParam = searchParams.get('redirect');
   const router = useRouter();
+
+  const resolvePostLoginPath = async (): Promise<string> => {
+    const redirect = safeRedirectPath(redirectParam);
+    if (redirect) return redirect;
+    try {
+      const chatbots = await getAllChatbots();
+      return chatbots.length > 0 ? '/dashboard' : '/onboarding';
+    } catch (listErr) {
+      if (isApiError(listErr) && listErr.status === 401) {
+        return '/login';
+      }
+      return '/dashboard';
+    }
+  };
 
   // Redirect only when server validates JWT (checkAuth calls /api/auth/me with Bearer token)
   useEffect(() => {
@@ -18,21 +38,17 @@ function LoginContent() {
     const run = async () => {
       const auth = await checkAuth();
       if (cancelled) return;
+      if (auth.networkError) return;
       if (auth.authenticated) {
-        try {
-          const chatbots = await getAllChatbots();
-          router.replace(chatbots.length > 0 ? '/dashboard' : '/onboarding');
-        } catch (listErr) {
-          if (isApiError(listErr) && listErr.status === 401) {
-            return;
-          }
-          router.replace('/dashboard');
+        const path = await resolvePostLoginPath();
+        if (!cancelled && path !== '/login') {
+          router.replace(path);
         }
       }
     };
     run();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, redirectParam]);
 
   const handleGoogleLogin = async () => {
     // Hybrid OAuth flow: Frontend directly initiates OAuth with Google
@@ -43,6 +59,19 @@ function LoginContent() {
       console.error('NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set');
       alert('OAuth configuration error. Please contact support.');
       return;
+    }
+
+    // Preserve the intended destination across the Google round-trip; the callback page
+    // honors this instead of always landing on the dashboard.
+    try {
+      const redirect = safeRedirectPath(redirectParam);
+      if (redirect) {
+        sessionStorage.setItem('postLoginRedirect', redirect);
+      } else {
+        sessionStorage.removeItem('postLoginRedirect');
+      }
+    } catch {
+      // sessionStorage unavailable (private mode edge cases) — non-fatal
     }
 
     let state: string;

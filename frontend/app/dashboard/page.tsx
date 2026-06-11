@@ -76,7 +76,7 @@ export default function Dashboard() {
   // This must be before early returns to maintain hook order
   useEffect(() => {
     if (!loading && !authenticated) {
-      router.replace('/login');
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [loading, authenticated, router]);
 
@@ -158,7 +158,12 @@ export default function Dashboard() {
         // 403, 402, 5xx, network: do not force logout — scan limits and transient errors are not auth failures
         try {
           const authResult = await checkAuth();
-          if (!authResult.authenticated) {
+          if (authResult.networkError) {
+            setAuthenticated(true);
+            setChatbotsLoadError(
+              getUserFacingFetchError(error, 'Could not load your chatbots. Please try again.')
+            );
+          } else if (!authResult.authenticated) {
             setAuthenticated(false);
           } else {
             setAuthenticated(true);
@@ -271,6 +276,7 @@ export default function Dashboard() {
   }, [deleteConfirmChatbot]);
 
   const handleCreateFromUrl = async (canonicalUrl: string) => {
+    if (creating) return; // guard against double submit (duplicate chatbot + double scan cost)
     setCreateFormError('');
     setCreating(true);
 
@@ -794,6 +800,11 @@ export default function Dashboard() {
                             jesusTeachingsEnabled: !chatbot.jesusTeachingsEnabled,
                           });
                           setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                        } catch (err) {
+                          logClientIssue('dashboard.jesusToggle', err);
+                          setChatbotsLoadError(
+                            getUserFacingFetchError(err, 'Could not update Jesus teachings setting. Please try again.')
+                          );
                         } finally {
                           setJesusTogglingId(null);
                         }

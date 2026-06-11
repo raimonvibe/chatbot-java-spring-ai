@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.Optional;
 
 /**
@@ -55,17 +56,23 @@ public class CostTrackingService {
     }
     
     /**
-     * Reset monthly cost counter if needed (when new month starts)
+     * Reset monthly cost counter if needed (when a new calendar month starts).
+     * Calendar-month boundary keeps this consistent with the monthly scan quota
+     * in RateLimitingService (which also uses the calendar month).
      */
     @Transactional
     public void resetMonthlyCostIfNeeded(User user) {
-        if (user.getCostResetDate() == null || 
-            user.getCostResetDate().isBefore(LocalDateTime.now().minusMonths(1))) {
+        if (needsMonthlyReset(user)) {
             user.setCurrentMonthCost(BigDecimal.ZERO);
             user.setCostResetDate(LocalDateTime.now());
             userRepository.save(user);
             logger.debug("Reset monthly cost for user: {}", user.getId());
         }
+    }
+
+    private static boolean needsMonthlyReset(User user) {
+        return user.getCostResetDate() == null
+            || YearMonth.from(user.getCostResetDate()).isBefore(YearMonth.now());
     }
     
     /**
@@ -148,10 +155,14 @@ public class CostTrackingService {
     }
     
     /**
-     * Get current monthly cost for user
+     * Get current monthly cost for user.
+     * Read-only: a stale counter from a previous month reads as zero; the actual
+     * reset is persisted under lock by the next tracked cost operation.
      */
     public BigDecimal getCurrentMonthCost(User user) {
-        resetMonthlyCostIfNeeded(user);
+        if (needsMonthlyReset(user)) {
+            return BigDecimal.ZERO;
+        }
         return user.getCurrentMonthCost();
     }
     

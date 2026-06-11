@@ -6,14 +6,12 @@ import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.BillingModeService;
+import com.prayer_chat.chatbot.service.EmbedRateLimiterService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.TurnstileService;
 import com.prayer_chat.chatbot.security.ClientIpResolver;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import com.prayer_chat.chatbot.util.EmbedSecurity;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -32,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * REST controller for chat interactions.
@@ -67,14 +64,13 @@ public class ChatController {
     /** Generic client-visible error — never echo server exception text (information disclosure). */
     private static final String CHAT_ERROR_GENERIC = "Something went wrong. Please try again later.";
 
-    private final Map<String, Bucket> embedChatBuckets = new ConcurrentHashMap<>();
-
     private final AiChatbotService aiChatbotService;
     private final ChatbotRepository chatbotRepository;
     private final RateLimitingService rateLimitingService;
     private final BillingModeService billingModeService;
     private final ClientIpResolver clientIpResolver;
     private final TurnstileService turnstileService;
+    private final EmbedRateLimiterService embedRateLimiterService;
 
     @Autowired
     public ChatController(AiChatbotService aiChatbotService,
@@ -82,13 +78,15 @@ public class ChatController {
                          RateLimitingService rateLimitingService,
                          BillingModeService billingModeService,
                          ClientIpResolver clientIpResolver,
-                         TurnstileService turnstileService) {
+                         TurnstileService turnstileService,
+                         EmbedRateLimiterService embedRateLimiterService) {
         this.aiChatbotService = aiChatbotService;
         this.chatbotRepository = chatbotRepository;
         this.rateLimitingService = rateLimitingService;
         this.billingModeService = billingModeService;
         this.clientIpResolver = clientIpResolver;
         this.turnstileService = turnstileService;
+        this.embedRateLimiterService = embedRateLimiterService;
     }
     
     /**
@@ -143,10 +141,7 @@ public class ChatController {
                     "limit", ipLimit.getLimit()
                 ));
             }
-            Bucket bucket = embedChatBuckets.computeIfAbsent(previewBurstKey, k -> Bucket.builder()
-                .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
-                .build());
-            if (!bucket.tryConsume(1)) {
+            if (!embedRateLimiterService.tryConsume(previewBurstKey, EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)) {
                 logger.warn("Preview chat per-IP burst limit exceeded for IP {} chatbot {}", clientIp, chatbotId);
                 return ResponseEntity.status(429).body(Map.of(
                     "error", "Too many messages. Please try again later."
@@ -318,10 +313,7 @@ public class ChatController {
                     "limit", ipLimit.getLimit()
                 ));
             }
-            Bucket bucket = embedChatBuckets.computeIfAbsent(embedBucketKey, k -> Bucket.builder()
-                    .addLimit(Bandwidth.classic(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, Refill.intervally(EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)))
-                    .build());
-            if (!bucket.tryConsume(1)) {
+            if (!embedRateLimiterService.tryConsume(embedBucketKey, EMBED_CHAT_PER_IP_PER_CHATBOT_LIMIT, EMBED_CHAT_REFILL_PERIOD)) {
                 logger.warn("Embed chat rate limit exceeded for IP {} chatbot {}", clientIp, id);
                 return ResponseEntity.status(429).body(Map.of(
                         "error", "Too many messages. Please try again later."

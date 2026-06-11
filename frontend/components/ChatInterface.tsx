@@ -21,6 +21,7 @@ export default function ChatInterface() {
   const [sessionId, setSessionId] = useState<string>('');
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
   const chatbotId = 1; // Default chatbot ID - you can make this dynamic
 
   useEffect(() => {
@@ -37,7 +38,10 @@ export default function ChatInterface() {
 
   const handleSendMessage = async (messageText?: string) => {
     const messageToSend = messageText || input.trim();
-    if (!messageToSend || isLoading) return;
+    // Ref guard: state updates are async, so two rapid calls (e.g. Enter + click)
+    // could both pass an isLoading check before the re-render.
+    if (!messageToSend || isLoading || sendingRef.current) return;
+    sendingRef.current = true;
 
     // Add user message
     const userMessage: MessageType = {
@@ -80,6 +84,7 @@ export default function ChatInterface() {
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      sendingRef.current = false;
       setIsLoading(false);
     }
   };

@@ -282,13 +282,14 @@ public class StripeService {
     /**
      * Map Stripe price ID to subscription plan (for webhook handling).
      */
-    private Subscription.SubscriptionPlan planFromPriceId(String priceId) {
-        if (priceId == null) return Subscription.SubscriptionPlan.BASIC;
-        if (stripePriceIdBasic != null && priceId.equals(stripePriceIdBasic)) return Subscription.SubscriptionPlan.BASIC;
-        if (stripePriceIdPro != null && priceId.equals(stripePriceIdPro)) return Subscription.SubscriptionPlan.PRO;
-        if (stripePriceIdEnterprise != null && priceId.equals(stripePriceIdEnterprise)) return Subscription.SubscriptionPlan.ENTERPRISE;
-        if (stripePriceId != null && priceId.equals(stripePriceId)) return Subscription.SubscriptionPlan.BASIC; // default price = BASIC
-        return Subscription.SubscriptionPlan.BASIC;
+    private Optional<Subscription.SubscriptionPlan> planFromPriceId(String priceId) {
+        if (priceId == null || priceId.isBlank()) return Optional.empty();
+        if (stripePriceIdBasic != null && priceId.equals(stripePriceIdBasic)) return Optional.of(Subscription.SubscriptionPlan.BASIC);
+        if (stripePriceIdPro != null && priceId.equals(stripePriceIdPro)) return Optional.of(Subscription.SubscriptionPlan.PRO);
+        if (stripePriceIdEnterprise != null && priceId.equals(stripePriceIdEnterprise)) return Optional.of(Subscription.SubscriptionPlan.ENTERPRISE);
+        if (stripePriceId != null && priceId.equals(stripePriceId)) return Optional.of(Subscription.SubscriptionPlan.BASIC);
+        logger.warn("Unknown Stripe price ID {}, keeping existing plan", priceId);
+        return Optional.empty();
     }
 
     /**
@@ -519,9 +520,16 @@ public class StripeService {
         subscription.setStripeSubscriptionId(stripeSubscription.getId());
         subscription.setStripePriceId(priceId);
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
-        subscription.setPlan(planFromPriceId(priceId));
+        planFromPriceId(priceId).ifPresent(subscription::setPlan);
         subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
         subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
+
+        // A new subscription is a clean slate: clear payment-failure state from any previous
+        // cycle so a returning customer isn't instantly marked UNPAID on their first hiccup.
+        subscription.setPaymentRetryCount(0);
+        subscription.setLastPaymentAttempt(null);
+        subscription.setGracePeriodEnd(null);
+        subscription.setCanceledAt(null);
 
         subscriptionRepository.save(subscription);
         logger.info("Subscription created for user: {}", LogSanitizer.sanitize(subscription.getUser().getEmail()));
@@ -538,18 +546,34 @@ public class StripeService {
         Optional<Subscription> subscriptionOpt = subscriptionRepository
             .findByStripeSubscriptionId(stripeSubscription.getId());
 
+        // Webhook ordering: subscription.updated can arrive before subscription.created has
+        // stored the Stripe subscription ID locally — fall back to the customer ID like created does.
+        if (subscriptionOpt.isEmpty() && stripeSubscription.getCustomer() != null) {
+            subscriptionOpt = subscriptionRepository.findByStripeCustomerId(stripeSubscription.getCustomer());
+        }
+
         if (subscriptionOpt.isEmpty()) {
             logger.error("No subscription found for Stripe subscription: {}", stripeSubscription.getId());
             return;
         }
 
         Subscription subscription = subscriptionOpt.get();
+        subscription.setStripeSubscriptionId(stripeSubscription.getId());
         subscription.setStatus(mapStripeStatus(stripeSubscription.getStatus()));
-        // Get billing periods from subscription item (Stripe API 2025-03-31+)
-        if (!stripeSubscription.getItems().getData().isEmpty()) {
+        // Get billing periods and plan from subscription item (Stripe API 2025-03-31+)
+        if (stripeSubscription.getItems() != null
+                && stripeSubscription.getItems().getData() != null
+                && !stripeSubscription.getItems().getData().isEmpty()) {
             com.stripe.model.SubscriptionItem firstItem = stripeSubscription.getItems().getData().get(0);
             subscription.setCurrentPeriodStart(convertToLocalDateTime(firstItem.getCurrentPeriodStart()));
             subscription.setCurrentPeriodEnd(convertToLocalDateTime(firstItem.getCurrentPeriodEnd()));
+            if (firstItem.getPrice() != null) {
+                String priceId = firstItem.getPrice().getId();
+                if (priceId != null && isAllowedPriceId(priceId)) {
+                    subscription.setStripePriceId(priceId);
+                    planFromPriceId(priceId).ifPresent(subscription::setPlan);
+                }
+            }
         }
 
         if (stripeSubscription.getCanceledAt() != null) {
@@ -579,6 +603,8 @@ public class StripeService {
         Subscription subscription = subscriptionOpt.get();
         subscription.setStatus(Subscription.SubscriptionStatus.CANCELED);
         subscription.setCanceledAt(LocalDateTime.now());
+        // Canceled subscriptions fall back to the free tier; keep plan consistent with access level.
+        subscription.setPlan(Subscription.SubscriptionPlan.FREE);
 
         subscriptionRepository.save(subscription);
         logger.info("Subscription canceled for user: {}", LogSanitizer.sanitize(subscription.getUser().getEmail()));
@@ -696,12 +722,8 @@ public class StripeService {
 
         stripeSubscription.update(params);
 
-        // Update local subscription
-        subscription.setPlan(newPlan);
-        subscription.setStripePriceId(newPriceId);
-        subscriptionRepository.save(subscription);
-
-        logger.info("Downgraded subscription for user ID {} to plan: {}", userId, newPlan);
+        // Plan change applies at period end in Stripe; local plan syncs via customer.subscription.updated webhook.
+        logger.info("Scheduled downgrade for user ID {} to plan {} at period end", userId, newPlan);
     }
 
     /**
@@ -715,7 +737,8 @@ public class StripeService {
         if (!isAllowedPriceId(newPriceId)) {
             throw new IllegalArgumentException("Invalid or disallowed price ID for plan change");
         }
-        Subscription.SubscriptionPlan planForPrice = planFromPriceId(newPriceId);
+        Subscription.SubscriptionPlan planForPrice = planFromPriceId(newPriceId)
+            .orElseThrow(() -> new IllegalArgumentException("Unknown price ID for plan change"));
         if (planForPrice != newPlan) {
             throw new IllegalArgumentException("Price ID does not match plan: " + newPlan);
         }
@@ -773,11 +796,14 @@ public class StripeService {
     }
 
     /**
-     * Handle payment failure with grace period and retry logic
+     * Handle payment failure with grace period and retry logic.
+     * Pessimistic lock + transaction: concurrent webhook deliveries must not interleave
+     * the read-modify-write on retry counters.
      */
+    @org.springframework.transaction.annotation.Transactional
     public void handlePaymentFailure(String stripeSubscriptionId, String invoiceId) {
         Optional<Subscription> subscriptionOpt = subscriptionRepository
-            .findByStripeSubscriptionId(stripeSubscriptionId);
+            .findByStripeSubscriptionIdWithLock(stripeSubscriptionId);
 
         if (subscriptionOpt.isEmpty()) {
             logger.error("No subscription found for Stripe subscription: {}", stripeSubscriptionId);
@@ -822,9 +848,10 @@ public class StripeService {
     /**
      * Handle successful payment (reset retry counters)
      */
+    @org.springframework.transaction.annotation.Transactional
     public void handlePaymentSuccess(String stripeSubscriptionId) {
         Optional<Subscription> subscriptionOpt = subscriptionRepository
-            .findByStripeSubscriptionId(stripeSubscriptionId);
+            .findByStripeSubscriptionIdWithLock(stripeSubscriptionId);
 
         if (subscriptionOpt.isEmpty()) {
             logger.error("No subscription found for Stripe subscription: {}", stripeSubscriptionId);
@@ -837,7 +864,10 @@ public class StripeService {
         subscription.setPaymentRetryCount(0);
         subscription.setLastPaymentAttempt(null);
         subscription.setGracePeriodEnd(null);
-        subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        // Don't resurrect a canceled subscription from a late-arriving invoice event.
+        if (subscription.getStatus() != Subscription.SubscriptionStatus.CANCELED) {
+            subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
+        }
 
         subscriptionRepository.save(subscription);
         logger.info("Payment succeeded for subscription {}, retry counters reset", stripeSubscriptionId);

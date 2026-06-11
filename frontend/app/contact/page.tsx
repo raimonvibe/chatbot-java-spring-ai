@@ -7,6 +7,7 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (status === 'submitting') return; // guard against rapid double submit (duplicate emails)
     setStatus('submitting');
 
     const form = e.currentTarget;

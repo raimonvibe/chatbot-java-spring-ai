@@ -56,7 +56,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 freeSubscription.setStripeCustomerId("free_" + user.getId());
                 freeSubscription.setPlan(Subscription.SubscriptionPlan.FREE);
                 freeSubscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
-                subscriptionRepository.save(freeSubscription);
+                try {
+                    subscriptionRepository.save(freeSubscription);
+                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                    // Concurrent first login created the subscription already (unique user_id) — safe to continue.
+                    logger.info("FREE subscription already created concurrently for user {}", user.getId());
+                }
 
                 logger.info("User {} created with FREE plan, redirecting to onboarding", LogSanitizer.sanitize(user.getEmail()));
                 String redirectUrl = frontendBaseUrlProvider.getBaseUrl() + "/onboarding?welcome=true";

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, X, Sparkles, Book, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createCheckoutSession } from '@/lib/api';
 
 interface PaywallModalProps {
@@ -71,6 +72,7 @@ export default function PaywallModal({
   bibleVerse,
   billingActionsAvailable = true,
 }: PaywallModalProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const featureConfig = featureMessages[feature];
@@ -87,6 +89,10 @@ export default function PaywallModal({
     } catch (error: unknown) {
       console.error('Error creating checkout session:', error);
       setLoading(false);
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        router.push('/login?redirect=/pricing');
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Failed to start subscription process. Please try again.';
       alert(message);
     }

@@ -64,7 +64,7 @@ class StripeServiceTest {
         testSubscription.setPaymentRetryCount(0);
         testSubscription.setGracePeriodEnd(null);
 
-        when(subscriptionRepository.findByStripeSubscriptionId(subscriptionId))
+        when(subscriptionRepository.findByStripeSubscriptionIdWithLock(subscriptionId))
             .thenReturn(Optional.of(testSubscription));
         when(subscriptionRepository.save(any(Subscription.class)))
             .thenReturn(testSubscription);
@@ -81,7 +81,7 @@ class StripeServiceTest {
             .isAfter(LocalDateTime.now())
             .isBefore(LocalDateTime.now().plusDays(8));
 
-        verify(subscriptionRepository, times(1)).findByStripeSubscriptionId(subscriptionId);
+        verify(subscriptionRepository, times(1)).findByStripeSubscriptionIdWithLock(subscriptionId);
         verify(subscriptionRepository, times(1)).save(testSubscription);
     }
 
@@ -96,7 +96,7 @@ class StripeServiceTest {
         testSubscription.setPaymentRetryCount(2); // Already 2 failures
         testSubscription.setGracePeriodEnd(LocalDateTime.now().plusDays(5));
 
-        when(subscriptionRepository.findByStripeSubscriptionId(subscriptionId))
+        when(subscriptionRepository.findByStripeSubscriptionIdWithLock(subscriptionId))
             .thenReturn(Optional.of(testSubscription));
         when(subscriptionRepository.save(any(Subscription.class)))
             .thenReturn(testSubscription);
@@ -122,7 +122,7 @@ class StripeServiceTest {
         testSubscription.setGracePeriodEnd(LocalDateTime.now().plusDays(5));
         testSubscription.setLastPaymentAttempt(LocalDateTime.now().minusHours(1));
 
-        when(subscriptionRepository.findByStripeSubscriptionId(subscriptionId))
+        when(subscriptionRepository.findByStripeSubscriptionIdWithLock(subscriptionId))
             .thenReturn(Optional.of(testSubscription));
         when(subscriptionRepository.save(any(Subscription.class)))
             .thenReturn(testSubscription);

@@ -55,6 +55,10 @@ class StripeWebhookControllerTest {
         ReflectionTestUtils.setField(controller, "stripeService", stripeService);
         ReflectionTestUtils.setField(controller, "webhookSecret", WEBHOOK_SECRET);
         ReflectionTestUtils.setField(controller, "webhookIpAllowlist", "");
+        // Real resolver with defaults (no trusted proxies) so it falls back to request.getRemoteAddr()
+        ReflectionTestUtils.setField(controller, "clientIpResolver",
+            new com.prayer_chat.chatbot.security.ClientIpResolver(
+                new com.prayer_chat.chatbot.config.ProxyHeaderProperties()));
     }
 
     // ============================================================================

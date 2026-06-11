@@ -52,7 +52,8 @@ class ChatControllerPreviewSessionTest {
         BillingProperties bp = new BillingProperties();
         bp.setEnabled(true);
         chatController = new ChatController(
-            aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp), clientIpResolver, turnstileService);
+            aiChatbotService, chatbotRepository, rateLimitingService, new BillingModeService(bp), clientIpResolver, turnstileService,
+            new com.prayer_chat.chatbot.service.EmbedRateLimiterService(""));
     }
 
     @Test

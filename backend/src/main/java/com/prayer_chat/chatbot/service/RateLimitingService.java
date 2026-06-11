@@ -5,6 +5,7 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.MessageRepository;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
+import com.prayer_chat.chatbot.repository.UserRepository;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class RateLimitingService {
     private final WebsiteScanAuditRepository websiteScanAuditRepository;
     private final AccessControlService accessControlService;
     private final SubscriptionRepository subscriptionRepository;
+    private final UserRepository userRepository;
     private final BillingModeService billingModeService;
 
     @Autowired
@@ -36,11 +38,13 @@ public class RateLimitingService {
                                WebsiteScanAuditRepository websiteScanAuditRepository,
                                AccessControlService accessControlService,
                                SubscriptionRepository subscriptionRepository,
+                               UserRepository userRepository,
                                BillingModeService billingModeService) {
         this.messageRepository = messageRepository;
         this.websiteScanAuditRepository = websiteScanAuditRepository;
         this.accessControlService = accessControlService;
         this.subscriptionRepository = subscriptionRepository;
+        this.userRepository = userRepository;
         this.billingModeService = billingModeService;
     }
 
@@ -61,8 +65,13 @@ public class RateLimitingService {
      * @param user The user attempting to send a message
      * @return RateLimitResult with allowed status and details
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public RateLimitResult checkMessageLimit(User user) {
+        if (user == null || user.getId() == null) {
+            return new RateLimitResult(false, 0, 0, false, "message", false);
+        }
+        userRepository.findByIdWithLock(user.getId())
+            .orElseThrow(() -> new RuntimeException("User not found: " + user.getId()));
         Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
         int messageLimit = billingModeService.effectiveMessagesPerDay(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
@@ -112,15 +121,20 @@ public class RateLimitingService {
      * @param user The user attempting to scan a website
      * @return RateLimitResult with allowed status and details
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public RateLimitResult checkScanLimit(User user) {
+        if (user == null || user.getId() == null) {
+            return new RateLimitResult(false, 0, 0, false, "scan", false);
+        }
+        userRepository.findByIdWithLock(user.getId())
+            .orElseThrow(() -> new RuntimeException("User not found: " + user.getId()));
         Subscription.SubscriptionPlan plan = planFor(user, subscriptionRepository);
         int dailyLimit = billingModeService.effectiveDailyScanLimit(plan);
         int monthlyQuota = billingModeService.effectiveMonthlyScanQuota(plan);
         boolean isPreviewMode = accessControlService.isPreviewMode(user);
 
-        LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
-        Long scansInLastDay = websiteScanAuditRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
+        // Calendar-day window, consistent with the daily message limit (CAST(created_at AS DATE) = CURRENT_DATE).
+        Long scansInLastDay = websiteScanAuditRepository.countScansTodayByUserId(user.getId());
         if (scansInLastDay == null) scansInLastDay = 0L;
 
         LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
@@ -149,8 +163,8 @@ public class RateLimitingService {
         int dailyLimit = billingModeService.effectiveDailyScanLimit(plan);
         int monthlyQuota = billingModeService.effectiveMonthlyScanQuota(plan);
 
-        LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
-        Long scansInLastDay = websiteScanAuditRepository.countScansByUserAndDateAfter(user.getId(), oneDayAgo);
+        // Calendar-day window, matching checkScanLimit.
+        Long scansInLastDay = websiteScanAuditRepository.countScansTodayByUserId(user.getId());
         if (scansInLastDay == null) {
             scansInLastDay = 0L;
         }

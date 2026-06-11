@@ -1,16 +1,18 @@
 package com.prayer_chat.chatbot.controller;
 
 import com.prayer_chat.chatbot.model.Chatbot;
+import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
+import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.AiChatbotService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +20,9 @@ import java.util.Optional;
 /**
  * Web Controller for serving HTML pages
  * Note: Root path (/) is handled by RootController (returns JSON API info)
+ *
+ * <p>SECURITY: every chatbot listing/detail route is scoped to the authenticated owner
+ * (admins see everything) — mirrors the ownership checks of the REST API.
  */
 @Controller
 public class WebController {
@@ -34,14 +39,58 @@ public class WebController {
         this.aiChatbotService = aiChatbotService;
         this.websiteAnalysisService = websiteAnalysisService;
     }
-    
+
+    /** Resolve the authenticated domain user from either the OAuth2 or JWT principal. */
+    private User currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof CustomOAuth2User oauthUser) {
+            return oauthUser.getUser();
+        }
+        if (principal instanceof User user) {
+            return user;
+        }
+        return null;
+    }
+
+    private boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+            .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
+
+    /** Chatbots visible to the current user: own bots, or all bots for admins. */
+    private List<Chatbot> visibleChatbots() {
+        if (isAdmin()) {
+            return chatbotRepository.findAll();
+        }
+        User user = currentUser();
+        if (user == null || user.getId() == null) {
+            return List.of();
+        }
+        return chatbotRepository.findByOwnerId(user.getId());
+    }
+
+    /** A single chatbot only if owned by the current user (or admin); empty otherwise. */
+    private Optional<Chatbot> ownedChatbot(Long id) {
+        if (isAdmin()) {
+            return chatbotRepository.findById(id);
+        }
+        User user = currentUser();
+        if (user == null || user.getId() == null) {
+            return Optional.empty();
+        }
+        return chatbotRepository.findByIdAndOwner_Id(id, user.getId());
+    }
+
     /**
      * Home page - Dashboard
      * Note: Root path (/) is handled by RootController
      */
     @GetMapping("/index")
     public String home(Model model) {
-        List<Chatbot> chatbots = chatbotRepository.findAll();
+        List<Chatbot> chatbots = visibleChatbots();
         model.addAttribute("chatbots", chatbots);
         model.addAttribute("totalChatbots", chatbots.size());
         model.addAttribute("activeChatbots", chatbots.stream().mapToInt(c -> c.getIsActive() ? 1 : 0).sum());
@@ -53,8 +102,7 @@ public class WebController {
      */
     @GetMapping("/chatbots")
     public String chatbots(Model model) {
-        List<Chatbot> chatbots = chatbotRepository.findAll();
-        model.addAttribute("chatbots", chatbots);
+        model.addAttribute("chatbots", visibleChatbots());
         return "chatbots";
     }
     
@@ -72,7 +120,7 @@ public class WebController {
      */
     @GetMapping("/chatbots/{id}/edit")
     public String editChatbot(@PathVariable Long id, Model model) {
-        Optional<Chatbot> chatbot = chatbotRepository.findById(id);
+        Optional<Chatbot> chatbot = ownedChatbot(id);
         if (chatbot.isEmpty()) {
             return "redirect:/chatbots";
         }
@@ -85,7 +133,7 @@ public class WebController {
      */
     @GetMapping("/chatbots/{id}")
     public String chatbotDetails(@PathVariable Long id, Model model) {
-        Optional<Chatbot> chatbot = chatbotRepository.findById(id);
+        Optional<Chatbot> chatbot = ownedChatbot(id);
         if (chatbot.isEmpty()) {
             return "redirect:/chatbots";
         }
@@ -108,7 +156,7 @@ public class WebController {
      */
     @GetMapping("/chatbots/{id}/test")
     public String testChatbot(@PathVariable Long id, Model model) {
-        Optional<Chatbot> chatbot = chatbotRepository.findById(id);
+        Optional<Chatbot> chatbot = ownedChatbot(id);
         if (chatbot.isEmpty()) {
             return "redirect:/chatbots";
         }
@@ -121,8 +169,7 @@ public class WebController {
      */
     @GetMapping("/analytics")
     public String analytics(Model model) {
-        List<Chatbot> chatbots = chatbotRepository.findAll();
-        model.addAttribute("chatbots", chatbots);
+        model.addAttribute("chatbots", visibleChatbots());
         return "analytics";
     }
     

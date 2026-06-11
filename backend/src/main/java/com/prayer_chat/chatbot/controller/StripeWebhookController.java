@@ -7,6 +7,7 @@ import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.prayer_chat.chatbot.config.BillingProperties;
+import com.prayer_chat.chatbot.security.ClientIpResolver;
 import com.prayer_chat.chatbot.service.SecurityAlertService;
 import com.prayer_chat.chatbot.service.StripeService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
@@ -54,6 +55,9 @@ public class StripeWebhookController {
     @Autowired
     private BillingProperties billingProperties;
 
+    @Autowired
+    private ClientIpResolver clientIpResolver;
+
     /** Processed Stripe event IDs to prevent duplicate processing (replay / retries). Evicted after 24h. */
     private static final ConcurrentHashMap<String, Long> PROCESSED_EVENT_IDS = new ConcurrentHashMap<>();
     private static final long EVENT_ID_TTL_MS = 24 * 60 * 60 * 1000L;
@@ -64,9 +68,14 @@ public class StripeWebhookController {
     }
 
     private void evictOldProcessedEvents() {
-        if (PROCESSED_EVENT_IDS.size() < MAX_PROCESSED_EVENT_IDS) return;
+        // Time-based eviction on every successful webhook keeps the map bounded under normal load.
         long cutoff = System.currentTimeMillis() - EVENT_ID_TTL_MS;
         PROCESSED_EVENT_IDS.entrySet().removeIf(e -> e.getValue() != null && e.getValue() < cutoff);
+        // Hard cap as a safety net (e.g. clock issues): drop everything rather than grow unbounded.
+        if (PROCESSED_EVENT_IDS.size() >= MAX_PROCESSED_EVENT_IDS) {
+            logger.warn("Processed-event map hit {} entries; clearing", MAX_PROCESSED_EVENT_IDS);
+            PROCESSED_EVENT_IDS.clear();
+        }
     }
 
     private Set<String> allowedWebhookIps() {
@@ -99,7 +108,7 @@ public class StripeWebhookController {
 
         Set<String> allowedIps = allowedWebhookIps();
         if (!allowedIps.isEmpty()) {
-            String clientIp = request.getRemoteAddr();
+            String clientIp = clientIpResolver.resolveClientIp(request);
             if (clientIp == null || !allowedIps.contains(clientIp)) {
                 logger.warn("Stripe webhook rejected: IP {} not in allowlist", LogSanitizer.sanitize(clientIp != null ? clientIp : "unknown"));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("IP not allowed");
@@ -124,19 +133,21 @@ public class StripeWebhookController {
             return ResponseEntity.ok("Billing disabled");
         }
 
-        // Idempotency: do not process the same event twice (replay or Stripe retry).
-        // We return 200 so Stripe stops retrying. Cap event ID length to avoid unbounded map keys.
+        // Idempotency: atomically claim the event ID up-front (prevents two concurrent deliveries
+        // both processing). On handler failure the claim is released so Stripe's retry can succeed.
         String eventId = event.getId();
+        boolean claimed = false;
         if (eventId != null && !eventId.isBlank()) {
             if (eventId.length() > MAX_EVENT_ID_LENGTH) {
                 logger.warn("Stripe webhook event ID too long, rejecting");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid event id");
             }
-            if (processedEventIds().putIfAbsent(eventId, System.currentTimeMillis()) != null) {
-                logger.info("Stripe webhook event already processed, skipping: {}", eventId);
+            Long prior = processedEventIds().putIfAbsent(eventId, System.currentTimeMillis());
+            if (prior != null) {
+                logger.info("Stripe webhook event already processed or in flight, skipping: {}", eventId);
                 return ResponseEntity.ok("Webhook received");
             }
-            evictOldProcessedEvents();
+            claimed = true;
         }
 
         // Handle the event
@@ -147,6 +158,9 @@ public class StripeWebhookController {
             stripeObject = dataObjectDeserializer.getObject().get();
         } else {
             logger.error("Failed to deserialize Stripe event data");
+            if (claimed) {
+                processedEventIds().remove(eventId);
+            }
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Deserialization error");
         }
 
@@ -182,16 +196,28 @@ public class StripeWebhookController {
                     break;
 
                 case "invoice.payment_succeeded":
-                    // TODO: Update when Stripe SDK API for accessing subscription from invoice is clarified
-                    // com.stripe.model.Invoice successInvoice = (com.stripe.model.Invoice) stripeObject;
-                    logger.info("Invoice payment succeeded - handled via subscription events");
+                    com.stripe.model.Invoice successInvoice = (com.stripe.model.Invoice) stripeObject;
+                    String successSubId = extractSubscriptionId(successInvoice, dataObjectDeserializer.getRawJson());
+                    if (successSubId != null && !successSubId.isBlank()) {
+                        stripeService.handlePaymentSuccess(successSubId);
+                        logger.info("Handled invoice.payment_succeeded for subscription {}", successSubId);
+                    } else {
+                        logger.info("Invoice payment succeeded without subscription reference");
+                    }
                     break;
 
                 case "invoice.payment_failed":
-                    // TODO: Update when Stripe SDK API for accessing subscription from invoice is clarified
-                    // com.stripe.model.Invoice failedInvoice = (com.stripe.model.Invoice) stripeObject;
-                    logger.warn("Invoice payment failed - handled via subscription events");
-                    securityAlertService.alertPaymentFailure("Stripe invoice.payment_failed", null, event.getId());
+                    com.stripe.model.Invoice failedInvoice = (com.stripe.model.Invoice) stripeObject;
+                    String failedSubId = extractSubscriptionId(failedInvoice, dataObjectDeserializer.getRawJson());
+                    if (failedSubId != null && !failedSubId.isBlank()) {
+                        stripeService.handlePaymentFailure(failedSubId, failedInvoice.getId());
+                        logger.warn("Handled invoice.payment_failed for subscription {}", failedSubId);
+                    } else {
+                        logger.warn("Invoice payment failed without subscription reference");
+                    }
+                    securityAlertService.alertPaymentFailure(
+                        "Stripe invoice.payment_failed (subscription: " + (failedSubId != null ? failedSubId : "unknown") + ")",
+                        null, event.getId());
                     break;
 
                 default:
@@ -199,9 +225,46 @@ public class StripeWebhookController {
             }
         } catch (Exception e) {
             logger.error("Error handling Stripe webhook event {}: {}", event.getType(), LogSanitizer.sanitizeException(e));
+            // Release the idempotency claim so Stripe's retry is not silently swallowed.
+            if (claimed) {
+                processedEventIds().remove(eventId);
+            }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing event");
         }
 
+        evictOldProcessedEvents();
+
         return ResponseEntity.ok("Webhook received");
+    }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper RAW_JSON_MAPPER =
+        new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /**
+     * Stripe API 2025+ moved the invoice's subscription reference to {@code parent.subscription_details.subscription}.
+     * Falls back to the legacy top-level {@code subscription} field in the raw event payload so events sent
+     * with an older account API version are not silently dropped.
+     *
+     * @param rawEventJson raw {@code data.object} JSON from the webhook event (may be null)
+     */
+    private static String extractSubscriptionId(com.stripe.model.Invoice invoice, String rawEventJson) {
+        if (invoice != null && invoice.getParent() != null && invoice.getParent().getSubscriptionDetails() != null) {
+            String subId = invoice.getParent().getSubscriptionDetails().getSubscription();
+            if (subId != null && !subId.isBlank()) {
+                return subId;
+            }
+        }
+        if (rawEventJson != null && !rawEventJson.isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = RAW_JSON_MAPPER.readTree(rawEventJson);
+                com.fasterxml.jackson.databind.JsonNode sub = node.get("subscription");
+                if (sub != null && sub.isTextual() && !sub.asText().isBlank()) {
+                    return sub.asText();
+                }
+            } catch (Exception e) {
+                logger.debug("Could not read legacy subscription field from invoice payload: {}", e.getMessage());
+            }
+        }
+        return null;
     }
 }

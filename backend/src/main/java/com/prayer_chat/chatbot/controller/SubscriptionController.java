@@ -6,6 +6,7 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
+import com.prayer_chat.chatbot.service.AccessControlService;
 import com.prayer_chat.chatbot.service.RateLimitingService;
 import com.prayer_chat.chatbot.service.StripeService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
@@ -43,6 +44,9 @@ public class SubscriptionController {
     @Autowired
     private BillingProperties billingProperties;
 
+    @Autowired
+    private AccessControlService accessControlService;
+
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
@@ -63,6 +67,9 @@ public class SubscriptionController {
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
 
         try {
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             User user = currentUser.getUser();
             Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
 
@@ -76,18 +83,20 @@ public class SubscriptionController {
                 response.put("status", subscription.getStatus());
                 response.put("plan", subscription.getPlan());
                 response.put("isActive", subscription.isActive());
-                response.put("canUseChatbot", subscription.canUseChatbot());
+                response.put("canUseChatbot",
+                    subscription.canUseChatbot() || accessControlService.isPreviewMode(user));
                 response.put("currentPeriodEnd", subscription.getCurrentPeriodEnd());
 
                 if (subscription.getCanceledAt() != null) {
                     response.put("canceledAt", subscription.getCanceledAt());
                 }
             } else {
+                boolean previewAccess = accessControlService.isPreviewMode(user);
                 response.put("hasSubscription", false);
                 response.put("status", "FREE");
                 response.put("plan", "FREE");
                 response.put("isActive", false);
-                response.put("canUseChatbot", false);
+                response.put("canUseChatbot", previewAccess);
             }
 
             try {

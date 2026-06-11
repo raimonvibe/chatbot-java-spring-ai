@@ -11,15 +11,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,11 +39,17 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
 
+    /** Hard cap to keep the bucket cache bounded; buckets refill within a minute so a reset is harmless. */
+    private static final int MAX_CACHE_ENTRIES = 100_000;
+
     @Autowired(required = false)
     private SecurityAlertService securityAlertService;
 
     @Autowired
     private ClientIpResolver clientIpResolver;
+
+    @Value("${cors.allowed-origins:http://localhost:3000,https://prayer-chat.com,https://www.prayer-chat.com}")
+    private String allowedOrigins;
 
     // Rate limits per minute
     private static final int CHAT_LIMIT = 20; // Chat endpoints: 20 requests per minute
@@ -77,11 +83,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                 securityAlertService.alertRateLimitViolation(key, path);
             }
 
-            // Add CORS headers before sending error response
+            // Add CORS headers before sending error response.
+            // SECURITY: credentials are only allowed for configured dashboard origins; any other
+            // origin gets a non-credentialed header so cross-site pages can't read credentialed responses.
             String origin = request.getHeader("Origin");
             if (origin != null) {
                 response.setHeader("Access-Control-Allow-Origin", origin);
-                response.setHeader("Access-Control-Allow-Credentials", "true");
+                if (isAllowedDashboardOrigin(origin)) {
+                    response.setHeader("Access-Control-Allow-Credentials", "true");
+                }
                 response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
                 response.setHeader("Access-Control-Allow-Headers", "*");
             }
@@ -90,6 +100,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"Too many requests. Please try again later.\"}");
         }
+    }
+
+    private boolean isAllowedDashboardOrigin(String origin) {
+        if (allowedOrigins == null || allowedOrigins.isBlank()) return false;
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+        return origins.contains(origin);
     }
 
     /**
@@ -106,10 +125,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Resolve or create bucket for client
+     * Resolve or create bucket for client.
+     * The key includes the rate-limit tier so a loose-tier bucket (e.g. /health at 100/min)
+     * is never reused for a strict-tier path (e.g. /api/chat at 20/min).
      */
     private Bucket resolveBucket(String key, int limit) {
-        return cache.computeIfAbsent(key, k -> createNewBucket(limit));
+        if (cache.size() > MAX_CACHE_ENTRIES) {
+            logger.warn("Rate limit bucket cache exceeded {} entries; resetting", MAX_CACHE_ENTRIES);
+            cache.clear();
+        }
+        return cache.computeIfAbsent("l" + limit + ":" + key, k -> createNewBucket(limit));
     }
 
     /**
@@ -126,22 +151,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Get client identifier (IP address or API key)
+     * Get client identifier.
+     *
+     * <p>SECURITY: limits are always keyed by client IP. Keying by unvalidated
+     * Authorization / X-API-Key header values would let an attacker mint a fresh
+     * bucket per request simply by rotating random header values.
      */
     private String getClientIdentifier(HttpServletRequest request) {
-        // Use a fingerprint for API key if provided (never store raw key material)
-        String apiKey = request.getHeader("X-API-Key");
-        if (apiKey != null && !apiKey.isEmpty()) {
-            return "api-key:" + fingerprint(apiKey);
-        }
-
-        // Use a fingerprint for Authorization token if present
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return "token:" + fingerprint(authHeader.substring(7));
-        }
-
-        // Otherwise use IP address
         return "ip:" + getClientIp(request);
     }
 
@@ -164,23 +180,4 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 
-    /**
-     * Create a short stable fingerprint for sensitive values so logs/caches avoid raw secrets.
-     */
-    private String fingerprint(String value) {
-        if (value == null || value.isBlank()) {
-            return "empty";
-        }
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 6 && i < hash.length; i++) {
-                sb.append(String.format("%02x", hash[i]));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            return "hash-error";
-        }
-    }
 }

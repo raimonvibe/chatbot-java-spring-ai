@@ -39,6 +39,9 @@ public class HeadlessFetchService {
 
     private static final Logger logger = LoggerFactory.getLogger(HeadlessFetchService.class);
 
+    /** Cap rendered HTML size (chars) — matches Jsoup's ~2MB default body limit. */
+    private static final int MAX_RENDERED_HTML_CHARS = 2 * 1024 * 1024;
+
     @Value("${app.website-analysis.headless-timeout-seconds:25}")
     private int headlessTimeoutSeconds;
 
@@ -139,8 +142,20 @@ public class HeadlessFetchService {
             // Allow a short time for SPA hydration (e.g. React/Next)
             Thread.sleep(2000);
 
+            // SSRF protection: Chromium follows redirects internally — re-validate the URL the
+            // browser actually ended up on before using any of its content.
+            String finalUrl = driver.getCurrentUrl();
+            if (finalUrl != null && !finalUrl.equals(url) && !urlValidationService.isValidAndSafe(finalUrl)) {
+                logger.warn("Headless fetch blocked: redirect target failed validation (SSRF) for chatbot crawl");
+                return Optional.empty();
+            }
+
             String html = driver.getPageSource();
             if (html != null && !html.isBlank()) {
+                // Bound memory: Jsoup fetches cap at ~2MB; apply the same ceiling to headless HTML.
+                if (html.length() > MAX_RENDERED_HTML_CHARS) {
+                    html = html.substring(0, MAX_RENDERED_HTML_CHARS);
+                }
                 return Optional.of(html);
             }
             return Optional.empty();

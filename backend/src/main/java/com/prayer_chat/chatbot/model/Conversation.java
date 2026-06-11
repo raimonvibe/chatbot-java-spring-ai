@@ -13,7 +13,9 @@ import java.util.List;
  * Entity representing a conversation between a user and a chatbot
  */
 @Entity
-@Table(name = "conversations")
+@Table(name = "conversations", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"chatbot_id", "session_id"})
+})
 public class Conversation {
     
     @Id
@@ -48,6 +50,7 @@ public class Conversation {
     private LocalDateTime endedAt;
     
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OrderBy("createdAt ASC, id ASC")
     private List<Message> messages = new ArrayList<>();
     
     // Constructors

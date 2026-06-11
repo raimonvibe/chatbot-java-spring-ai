@@ -15,6 +15,7 @@ import {
   getSubscriptionStatusFromApi,
   AVATAR_IDS,
   getUserFacingFetchError,
+  isApiError,
   logClientIssue,
   type Message as MessageType,
   type Chatbot,
@@ -100,6 +101,9 @@ export default function ChatbotPreview() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const sessionIdRef = useRef('');
+  const sendingRef = useRef(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const [jesusPreview, setJesusPreview] = useState<JesusTeachingsPreviewResponse | null>(null);
   const [jesusPreviewError, setJesusPreviewError] = useState<string | null>(null);
@@ -133,6 +137,10 @@ export default function ChatbotPreview() {
   };
 
   useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
     getSubscriptionStatusFromApi()
       .then((s) => setShowSubscriptionNav(paymentActionsAvailableFromApi(s)))
       .catch(() => setShowSubscriptionNav(isBillingEnabledFromEnv()));
@@ -159,10 +167,17 @@ export default function ChatbotPreview() {
         const chatResult = results[0];
         const statusResult = results[1];
         if (chatResult.status === 'rejected') {
-          logClientIssue('chatbotPreview.load', chatResult.reason);
+          const err = chatResult.reason;
+          logClientIssue('chatbotPreview.load', err);
+          if (isApiError(err) && err.status === 401) {
+            router.replace(`/login?redirect=${encodeURIComponent(pathname || `/chatbot/${chatbotId}`)}`);
+            return;
+          }
+          setLoadError(getUserFacingFetchError(err, 'Could not load this chatbot. Please try again.'));
           setAnalysisLoading(false);
           return;
         }
+        setLoadError(null);
         const data = chatResult.value;
         setChatbot(data);
         setMessages([
@@ -204,13 +219,15 @@ export default function ChatbotPreview() {
           setJesusPreviewLoading(true);
           setJesusPreviewError(null);
           previewJesusTeachings(chatbotId, 3)
-            .then(setJesusPreview)
+            .then((preview) => {
+              if (!cancelled) setJesusPreview(preview);
+            })
             .catch((err) => {
               logClientIssue('chatbotPreview.jesusPreview', err);
-              setJesusPreviewError('Could not load Jesus teachings preview.');
+              if (!cancelled) setJesusPreviewError('Could not load Jesus teachings preview.');
             })
             .finally(() => {
-              setJesusPreviewLoading(false);
+              if (!cancelled) setJesusPreviewLoading(false);
             });
         }
       })
@@ -220,7 +237,9 @@ export default function ChatbotPreview() {
       });
 
     getQuickReplies(chatbotId)
-      .then(setQuickReplies)
+      .then((replies) => {
+        if (!cancelled) setQuickReplies(replies);
+      })
       .catch((e) => logClientIssue('chatbotPreview.quickReplies', e));
 
     return () => {
@@ -302,7 +321,8 @@ export default function ChatbotPreview() {
 
   const handleSendMessage = async (messageText?: string) => {
     const messageToSend = (messageText ?? input).trim();
-    if (!messageToSend || isLoading || !isValidId || chatbotId === null) return;
+    if (!messageToSend || isLoading || sendingRef.current || !isValidId || chatbotId === null) return;
+    sendingRef.current = true;
 
     const userMessage: MessageType = {
       id: Date.now().toString(),
@@ -317,9 +337,11 @@ export default function ChatbotPreview() {
 
     try {
       const userLanguage = typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || 'en') : 'en';
-      const response = await sendMessage(chatbotId as number, messageToSend, sessionId, userLanguage);
+      const activeSessionId = sessionIdRef.current || sessionId;
+      const response = await sendMessage(chatbotId as number, messageToSend, activeSessionId || undefined, userLanguage);
 
-      if (response.sessionId && !sessionId) {
+      if (response.sessionId) {
+        sessionIdRef.current = response.sessionId;
         setSessionId(response.sessionId);
       }
 
@@ -342,6 +364,7 @@ export default function ChatbotPreview() {
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      sendingRef.current = false;
       setIsLoading(false);
     }
   };
@@ -635,6 +658,19 @@ export default function ChatbotPreview() {
             href="/dashboard"
             className="inline-block px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors"
           >
+            Back to Dashboard
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-[100dvh] flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-4">
+          <p className="text-brown-800">{loadError}</p>
+          <Link href="/dashboard" className="inline-block px-4 py-2 rounded-lg bg-brown-700 text-white">
             Back to Dashboard
           </Link>
         </div>

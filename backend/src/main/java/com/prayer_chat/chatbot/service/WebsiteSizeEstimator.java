@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.service;
 
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -31,6 +33,24 @@ public class WebsiteSizeEstimator {
     @Autowired
     public WebsiteSizeEstimator(UrlValidationService urlValidationService) {
         this.urlValidationService = urlValidationService;
+    }
+
+    /**
+     * Fetch with SSRF-safe redirect handling: Jsoup follows redirects, so the final URL
+     * is re-validated before the body is used.
+     */
+    private Optional<Document> fetchValidated(String fetchUrl) throws IOException {
+        Connection.Response response = Jsoup.connect(fetchUrl)
+            .userAgent(USER_AGENT)
+            .timeout(TIMEOUT_MS)
+            .ignoreContentType(true)
+            .execute();
+        String finalUrl = response.url().toString();
+        if (!finalUrl.equals(fetchUrl) && !urlValidationService.isValidAndSafe(finalUrl)) {
+            logger.warn("Blocked size-estimation fetch: redirect target failed SSRF validation");
+            return Optional.empty();
+        }
+        return Optional.of(response.parse());
     }
     
     /**
@@ -89,11 +109,11 @@ public class WebsiteSizeEstimator {
             String baseUrl = url.getProtocol() + "://" + url.getHost();
             String sitemapUrl = baseUrl + "/sitemap.xml";
             
-            Document doc = Jsoup.connect(sitemapUrl)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MS)
-                .ignoreContentType(true)
-                .get();
+            Optional<Document> docOpt = fetchValidated(sitemapUrl);
+            if (docOpt.isEmpty()) {
+                return 0;
+            }
+            Document doc = docOpt.get();
             
             // Count <url> or <loc> elements in sitemap
             Elements urlElements = doc.select("url, loc");
@@ -122,13 +142,12 @@ public class WebsiteSizeEstimator {
             String baseUrl = url.getProtocol() + "://" + url.getHost();
             String robotsUrl = baseUrl + "/robots.txt";
             
-            Document doc = Jsoup.connect(robotsUrl)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MS)
-                .ignoreContentType(true)
-                .get();
+            Optional<Document> docOpt = fetchValidated(robotsUrl);
+            if (docOpt.isEmpty()) {
+                return 0;
+            }
             
-            String robotsContent = doc.text();
+            String robotsContent = docOpt.get().text();
             
             // Count Sitemap: declarations (indicates multiple sitemaps)
             int sitemapCount = (int) robotsContent.lines()
@@ -159,10 +178,11 @@ public class WebsiteSizeEstimator {
      */
     private int estimateFromSampling(String websiteUrl) {
         try {
-            Document doc = Jsoup.connect(websiteUrl)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MS)
-                .get();
+            Optional<Document> docOpt = fetchValidated(websiteUrl);
+            if (docOpt.isEmpty()) {
+                return 0;
+            }
+            Document doc = docOpt.get();
             
             // Extract domain from URL
             URL url = new URL(websiteUrl);

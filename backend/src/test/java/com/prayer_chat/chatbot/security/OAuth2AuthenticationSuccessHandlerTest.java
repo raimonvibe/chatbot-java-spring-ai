@@ -252,6 +252,24 @@ class OAuth2AuthenticationSuccessHandlerTest {
     }
 
     @Test
+    @DisplayName("Should redirect to dashboard when PAST_DUE subscription is still within grace period")
+    void shouldRedirectToDashboard_whenPastDueWithinGracePeriod() throws Exception {
+        // Arrange
+        Subscription withinGrace = createPastDueSubscription();
+        withinGrace.setGracePeriodEnd(LocalDateTime.now().plusDays(5));
+        when(authentication.getPrincipal()).thenReturn(customOAuth2User);
+        when(subscriptionRepository.findByUserId(TEST_USER_ID))
+            .thenReturn(Optional.of(withinGrace));
+
+        // Act
+        successHandler.onAuthenticationSuccess(request, response, authentication);
+
+        // Assert - grace period keeps paid access, so the user lands on the dashboard
+        verify(subscriptionRepository).findByUserId(TEST_USER_ID);
+        verify(redirectStrategy).sendRedirect(request, response, FRONTEND_URL + "/dashboard");
+    }
+
+    @Test
     @DisplayName("Should use fallback when principal is not CustomOAuth2User")
     void shouldUseFallback_whenPrincipalIsNotCustomOAuth2User() throws Exception {
         // Arrange
@@ -376,7 +394,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         subscription.setStatus(SubscriptionStatus.PAST_DUE);
         subscription.setPlan(SubscriptionPlan.BASIC);
         subscription.setPaymentRetryCount(1);
-        subscription.setGracePeriodEnd(LocalDateTime.now().plusDays(7));
+        // Grace period expired: user has genuinely lost access (within-grace keeps access; see dedicated test)
+        subscription.setGracePeriodEnd(LocalDateTime.now().minusDays(1));
         return subscription;
     }
 }
