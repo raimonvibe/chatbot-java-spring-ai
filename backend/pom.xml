@@ -353,7 +353,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Jackson: versions managed by Spring Boot 4 (Jackson 3 / tools.jackson BOM). -->
+            <!-- Jackson 3 (tools.jackson) comes in transitively via Spring AI 2.0; our Boot 3.5 parent
+                 only manages Jackson 2.x. jackson-databind resolves to 3.1.4 but jackson-core lagged at
+                 3.0.3 (CVE-2026-29062 / GHSA-2m67-wjpj-xhg9 DoS). Pin jackson-core to match databind. -->
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>3.1.4</version>
+            </dependency>
             <!-- Spring Framework: managed by spring-boot-starter-parent (Boot 4 → Spring Framework 7). Do not pin 6.x here. -->
             <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects -->
             <dependency>
