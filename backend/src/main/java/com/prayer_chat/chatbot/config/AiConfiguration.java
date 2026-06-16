@@ -3,7 +3,6 @@ package com.prayer_chat.chatbot.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.anthropic.AnthropicChatModel;
-import org.springframework.ai.anthropic.api.AnthropicApi;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -90,14 +89,15 @@ public class AiConfiguration {
         logger.info("Creating AnthropicChatModel from API key (Spring AI auto-config did not provide a bean).");
         
         try {
-            AnthropicApi anthropicApi = AnthropicApi.builder().apiKey(apiKey).build();
             AnthropicChatOptions options = AnthropicChatOptions.builder()
                     .model("claude-haiku-4-5-20251001")
                     .temperature(0.7)
                     .maxTokens(1000)
                     .build();
+            // Spring AI 2.0 rebuilt the Anthropic module on the official Java SDK:
+            // AnthropicApi was removed, so the API key is passed straight to the model builder.
             AnthropicChatModel anthropicChatModel = AnthropicChatModel.builder()
-                    .anthropicApi(anthropicApi)
+                    .apiKey(apiKey)
                     .defaultOptions(options)
                     .build();
             logger.info("AnthropicChatModel created successfully.");

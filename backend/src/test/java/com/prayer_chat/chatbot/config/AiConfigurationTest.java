@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.anthropic.AnthropicChatModel;
-import org.springframework.ai.anthropic.api.AnthropicApi;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -17,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -92,12 +92,13 @@ class AiConfigurationTest {
         String testApiKey = "sk-test-key-12345-secret";
         ReflectionTestUtils.setField(aiConfiguration, "anthropicApiKey", testApiKey);
         
-        // Mock AnthropicApi.builder() to throw exception (simulating failure)
-        try (var anthropicApiMock = mockStatic(AnthropicApi.class)) {
-            AnthropicApi.Builder mockBuilder = mock(AnthropicApi.Builder.class);
-            anthropicApiMock.when(AnthropicApi::builder).thenReturn(mockBuilder);
-            when(mockBuilder.apiKey(anyString())).thenReturn(mockBuilder);
-            when(mockBuilder.build()).thenThrow(new RuntimeException("API connection failed"));
+        // Mock AnthropicChatModel.builder() to throw exception (simulating failure)
+        try (var modelMock = mockStatic(AnthropicChatModel.class)) {
+            AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
+            modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
+            when(modelBuilder.apiKey(anyString())).thenReturn(modelBuilder);
+            when(modelBuilder.defaultOptions(any(AnthropicChatOptions.class))).thenReturn(modelBuilder);
+            when(modelBuilder.build()).thenThrow(new RuntimeException("API connection failed"));
             
             ChatModel chatModel = invokeChatModel();
             
@@ -126,16 +127,8 @@ class AiConfigurationTest {
         ReflectionTestUtils.setField(aiConfiguration, "anthropicApiKey", testApiKey);
         
         // Mock the builder chain
-        try (var anthropicApiMock = mockStatic(AnthropicApi.class);
-             var optionsMock = mockStatic(AnthropicChatOptions.class);
+        try (var optionsMock = mockStatic(AnthropicChatOptions.class);
              var modelMock = mockStatic(AnthropicChatModel.class)) {
-            
-            // Mock AnthropicApi
-            AnthropicApi.Builder apiBuilder = mock(AnthropicApi.Builder.class);
-            AnthropicApi mockApi = mock(AnthropicApi.class);
-            anthropicApiMock.when(AnthropicApi::builder).thenReturn(apiBuilder);
-            when(apiBuilder.apiKey(testApiKey)).thenReturn(apiBuilder);
-            when(apiBuilder.build()).thenReturn(mockApi);
             
             // Mock AnthropicChatOptions
             AnthropicChatOptions.Builder optionsBuilder = mock(AnthropicChatOptions.Builder.class);
@@ -146,11 +139,11 @@ class AiConfigurationTest {
             when(optionsBuilder.maxTokens(anyInt())).thenReturn(optionsBuilder);
             when(optionsBuilder.build()).thenReturn(mockOptions);
             
-            // Mock AnthropicChatModel
+            // Mock AnthropicChatModel - Spring AI 2.0 takes the API key directly on the builder
             AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
             AnthropicChatModel mockModel = mock(AnthropicChatModel.class);
             modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
-            when(modelBuilder.anthropicApi(mockApi)).thenReturn(modelBuilder);
+            when(modelBuilder.apiKey(testApiKey)).thenReturn(modelBuilder);
             when(modelBuilder.defaultOptions(mockOptions)).thenReturn(modelBuilder);
             when(modelBuilder.build()).thenReturn(mockModel);
             
@@ -162,9 +155,7 @@ class AiConfigurationTest {
             assertThat(chatModel).isInstanceOf(AnthropicChatModel.class);
             
             // Verify builder was called with correct API key
-            verify(apiBuilder).apiKey(testApiKey);
-            verify(apiBuilder).build();
-            verify(modelBuilder).anthropicApi(mockApi);
+            verify(modelBuilder).apiKey(testApiKey);
             verify(modelBuilder).defaultOptions(mockOptions);
             verify(modelBuilder).build();
         }
@@ -178,15 +169,8 @@ class AiConfigurationTest {
         ReflectionTestUtils.setField(aiConfiguration, "anthropicApiKey", testApiKey);
         
         // Mock the builder chain
-        try (var anthropicApiMock = mockStatic(AnthropicApi.class);
-             var optionsMock = mockStatic(AnthropicChatOptions.class);
+        try (var optionsMock = mockStatic(AnthropicChatOptions.class);
              var modelMock = mockStatic(AnthropicChatModel.class)) {
-            
-            AnthropicApi.Builder apiBuilder = mock(AnthropicApi.Builder.class);
-            AnthropicApi mockApi = mock(AnthropicApi.class);
-            anthropicApiMock.when(AnthropicApi::builder).thenReturn(apiBuilder);
-            when(apiBuilder.apiKey(testApiKey)).thenReturn(apiBuilder);
-            when(apiBuilder.build()).thenReturn(mockApi);
             
             AnthropicChatOptions.Builder optionsBuilder = mock(AnthropicChatOptions.Builder.class);
             AnthropicChatOptions mockOptions = mock(AnthropicChatOptions.class);
@@ -199,7 +183,7 @@ class AiConfigurationTest {
             AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
             AnthropicChatModel mockModel = mock(AnthropicChatModel.class);
             modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
-            when(modelBuilder.anthropicApi(mockApi)).thenReturn(modelBuilder);
+            when(modelBuilder.apiKey(testApiKey)).thenReturn(modelBuilder);
             when(modelBuilder.defaultOptions(mockOptions)).thenReturn(modelBuilder);
             when(modelBuilder.build()).thenReturn(mockModel);
             
@@ -208,7 +192,7 @@ class AiConfigurationTest {
             
             // Assert
             assertThat(chatModel).isNotNull();
-            verify(apiBuilder).apiKey(testApiKey);
+            verify(modelBuilder).apiKey(testApiKey);
         }
     }
 
@@ -266,9 +250,9 @@ class AiConfigurationTest {
         String testApiKey = "sk-test-key";
         ReflectionTestUtils.setField(aiConfiguration, "anthropicApiKey", testApiKey);
         
-        // Mock AnthropicApi.builder() to throw exception
-        try (var anthropicApiMock = mockStatic(AnthropicApi.class)) {
-            anthropicApiMock.when(AnthropicApi::builder)
+        // Mock AnthropicChatModel.builder() to throw exception
+        try (var modelMock = mockStatic(AnthropicChatModel.class)) {
+            modelMock.when(AnthropicChatModel::builder)
                     .thenThrow(new RuntimeException("Dependency missing"));
             
             ChatModel chatModel = invokeChatModel();
