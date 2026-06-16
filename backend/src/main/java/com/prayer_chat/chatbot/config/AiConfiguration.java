@@ -89,16 +89,17 @@ public class AiConfiguration {
         logger.info("Creating AnthropicChatModel from API key (Spring AI auto-config did not provide a bean).");
         
         try {
+            // Spring AI 2.0 rebuilt the Anthropic module on the official Java SDK:
+            // AnthropicApi was removed; connection settings (incl. the API key) now live on
+            // AnthropicChatOptions, and AnthropicChatModel builds its SDK client from them.
             AnthropicChatOptions options = AnthropicChatOptions.builder()
                     .model("claude-haiku-4-5-20251001")
                     .temperature(0.7)
                     .maxTokens(1000)
-                    .build();
-            // Spring AI 2.0 rebuilt the Anthropic module on the official Java SDK:
-            // AnthropicApi was removed, so the API key is passed straight to the model builder.
-            AnthropicChatModel anthropicChatModel = AnthropicChatModel.builder()
                     .apiKey(apiKey)
-                    .defaultOptions(options)
+                    .build();
+            AnthropicChatModel anthropicChatModel = AnthropicChatModel.builder()
+                    .options(options)
                     .build();
             logger.info("AnthropicChatModel created successfully.");
             return anthropicChatModel;

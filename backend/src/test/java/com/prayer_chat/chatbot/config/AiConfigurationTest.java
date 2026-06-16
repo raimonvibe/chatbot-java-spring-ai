@@ -96,8 +96,7 @@ class AiConfigurationTest {
         try (var modelMock = mockStatic(AnthropicChatModel.class)) {
             AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
             modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
-            when(modelBuilder.apiKey(anyString())).thenReturn(modelBuilder);
-            when(modelBuilder.defaultOptions(any(AnthropicChatOptions.class))).thenReturn(modelBuilder);
+            when(modelBuilder.options(any(AnthropicChatOptions.class))).thenReturn(modelBuilder);
             when(modelBuilder.build()).thenThrow(new RuntimeException("API connection failed"));
             
             ChatModel chatModel = invokeChatModel();
@@ -130,21 +129,21 @@ class AiConfigurationTest {
         try (var optionsMock = mockStatic(AnthropicChatOptions.class);
              var modelMock = mockStatic(AnthropicChatModel.class)) {
             
-            // Mock AnthropicChatOptions
+            // Mock AnthropicChatOptions - Spring AI 2.0 carries the API key on the options
             AnthropicChatOptions.Builder optionsBuilder = mock(AnthropicChatOptions.Builder.class);
             AnthropicChatOptions mockOptions = mock(AnthropicChatOptions.class);
             optionsMock.when(AnthropicChatOptions::builder).thenReturn(optionsBuilder);
             when(optionsBuilder.model(anyString())).thenReturn(optionsBuilder);
             when(optionsBuilder.temperature(anyDouble())).thenReturn(optionsBuilder);
             when(optionsBuilder.maxTokens(anyInt())).thenReturn(optionsBuilder);
+            when(optionsBuilder.apiKey(anyString())).thenReturn(optionsBuilder);
             when(optionsBuilder.build()).thenReturn(mockOptions);
             
-            // Mock AnthropicChatModel - Spring AI 2.0 takes the API key directly on the builder
+            // Mock AnthropicChatModel - builds its SDK client from the options
             AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
             AnthropicChatModel mockModel = mock(AnthropicChatModel.class);
             modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
-            when(modelBuilder.apiKey(testApiKey)).thenReturn(modelBuilder);
-            when(modelBuilder.defaultOptions(mockOptions)).thenReturn(modelBuilder);
+            when(modelBuilder.options(mockOptions)).thenReturn(modelBuilder);
             when(modelBuilder.build()).thenReturn(mockModel);
             
             // Act
@@ -155,8 +154,8 @@ class AiConfigurationTest {
             assertThat(chatModel).isInstanceOf(AnthropicChatModel.class);
             
             // Verify builder was called with correct API key
-            verify(modelBuilder).apiKey(testApiKey);
-            verify(modelBuilder).defaultOptions(mockOptions);
+            verify(optionsBuilder).apiKey(testApiKey);
+            verify(modelBuilder).options(mockOptions);
             verify(modelBuilder).build();
         }
     }
@@ -178,13 +177,13 @@ class AiConfigurationTest {
             when(optionsBuilder.model(anyString())).thenReturn(optionsBuilder);
             when(optionsBuilder.temperature(anyDouble())).thenReturn(optionsBuilder);
             when(optionsBuilder.maxTokens(anyInt())).thenReturn(optionsBuilder);
+            when(optionsBuilder.apiKey(anyString())).thenReturn(optionsBuilder);
             when(optionsBuilder.build()).thenReturn(mockOptions);
             
             AnthropicChatModel.Builder modelBuilder = mock(AnthropicChatModel.Builder.class);
             AnthropicChatModel mockModel = mock(AnthropicChatModel.class);
             modelMock.when(AnthropicChatModel::builder).thenReturn(modelBuilder);
-            when(modelBuilder.apiKey(testApiKey)).thenReturn(modelBuilder);
-            when(modelBuilder.defaultOptions(mockOptions)).thenReturn(modelBuilder);
+            when(modelBuilder.options(mockOptions)).thenReturn(modelBuilder);
             when(modelBuilder.build()).thenReturn(mockModel);
             
             // Act
@@ -192,7 +191,7 @@ class AiConfigurationTest {
             
             // Assert
             assertThat(chatModel).isNotNull();
-            verify(modelBuilder).apiKey(testApiKey);
+            verify(optionsBuilder).apiKey(testApiKey);
         }
     }
 
