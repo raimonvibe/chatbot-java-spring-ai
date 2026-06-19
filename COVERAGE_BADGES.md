@@ -119,7 +119,7 @@ Add to `.github/workflows/ci-cd.yml`:
 [![codecov](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPO/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPO)
 ![Backend Coverage](https://img.shields.io/badge/backend%20coverage-70%25-green)
 ![Frontend Coverage](https://img.shields.io/badge/frontend%20coverage-80%25-green)
-![Java Version](https://img.shields.io/badge/java-17-blue)
+![Java Version](https://img.shields.io/badge/java-21-blue)
 ![Node Version](https://img.shields.io/badge/node-20-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ```

@@ -20,7 +20,7 @@
     <description>Open-source AI-powered chatbot platform that analyzes websites and creates intelligent conversational agents using RAG architecture</description>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
         <!-- 1.1.5: CVE-2026-40967, CVE-2026-40978 (FilterExpressionConverter); prior 1.1.x CVE-2026-22729 in 1.1.3+ -->
         <spring-ai.version>2.0.0</spring-ai.version>
         <!-- Align with log4j BOM used by Spring Boot: 2.25.4+ fixes CVE-2026-34478/34480/34481, CVE-2025-68161 (transitive log4j-api / bridges) -->
@@ -273,7 +273,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Mockito for mocking (inline version for Java 17+) -->
+        <!-- Mockito for mocking (inline version for Java 21+) -->
         <!-- Spring Boot 3.2.11 manages Mockito version -->
         <dependency>
             <groupId>org.mockito</groupId>

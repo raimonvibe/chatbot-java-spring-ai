@@ -78,7 +78,7 @@ Prayer-Chat is a sophisticated AI-powered chatbot platform built with Spring Boo
 
 ### Backend Core
 - **Framework:** Spring Boot 3.2.0
-- **Language:** Java 17+
+- **Language:** Java 21+
 - **Build Tool:** Maven
 - **Server:** Embedded Tomcat
 
