@@ -49,6 +49,10 @@ public class TestSecurityConfig {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSecurityConfig.class);
 
+    /** Set to true in SecurityConfigIT to exercise CSRF behavior; disabled by default so MockMvc ITs need no token boilerplate. */
+    @org.springframework.beans.factory.annotation.Value("${test.security.csrf-enabled:false}")
+    private boolean csrfEnabled;
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.prayer_chat.chatbot.security.JwtAuthenticationFilter jwtAuthenticationFilter;
     
@@ -66,14 +70,18 @@ public class TestSecurityConfig {
      */
     @Bean
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.ignoringRequestMatchers(
+        if (csrfEnabled) {
+            http.csrf(csrf -> csrf.ignoringRequestMatchers(
                 "/stripe/webhook",
                 "/login/**",
                 "/oauth2/**",
                 "/api/chat/embed/**",
                 "/api/auth/oauth2/callback"
-            ))
+            ));
+        } else {
+            http.csrf(org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer::disable);
+        }
+        http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 // CRITICAL: Rules are evaluated in order - first match wins!

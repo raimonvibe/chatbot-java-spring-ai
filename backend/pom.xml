@@ -8,8 +8,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <!-- Stay on stable Spring Boot 3.x. 3.5.14+: CVE-2026-40972/40973/40975 (dev tooling / framework) -->
-        <version>3.5.14</version>
+        <!-- Spring Boot 4.1.x: Spring Framework 7, Jackson 3 for HTTP; spring-boot-jackson2 for legacy service mappers -->
+        <version>4.1.0</version>
         <relativePath/>
     </parent>
 
@@ -27,7 +27,7 @@
         <log4j2.version>2.25.4</log4j2.version>
         <!-- Security: CVE-2024-12798, CVE-2025-11226, logback.xml abuse, ACE in config file (Dependabot #11). Fixed in 1.5.25+ -->
         <logback.version>1.5.34</logback.version>
-        <!-- Spring Security version managed by Spring Boot 3.3.13 (7.x requires Spring Framework 6.4+ / HttpMessageConverters$ClientBuilder) -->
+        <!-- Spring Security version managed by Spring Boot parent -->
         <!-- Security: CVE-2025-48924 - Commons Lang3 uncontrolled recursion. Fixed in 3.18.0+ -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects. Fixed in 1.2.8+ -->
@@ -71,6 +71,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Jackson 2 for services/tests still on com.fasterxml.jackson (HTTP uses Jackson 3 via Boot 4) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jackson2</artifactId>
         </dependency>
         
         <dependency>
@@ -250,10 +256,20 @@
                 <artifactId>lettuce-core</artifactId>
             </dependency>
 
-        <!-- Testing -->
+        <!-- Testing: Boot 4 modular test starters (replace monolithic test autoconfigure) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -396,11 +412,7 @@
                 <artifactId>thymeleaf</artifactId>
                 <version>${thymeleaf.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.thymeleaf</groupId>
-                <artifactId>thymeleaf-spring6</artifactId>
-                <version>${thymeleaf.version}</version>
-            </dependency>
+            <!-- thymeleaf-spring7 version managed by Spring Boot 4 parent -->
         </dependencies>
     </dependencyManagement>
 

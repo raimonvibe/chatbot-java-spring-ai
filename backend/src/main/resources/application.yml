@@ -7,14 +7,14 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:default}
   
-  # =============================================================================
-  # JACKSON JSON CONFIGURATION (LocalDateTime serialization)
-  # =============================================================================
+  # Jackson 3 (HTTP/MVC) + Jackson 2 (spring-boot-jackson2 / service ObjectMapper beans)
   jackson:
+    use-jackson2-defaults: true
+  jackson2:
     serialization:
-      write-dates-as-timestamps: false  # Use ISO-8601 strings instead of timestamps
+      write-dates-as-timestamps: false
     deserialization:
-      adjust-dates-to-context-time-zone: false  # Don't adjust timezone
+      adjust-dates-to-context-time-zone: false
   
   # =============================================================================
   # DATABASE CONFIGURATION
