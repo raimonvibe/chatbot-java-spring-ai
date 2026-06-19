@@ -2,7 +2,7 @@
 # Runtime includes Chromium so headless crawl works for Vercel/SPA sites.
 
 # Stage 1: Build the application
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime with Chromium for headless website crawl (Vercel, SPAs)
 # Security: see CHROMIUM_DOCKER_SECURITY.md in repo root.
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 

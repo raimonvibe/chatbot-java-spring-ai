@@ -6,7 +6,7 @@ echo "🤖 Starting TjanaBot AI Chatbot System..."
 
 # Check if Java is installed
 if ! command -v java &> /dev/null; then
-    echo "❌ Java is not installed. Please install Java 17 or higher."
+    echo "❌ Java is not installed. Please install Java 21 or higher."
     exit 1
 fi
 

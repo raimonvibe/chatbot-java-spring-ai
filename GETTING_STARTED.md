@@ -25,7 +25,7 @@ Welcome to **Prayer-Chat** - an open-source AI-powered chatbot platform that aut
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Java 17+** installed
+- **Java 21+** installed
 - **Maven 3.6+** installed
 - **Anthropic API Key** (required for chat functionality)
 - **Cohere API Key** (required for embeddings)

@@ -968,7 +968,7 @@ Then redeploy your backend on Render.
 # Check Maven wrapper permissions
 chmod +x mvnw
 
-# Verify Java version in build logs (should be Java 17+)
+# Verify Java version in build logs (should be Java 21+)
 ```
 
 ### Database Connection Issues

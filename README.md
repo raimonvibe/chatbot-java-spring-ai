@@ -55,7 +55,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Java 17+** with Spring Boot 3.2
+- **Java 21+** with Spring Boot 4.1
 - **Spring AI** for AI integrations and RAG architecture
 - **Anthropic Claude 3 Haiku** for conversational AI
 - **Cohere** for multilingual embeddings (embed-multilingual-v3.0)
@@ -87,7 +87,7 @@ An open-source AI-powered chatbot platform built with Java Spring AI that analyz
 - Optional: Pinecone API key (for vector storage)
 
 **Option 2: Local Development**
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.6+
 - Node.js 20+ and npm (for frontend)
 - Anthropic API key (for Claude AI chat)

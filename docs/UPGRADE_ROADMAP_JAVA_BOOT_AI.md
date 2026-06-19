@@ -6,7 +6,7 @@ This document is a practical, low-risk plan to keep the repo modern while avoidi
 
 ## Current Baseline (this repo)
 
-- Java: `17`
+- Java: `21`
 - Spring Boot parent: `4.1.0`
 - Spring AI: `2.0.0`
 - Frontend stack is already on modern majors (Next 16, React 19, TypeScript 6)
@@ -118,7 +118,7 @@ Use this as a gate checklist before merging.
 ### A) Build and dependency alignment
 
 - [ ] `backend/pom.xml` parent -> Spring Boot `4.0.x`
-- [ ] `java.version` -> `21` or `25`
+- [x] `java.version` -> `21`
 - [ ] Spring AI BOM/artifacts -> compatible `2.x`
 - [ ] Remove temporary dependency overrides that were only for old conflicts
 - [ ] `mvn -q -DskipTests compile` passes
