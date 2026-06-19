@@ -20,6 +20,8 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -38,8 +40,8 @@ import java.util.Map;
  * require complex test setup.
  *
  * SECURITY JUSTIFICATION:
- * - Mirrors production CSRF behavior closely so integration tests can verify token requirements.
- * - CSRF is only ignored for explicitly exempt endpoints (embed widget, OAuth handshakes, Stripe webhook).
+ * - Mirrors production CSRF behavior (cookie repository + explicit ignores for webhooks/OAuth/embed).
+ * - Integration/E2E tests send tokens via {@code .with(csrf())} or {@link com.prayer_chat.chatbot.helpers.CsrfTestSupport}.
  */
 @Configuration
 @EnableWebSecurity
@@ -48,10 +50,6 @@ import java.util.Map;
 public class TestSecurityConfig {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSecurityConfig.class);
-
-    /** Set to true in SecurityConfigIT to exercise CSRF behavior; disabled by default so MockMvc ITs need no token boilerplate. */
-    @org.springframework.beans.factory.annotation.Value("${test.security.csrf-enabled:false}")
-    private boolean csrfEnabled;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.prayer_chat.chatbot.security.JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -70,18 +68,19 @@ public class TestSecurityConfig {
      */
     @Bean
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
-        if (csrfEnabled) {
-            http.csrf(csrf -> csrf.ignoringRequestMatchers(
-                "/stripe/webhook",
-                "/login/**",
-                "/oauth2/**",
-                "/api/chat/embed/**",
-                "/api/auth/oauth2/callback"
-            ));
-        } else {
-            http.csrf(org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer::disable);
-        }
+        CookieCsrfTokenRepository csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfRepo.setCookiePath("/");
         http
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(csrfRepo)
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .ignoringRequestMatchers(
+                    "/stripe/webhook",
+                    "/login/**",
+                    "/oauth2/**",
+                    "/api/chat/embed/**",
+                    "/api/auth/oauth2/callback"
+                ))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 // CRITICAL: Rules are evaluated in order - first match wins!

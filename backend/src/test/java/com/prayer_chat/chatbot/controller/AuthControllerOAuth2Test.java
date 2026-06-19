@@ -28,6 +28,7 @@ import java.util.*;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -130,6 +131,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -149,6 +151,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -164,6 +167,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -179,6 +183,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -195,6 +200,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -210,6 +216,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -224,6 +231,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -239,6 +247,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -254,6 +263,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -269,6 +279,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -305,6 +316,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -335,6 +347,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert - Should return 400 with specific error message
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -359,6 +372,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
@@ -390,6 +404,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
@@ -404,6 +419,7 @@ class AuthControllerOAuth2Test {
         // With standalone setup, "null" body can trigger HttpMessageNotReadableException before controller;
         // we only assert 400 so the client gets a clear bad-request signal.
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("null"))
                 .andExpect(status().isBadRequest());
@@ -439,6 +455,7 @@ class AuthControllerOAuth2Test {
 
         // Act & Assert - should work with trimmed values
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -453,6 +470,7 @@ class AuthControllerOAuth2Test {
         );
 
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())

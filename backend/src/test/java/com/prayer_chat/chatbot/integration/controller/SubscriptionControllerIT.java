@@ -40,6 +40,7 @@ import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -133,7 +134,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/subscription/status")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(true)))
             .andExpect(jsonPath("$.plan", equalTo("FREE")))
@@ -152,7 +153,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/subscription/status")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(false)))
             .andExpect(jsonPath("$.isActive", equalTo(false)))
@@ -173,7 +174,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.checkoutUrl", equalTo("https://checkout.stripe.com/test")));
 
@@ -189,7 +190,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://checkout.stripe.com/pro");
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"plan\": \"PRO\"}"))
             .andExpect(status().isOk())
@@ -205,7 +206,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"plan\": \"INVALID\"}"))
             .andExpect(status().isBadRequest())
@@ -221,7 +222,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.error", equalTo("Payment provider not configured")));
 
@@ -232,6 +233,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should return 401 when unauthenticated for create checkout session")
     void shouldReturn401_whenUnauthenticated_createCheckoutSession() throws Exception {
         mockMvc.perform(post("/api/subscription/create-checkout-session")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isUnauthorized());
@@ -243,7 +245,7 @@ class SubscriptionControllerIT {
         when(stripeService.isConfigured()).thenReturn(true);
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
         mockMvc.perform(get("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isMethodNotAllowed());
         verify(stripeService, never()).createCheckoutSession(any(User.class), any());
     }
@@ -257,7 +259,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error", equalTo("User already has an active subscription")));
 
@@ -272,7 +274,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://billing.stripe.com/session/test");
 
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isOk())
@@ -290,7 +292,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://billing.stripe.com/session/with-return");
 
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"returnUrl\": \"" + allowedReturnUrl + "\"}"))
             .andExpect(status().isOk())
@@ -305,7 +307,7 @@ class SubscriptionControllerIT {
         when(stripeService.isConfigured()).thenReturn(false);
 
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isServiceUnavailable())
@@ -318,6 +320,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should return 401 when unauthenticated for create portal session")
     void shouldReturn401_whenUnauthenticated_createPortalSession() throws Exception {
         mockMvc.perform(post("/api/subscription/create-portal-session")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isUnauthorized());
@@ -329,7 +332,7 @@ class SubscriptionControllerIT {
         when(stripeService.isConfigured()).thenReturn(true);
 
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"returnUrl\": \"https://evil.com/phishing\"}"))
             .andExpect(status().isBadRequest())
@@ -343,7 +346,7 @@ class SubscriptionControllerIT {
     void security_portalSession_rejectsJavascriptReturnUrl() throws Exception {
         when(stripeService.isConfigured()).thenReturn(true);
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"returnUrl\": \"javascript:alert(1)\"}"))
             .andExpect(status().isBadRequest())
@@ -357,7 +360,7 @@ class SubscriptionControllerIT {
         when(stripeService.isConfigured()).thenReturn(true);
         String longUrl = "https://www.prayer-chat.com/account?" + "x".repeat(600);
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"returnUrl\": \"" + longUrl + "\"}"))
             .andExpect(status().isBadRequest())
@@ -371,6 +374,7 @@ class SubscriptionControllerIT {
     @DisplayName("SECURITY: sync-from-session returns 401 when unauthenticated")
     void syncFromSession_returns401_whenUnauthenticated() throws Exception {
         mockMvc.perform(post("/api/subscription/sync-from-session")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"cs_test_abcdefghij1234567890\"}"))
             .andExpect(status().isUnauthorized());
@@ -381,7 +385,7 @@ class SubscriptionControllerIT {
     @DisplayName("sync-from-session returns 400 when session_id is missing")
     void syncFromSession_returns400_whenSessionIdMissing() throws Exception {
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isBadRequest())
@@ -393,7 +397,7 @@ class SubscriptionControllerIT {
     @DisplayName("sync-from-session returns 400 when session_id is blank")
     void syncFromSession_returns400_whenSessionIdBlank() throws Exception {
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"   \"}"))
             .andExpect(status().isBadRequest())
@@ -409,7 +413,7 @@ class SubscriptionControllerIT {
             .thenThrow(new IllegalArgumentException("Session does not belong to this user"));
 
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"" + sessionId + "\"}"))
             .andExpect(status().isBadRequest())
@@ -427,7 +431,7 @@ class SubscriptionControllerIT {
             .thenThrow(stripeException);
 
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"" + sessionId + "\"}"))
             .andExpect(status().isBadRequest())
@@ -444,7 +448,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
 
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"" + sessionId + "\"}"))
             .andExpect(status().isOk())
@@ -464,7 +468,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
 
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"" + sessionId + "\"}"))
             .andExpect(status().isOk())
@@ -479,7 +483,7 @@ class SubscriptionControllerIT {
     void syncFromSession_rejectsOverlongSessionId() throws Exception {
         String longId = "cs_test_" + "a".repeat(250);
         mockMvc.perform(post("/api/subscription/sync-from-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"session_id\": \"" + longId + "\"}"))
             .andExpect(status().isBadRequest())
@@ -497,7 +501,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/cancel")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message", equalTo("Subscription canceled successfully")));
 
@@ -513,7 +517,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/subscription/details")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id", equalTo(100)))
             .andExpect(jsonPath("$.plan", equalTo("FREE")));
@@ -529,7 +533,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/change-plan")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"BASIC\"}"))
             .andExpect(status().isOk())
@@ -549,7 +553,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/upgrade")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"PRO\"}"))
             .andExpect(status().isOk())
@@ -569,7 +573,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/downgrade")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"BASIC\"}"))
             .andExpect(status().isOk())
@@ -586,7 +590,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"invalid_price_id\"}"))
             .andExpect(status().isBadRequest())
@@ -603,7 +607,7 @@ class SubscriptionControllerIT {
         when(stripeService.isAllowedPriceId("price_evil_unknown")).thenReturn(false);
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_evil_unknown\"}"))
             .andExpect(status().isBadRequest())
@@ -616,7 +620,7 @@ class SubscriptionControllerIT {
     @DisplayName("Should return 400 for plan FREE in change-plan")
     void shouldReturn400ForPlanFree_changePlan() throws Exception {
         mockMvc.perform(post("/api/subscription/change-plan")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"FREE\"}"))
             .andExpect(status().isBadRequest())
@@ -629,7 +633,7 @@ class SubscriptionControllerIT {
     void shouldReturn400ForMissingPriceId() throws Exception {
         // Act & Assert
         mockMvc.perform(post("/api/subscription/change-plan")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"plan\": \"BASIC\"}"))
             .andExpect(status().isBadRequest())
@@ -641,7 +645,7 @@ class SubscriptionControllerIT {
     void shouldReturn400ForInvalidPlan() throws Exception {
         // Act & Assert
         mockMvc.perform(post("/api/subscription/change-plan")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"INVALID\"}"))
             .andExpect(status().isBadRequest())
@@ -657,7 +661,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://checkout.stripe.com/test");
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"plan\": \"BASIC\"}"))
             .andExpect(status().isOk());
@@ -677,7 +681,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://checkout.stripe.com/c/test");
 
         mockMvc.perform(post("/api/subscription/create-checkout-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"plan\": \"BASIC\", \"successUrl\": \"https://evil.com/phish\", \"cancelUrl\": \"https://evil.com/cancel\"}"))
             .andExpect(status().isOk())
@@ -695,7 +699,7 @@ class SubscriptionControllerIT {
             .thenReturn("https://billing.stripe.com/session/test");
 
         mockMvc.perform(post("/api/subscription/create-portal-session")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isOk());
@@ -715,7 +719,7 @@ class SubscriptionControllerIT {
         doNothing().when(stripeService).cancelSubscription(1L);
 
         mockMvc.perform(post("/api/subscription/cancel")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk());
 
         ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
@@ -733,7 +737,7 @@ class SubscriptionControllerIT {
         doNothing().when(stripeService).changeSubscriptionPlan(eq(1L), eq("price_test"), any());
 
         mockMvc.perform(post("/api/subscription/change-plan")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_test\", \"plan\": \"BASIC\"}"))
             .andExpect(status().isOk());
@@ -753,7 +757,7 @@ class SubscriptionControllerIT {
         doNothing().when(stripeService).upgradeSubscription(eq(1L), eq("price_pro"), any());
 
         mockMvc.perform(post("/api/subscription/upgrade")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_pro\", \"plan\": \"PRO\"}"))
             .andExpect(status().isOk());
@@ -773,7 +777,7 @@ class SubscriptionControllerIT {
         doNothing().when(stripeService).downgradeSubscription(eq(1L), eq("price_basic"), any());
 
         mockMvc.perform(post("/api/subscription/downgrade")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser)))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"priceId\": \"price_basic\", \"plan\": \"BASIC\"}"))
             .andExpect(status().isOk());
@@ -790,7 +794,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
 
         mockMvc.perform(get("/api/subscription/status")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.hasSubscription", equalTo(true)));
 
@@ -803,7 +807,7 @@ class SubscriptionControllerIT {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(Optional.of(testSubscription));
 
         mockMvc.perform(get("/api/subscription/details")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.plan").exists());
 
@@ -820,7 +824,7 @@ class SubscriptionControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/subscription/cancel")
-                .with(authentication(createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isInternalServerError())
             .andExpect(jsonPath("$.error", equalTo("Failed to cancel subscription")));
     }

@@ -25,6 +25,7 @@ public class WebTestClientApiTestClient {
     
     private final WebTestClient webTestClient;
     private String authToken;
+    private String csrfToken;
     
     public WebTestClientApiTestClient(WebTestClient webTestClient) {
         this.webTestClient = webTestClient;
@@ -43,6 +44,7 @@ public class WebTestClientApiTestClient {
      */
     public WebTestClientApiTestClient clearAuth() {
         this.authToken = null;
+        this.csrfToken = null;
         return this;
     }
     
@@ -53,6 +55,24 @@ public class WebTestClientApiTestClient {
         return authToken;
     }
     
+    private void ensureCsrfToken() {
+        if (csrfToken == null) {
+            csrfToken = CsrfTestSupport.fetchCsrfToken(webTestClient);
+        }
+    }
+
+    private void applyCsrf(WebTestClient.RequestHeadersSpec<?> request) {
+        ensureCsrfToken();
+        request.cookie(CsrfTestSupport.CSRF_COOKIE, csrfToken)
+            .header(CsrfTestSupport.CSRF_HEADER, csrfToken);
+    }
+
+    private void applyAuth(WebTestClient.RequestHeadersSpec<?> request) {
+        if (authToken != null && !authToken.isEmpty()) {
+            request.header("Authorization", "Bearer " + authToken);
+        }
+    }
+    
     /**
      * GET request
      */
@@ -60,14 +80,10 @@ public class WebTestClientApiTestClient {
         WebTestClient.RequestHeadersSpec<?> request = webTestClient.get()
             .uri(path)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
         return request.exchange();
     }
-    
+
     /**
      * GET request with query parameters
      */
@@ -85,14 +101,10 @@ public class WebTestClientApiTestClient {
                 return uriBuilder.build();
             })
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
         return request.exchange();
     }
-    
+
     /**
      * POST request with body
      */
@@ -101,18 +113,14 @@ public class WebTestClientApiTestClient {
             .uri(path)
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
+        applyCsrf(request);
         if (body != null) {
             request.body(BodyInserters.fromValue(body));
         }
-        
         return request.exchange();
     }
-    
+
     /**
      * POST request without body
      */
@@ -120,14 +128,11 @@ public class WebTestClientApiTestClient {
         WebTestClient.RequestBodySpec request = webTestClient.post()
             .uri(path)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
+        applyCsrf(request);
         return request.exchange();
     }
-    
+
     /**
      * PUT request with body
      */
@@ -136,18 +141,14 @@ public class WebTestClientApiTestClient {
             .uri(path)
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
+        applyCsrf(request);
         if (body != null) {
             request.body(BodyInserters.fromValue(body));
         }
-        
         return request.exchange();
     }
-    
+
     /**
      * PATCH request with body
      */
@@ -156,18 +157,14 @@ public class WebTestClientApiTestClient {
             .uri(path)
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
+        applyCsrf(request);
         if (body != null) {
             request.body(BodyInserters.fromValue(body));
         }
-        
         return request.exchange();
     }
-    
+
     /**
      * DELETE request
      */
@@ -175,11 +172,8 @@ public class WebTestClientApiTestClient {
         WebTestClient.RequestHeadersSpec<?> request = webTestClient.delete()
             .uri(path)
             .accept(MediaType.APPLICATION_JSON);
-        
-        if (authToken != null && !authToken.isEmpty()) {
-            request.header("Authorization", "Bearer " + authToken);
-        }
-        
+        applyAuth(request);
+        applyCsrf(request);
         return request.exchange();
     }
     

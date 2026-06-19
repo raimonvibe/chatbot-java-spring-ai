@@ -15,6 +15,7 @@ public class ApiTestClient {
 
     private final String baseUrl;
     private String authToken;
+    private String csrfToken;
 
     public ApiTestClient(int port) {
         this.baseUrl = "http://localhost:" + port;
@@ -49,6 +50,7 @@ public class ApiTestClient {
      */
     public ApiTestClient clearAuth() {
         this.authToken = null;
+        this.csrfToken = null;
         return this;
     }
 
@@ -152,11 +154,31 @@ public class ApiTestClient {
         return response;
     }
 
+    private void ensureCsrfToken() {
+        if (csrfToken == null) {
+            Response response = RestAssured.given()
+                .baseUri(baseUrl)
+                .port(extractPort())
+                .get(baseUrl + "/api/health");
+            csrfToken = response.getCookie(CsrfTestSupport.CSRF_COOKIE);
+        }
+    }
+
+    private RequestSpecification createMutatingRequest() {
+        ensureCsrfToken();
+        RequestSpecification spec = createRequest();
+        if (csrfToken != null && !csrfToken.isEmpty()) {
+            spec.cookie(CsrfTestSupport.CSRF_COOKIE, csrfToken)
+                .header(CsrfTestSupport.CSRF_HEADER, csrfToken);
+        }
+        return spec;
+    }
+
     /**
      * POST request with body
      */
     public Response post(String path, Object body) {
-        return createRequest()
+        return createMutatingRequest()
             .body(body)
             .post(path);
     }
@@ -165,14 +187,14 @@ public class ApiTestClient {
      * POST request without body
      */
     public Response post(String path) {
-        return createRequest().post(path);
+        return createMutatingRequest().post(path);
     }
 
     /**
      * PUT request with body
      */
     public Response put(String path, Object body) {
-        return createRequest()
+        return createMutatingRequest()
             .body(body)
             .put(path);
     }
@@ -181,7 +203,7 @@ public class ApiTestClient {
      * PATCH request with body
      */
     public Response patch(String path, Object body) {
-        return createRequest()
+        return createMutatingRequest()
             .body(body)
             .patch(path);
     }
@@ -190,7 +212,7 @@ public class ApiTestClient {
      * DELETE request
      */
     public Response delete(String path) {
-        return createRequest().delete(path);
+        return createMutatingRequest().delete(path);
     }
 
     /**
