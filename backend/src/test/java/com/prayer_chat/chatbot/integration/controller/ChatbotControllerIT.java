@@ -37,6 +37,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = com.prayer_chat.chatbot.AiChatbotApplication.class)
@@ -134,9 +135,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.name").exists());
@@ -148,9 +150,10 @@ class ChatbotControllerIT {
     @DisplayName("Onboarding rejects javascript: URL before chatbot creation (uses UrlValidationService)")
     void shouldRejectOnboardingJavascriptUrl() throws Exception {
         mockMvc.perform(post("/api/chatbots/onboarding")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "javascript:alert(1)")))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
 
@@ -161,9 +164,10 @@ class ChatbotControllerIT {
     @DisplayName("Onboarding rejects loopback URL before chatbot creation (SSRF guard)")
     void shouldRejectOnboardingLoopbackUrl() throws Exception {
         mockMvc.perform(post("/api/chatbots/onboarding")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "http://127.0.0.1:8080")))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
 
@@ -174,9 +178,10 @@ class ChatbotControllerIT {
     @DisplayName("Onboarding rejects cloud metadata hostname before chatbot creation")
     void shouldRejectOnboardingMetadataHostname() throws Exception {
         mockMvc.perform(post("/api/chatbots/onboarding")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("websiteUrl", "https://metadata.google.internal/")))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Invalid or unsafe website URL"));
 
@@ -195,7 +200,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(2));
@@ -211,7 +216,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.name").exists());
@@ -227,7 +232,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots/999")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isNotFound());
 
         verify(chatbotRepository, times(1)).findById(999L);
@@ -250,9 +255,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(put("/api/chatbots/1")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(chatbotDetails))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Updated Name"));
 
@@ -272,9 +278,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(put("/api/chatbots/1")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(chatbotDetails))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.brandingConfig").value("{\"primaryColor\":\"#fff\"}"));
 
@@ -288,7 +295,7 @@ class ChatbotControllerIT {
         when(chatbotRepository.findByIdAndOwner_Id(1L, testUser.getId())).thenReturn(Optional.of(testChatbot));
 
         mockMvc.perform(delete("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isNoContent());
 
         verify(chatbotRepository, times(1)).findByIdAndOwner_Id(1L, testUser.getId());
@@ -318,9 +325,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(result -> {
                 int status = result.getResponse().getStatus();
                 assert status >= 400 && status < 600 : "Expected 4xx or 5xx status, got: " + status;
@@ -340,9 +348,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest());
 
         // Validation should fail before service call
@@ -361,9 +370,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest());
 
         // Validation should fail before service call
@@ -387,9 +397,10 @@ class ChatbotControllerIT {
 
         // Act & Assert - Controller should return 403 because user is not owner
         mockMvc.perform(put("/api/chatbots/1")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(chatbotDetails))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(otherUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(otherUser))))
             .andExpect(status().isForbidden());
 
         verify(chatbotRepository, times(1)).findById(1L);
@@ -412,9 +423,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isCreated());
 
         // Verify the service was called (sanitization happens there)
@@ -436,9 +448,10 @@ class ChatbotControllerIT {
 
         // Act - Create
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createRequest))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(1));
 
@@ -456,15 +469,16 @@ class ChatbotControllerIT {
 
         // Act - Update
         mockMvc.perform(put("/api/chatbots/1")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateDetails))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Updated Lifecycle Bot"));
 
         // Act - Delete (owner); scan audit rows are not removed — quotas remain per user
         mockMvc.perform(delete("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isNoContent());
 
         verify(chatbotService, times(1)).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
@@ -482,11 +496,11 @@ class ChatbotControllerIT {
 
         // Act - Simulate two concurrent read requests
         mockMvc.perform(get("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk());
 
         // Assert - Both requests should succeed
@@ -512,7 +526,7 @@ class ChatbotControllerIT {
         when(chatbotRepository.findByIdAndOwner_Id(1L, otherUser.getId())).thenReturn(Optional.empty());
 
         mockMvc.perform(delete("/api/chatbots/1")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(otherUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(otherUser))))
             .andExpect(status().isNotFound());
 
         verify(chatbotRepository, times(1)).findByIdAndOwner_Id(1L, otherUser.getId());
@@ -523,7 +537,7 @@ class ChatbotControllerIT {
     @DisplayName("Should reject delete with invalid chatbot id")
     void shouldRejectDeleteWithInvalidChatbotId() throws Exception {
         mockMvc.perform(delete("/api/chatbots/0")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isBadRequest());
 
         verify(chatbotRepository, never()).findByIdAndOwner_Id(anyLong(), anyLong());
@@ -539,7 +553,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots/1/embed")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.embedCode").exists());
 
@@ -568,7 +582,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/chatbots/1/embed")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
             .andExpect(status().isPaymentRequired())
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.upgradeRequired").value(true));
@@ -594,7 +608,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots/1/analyze")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(testUser))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message").exists());
 
@@ -625,7 +639,7 @@ class ChatbotControllerIT {
 
         // Act & Assert - controller returns 402 PAYMENT_REQUIRED when scan limit reached
         mockMvc.perform(post("/api/chatbots/1/analyze")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
             .andExpect(status().isPaymentRequired())
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.upgradeRequired").value(true));
@@ -657,7 +671,7 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots/1/analyze")
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.estimatedPages").value(600))
@@ -689,9 +703,10 @@ class ChatbotControllerIT {
 
         // Act & Assert
         mockMvc.perform(post("/api/chatbots")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
-                .with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
+                .with(csrf()).with(authentication(TestAuthenticationHelper.createCustomOAuth2UserAuthentication(previewUser))))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error").exists())
             .andExpect(jsonPath("$.upgradeRequired").value(true));

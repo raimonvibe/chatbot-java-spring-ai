@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -57,7 +58,7 @@ class AuthControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/auth/me")
-                .with(authentication(auth)))
+                .with(csrf()).with(authentication(auth)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(testUser.getId()))
             .andExpect(jsonPath("$.username").value(testUser.getUsername()))
@@ -83,7 +84,7 @@ class AuthControllerIT {
 
         // Act & Assert
         mockMvc.perform(get("/api/auth/me")
-                .with(authentication(auth)))
+                .with(csrf()).with(authentication(auth)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.roles").isArray())
             .andExpect(jsonPath("$.roles[0]").exists());

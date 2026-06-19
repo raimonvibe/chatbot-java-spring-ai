@@ -23,6 +23,7 @@ import java.util.List;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
@@ -72,7 +73,7 @@ class AdminControllerTest {
         bibleVerseRepository.save(verse);
 
         mockMvc.perform(get("/api/admin/bible/status")
-                .with(authentication(createAdminAuthentication())))
+                .with(csrf()).with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.dataLoaded").value(true))
@@ -86,7 +87,7 @@ class AdminControllerTest {
     @DisplayName("Should return correct status when no data loaded")
     void shouldReturnCorrectStatusWhenNoDataLoaded() throws Exception {
         mockMvc.perform(get("/api/admin/bible/status")
-                .with(authentication(createAdminAuthentication())))
+                .with(csrf()).with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.dataLoaded").value(false))
             .andExpect(jsonPath("$.totalVerses").value(0));
@@ -117,7 +118,7 @@ class AdminControllerTest {
         bibleVerseRepository.save(verseWithoutEmbedding);
 
         mockMvc.perform(get("/api/admin/bible/embedding-progress")
-                .with(authentication(createAdminAuthentication())))
+                .with(csrf()).with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalVerses").value(2))
             .andExpect(jsonPath("$.versesWithEmbeddings").value(1))
@@ -141,7 +142,7 @@ class AdminControllerTest {
         bibleVerseRepository.save(verse);
 
         mockMvc.perform(get("/api/admin/bible/embedding-progress")
-                .with(authentication(createAdminAuthentication())))
+                .with(csrf()).with(authentication(createAdminAuthentication())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.completed").value(true));
     }
@@ -160,7 +161,7 @@ class AdminControllerTest {
         );
 
         mockMvc.perform(get("/api/admin/bible/status")
-                .with(authentication(userAuth)))
+                .with(csrf()).with(authentication(userAuth)))
             .andExpect(status().isForbidden());
     }
 

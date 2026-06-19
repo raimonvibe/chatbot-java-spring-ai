@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -115,6 +116,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -155,6 +157,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -191,6 +194,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -218,6 +222,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act
         String response = mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -252,6 +257,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -275,6 +281,7 @@ class AuthControllerOAuth2IntegrationTest {
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/oauth2/callback")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
