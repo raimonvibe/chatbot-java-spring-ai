@@ -375,7 +375,7 @@
             <dependency>
                 <groupId>tools.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>3.1.4</version>
+                <version>3.2.0</version>
             </dependency>
             <!-- Spring Framework: managed by spring-boot-starter-parent (Boot 4 → Spring Framework 7). Do not pin 6.x here. -->
             <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects -->
