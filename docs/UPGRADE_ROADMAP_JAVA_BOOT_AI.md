@@ -7,15 +7,15 @@ This document is a practical, low-risk plan to keep the repo modern while avoidi
 ## Current Baseline (this repo)
 
 - Java: `17`
-- Spring Boot parent: `3.5.13`
-- Spring AI: `1.1.4`
+- Spring Boot parent: `4.1.0`
+- Spring AI: `2.0.0`
 - Frontend stack is already on modern majors (Next 16, React 19, TypeScript 6)
 
 ---
 
 ## What "latest" means right now
 
-- Spring Boot latest stable: `4.0.5`
+- Spring Boot latest stable: `4.1.x`
 - Java latest LTS: `25` (Java 21 is also LTS and lower-risk as an intermediate step)
 - Spring AI compatibility:
   - `1.1.x` aligns with Boot `3.5.x`
