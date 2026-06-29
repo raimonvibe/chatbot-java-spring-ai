@@ -27,7 +27,7 @@
   "dependencies": {
     "@visx/pattern": "^4.0.0",
     "clsx": "^2.1.0",
-    "framer-motion": "^12.40.0",
+    "framer-motion": "^12.42.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^1.22.0",
     "next": "^16.2.9",
