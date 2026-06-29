@@ -193,7 +193,7 @@ jobs:
           cache: 'maven'
 
       - name: Warm Maven dependency cache for Trivy
-        run: mvn -B -DskipTests dependency:go-offline
+        run: mvn -B -DskipTests dependency:resolve
         working-directory: ./backend
 
       - name: Cache Trivy DB
