@@ -17,7 +17,7 @@ class AiChatbotServicePromptSecurityTest {
 
     // safeUrlForPrompt is package-visible static; call via class name
     private static String safeUrlForPrompt(String url) {
-        return AiChatbotService.safeUrlForPrompt(url);
+        return RagPromptBuilder.safeUrlForPrompt(url);
     }
 
     @Test

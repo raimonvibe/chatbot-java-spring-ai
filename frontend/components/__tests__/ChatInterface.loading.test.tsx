@@ -27,7 +27,7 @@ jest.mock('../Message', () => {
 
 /** Renders ChatInterface and flushes the initial getQuickReplies() effect so state updates are wrapped in act(). */
 async function renderChatInterface() {
-  const result = render(<ChatInterface />);
+  const result = render(<ChatInterface chatbotId={1} />);
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();

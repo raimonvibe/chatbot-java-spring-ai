@@ -58,6 +58,10 @@ class AiChatbotServiceIndexingSecurityTest {
     private WebhookService webhookService;
     @Mock
     private JesusTeachingsService jesusTeachingsService;
+    @Mock
+    private RagContextRetrievalService ragContextRetrievalService;
+    @Mock
+    private RagPromptBuilder ragPromptBuilder;
 
     private AiChatbotService aiChatbotService;
 
@@ -66,7 +70,8 @@ class AiChatbotServiceIndexingSecurityTest {
         aiChatbotService = new AiChatbotService(
             chatClient, vectorStore, embeddingModel,
             chatbotRepository, conversationRepository, messageRepository,
-            websiteContentRepository, bibleVerseRepository, webhookService, jesusTeachingsService
+            websiteContentRepository, bibleVerseRepository, webhookService, jesusTeachingsService,
+            ragContextRetrievalService, ragPromptBuilder
         );
     }
 

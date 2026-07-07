@@ -44,6 +44,18 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+let mockRequireAuthAuthenticated = true;
+
+jest.mock('@/hooks/useRequireAuth', () => ({
+  useRequireAuth: () => ({
+    authenticated: mockRequireAuthAuthenticated,
+    loading: false,
+    networkError: false,
+    user: null,
+    refresh: jest.fn(),
+  }),
+}));
+
 jest.mock('@/lib/api', () => ({
   checkAuth: (...args: unknown[]) => mockCheckAuth(...args),
   getSubscriptionStatusFromApi: (...args: unknown[]) => mockGetSubscriptionStatusFromApi(...args),
@@ -56,6 +68,7 @@ jest.mock('@/lib/api', () => ({
 describe('Account Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequireAuthAuthenticated = true;
     mockCheckAuth.mockResolvedValue({
       authenticated: true,
       user: { id: 1, username: 'user@test.com', email: 'user@test.com', authProvider: 'GOOGLE' },
@@ -72,14 +85,13 @@ describe('Account Page', () => {
   });
 
   describe('Authentication', () => {
-    it('should redirect to login when not authenticated', async () => {
-      mockCheckAuth.mockResolvedValueOnce({ authenticated: false });
+    it('should show redirect state when not authenticated', async () => {
+      mockRequireAuthAuthenticated = false;
 
       render(<AccountPage />);
 
       await waitFor(() => {
-        // Login redirect preserves the intended destination so users return after auth
-        expect(mockReplace).toHaveBeenCalledWith('/login?redirect=%2Faccount');
+        expect(screen.getByText(/Redirecting to login/i)).toBeInTheDocument();
       });
     });
 
@@ -103,7 +115,7 @@ describe('Account Page', () => {
     });
 
     it('should render malicious user content as text not HTML (XSS)', async () => {
-      mockCheckAuth.mockResolvedValueOnce({
+      mockCheckAuth.mockResolvedValue({
         authenticated: true,
         user: {
           id: 1,
@@ -210,7 +222,7 @@ describe('Account Page', () => {
   describe('Legal links', () => {
     it('should have links to Privacy, Legal, Contact', async () => {
       render(<AccountPage />);
-      await waitFor(() => expect(screen.getByText(/Account/i)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('heading', { name: /^Account$/i })).toBeInTheDocument());
 
       expect(screen.getByRole('link', { name: /Privacy Notice/i })).toHaveAttribute('href', '/privacy');
       expect(screen.getByRole('link', { name: /Legal Notice/i })).toHaveAttribute('href', '/legal');
@@ -219,7 +231,7 @@ describe('Account Page', () => {
 
     it('should have Back to Dashboard link', async () => {
       render(<AccountPage />);
-      await waitFor(() => expect(screen.getByText(/Account/i)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('heading', { name: /^Account$/i })).toBeInTheDocument());
       expect(screen.getByRole('link', { name: /Back to Dashboard/i })).toHaveAttribute('href', '/dashboard');
     });
   });

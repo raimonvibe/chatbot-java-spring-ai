@@ -1,7 +1,10 @@
 package com.prayer_chat.chatbot.security;
 
 import com.prayer_chat.chatbot.config.BillingProperties;
-import com.prayer_chat.chatbot.controller.ChatbotController;
+import com.prayer_chat.chatbot.controller.ChatbotAnalysisController;
+import com.prayer_chat.chatbot.service.ChatbotAccessService;
+import com.prayer_chat.chatbot.service.ChatbotWebsiteAnalysisService;
+import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
 import com.prayer_chat.chatbot.helpers.TestAuthenticationHelper;
 import com.prayer_chat.chatbot.helpers.TestDataBuilder;
 import com.prayer_chat.chatbot.model.Chatbot;
@@ -88,7 +91,10 @@ class DeleteRecreateAttackPreventionTest {
     @Mock
     private UrlValidationService urlValidationService;
 
-    private ChatbotController chatbotController;
+    @Mock
+    private ChristianContentAnalysisService christianContentAnalysisService;
+
+    private ChatbotAnalysisController analysisController;
 
     private User previewUser;
     private Chatbot testChatbot;
@@ -107,24 +113,20 @@ class DeleteRecreateAttackPreventionTest {
 
         BillingProperties billingProperties = new BillingProperties();
         billingProperties.setEnabled(true);
-        chatbotController = new ChatbotController(
-            chatbotRepository,
-            chatbotService,
-            aiChatbotService,
+        ChatbotAccessService chatbotAccessService = new ChatbotAccessService(accessControlService, chatbotRepository);
+        ChatbotWebsiteAnalysisService websiteAnalysisOrchestrator = new ChatbotWebsiteAnalysisService(
             websiteAnalysisService,
-            conversationExportService,
-            bibleVerseService,
-            mock(ChristianContentAnalysisService.class),
-            mock(JesusTeachingsService.class),
-            mock(JesusVersesTaggingService.class),
-            costTrackingService,
-            websiteSizeEstimator,
-            websiteScanAuditRepository,
-            accessControlService,
+            aiChatbotService,
             rateLimitingService,
-            urlValidationService,
-            new BillingModeService(billingProperties)
+            websiteSizeEstimator,
+            accessControlService,
+            costTrackingService,
+            new BillingModeService(billingProperties),
+            websiteScanAuditRepository,
+            chatbotRepository,
+            christianContentAnalysisService
         );
+        analysisController = new ChatbotAnalysisController(chatbotAccessService, websiteAnalysisOrchestrator);
         lenient().when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.of("https://example.com/"));
     }
     
@@ -140,8 +142,11 @@ class DeleteRecreateAttackPreventionTest {
         lenient().when(websiteSizeEstimator.estimateSize(anyString())).thenReturn(10);
         
         // Mock cost tracking
-        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt())).thenReturn(new BigDecimal("0.50"));
-        lenient().doNothing().when(costTrackingService).checkCostLimit(any(User.class), any(BigDecimal.class));
+        lenient().when(costTrackingService.calculateWebsiteScanCost(anyInt(), anyInt()))
+            .thenReturn(new BigDecimal("0.50"));
+        lenient().when(accessControlService.getSubscriptionPlan(any(User.class)))
+            .thenReturn(com.prayer_chat.chatbot.model.Subscription.SubscriptionPlan.FREE);
+        lenient().doNothing().when(costTrackingService).trackWebsiteScanCost(any(User.class), anyInt(), anyInt());
         
         // Mock rate limiting - allow scans by default
         RateLimitingService.RateLimitResult allowedResult = new RateLimitingService.RateLimitResult(
@@ -173,7 +178,7 @@ class DeleteRecreateAttackPreventionTest {
             .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // First scan succeeds
-        ResponseEntity<?> firstScan = chatbotController.analyzeWebsite(
+        ResponseEntity<?> firstScan = analysisController.analyzeWebsite(
             1L, customOAuth2User
         );
 
@@ -197,7 +202,7 @@ class DeleteRecreateAttackPreventionTest {
         );
         when(rateLimitingService.checkScanLimit(any(User.class))).thenReturn(blockedResult);
 
-        ResponseEntity<?> secondScan = chatbotController.analyzeWebsite(
+        ResponseEntity<?> secondScan = analysisController.analyzeWebsite(
             2L, customOAuth2User
         );
 
@@ -226,7 +231,7 @@ class DeleteRecreateAttackPreventionTest {
             .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act
-        chatbotController.analyzeWebsite(1L, customOAuth2User);
+        analysisController.analyzeWebsite(1L, customOAuth2User);
 
         // Assert - verify we use rate limiting service (which internally uses audit repository)
         verify(rateLimitingService, atLeastOnce()).checkScanLimit(any(User.class));
@@ -251,7 +256,7 @@ class DeleteRecreateAttackPreventionTest {
             .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act - scan website
-        chatbotController.analyzeWebsite(1L, customOAuth2User);
+        analysisController.analyzeWebsite(1L, customOAuth2User);
 
         // Verify audit entry was created
         ArgumentCaptor<WebsiteScanAudit> auditCaptor = ArgumentCaptor.forClass(WebsiteScanAudit.class);
@@ -291,7 +296,7 @@ class DeleteRecreateAttackPreventionTest {
         when(chatbotRepository.findById(999L)).thenReturn(Optional.of(differentChatbot));
 
         // Act
-        ResponseEntity<?> response = chatbotController.analyzeWebsite(999L, customOAuth2User);
+        ResponseEntity<?> response = analysisController.analyzeWebsite(999L, customOAuth2User);
 
         // Assert - should be blocked (402 Payment Required)
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED);
@@ -318,7 +323,7 @@ class DeleteRecreateAttackPreventionTest {
             .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         // Act
-        ResponseEntity<?> response = chatbotController.analyzeWebsite(1L, customOAuth2User);
+        ResponseEntity<?> response = analysisController.analyzeWebsite(1L, customOAuth2User);
 
         // Assert - should be allowed (24 hours passed)
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

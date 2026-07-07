@@ -2,39 +2,39 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, checkAuth, logout, createPortalSession, updateChatbot, getSafeErrorMessage, getUserFacingFetchError, logClientIssue, isApiError, getSubscriptionStatusFromApi, deleteModalWebsiteScanNote, websiteScanFieldsFromSubscriptionApi, type Chatbot, type SubscriptionStatus } from '@/lib/api';
-import { copyTextToClipboard } from '@/lib/clipboard';
+import { getAllChatbots, createChatbotFromUrl, getEmbedCode, deleteChatbot, logout, createPortalSession, getSafeErrorMessage, getUserFacingFetchError, isApiError, type Chatbot, type SubscriptionStatus } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Book, Plus, X, Eye, Code, Copy, CheckCircle, Crown, LogOut, CreditCard, User, Loader2, Trash2 } from 'lucide-react';
+import { Book, Plus, X } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
-import ThemePicker, { type PastelTheme, PASTEL_PRESETS } from '@/components/ThemePicker';
-import AvatarPicker from '@/components/AvatarPicker';
+import ChatbotCard from '@/components/dashboard/ChatbotCard';
+import DeleteChatbotModal from '@/components/dashboard/DeleteChatbotModal';
+import EmbedCodeModal from '@/components/dashboard/EmbedCodeModal';
+import DashboardMobileOverview from '@/components/dashboard/DashboardMobileOverview';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
-import { type AvatarId } from '@/lib/api';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 
 export default function Dashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const prevPathnameRef = useRef<string | null>(null);
+  const { authenticated, loading: authLoading, refresh: refreshAuth } = useRequireAuth();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [chatbotsLoading, setChatbotsLoading] = useState(true);
+  const { status: subscriptionStatus, refresh: refreshSubscription } = useSubscription(chatbots.length);
+  const loading = authLoading || chatbotsLoading;
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedChatbot, setSelectedChatbot] = useState<Chatbot | null>(null);
   const [embedCode, setEmbedCode] = useState('');
   const [embedCopyFeedback, setEmbedCopyFeedback] = useState<'idle' | 'success' | 'error'>('idle');
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState('');
   const [paywallFeature, setPaywallFeature] = useState<'chatbot-limit' | 'integration-script' | 'advanced-features' | 'general'>('general');
   const [portalLoading, setPortalLoading] = useState(false);
-  const [jesusTogglingId, setJesusTogglingId] = useState<number | null>(null);
-  const [themeApplyingId, setThemeApplyingId] = useState<number | null>(null);
-  const [avatarApplyingId, setAvatarApplyingId] = useState<number | null>(null);
 
   const [creating, setCreating] = useState(false);
   const [createFormError, setCreateFormError] = useState('');
@@ -58,9 +58,9 @@ export default function Dashboard() {
     status ? paymentActionsAvailableFromApi(status) : isBillingEnabledFromEnv();
 
   useEffect(() => {
-    loadChatbots();
-    loadSubscriptionStatus();
-  }, []);
+    if (authLoading || !authenticated) return;
+    void loadChatbots();
+  }, [authLoading, authenticated]);
 
   /** Re-entering dashboard from preview (or any other route) refetches chatbots — pairs with GET cache: no-store. */
   useEffect(() => {
@@ -72,14 +72,6 @@ export default function Dashboard() {
     }
   }, [pathname, loading, authenticated]);
 
-  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
-  // This must be before early returns to maintain hook order
-  useEffect(() => {
-    if (!loading && !authenticated) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-    }
-  }, [loading, authenticated, router]);
-
   /** If client navigation stalls, retry onboarding so the user is not stuck on a spinner forever. */
   useEffect(() => {
     if (!redirectingToOnboarding) return;
@@ -89,45 +81,12 @@ export default function Dashboard() {
     return () => clearTimeout(retry);
   }, [redirectingToOnboarding, router]);
 
-  /** Fetch subscription from API for plan limits and embed access (canUseChatbot); UI styling differs in preview vs full access.
-   *  Security: subscription is from authenticated API only; embed access is enforced by backend on GET /embed. */
-  const loadSubscriptionStatus = async (chatbotCountOverride?: number) => {
-    try {
-      const api = await getSubscriptionStatusFromApi();
-      const canUse = !!api?.canUseChatbot;
-      const count = typeof chatbotCountOverride === 'number' && chatbotCountOverride >= 0 ? chatbotCountOverride : chatbots.length;
-      setSubscriptionStatus({
-        isPreviewMode: !canUse,
-        canAccessIntegrationScript: canUse,
-        maxChatbots: canUse ? 10 : 1,
-        currentChatbotCount: count,
-        plan: api?.plan,
-        billingEnabled: api?.billingEnabled,
-        paymentActionsAvailable: api?.paymentActionsAvailable,
-        ...websiteScanFieldsFromSubscriptionApi(api),
-      });
-    } catch (error: unknown) {
-      console.error('Error loading subscription status:', error);
-      const fallbackCount = typeof chatbotCountOverride === 'number' && chatbotCountOverride >= 0 ? chatbotCountOverride : chatbots.length;
-      setSubscriptionStatus({
-        isPreviewMode: true,
-        canAccessIntegrationScript: false,
-        maxChatbots: 1,
-        currentChatbotCount: fallbackCount,
-        plan: undefined,
-        billingEnabled: undefined,
-        paymentActionsAvailable: undefined,
-      });
-    }
-  };
-
   const loadChatbots = async () => {
     setChatbotsLoadError(null);
     let skipFinishLoading = false;
     try {
       const data = await getAllChatbots();
       setChatbots(data);
-      setAuthenticated(true);
 
       if (data.length === 0) {
         skipFinishLoading = true;
@@ -135,49 +94,17 @@ export default function Dashboard() {
         router.replace('/onboarding');
         return;
       }
-
-      // Refetch subscription from API so embed button styling matches access tier
-      const api = await getSubscriptionStatusFromApi();
-      const canUse = !!api?.canUseChatbot;
-      setSubscriptionStatus({
-        isPreviewMode: !canUse,
-        canAccessIntegrationScript: canUse,
-        maxChatbots: canUse ? 10 : 1,
-        currentChatbotCount: data.length,
-        plan: api?.plan,
-        billingEnabled: api?.billingEnabled,
-        paymentActionsAvailable: api?.paymentActionsAvailable,
-        ...websiteScanFieldsFromSubscriptionApi(api),
-      });
     } catch (error: unknown) {
       console.error('Error loading chatbots:', error);
       const status = isApiError(error) ? error.status : undefined;
       if (status === 401) {
-        setAuthenticated(false);
+        await refreshAuth();
       } else {
-        // 403, 402, 5xx, network: do not force logout — scan limits and transient errors are not auth failures
-        try {
-          const authResult = await checkAuth();
-          if (authResult.networkError) {
-            setAuthenticated(true);
-            setChatbotsLoadError(
-              getUserFacingFetchError(error, 'Could not load your chatbots. Please try again.')
-            );
-          } else if (!authResult.authenticated) {
-            setAuthenticated(false);
-          } else {
-            setAuthenticated(true);
-            setChatbotsLoadError(
-              getUserFacingFetchError(error, 'Could not load your chatbots. Please try again.')
-            );
-          }
-        } catch {
-          setAuthenticated(false);
-        }
+        setChatbotsLoadError(getUserFacingFetchError(error, 'Could not load your chatbots. Please try again.'));
       }
     } finally {
       if (!skipFinishLoading) {
-        setLoading(false);
+        setChatbotsLoading(false);
       }
     }
   };
@@ -224,7 +151,7 @@ export default function Dashboard() {
   const openDeleteConfirmModal = (chatbot: Chatbot) => {
     setDeleteFlowError(null);
     setDeleteConfirmChatbot(chatbot);
-    void loadSubscriptionStatus();
+    void refreshSubscription(chatbots.length);
   };
 
   const performConfirmedDelete = async () => {
@@ -242,7 +169,7 @@ export default function Dashboard() {
       }
       setDeleteConfirmChatbot(null);
       setDeleteFlowError(null);
-      await loadSubscriptionStatus(remaining.length);
+      await refreshSubscription(remaining.length);
       if (remaining.length === 0) {
         setRedirectingToOnboarding(true);
         router.replace('/onboarding');
@@ -285,7 +212,7 @@ export default function Dashboard() {
       setChatbots([...chatbots, newChatbot]);
       setShowCreateForm(false);
       setCreating(false);
-      loadSubscriptionStatus(chatbots.length + 1);
+      void refreshSubscription(chatbots.length + 1);
     } catch (error: unknown) {
       console.error('Error creating chatbot:', error);
       setCreating(false);
@@ -428,99 +355,14 @@ export default function Dashboard() {
       <ChatbotCreationLoader isVisible={creating} chatbotName="Your Chatbot" />
       <AnimatePresence>
         {deleteConfirmChatbot && (
-          <motion.div
-            key="delete-chatbot-modal"
-            role="presentation"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <button
-              type="button"
-              className="absolute inset-0 bg-black/45 backdrop-blur-[2px] cursor-default"
-              aria-label="Close delete confirmation"
-              disabled={chatbotDeletingId !== null}
-              onClick={closeDeleteConfirmModal}
-            />
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="delete-chatbot-dialog-title"
-              aria-describedby="delete-chatbot-dialog-desc"
-              initial={{ opacity: 0, scale: 0.97, y: 6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: 6 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-              className="relative z-10 w-full max-w-md rounded-2xl border border-brown-200 bg-white shadow-xl shadow-brown-900/10 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 sm:p-7">
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 border border-red-100">
-                    <Trash2 className="h-5 w-5" aria-hidden />
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded-lg p-2 text-brown-500 hover:bg-brown-100 hover:text-brown-800 disabled:opacity-40"
-                    aria-label="Close"
-                    disabled={chatbotDeletingId !== null}
-                    onClick={closeDeleteConfirmModal}
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <h2
-                  id="delete-chatbot-dialog-title"
-                  className="text-xl font-bold text-brown-900 tracking-tight"
-                >
-                  Delete this chatbot?
-                </h2>
-                <p id="delete-chatbot-dialog-desc" className="mt-3 text-sm text-brown-700 leading-relaxed">
-                  You&apos;re about to remove{' '}
-                  <span className="font-semibold text-brown-900">{deleteConfirmChatbot.name}</span>. This cannot be
-                  undone.
-                </p>
-                <p className="mt-3 text-sm text-brown-600 leading-relaxed rounded-xl bg-amber-50/90 border border-amber-100 px-3 py-2.5">
-                  {deleteModalWebsiteScanNote(subscriptionStatus)}
-                </p>
-                {deleteFlowError && (
-                  <div
-                    role="alert"
-                    className="mt-4 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"
-                  >
-                    {deleteFlowError}
-                  </div>
-                )}
-                <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-brown-200 bg-white text-brown-800 font-medium hover:bg-brown-50 disabled:opacity-50"
-                    disabled={chatbotDeletingId !== null}
-                    onClick={closeDeleteConfirmModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-700 text-white font-semibold hover:bg-red-800 disabled:opacity-60 flex items-center justify-center gap-2"
-                    disabled={chatbotDeletingId !== null}
-                    onClick={() => void performConfirmedDelete()}
-                  >
-                    {chatbotDeletingId === deleteConfirmChatbot.id ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
-                        Deleting…
-                      </>
-                    ) : (
-                      'Delete permanently'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+          <DeleteChatbotModal
+            chatbot={deleteConfirmChatbot}
+            subscriptionStatus={subscriptionStatus}
+            deleting={chatbotDeletingId === deleteConfirmChatbot.id}
+            error={deleteFlowError}
+            onClose={closeDeleteConfirmModal}
+            onConfirm={() => void performConfirmedDelete()}
+          />
         )}
       </AnimatePresence>
       <div className="max-w-4xl mx-auto min-w-0">
@@ -534,7 +376,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => {
-                setLoading(true);
+                setChatbotsLoading(true);
                 void loadChatbots();
               }}
               className="shrink-0 px-4 py-2 rounded-lg bg-brown-700 text-white text-sm font-medium hover:bg-brown-800 cursor-pointer"
@@ -580,105 +422,14 @@ export default function Dashboard() {
           <p className="mb-4 text-xs text-brown-600 font-medium">Preview Mode</p>
         )}
 
-        {/* Mobile overview card (Option A) */}
-        <section className="sm:hidden mb-6">
-          <div className="rounded-2xl border border-brown-100 bg-brown-50/80 shadow-sm p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wide text-brown-600 font-semibold">Overview</p>
-                <p className="text-brown-900 font-bold text-lg leading-tight">Your Dashboard</p>
-                <p className="text-brown-700 text-sm mt-1">
-                  {subscriptionStatus?.isPreviewMode
-                    ? offerPaymentUi(subscriptionStatus)
-                      ? 'Preview mode: embed is locked until subscription is active.'
-                      : 'Manage chatbots and copy your embed code.'
-                    : 'Manage chatbots and copy your embed code.'}
-                </p>
-              </div>
-              <Link
-                href="/account"
-                className="flex-shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-brown-200 text-brown-800 text-sm font-medium"
-                aria-label="Open account"
-              >
-                <User className="w-4 h-4" /> Account
-              </Link>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-white border border-brown-200 p-3">
-                <p className="text-[11px] text-brown-600 font-semibold">Plan</p>
-                <p className="text-brown-900 font-bold text-sm truncate">
-                  {subscriptionStatus?.plan || (subscriptionStatus?.isPreviewMode ? 'Preview' : 'Active')}
-                </p>
-              </div>
-              <div className="rounded-xl bg-white border border-brown-200 p-3">
-                <p className="text-[11px] text-brown-600 font-semibold">Chatbots</p>
-                <p className="text-brown-900 font-bold text-sm">
-                  {chatbots.length}
-                  {typeof subscriptionStatus?.maxChatbots === 'number' ? ` / ${subscriptionStatus.maxChatbots}` : ''}
-                </p>
-              </div>
-              <div className="rounded-xl bg-white border border-brown-200 p-3">
-                <p className="text-[11px] text-brown-600 font-semibold">Embed</p>
-                <p className="text-brown-900 font-bold text-sm">
-                  {subscriptionStatus?.canAccessIntegrationScript ? 'Ready' : 'Locked'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {(subscriptionStatus ? chatbots.length < subscriptionStatus.maxChatbots : true) ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(!showCreateForm)}
-                  className="w-full px-4 py-3 rounded-2xl bg-gradient-to-r from-brown-600 to-gold-600 text-white font-semibold flex items-center justify-center gap-2"
-                >
-                  {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                  {showCreateForm ? 'Cancel' : 'New chatbot'}
-                </button>
-              ) : null}
-              {offerPaymentUi(subscriptionStatus) ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setPortalLoading(true);
-                    try {
-                      const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
-                      const url = await createPortalSession(returnUrl);
-                      const allowed = (u: string) => {
-                        try {
-                          const o = new URL(u);
-                          return ['billing.stripe.com', 'billing.stripe.dev'].includes(o.hostname);
-                        } catch {
-                          return false;
-                        }
-                      };
-                      if (!url || typeof url !== 'string' || !allowed(url)) {
-                        alert('Invalid billing portal URL. Please try again or contact support.');
-                        return;
-                      }
-                      window.location.href = url;
-                    } catch (e) {
-                      const msg = e instanceof Error ? e.message : 'Failed to open billing portal';
-                      if (!msg.includes('apiKey') && !msg.includes('secret') && !msg.includes('stack')) {
-                        alert(msg);
-                      } else {
-                        alert('Something went wrong. Please try again or contact support.');
-                      }
-                    } finally {
-                      setPortalLoading(false);
-                    }
-                  }}
-                  disabled={portalLoading}
-                  className="w-full px-4 py-3 rounded-2xl bg-white border border-brown-200 text-brown-900 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  <CreditCard className="w-5 h-5" />
-                  {portalLoading ? 'Opening…' : 'Subscription'}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </section>
+        <DashboardMobileOverview
+          subscriptionStatus={subscriptionStatus}
+          chatbots={chatbots}
+          showCreateForm={showCreateForm}
+          portalLoading={portalLoading}
+          onToggleCreateForm={() => setShowCreateForm((s) => !s)}
+          onOpenSubscription={() => void openSubscription()}
+        />
 
         {showCreateForm && (
           <motion.div
@@ -713,177 +464,19 @@ export default function Dashboard() {
         <div className="flex flex-col items-center">
           <div className={`w-full max-w-2xl mx-auto ${chatbots.length > 1 ? 'grid grid-cols-1 gap-6 sm:grid-cols-2' : ''}`}>
             {chatbots.map((chatbot) => (
-              <motion.div
+              <ChatbotCard
                 key={chatbot.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-brown-50/90 backdrop-blur-sm rounded-2xl shadow-sm p-6 hover:shadow transition-all border border-brown-100"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Book className="w-5 h-5 text-brown-700 flex-shrink-0" />
-                    <h3 className="text-xl font-bold text-brown-800">{chatbot.name}</h3>
-                  </div>
-                </div>
-                <p className="text-brown-700 mb-4">{chatbot.description}</p>
-
-                <div className="space-y-2">
-                  <Link
-                    href={`/chatbot/${chatbot.id}`}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brown-100 text-brown-800 rounded-lg hover:bg-brown-200 transition-colors font-medium cursor-pointer"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Preview Chatbot
-                  </Link>
-
-                  <button
-                    type="button"
-                    disabled={embedFetchingId === chatbot.id}
-                    onClick={() => {
-                      void handleGetEmbedCode(chatbot.id);
-                      setSelectedChatbot(chatbot);
-                    }}
-                    className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg transition-colors font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
-                      subscriptionStatus?.isPreviewMode
-                        ? 'bg-brown-100 text-brown-600 hover:bg-brown-200'
-                        : 'bg-gold-100 text-gold-800 hover:bg-gold-200'
-                    }`}
-                  >
-                    {embedFetchingId === chatbot.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
-                        Loading…
-                      </>
-                    ) : subscriptionStatus?.isPreviewMode ? (
-                      <>
-                        <Crown className="w-4 h-4 shrink-0" />
-                        Website embed snippet
-                      </>
-                    ) : (
-                      <>
-                        <Code className="w-4 h-4 shrink-0" />
-                        Get Embed Code
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    title="Delete chatbot"
-                    disabled={chatbotDeletingId === chatbot.id || embedFetchingId === chatbot.id}
-                    onClick={() => openDeleteConfirmModal(chatbot)}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-brown-200 bg-white text-brown-700 hover:bg-red-50 hover:text-red-900 hover:border-red-200/80 transition-colors font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {chatbotDeletingId === chatbot.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
-                        Deleting…
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 shrink-0" aria-hidden />
-                        Delete chatbot
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="mt-3 pt-3 border-t border-brown-200 space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={chatbot.jesusTeachingsEnabled === true}
-                      disabled={jesusTogglingId === chatbot.id}
-                      onChange={async () => {
-                        setJesusTogglingId(chatbot.id);
-                        try {
-                          const updated = await updateChatbot(chatbot.id, {
-                            ...chatbot,
-                            jesusTeachingsEnabled: !chatbot.jesusTeachingsEnabled,
-                          });
-                          setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-                        } catch (err) {
-                          logClientIssue('dashboard.jesusToggle', err);
-                          setChatbotsLoadError(
-                            getUserFacingFetchError(err, 'Could not update Jesus teachings setting. Please try again.')
-                          );
-                        } finally {
-                          setJesusTogglingId(null);
-                        }
-                      }}
-                      className="w-4 h-4 rounded border-brown-300 text-gold-600 focus:ring-gold-500 cursor-pointer flex-shrink-0 mt-0.5"
-                    />
-                    <span className="text-sm font-medium text-brown-700 leading-5">Include &quot;What Jesus Would Say&quot;</span>
-                  </label>
-                  {chatbot.bibleVerse && (
-                    <p className="text-xs text-brown-600 italic pl-0 line-clamp-2" title={chatbot.bibleVerse}>
-                      {chatbot.bibleVerse}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-brown-200">
-                  <AvatarPicker
-                    currentAvatarId={chatbot.avatarId ?? ''}
-                    onSelect={async (avatarId: '' | AvatarId) => {
-                      setAvatarApplyingId(chatbot.id);
-                      try {
-                        const payload = {
-                          ...chatbot,
-                          name: (chatbot.name && chatbot.name.trim()) || 'Chatbot',
-                          websiteUrl: (chatbot.websiteUrl && chatbot.websiteUrl.trim()) || 'https://example.com',
-                          // Empty string clears avatar on server; omitting the field would skip PATCH merge.
-                          avatarId: avatarId ? avatarId : '',
-                        };
-                        const updated = await updateChatbot(chatbot.id, payload);
-                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-                      } catch (err) {
-                        logClientIssue('dashboard.avatar.save', err);
-                        alert(getUserFacingFetchError(err, 'Failed to save avatar. Please try again.'));
-                      } finally {
-                        setAvatarApplyingId(null);
-                      }
-                    }}
-                    disabled={avatarApplyingId === chatbot.id}
-                  />
-                  <ThemePicker
-                    currentBrandingConfig={chatbot.brandingConfig ?? '{}'}
-                    applying={themeApplyingId === chatbot.id}
-                    onApply={async (theme: PastelTheme) => {
-                      if (!PASTEL_PRESETS.some((p) => p.primaryColor === theme.primaryColor && p.secondaryColor === theme.secondaryColor)) {
-                        return;
-                      }
-                      setThemeApplyingId(chatbot.id);
-                      try {
-                        const merged: Record<string, string> = {};
-                        if (chatbot.brandingConfig) {
-                          try {
-                            const existing = JSON.parse(chatbot.brandingConfig) as Record<string, unknown>;
-                            if (typeof existing.fontFamily === 'string') merged.fontFamily = existing.fontFamily;
-                          } catch {
-                            /* ignore */
-                          }
-                        }
-                        merged.primaryColor = theme.primaryColor;
-                        merged.secondaryColor = theme.secondaryColor;
-                        if (theme.borderRadius) merged.borderRadius = theme.borderRadius;
-                        // Backend @Valid requires non-blank name and websiteUrl. Blank causes 400 and theme is not saved.
-                        const payload = {
-                          ...chatbot,
-                          name: (chatbot.name && chatbot.name.trim()) || 'Chatbot',
-                          websiteUrl: (chatbot.websiteUrl && chatbot.websiteUrl.trim()) || 'https://example.com',
-                          brandingConfig: JSON.stringify(merged),
-                        };
-                        const updated = await updateChatbot(chatbot.id, payload);
-                        setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-                      } catch (err) {
-                        logClientIssue('dashboard.theme.save', err);
-                        alert(getUserFacingFetchError(err, 'Failed to save theme. Please try again.'));
-                      } finally {
-                        setThemeApplyingId(null);
-                      }
-                    }}
-                  />
-                </div>
-              </motion.div>
+                chatbot={chatbot}
+                subscriptionStatus={subscriptionStatus}
+                embedFetchingId={embedFetchingId}
+                chatbotDeletingId={chatbotDeletingId}
+                onGetEmbedCode={(id) => void handleGetEmbedCode(id)}
+                onDelete={openDeleteConfirmModal}
+                onUpdated={(updated) =>
+                  setChatbots((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+                }
+                onLoadError={setChatbotsLoadError}
+              />
             ))}
           </div>
         </div>
@@ -904,62 +497,16 @@ export default function Dashboard() {
         )}
 
         {embedCode && selectedChatbot && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
-            onClick={() => {
+          <EmbedCodeModal
+            chatbot={selectedChatbot}
+            embedCode={embedCode}
+            copyFeedback={embedCopyFeedback}
+            onCopyFeedback={setEmbedCopyFeedback}
+            onClose={() => {
               setEmbedCode('');
               setEmbedFetchError(null);
             }}
-          >
-            <div
-              className="bg-brown-50 rounded-2xl p-6 sm:p-8 max-w-2xl w-full min-w-0 max-h-[min(90vh,40rem)] overflow-y-auto border border-brown-200 shadow-lg my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Code className="w-6 h-6 text-brown-700 flex-shrink-0" />
-                <h3 className="text-xl sm:text-2xl font-bold text-brown-800 truncate min-w-0">Embed code for {selectedChatbot.name}</h3>
-              </div>
-              <p className="text-brown-700 text-sm mb-3">
-                Paste this snippet just before the closing <code className="bg-brown-200 px-1 rounded">&lt;/body&gt;</code> on your website. A chat button will appear so visitors can ask questions—like planting a small seed of encouragement on your site.
-              </p>
-              <p className="text-brown-700 text-xs sm:text-sm mb-3">
-                If the widget does not appear or styles look off, open{' '}
-                <Link href="/troubleshooting" className="font-semibold text-brown-900 underline underline-offset-2 hover:text-gold-700">
-                  Troubleshooting
-                </Link>
-                .
-              </p>
-              <pre className="bg-brown-100 p-4 rounded-lg overflow-x-auto mb-4 border border-brown-300 text-brown-900 text-sm sm:text-base">
-                <code>{embedCode}</code>
-              </pre>
-              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const ok = await copyTextToClipboard(embedCode);
-                    setEmbedCopyFeedback(ok ? 'success' : 'error');
-                    setTimeout(() => setEmbedCopyFeedback('idle'), 2000);
-                  }}
-                  className="flex-1 min-w-0 px-4 py-2 bg-gradient-to-r from-brown-600 to-gold-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  {embedCopyFeedback === 'success' ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {embedCopyFeedback === 'success' ? 'Copied!' : embedCopyFeedback === 'error' ? 'Copy failed' : 'Copy code'}
-                </button>
-                <button
-                  onClick={() => {
-                    setEmbedCode('');
-                    setEmbedFetchError(null);
-                  }}
-                  className="w-full sm:w-auto px-4 py-2 bg-brown-200 text-brown-800 rounded-lg hover:bg-brown-300 transition-colors flex items-center justify-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Close
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          />
         )}
 
         <PaywallModal

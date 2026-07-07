@@ -29,8 +29,10 @@ import {
   type SubscriptionStatusApi,
   type Chatbot,
 } from '@/lib/api';
+import type { AuthUser } from '@/lib/api';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
 import { isGoogleUserContentProfilePictureUrl } from '@/lib/profile-picture-url';
 
@@ -49,9 +51,10 @@ function AccountPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { authenticated, loading: authLoading, networkError } = useRequireAuth();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [user, setUser] = useState<{ id: number; username: string; email?: string; authProvider?: string; picture?: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatusApi | null | 'error'>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
@@ -89,16 +92,17 @@ function AccountPageContent() {
   }, []);
 
   useEffect(() => {
+    if (networkError) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    if (authLoading || !authenticated) return;
+
     const load = async () => {
       const auth = await checkAuth();
-      if (auth.networkError) {
-        // Backend unreachable: show an explicit error with retry instead of an empty account page.
-        setLoadError(true);
+      if (!auth.user) {
         setLoading(false);
-        return;
-      }
-      if (!auth.authenticated || !auth.user) {
-        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
         return;
       }
       setLoadError(false);
@@ -112,8 +116,8 @@ function AccountPageContent() {
         setLoading(false);
       }
     };
-    load();
-  }, [router]);
+    void load();
+  }, [authLoading, authenticated, networkError]);
 
   // After payment redirect: sync subscription from session once auth is ready (so script shows even if webhook hasn't run).
   // Security: URL params (payment, session_id) are UX only; backend validates session belongs to current user.
@@ -292,7 +296,9 @@ function AccountPageContent() {
     return () => setNav(null);
   }, [loading, user, portalLoading, chatbots.length, setNav, paymentUi]);
 
-  if (loading) {
+  const pageLoading = authLoading || (authenticated && loading);
+
+  if (pageLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-brown-50">
         <div className="flex flex-col items-center gap-4 text-brown-100">
@@ -318,6 +324,17 @@ function AccountPageContent() {
           >
             Retry
           </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!authenticated) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-brown-50">
+        <div className="flex flex-col items-center gap-4 text-brown-100">
+          <Loader2 className="w-10 h-10 animate-spin" />
+          <p className="text-brown-200">Redirecting to login…</p>
         </div>
       </main>
     );

@@ -1,23 +1,16 @@
 package com.prayer_chat.chatbot.controller;
 
-import com.prayer_chat.chatbot.config.BillingProperties;
+import com.prayer_chat.chatbot.exception.ForbiddenException;
+import com.prayer_chat.chatbot.exception.ResourceNotFoundException;
+import com.prayer_chat.chatbot.exception.UnauthorizedException;
 import com.prayer_chat.chatbot.model.Chatbot;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.ChatbotRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.service.AccessControlService;
-import com.prayer_chat.chatbot.service.AiChatbotService;
-import com.prayer_chat.chatbot.service.BibleVerseService;
-import com.prayer_chat.chatbot.service.ChatbotService;
-import com.prayer_chat.chatbot.service.ChristianContentAnalysisService;
-import com.prayer_chat.chatbot.service.ConversationExportService;
-import com.prayer_chat.chatbot.service.CostTrackingService;
-import com.prayer_chat.chatbot.service.RateLimitingService;
-import com.prayer_chat.chatbot.service.BillingModeService;
-import com.prayer_chat.chatbot.service.UrlValidationService;
+import com.prayer_chat.chatbot.service.ChatbotAccessService;
+import com.prayer_chat.chatbot.service.ChatbotWebsiteAnalysisService;
 import com.prayer_chat.chatbot.service.WebsiteAnalysisService;
-import com.prayer_chat.chatbot.service.WebsiteSizeEstimator;
-import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,9 +25,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 /**
@@ -45,21 +36,13 @@ import static org.mockito.Mockito.when;
 class AnalysisStatusEndpointSecurityTest {
 
     @Mock private ChatbotRepository chatbotRepository;
-    @Mock private ChatbotService chatbotService;
-    @Mock private AiChatbotService aiChatbotService;
-    @Mock private WebsiteAnalysisService websiteAnalysisService;
-    @Mock private ConversationExportService conversationExportService;
-    @Mock private BibleVerseService bibleVerseService;
-    @Mock private ChristianContentAnalysisService christianContentAnalysisService;
-    @Mock private CostTrackingService costTrackingService;
-    @Mock private WebsiteSizeEstimator websiteSizeEstimator;
-    @Mock private WebsiteScanAuditRepository websiteScanAuditRepository;
     @Mock private AccessControlService accessControlService;
-    @Mock private RateLimitingService rateLimitingService;
-    @Mock private UrlValidationService urlValidationService;
+    @Mock private WebsiteAnalysisService websiteAnalysisService;
+    @Mock private ChatbotWebsiteAnalysisService chatbotWebsiteAnalysisService;
     @Mock private CustomOAuth2User principal;
 
-    private ChatbotController controller;
+    private ChatbotAnalysisController controller;
+    private ChatbotAccessService chatbotAccessService;
     private User owner;
     private Chatbot chatbot;
 
@@ -74,77 +57,52 @@ class AnalysisStatusEndpointSecurityTest {
         chatbot.setOwner(owner);
         chatbot.setName("Bot");
 
-        controller = new ChatbotController(
-            chatbotRepository,
-            chatbotService,
-            aiChatbotService,
-            websiteAnalysisService,
-            conversationExportService,
-            bibleVerseService,
-            christianContentAnalysisService,
-            mock(com.prayer_chat.chatbot.service.JesusTeachingsService.class),
-            mock(com.prayer_chat.chatbot.service.JesusVersesTaggingService.class),
-            costTrackingService,
-            websiteSizeEstimator,
-            websiteScanAuditRepository,
-            accessControlService,
-            rateLimitingService,
-            urlValidationService,
-            new BillingModeService(newBillingPropsEnabled())
-        );
-
-        lenient().when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
+        chatbotAccessService = new ChatbotAccessService(accessControlService, chatbotRepository);
+        controller = new ChatbotAnalysisController(chatbotAccessService, chatbotWebsiteAnalysisService);
     }
 
     @Test
-    @DisplayName("Unauthenticated request returns 401")
+    @DisplayName("Unauthenticated request throws UnauthorizedException")
     void unauthenticatedReturns401() {
-        ResponseEntity<Map<String, Object>> res = controller.getAnalysisStatus(99L, null);
-        assertEquals(HttpStatus.UNAUTHORIZED, res.getStatusCode());
+        assertThrows(UnauthorizedException.class, () -> controller.getAnalysisStatus(99L, null));
     }
 
     @Test
-    @DisplayName("Missing chatbot returns 404")
+    @DisplayName("Missing chatbot throws ResourceNotFoundException")
     void missingChatbotReturns404() {
         when(principal.getUser()).thenReturn(owner);
+        when(accessControlService.hasActiveSubscription(owner)).thenReturn(true);
         when(chatbotRepository.findById(99L)).thenReturn(Optional.empty());
 
-        ResponseEntity<Map<String, Object>> res = controller.getAnalysisStatus(99L, principal);
-        assertEquals(HttpStatus.NOT_FOUND, res.getStatusCode());
+        assertThrows(ResourceNotFoundException.class, () -> controller.getAnalysisStatus(99L, principal));
     }
 
     @Test
-    @DisplayName("Non-owner returns 403")
+    @DisplayName("Non-owner throws ForbiddenException")
     void nonOwnerReturns403() {
         User other = new User();
         other.setId(11L);
         other.setEmail("other@example.com");
         when(principal.getUser()).thenReturn(other);
-        when(chatbotRepository.findById(99L)).thenReturn(Optional.of(chatbot));
         when(accessControlService.hasActiveSubscription(other)).thenReturn(true);
+        when(chatbotRepository.findById(99L)).thenReturn(Optional.of(chatbot));
 
-        ResponseEntity<Map<String, Object>> res = controller.getAnalysisStatus(99L, principal);
-        assertEquals(HttpStatus.FORBIDDEN, res.getStatusCode());
+        assertThrows(ForbiddenException.class, () -> controller.getAnalysisStatus(99L, principal));
     }
 
     @Test
     @DisplayName("Owner with subscription gets status body")
     void ownerOkReturnsBody() {
         when(principal.getUser()).thenReturn(owner);
-        when(chatbotRepository.findById(99L)).thenReturn(Optional.of(chatbot));
         when(accessControlService.hasActiveSubscription(owner)).thenReturn(true);
-        when(websiteAnalysisService.getAnalysisStatus(chatbot)).thenReturn(Map.of("ready", true, "pagesIndexed", 3L));
+        when(chatbotRepository.findById(99L)).thenReturn(Optional.of(chatbot));
+        when(chatbotWebsiteAnalysisService.getAnalysisStatus(chatbot))
+            .thenReturn(Map.of("ready", true, "pagesIndexed", 3L));
 
         ResponseEntity<Map<String, Object>> res = controller.getAnalysisStatus(99L, principal);
         assertEquals(HttpStatus.OK, res.getStatusCode());
         assertNotNull(res.getBody());
         assertEquals(Boolean.TRUE, res.getBody().get("ready"));
         assertEquals(3L, res.getBody().get("pagesIndexed"));
-    }
-
-    private static BillingProperties newBillingPropsEnabled() {
-        BillingProperties p = new BillingProperties();
-        p.setEnabled(true);
-        return p;
     }
 }

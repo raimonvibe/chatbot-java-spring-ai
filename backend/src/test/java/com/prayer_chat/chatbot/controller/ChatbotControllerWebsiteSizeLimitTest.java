@@ -21,6 +21,9 @@ import com.prayer_chat.chatbot.service.UrlValidationService;
 import com.prayer_chat.chatbot.repository.WebsiteScanAuditRepository;
 import com.prayer_chat.chatbot.model.Subscription;
 import org.junit.jupiter.api.BeforeEach;
+import com.prayer_chat.chatbot.exception.WebsiteTooLargeException;
+import com.prayer_chat.chatbot.service.ChatbotAccessService;
+import com.prayer_chat.chatbot.service.ChatbotWebsiteAnalysisService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -95,6 +98,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
 
     private BillingModeService billingModeService;
     private ChatbotController chatbotController;
+    private ChatbotAnalysisController analysisController;
 
     private User testUser;
     private Chatbot testChatbot;
@@ -135,6 +139,21 @@ class ChatbotControllerWebsiteSizeLimitTest {
             urlValidationService,
             billingModeService
         );
+
+        ChatbotAccessService chatbotAccessService = new ChatbotAccessService(accessControlService, chatbotRepository);
+        ChatbotWebsiteAnalysisService websiteAnalysisOrchestrator = new ChatbotWebsiteAnalysisService(
+            websiteAnalysisService,
+            aiChatbotService,
+            rateLimitingService,
+            websiteSizeEstimator,
+            accessControlService,
+            costTrackingService,
+            billingModeService,
+            websiteScanAuditRepository,
+            chatbotRepository,
+            christianContentAnalysisService
+        );
+        analysisController = new ChatbotAnalysisController(chatbotAccessService, websiteAnalysisOrchestrator);
 
         when(customOAuth2User.getUser()).thenReturn(testUser);
         lenient().when(urlValidationService.completeAndValidate(anyString())).thenAnswer(invocation -> {
@@ -190,17 +209,16 @@ class ChatbotControllerWebsiteSizeLimitTest {
         when(accessControlService.isPreviewMode(testUser)).thenReturn(true);
 
         // Act
-        ResponseEntity<?> response = chatbotController.createChatbotFromUrl(
-            Map.of("websiteUrl", largeWebsiteUrl),
-            customOAuth2User
+        WebsiteTooLargeException ex = assertThrows(WebsiteTooLargeException.class, () ->
+            chatbotController.createChatbotFromUrl(
+                Map.of("websiteUrl", largeWebsiteUrl),
+                customOAuth2User
+            )
         );
 
         // Assert
-        assertEquals(HttpStatus.PAYMENT_REQUIRED, response.getStatusCode());
-        assertNotNull(response.getBody());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(ex.isBillingEnabled());
+        Map<String, Object> body = ex.toPayload();
         assertTrue(body.get("error").toString().contains("Website too large for your plan"));
         assertTrue(body.get("error").toString().contains("Upgrade to BASIC for sites up to 2000 pages"));
         assertEquals(true, body.get("upgradeRequired"));
@@ -245,12 +263,12 @@ class ChatbotControllerWebsiteSizeLimitTest {
     void shouldRejectOnboardingWhenUrlFailsValidation() {
         when(urlValidationService.completeAndValidate(anyString())).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = chatbotController.createChatbotFromUrl(
-            Map.of("websiteUrl", "https://unsafe.example"),
-            customOAuth2User
+        assertThrows(IllegalArgumentException.class, () ->
+            chatbotController.createChatbotFromUrl(
+                Map.of("websiteUrl", "https://unsafe.example"),
+                customOAuth2User
+            )
         );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(chatbotService, never()).createChatbotEnforcingLimit(any(Chatbot.class), any(User.class), anyInt());
         verify(websiteSizeEstimator, never()).estimateSize(anyString());
     }
@@ -423,7 +441,7 @@ class ChatbotControllerWebsiteSizeLimitTest {
         when(websiteSizeEstimator.estimateSize("https://large-site.com")).thenReturn(estimatedPages);
         when(accessControlService.getSubscriptionPlan(testUser)).thenReturn(Subscription.SubscriptionPlan.FREE);
 
-        ResponseEntity<?> response = chatbotController.analyzeWebsite(100L, customOAuth2User);
+        ResponseEntity<?> response = analysisController.analyzeWebsite(100L, customOAuth2User);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertNotNull(response.getBody());

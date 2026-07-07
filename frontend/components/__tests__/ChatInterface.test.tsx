@@ -18,7 +18,7 @@ const mockGetQuickReplies = api.getQuickReplies as jest.MockedFunction<typeof ap
 
 /** Renders ChatInterface and flushes the initial getQuickReplies() effect so state updates are wrapped in act(). */
 async function renderChatInterface() {
-  const result = render(<ChatInterface />)
+  const result = render(<ChatInterface chatbotId={1} />)
   await act(async () => {
     await Promise.resolve()
     await Promise.resolve()
@@ -108,7 +108,7 @@ describe('ChatInterface Component', () => {
       await user.click(sendButton)
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello bot', '')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello bot', undefined, 'en')
         expect(screen.getByText('Response from bot')).toBeInTheDocument()
       })
     })
@@ -130,7 +130,7 @@ describe('ChatInterface Component', () => {
       await user.type(input, 'Hello bot{Enter}')
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello bot', '')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello bot', undefined, 'en')
       })
     })
 
@@ -180,7 +180,7 @@ describe('ChatInterface Component', () => {
       await user.click(sendButton)
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', '')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', undefined, 'en')
       })
     })
 
@@ -194,7 +194,7 @@ describe('ChatInterface Component', () => {
       }
       mockSendMessage.mockResolvedValue(mockResponse)
 
-      render(<ChatInterface />)
+      render(<ChatInterface chatbotId={1} />)
 
       const input = screen.getByPlaceholderText('Type your message...') as HTMLInputElement
 
@@ -234,14 +234,14 @@ describe('ChatInterface Component', () => {
       await user.type(input, 'Hello{Enter}')
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', '')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', undefined, 'en')
       })
 
       // Second message should include session ID
       await user.type(input, 'Second message{Enter}')
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Second message', 'session_123')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Second message', 'session_123', 'en')
       })
     })
   })
@@ -255,7 +255,7 @@ describe('ChatInterface Component', () => {
       })
       mockSendMessage.mockReturnValue(messagePromise as any)
 
-      render(<ChatInterface />)
+      render(<ChatInterface chatbotId={1} />)
 
       const input = screen.getByPlaceholderText('Type your message...')
 
@@ -390,7 +390,7 @@ describe('ChatInterface Component', () => {
       await user.click(quickReplyButton)
 
       await waitFor(() => {
-        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', '')
+        expect(mockSendMessage).toHaveBeenCalledWith(1, 'Hello', undefined, 'en')
         expect(screen.getByText('Response to quick reply')).toBeInTheDocument()
       })
     })

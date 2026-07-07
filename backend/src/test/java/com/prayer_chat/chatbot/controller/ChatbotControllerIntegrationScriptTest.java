@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.prayer_chat.chatbot.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -276,17 +277,14 @@ class ChatbotControllerIntegrationScriptTest {
     }
 
     @Test
-    @DisplayName("Should return 404 when chatbot not found")
+    @DisplayName("Should throw ResourceNotFoundException when chatbot not found")
     void shouldReturn404WhenChatbotNotFound() {
-        // Arrange
         when(customOAuth2User.getUser()).thenReturn(testUser);
+        when(accessControlService.hasActiveSubscription(testUser)).thenReturn(true);
         when(chatbotRepository.findById(999L)).thenReturn(Optional.empty());
 
-        // Act
-        ResponseEntity<?> response = chatbotController.getEmbedCode(999L, customOAuth2User);
-
-        // Assert
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertThrows(ResourceNotFoundException.class,
+            () -> chatbotController.getEmbedCode(999L, customOAuth2User));
     }
 
     @Test

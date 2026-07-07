@@ -5,10 +5,8 @@ import { Book, Check, Zap, Building2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { createCheckoutSession, getApiBaseUrl } from '@/lib/api';
+import { createCheckoutSession, fetchPublicPlanLimits, type PublicPlanLimitsResponse } from '@/lib/api';
 import { isBillingEnabledFromEnv } from '@/lib/billing-config';
-
-const API_BASE_URL = getApiBaseUrl();
 
 // Plan keys sent to backend (must match backend: BASIC, PRO, ENTERPRISE)
 type PlanKey = 'BASIC' | 'PRO' | 'ENTERPRISE';
@@ -90,11 +88,7 @@ const PLANS = [
 ];
 
 /** Plan limits from backend (GET /api/plans/limits). When set, overrides static maxPagesPerScan etc. */
-interface PlanLimitsResponse {
-  billingEnabled?: boolean;
-  plans?: Record<string, { maxPagesPerScan: number; messagesPerDay: number; monthlyScanQuota: number }>;
-  standardPageTiers?: Record<string, number>;
-}
+type PlanLimitsResponse = PublicPlanLimitsResponse;
 
 function PricingContent() {
   const searchParams = useSearchParams();
@@ -103,10 +97,9 @@ function PricingContent() {
   const [subscribingPlan, setSubscribingPlan] = useState<PlanKey | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/plans/limits`, { method: 'GET', credentials: 'omit' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: PlanLimitsResponse | null) => data && setLimitsFromApi(data))
-      .catch(() => {});
+    void fetchPublicPlanLimits().then((data) => {
+      if (data) setLimitsFromApi(data);
+    });
   }, []);
 
   const billingOn = limitsFromApi?.billingEnabled ?? isBillingEnabledFromEnv();

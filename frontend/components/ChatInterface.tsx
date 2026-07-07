@@ -1,104 +1,61 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Message from './Message';
-import { sendMessage, getQuickReplies, getUserFacingFetchError, logClientIssue, type Message as MessageType } from '@/lib/api';
+import { getQuickReplies, logClientIssue } from '@/lib/api';
+import { useChatSession } from '@/hooks/useChatSession';
 import { Send, Book } from 'lucide-react';
 import { DotLoader } from 'react-spinners';
 
-export default function ChatInterface() {
-  const [messages, setMessages] = useState<MessageType[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! How can I help you today?',
-      timestamp: Date.now(),
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
+interface ChatInterfaceProps {
+  chatbotId: number;
+  welcomeMessage?: string;
+}
+
+export default function ChatInterface({ chatbotId, welcomeMessage = 'Hello! How can I help you today?' }: ChatInterfaceProps) {
+  const {
+    messages,
+    resetMessages,
+    input,
+    setInput,
+    isLoading,
+    handleSendMessage,
+    handleKeyDown,
+  } = useChatSession({
+    chatbotId,
+    initialMessages: [
+      {
+        id: '1',
+        role: 'assistant',
+        content: welcomeMessage,
+        timestamp: Date.now(),
+      },
+    ],
+  });
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sendingRef = useRef(false);
-  const chatbotId = 1; // Default chatbot ID - you can make this dynamic
 
   useEffect(() => {
-    // Load quick replies
+    resetMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: welcomeMessage,
+        timestamp: Date.now(),
+      },
+    ]);
+  }, [chatbotId, welcomeMessage, resetMessages]);
+
+  useEffect(() => {
     getQuickReplies(chatbotId)
       .then(setQuickReplies)
       .catch((e) => logClientIssue('chat.quickReplies', e));
-  }, []);
+  }, [chatbotId]);
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const handleSendMessage = async (messageText?: string) => {
-    const messageToSend = messageText || input.trim();
-    // Ref guard: state updates are async, so two rapid calls (e.g. Enter + click)
-    // could both pass an isLoading check before the re-render.
-    if (!messageToSend || isLoading || sendingRef.current) return;
-    sendingRef.current = true;
-
-    // Add user message
-    const userMessage: MessageType = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: messageToSend,
-      timestamp: Date.now(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      // Send message to API
-      const response = await sendMessage(chatbotId, messageToSend, sessionId);
-
-      // Store session ID
-      if (response.sessionId && !sessionId) {
-        setSessionId(response.sessionId);
-      }
-
-      // Add assistant message
-      const assistantMessage: MessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message,
-        timestamp: response.timestamp,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      logClientIssue('chat.send', error);
-      const errorMsg = getUserFacingFetchError(error, 'Something went wrong. Please try again.');
-      const errorMessage: MessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMsg}`,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      sendingRef.current = false;
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!isLoading) handleSendMessage();
-    }
-  };
-
-  const handleQuickReply = (reply: string) => {
-    handleSendMessage(reply);
-  };
 
   return (
     <motion.div
@@ -107,13 +64,11 @@ export default function ChatInterface() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Header */}
       <div className="bg-gradient-to-r from-brown-600 to-gold-600 px-6 py-4 flex items-center gap-2 border-b-2 border-brown-700">
         <Book className="w-6 h-6 text-white" strokeWidth={2} />
         <h3 className="text-white font-semibold text-lg">Prayer-Chat Assistant</h3>
       </div>
 
-      {/* Messages Container */}
       <div className="h-[500px] overflow-y-auto p-6 custom-scrollbar bg-gradient-to-b from-brown-50/50 to-brown-100/50">
         <AnimatePresence mode="popLayout">
           {messages.map((message, index) => (
@@ -121,7 +76,6 @@ export default function ChatInterface() {
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator with react-spinners */}
         {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -130,11 +84,7 @@ export default function ChatInterface() {
             className="flex justify-start mb-4"
           >
             <div className="bg-brown-100 rounded-2xl px-4 py-3 shadow-md border border-brown-300">
-              <DotLoader 
-                color="#8b4513" 
-                size={40} 
-                speedMultiplier={0.8}
-              />
+              <DotLoader color="#8b4513" size={40} speedMultiplier={0.8} />
             </div>
           </motion.div>
         )}
@@ -142,7 +92,6 @@ export default function ChatInterface() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Replies */}
       {quickReplies.length > 0 && (
         <div className="px-6 py-3 border-t-2 border-brown-200 bg-brown-50/50">
           <div className="flex flex-wrap gap-2">
@@ -154,7 +103,7 @@ export default function ChatInterface() {
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleQuickReply(reply)}
+                onClick={() => void handleSendMessage(reply)}
                 className="px-3 py-1.5 text-sm bg-gradient-to-r from-brown-100 to-gold-100 text-brown-800 rounded-full hover:from-brown-200 hover:to-gold-200 transition-colors border border-brown-300"
                 disabled={isLoading}
               >
@@ -165,7 +114,6 @@ export default function ChatInterface() {
         </div>
       )}
 
-      {/* Input Area: min-w-0 so input shrinks and send button stays visible on mobile */}
       <div className="p-4 border-t-2 border-brown-200 bg-brown-100/50">
         <div className="flex gap-2 min-w-0">
           <motion.input
@@ -178,7 +126,7 @@ export default function ChatInterface() {
             whileFocus={{ scale: 1.01 }}
           />
           <motion.button
-            onClick={() => handleSendMessage()}
+            onClick={() => void handleSendMessage()}
             disabled={!input.trim() || isLoading}
             aria-label="Send message"
             aria-busy={isLoading}

@@ -7,12 +7,14 @@ import { Book, Sparkles } from 'lucide-react';
 import {
   createChatbotFromUrl,
   getAllChatbots,
-  checkAuth,
   getSubscriptionStatusFromApi,
   getSafeErrorMessage,
   isApiError,
 } from '@/lib/api';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ErrorBanner from '@/components/ui/ErrorBanner';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import CreateChatbotFromWebsiteForm from '@/components/CreateChatbotFromWebsiteForm';
 import PaywallModal from '@/components/PaywallModal';
@@ -20,8 +22,8 @@ import PaywallModal from '@/components/PaywallModal';
 export default function OnboardingPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+  const { authenticated, loading: authLoading, networkError } = useRequireAuth();
+  const [pageLoading, setPageLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -31,27 +33,16 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     checkAuthAndChatbots();
-  }, []);
-
-  // Redirect to login if not authenticated (use useEffect to avoid showing modal)
-  // This must be before early returns to maintain hook order
-  useEffect(() => {
-    if (!loading && !authenticated) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-    }
-  }, [loading, authenticated, router, pathname]);
+  }, [authenticated, authLoading, networkError]);
 
   const checkAuthAndChatbots = async () => {
+    if (authLoading) return;
+    if (!authenticated && !networkError) {
+      setPageLoading(false);
+      return;
+    }
     try {
-      const authResult = await checkAuth();
-      if (authResult.networkError) {
-        setAuthenticated(true);
-        setLoading(false);
-        return;
-      }
-      setAuthenticated(authResult.authenticated);
-      
-      if (authResult.authenticated) {
+      if (authenticated) {
         try {
           const sub = await getSubscriptionStatusFromApi();
           setBillingActionsAvailable(paymentActionsAvailableFromApi(sub));
@@ -68,7 +59,7 @@ export default function OnboardingPage() {
           console.error('Error loading chatbots on onboarding:', loadErr);
           const st = isApiError(loadErr) ? loadErr.status : undefined;
           if (st === 401) {
-            setAuthenticated(false);
+            router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
             return;
           }
           setError(
@@ -80,10 +71,9 @@ export default function OnboardingPage() {
         }
       }
     } catch (error) {
-      console.error('Error checking auth:', error);
-      setAuthenticated(false);
+      console.error('Error checking onboarding state:', error);
     } finally {
-      setLoading(false);
+      setPageLoading(false);
     }
   };
 
@@ -134,23 +124,12 @@ export default function OnboardingPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <Book className="w-16 h-16 text-brown-600 animate-pulse mb-4" strokeWidth={1.5} />
-        <div className="text-xl text-brown-700">Loading...</div>
-      </div>
-    );
+  if (authLoading || pageLoading) {
+    return <LoadingSpinner label="Loading…" className="min-h-screen" />;
   }
 
-  if (!authenticated) {
-    // Show loading state while redirecting
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <Book className="w-16 h-16 text-brown-600 animate-pulse mb-4" strokeWidth={1.5} />
-        <div className="text-xl text-brown-700">Redirecting to login...</div>
-      </div>
-    );
+  if (!authenticated && !networkError) {
+    return <LoadingSpinner label="Redirecting to login…" className="min-h-screen" />;
   }
 
   return (
@@ -190,6 +169,7 @@ export default function OnboardingPage() {
           serverError={error}
           onClearServerError={() => setError('')}
         />
+        {error ? <div className="mt-4"><ErrorBanner message={error} /></div> : null}
       </motion.div>
     </main>
   );

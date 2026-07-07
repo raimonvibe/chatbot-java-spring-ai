@@ -6,9 +6,9 @@ import com.prayer_chat.chatbot.model.Subscription;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.repository.SubscriptionRepository;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
-import com.prayer_chat.chatbot.service.AccessControlService;
-import com.prayer_chat.chatbot.service.RateLimitingService;
+import com.prayer_chat.chatbot.dto.SubscriptionStatusResponse;
 import com.prayer_chat.chatbot.service.StripeService;
+import com.prayer_chat.chatbot.service.SubscriptionStatusService;
 import com.prayer_chat.chatbot.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,13 +39,10 @@ public class SubscriptionController {
     private SubscriptionRepository subscriptionRepository;
 
     @Autowired
-    private RateLimitingService rateLimitingService;
-
-    @Autowired
     private BillingProperties billingProperties;
 
     @Autowired
-    private AccessControlService accessControlService;
+    private SubscriptionStatusService subscriptionStatusService;
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -63,59 +60,12 @@ public class SubscriptionController {
      * Get current user's subscription status
      */
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getSubscriptionStatus(
+    public ResponseEntity<SubscriptionStatusResponse> getSubscriptionStatus(
             @AuthenticationPrincipal CustomOAuth2User currentUser) {
-
-        try {
-            if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-            User user = currentUser.getUser();
-            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("billingEnabled", billingProperties.isEnabled());
-            response.put("paymentActionsAvailable", billingProperties.isEnabled());
-
-            if (subscriptionOpt.isPresent()) {
-                Subscription subscription = subscriptionOpt.get();
-                response.put("hasSubscription", true);
-                response.put("status", subscription.getStatus());
-                response.put("plan", subscription.getPlan());
-                response.put("isActive", subscription.isActive());
-                response.put("canUseChatbot",
-                    subscription.canUseChatbot() || accessControlService.isPreviewMode(user));
-                response.put("currentPeriodEnd", subscription.getCurrentPeriodEnd());
-
-                if (subscription.getCanceledAt() != null) {
-                    response.put("canceledAt", subscription.getCanceledAt());
-                }
-            } else {
-                boolean previewAccess = accessControlService.isPreviewMode(user);
-                response.put("hasSubscription", false);
-                response.put("status", "FREE");
-                response.put("plan", "FREE");
-                response.put("isActive", false);
-                response.put("canUseChatbot", previewAccess);
-            }
-
-            try {
-                RateLimitingService.WebsiteScanQuotaSnapshot scan = rateLimitingService.getWebsiteScanQuotaSnapshot(user);
-                response.put("websiteScansMonthlyQuota", scan.monthlyQuota());
-                response.put("websiteScansUsedThisMonth", scan.usedThisMonth());
-                response.put("websiteScansDailyLimit", scan.dailyLimit());
-                response.put("websiteScansUsedRollingDay", scan.usedScansInRollingWindow());
-                response.put("websiteScansRemaining", scan.remainingScansEffective());
-            } catch (Exception ex) {
-                logger.warn("Could not attach website scan quota to subscription status: {}", ex.getMessage());
-            }
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error retrieving subscription status: {}", LogSanitizer.sanitizeException(e));
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        return ResponseEntity.ok(subscriptionStatusService.buildForUser(currentUser.getUser()));
     }
 
     /**
@@ -123,7 +73,7 @@ public class SubscriptionController {
      * Validates that the session belongs to the current user via client_reference_id.
      */
     @PostMapping("/sync-from-session")
-    public ResponseEntity<Map<String, Object>> syncFromCheckoutSession(
+    public ResponseEntity<SubscriptionStatusResponse> syncFromCheckoutSession(
             @AuthenticationPrincipal CustomOAuth2User currentUser,
             @RequestBody(required = false) Map<String, String> body) {
 
@@ -134,51 +84,28 @@ public class SubscriptionController {
         if (sessionId == null || sessionId.isBlank()) {
             Map<String, Object> err = new HashMap<>();
             err.put("error", "session_id is required");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         String trimmed = sessionId.trim();
         if (trimmed.length() > 255) {
-            Map<String, Object> err = new HashMap<>();
-            err.put("error", "Invalid session ID format");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         if (!billingProperties.isEnabled()) {
             Map<String, Object> err = new HashMap<>();
             err.put("error", "Payments are not enabled in this deployment.");
             err.put("code", BILLING_DISABLED_CODE);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         try {
             boolean synced = stripeService.syncSubscriptionFromCheckoutSession(trimmed, currentUser.getUser().getId());
-            Optional<Subscription> subOpt = subscriptionRepository.findByUserId(currentUser.getUser().getId());
-            Map<String, Object> response = new HashMap<>();
-            if (subOpt.isPresent()) {
-                Subscription s = subOpt.get();
-                response.put("hasSubscription", true);
-                response.put("status", s.getStatus());
-                response.put("plan", s.getPlan());
-                response.put("isActive", s.isActive());
-                response.put("canUseChatbot", s.canUseChatbot());
-                response.put("currentPeriodEnd", s.getCurrentPeriodEnd());
-                if (s.getCanceledAt() != null) response.put("canceledAt", s.getCanceledAt());
-            } else {
-                response.put("hasSubscription", false);
-                response.put("status", "FREE");
-                response.put("plan", "FREE");
-                response.put("isActive", false);
-                response.put("canUseChatbot", false);
-            }
-            response.put("synced", synced);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(subscriptionStatusService.buildForUser(currentUser.getUser(), synced));
         } catch (IllegalArgumentException e) {
             Map<String, Object> err = new HashMap<>();
             err.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (StripeException e) {
             logger.warn("Sync from session failed: {}", LogSanitizer.sanitizeException(e));
-            Map<String, Object> err = new HashMap<>();
-            err.put("error", "Invalid or expired session");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

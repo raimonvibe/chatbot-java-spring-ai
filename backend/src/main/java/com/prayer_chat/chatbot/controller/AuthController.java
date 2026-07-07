@@ -1,5 +1,6 @@
 package com.prayer_chat.chatbot.controller;
 
+import com.prayer_chat.chatbot.dto.UserResponse;
 import com.prayer_chat.chatbot.model.User;
 import com.prayer_chat.chatbot.security.CustomOAuth2User;
 import com.prayer_chat.chatbot.util.LogSanitizer;
@@ -86,52 +87,29 @@ public class AuthController {
      * which reads from CORS_ALLOWED_ORIGINS environment variable.
      */
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal CustomOAuth2User oAuth2User) {
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal CustomOAuth2User oAuth2User) {
         if (oAuth2User == null) {
-            // Fallback: try to get from SecurityContext (for backward compatibility)
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            
+
             if (authentication == null || !authentication.isAuthenticated()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
 
             Object principal = authentication.getPrincipal();
             User user;
-            
-            if (principal instanceof CustomOAuth2User) {
-                user = ((CustomOAuth2User) principal).getUser();
-            } else if (principal instanceof User) {
-                user = (User) principal;
+
+            if (principal instanceof CustomOAuth2User customUser) {
+                user = customUser.getUser();
+            } else if (principal instanceof User u) {
+                user = u;
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", user.getId());
-            response.put("username", user.getUsername());
-            response.put("email", user.getEmail());
-            response.put("roles", user.getRoles());
-            response.put("authProvider", user.getAuthProvider());
-            if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isBlank()) {
-                response.put("picture", user.getProfileImageUrl());
-            }
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(UserResponse.from(user));
         }
 
-        User user = oAuth2User.getUser();
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", user.getId());
-        response.put("username", user.getUsername());
-        response.put("email", user.getEmail());
-        response.put("roles", user.getRoles());
-        response.put("authProvider", user.getAuthProvider());
-        if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isBlank()) {
-            response.put("picture", user.getProfileImageUrl());
-        }
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(UserResponse.from(oAuth2User.getUser()));
     }
 
     /**

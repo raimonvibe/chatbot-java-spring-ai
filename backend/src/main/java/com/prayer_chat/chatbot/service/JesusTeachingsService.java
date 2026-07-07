@@ -188,30 +188,8 @@ public class JesusTeachingsService {
         return findRelevantTeachings(websiteTheme, 3, 0.4); // Lower threshold for thematic search
     }
 
-    /**
-     * Calculate cosine similarity between two embedding vectors
-     */
     private double cosineSimilarity(float[] vec1, float[] vec2) {
-        if (vec1 == null || vec2 == null || vec1.length != vec2.length) {
-            return 0.0;
-        }
-
-        double dotProduct = 0.0;
-        double norm1 = 0.0;
-        double norm2 = 0.0;
-
-        for (int i = 0; i < vec1.length; i++) {
-            dotProduct += vec1[i] * vec2[i];
-            norm1 += vec1[i] * vec1[i];
-            norm2 += vec2[i] * vec2[i];
-        }
-
-        double denominator = Math.sqrt(norm1) * Math.sqrt(norm2);
-        if (denominator == 0.0) {
-            return 0.0;
-        }
-
-        return dotProduct / denominator;
+        return com.prayer_chat.chatbot.util.VectorMath.cosineSimilarity(vec1, vec2);
     }
 }
 

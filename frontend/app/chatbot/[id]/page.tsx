@@ -1,91 +1,31 @@
 'use client';
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import Message from '@/components/Message';
 import {
-  sendMessage,
-  getChatbot,
-  getQuickReplies,
-  getAnalysisStatus,
-  pollUntilAnalysisReady,
-  previewJesusTeachings,
   logout,
-  getSubscriptionStatusFromApi,
   AVATAR_IDS,
-  getUserFacingFetchError,
-  isApiError,
-  logClientIssue,
-  type Message as MessageType,
-  type Chatbot,
-  type JesusTeachingsPreviewResponse,
-  type AnalysisStatus,
 } from '@/lib/api';
 import Link from 'next/link';
 import { ChevronDown, GripHorizontal, MessageCircle } from 'lucide-react';
 import ChatbotCreationLoader from '@/components/ChatbotCreationLoader';
 import JesusGuidanceCard from '@/components/JesusGuidanceCard';
+import EmbedChatWidget from '@/components/chat/EmbedChatWidget';
 import { useSetDashboardNav } from '@/context/DashboardNavContext';
 import { useChatbotPreviewControlsRegistration } from '@/context/ChatbotPreviewControlsContext';
+import { useChatSession } from '@/hooks/useChatSession';
+import { useChatbotPreview } from '@/hooks/useChatbotPreview';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import {
+  parseBrandingConfig,
+  parseChatbotId,
+  getHostname,
+  getSafeWebsitePreviewUrl,
+  chatbotIdMatchesRoute,
+} from '@/lib/chatbot-preview-utils';
 import { isBillingEnabledFromEnv, paymentActionsAvailableFromApi } from '@/lib/billing-config';
-
-/** Validates and parses chatbot ID from URL. Returns a positive integer or null if invalid (no API calls with bad ID). */
-function parseChatbotId(raw: string | string[] | undefined): number | null {
-  if (raw == null) return null;
-  const s = typeof raw === 'string' ? raw : raw[0];
-  if (s == null || s.length === 0) return null;
-  const n = parseInt(s, 10);
-  if (!Number.isInteger(n) || n < 1 || !Number.isFinite(n)) return null;
-  return n;
-}
-
-function parseBrandingConfig(configJson: string | undefined): { primaryColor: string; secondaryColor: string; borderRadius: string } {
-  const fallback = { primaryColor: '#8B5E34', secondaryColor: '#E8DCC4', borderRadius: '12px' };
-  if (!configJson || !configJson.trim()) return fallback;
-  if (configJson.length > 4096) return fallback;
-  try {
-    const o = JSON.parse(configJson) as Record<string, unknown>;
-    const primaryColor = typeof o.primaryColor === 'string' ? o.primaryColor.trim() : fallback.primaryColor;
-    const secondaryColor = typeof o.secondaryColor === 'string' ? o.secondaryColor.trim() : fallback.secondaryColor;
-    const borderRadius = typeof o.borderRadius === 'string' ? o.borderRadius.trim() : fallback.borderRadius;
-    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(primaryColor)) return fallback;
-    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(secondaryColor)) return fallback;
-    if (!/^[0-9]+(px|em|rem)?$/.test(borderRadius)) return { primaryColor, secondaryColor, borderRadius: fallback.borderRadius };
-    return { primaryColor, secondaryColor, borderRadius };
-  } catch {
-    return fallback;
-  }
-}
-
-function getHostname(url: string | undefined): string {
-  if (!url) return 'your-website.com';
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url.replace(/^https?:\/\//, '').split('/')[0] || 'your-website.com';
-  }
-}
-
-function getSafeWebsitePreviewUrl(url: string | undefined): string | null {
-  if (!url?.trim()) return null;
-  const trimmed = url.trim();
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const parsed = new URL(withScheme);
-    const protocol = parsed.protocol.toLowerCase();
-    if (protocol !== 'http:' && protocol !== 'https:') return null;
-    if (!parsed.hostname) return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
-function chatbotIdMatchesRoute(chatbot: Chatbot, routeId: number): boolean {
-  const cid = typeof chatbot.id === 'number' ? chatbot.id : Number(chatbot.id);
-  return Number.isFinite(cid) && cid === routeId;
-}
 
 export default function ChatbotPreview() {
   const params = useParams();
@@ -93,23 +33,50 @@ export default function ChatbotPreview() {
   const router = useRouter();
   const chatbotId = useMemo(() => parseChatbotId(params?.id), [params?.id]);
   const isValidId = chatbotId !== null;
+  const { authenticated, loading: authLoading } = useRequireAuth();
   const setNav = useSetDashboardNav();
   const { setControls: setPreviewToolbarControls } = useChatbotPreviewControlsRegistration();
+  const { apiData: subscriptionApi } = useSubscription(0);
 
-  const [chatbot, setChatbot] = useState<Chatbot | null>(null);
-  const [messages, setMessages] = useState<MessageType[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
-  const sessionIdRef = useRef('');
-  const sendingRef = useRef(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [quickReplies, setQuickReplies] = useState<string[]>([]);
-  const [jesusPreview, setJesusPreview] = useState<JesusTeachingsPreviewResponse | null>(null);
-  const [jesusPreviewError, setJesusPreviewError] = useState<string | null>(null);
-  const [jesusPreviewLoading, setJesusPreviewLoading] = useState(false);
-  /** When true, we are still waiting for website analysis so the chatbot can answer about the site. */
-  const [analysisLoading, setAnalysisLoading] = useState(true);
+  const {
+    messages,
+    resetMessages,
+    input,
+    setInput,
+    isLoading,
+    handleSendMessage,
+    handleKeyDown,
+  } = useChatSession({ chatbotId, enabled: isValidId && authenticated });
+
+  const onChatbotLoaded = useCallback(
+    (data: { name: string; description: string }) => {
+      resetMessages([
+        {
+          id: '1',
+          role: 'assistant',
+          content: `Hello! I'm ${data.name}. ${data.description}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    },
+    [resetMessages]
+  );
+
+  const {
+    chatbot,
+    loadError,
+    analysisLoading,
+    quickReplies,
+    jesusPreview,
+    jesusPreviewLoading,
+    jesusPreviewError,
+  } = useChatbotPreview({
+    chatbotId,
+    pathname: pathname || '',
+    enabled: isValidId && authenticated && !authLoading,
+    onChatbotLoaded,
+  });
+
   const [screenPreview, setScreenPreview] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [previewMode, setPreviewMode] = useState<'fit' | 'actual'>('actual');
   const [sceneMode, setSceneMode] = useState<'plain' | 'website'>('plain');
@@ -119,7 +86,17 @@ export default function ChatbotPreview() {
   /** After hardening (safe URL only), default was plain; users expect website + widget on first open when URL exists. */
   const sceneDefaultAppliedRef = useRef(false);
   const [showSubscriptionNav, setShowSubscriptionNav] = useState(() => isBillingEnabledFromEnv());
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setShowSubscriptionNav(
+      subscriptionApi ? paymentActionsAvailableFromApi(subscriptionApi) : isBillingEnabledFromEnv()
+    );
+  }, [subscriptionApi]);
+
+  useEffect(() => {
+    if (loadError !== 'unauthorized' || chatbotId === null) return;
+    router.replace(`/login?redirect=${encodeURIComponent(pathname || `/chatbot/${chatbotId}`)}`);
+  }, [loadError, chatbotId, pathname, router]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
   const previewDeviceFrameRef = useRef<HTMLDivElement>(null);
@@ -136,15 +113,7 @@ export default function ChatbotPreview() {
     mobile: 390,
   };
 
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
-
-  useEffect(() => {
-    getSubscriptionStatusFromApi()
-      .then((s) => setShowSubscriptionNav(paymentActionsAvailableFromApi(s)))
-      .catch(() => setShowSubscriptionNav(isBillingEnabledFromEnv()));
-  }, []);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   /**
    * Narrow viewports: mobile frame + fit width so the mock phone and chat sheet fit the screen (no 390px overflow).
@@ -155,113 +124,6 @@ export default function ChatbotPreview() {
     setScreenPreview('mobile');
     setPreviewMode('fit');
   }, []);
-
-  // pathname in deps so revisiting /chatbot/:id after dashboard edits refetches (avoids stale cached GET for branding/avatar).
-  useEffect(() => {
-    if (!isValidId || chatbotId === null) return;
-    let cancelled = false;
-    // Never treat a failed status request as "not ready" — that forces up to 2min of polling even when already indexed.
-    Promise.allSettled([getChatbot(chatbotId), getAnalysisStatus(chatbotId)])
-      .then(async (results) => {
-        if (cancelled) return;
-        const chatResult = results[0];
-        const statusResult = results[1];
-        if (chatResult.status === 'rejected') {
-          const err = chatResult.reason;
-          logClientIssue('chatbotPreview.load', err);
-          if (isApiError(err) && err.status === 401) {
-            router.replace(`/login?redirect=${encodeURIComponent(pathname || `/chatbot/${chatbotId}`)}`);
-            return;
-          }
-          setLoadError(getUserFacingFetchError(err, 'Could not load this chatbot. Please try again.'));
-          setAnalysisLoading(false);
-          return;
-        }
-        setLoadError(null);
-        const data = chatResult.value;
-        setChatbot(data);
-        setMessages([
-          {
-            id: '1',
-            role: 'assistant',
-            content: `Hello! I'm ${data.name}. ${data.description}`,
-            timestamp: Date.now(),
-          },
-        ]);
-        // Show preview + widget as soon as chatbot loads. Do not block the whole page on background indexing
-        // (poll can run minutes; users reported an empty preview when stuck behind ChatbotCreationLoader).
-        if (!cancelled) setAnalysisLoading(false);
-
-        if (data.websiteUrl?.trim()) {
-          void (async () => {
-            try {
-              let statusSnapshot: AnalysisStatus =
-                statusResult.status === 'fulfilled'
-                  ? statusResult.value
-                  : { ready: false, pagesIndexed: 0 };
-              if (statusResult.status === 'rejected') {
-                try {
-                  statusSnapshot = await getAnalysisStatus(chatbotId);
-                } catch {
-                  /* still not ready → poll */
-                }
-              }
-              if (!statusSnapshot.ready) {
-                await pollUntilAnalysisReady(chatbotId);
-              }
-            } catch (e) {
-              logClientIssue('chatbotPreview.backgroundAnalysisPoll', e);
-            }
-          })();
-        }
-        // If \"What Jesus Would Say\" is enabled, load a small preview of teachings for the header card
-        if (data.jesusTeachingsEnabled) {
-          setJesusPreviewLoading(true);
-          setJesusPreviewError(null);
-          previewJesusTeachings(chatbotId, 3)
-            .then((preview) => {
-              if (!cancelled) setJesusPreview(preview);
-            })
-            .catch((err) => {
-              logClientIssue('chatbotPreview.jesusPreview', err);
-              if (!cancelled) setJesusPreviewError('Could not load Jesus teachings preview.');
-            })
-            .finally(() => {
-              if (!cancelled) setJesusPreviewLoading(false);
-            });
-        }
-      })
-      .catch((err) => {
-        logClientIssue('chatbotPreview.load', err);
-        if (!cancelled) setAnalysisLoading(false);
-      });
-
-    getQuickReplies(chatbotId)
-      .then((replies) => {
-        if (!cancelled) setQuickReplies(replies);
-      })
-      .catch((e) => logClientIssue('chatbotPreview.quickReplies', e));
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chatbotId, isValidId, pathname]);
-
-  /** If user returns to this tab after editing on another tab, pick up latest branding/avatar */
-  useEffect(() => {
-    if (!isValidId || chatbotId === null) return;
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      getChatbot(chatbotId)
-        .then((data) => {
-          if (!chatbotIdMatchesRoute(data, chatbotId)) return;
-          setChatbot(data);
-        })
-        .catch((e) => logClientIssue('chatbotPreview.refetchOnVisible', e));
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [chatbotId, isValidId]);
 
   useEffect(() => {
     sceneDefaultAppliedRef.current = false;
@@ -318,64 +180,6 @@ export default function ChatbotPreview() {
     });
     return () => cancelAnimationFrame(id);
   }, [messages]);
-
-  const handleSendMessage = async (messageText?: string) => {
-    const messageToSend = (messageText ?? input).trim();
-    if (!messageToSend || isLoading || sendingRef.current || !isValidId || chatbotId === null) return;
-    sendingRef.current = true;
-
-    const userMessage: MessageType = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: messageToSend,
-      timestamp: Date.now(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const userLanguage = typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || 'en') : 'en';
-      const activeSessionId = sessionIdRef.current || sessionId;
-      const response = await sendMessage(chatbotId as number, messageToSend, activeSessionId || undefined, userLanguage);
-
-      if (response.sessionId) {
-        sessionIdRef.current = response.sessionId;
-        setSessionId(response.sessionId);
-      }
-
-      const assistantMessage: MessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message,
-        timestamp: response.timestamp,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      logClientIssue('chatbotPreview.send', error);
-      const errorMsg = getUserFacingFetchError(error, 'Something went wrong. Please try again.');
-      const errorMessage: MessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMsg}`,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      sendingRef.current = false;
-      setIsLoading(false);
-    }
-  };
-
-  /** Enter sends only when not waiting for the assistant (input stays editable while thinking). */
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!isLoading) handleSendMessage();
-    }
-  };
 
   const hasJesusFeature = chatbot?.jesusTeachingsEnabled || chatbot?.bibleVerse;
   const selectedScreenWidth = SCREEN_WIDTHS[screenPreview];
@@ -665,7 +469,23 @@ export default function ChatbotPreview() {
     );
   }
 
-  if (loadError) {
+  if (authLoading) {
+    return (
+      <main className="min-h-[100dvh] flex items-center justify-center p-6">
+        <p className="text-brown-700">Loading…</p>
+      </main>
+    );
+  }
+
+  if (!authenticated) {
+    return (
+      <main className="min-h-[100dvh] flex items-center justify-center p-6">
+        <p className="text-brown-700">Redirecting to login…</p>
+      </main>
+    );
+  }
+
+  if (loadError && loadError !== 'unauthorized') {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center p-6">
         <div className="max-w-md text-center space-y-4">
@@ -853,41 +673,21 @@ export default function ChatbotPreview() {
                   className="absolute z-20 shadow-2xl border border-brown-200/80 bg-white/95 backdrop-blur-sm overflow-hidden"
                   style={previewWidgetPanelStyle}
                 >
-                  <div className="h-full flex flex-col overflow-hidden">
-                    <div
-                      role={previewWidgetHeightPx !== null ? 'slider' : undefined}
-                      tabIndex={0}
-                      aria-orientation={previewWidgetHeightPx !== null ? 'vertical' : undefined}
-                      aria-label="Chat height. Drag, or use arrow keys to resize."
-                      aria-valuemin={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.min : undefined}
-                      aria-valuemax={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.max : undefined}
-                      aria-valuenow={previewResizeAriaValueNow}
-                      title="Drag to resize height"
-                      className={
-                        `preview-widget-resize-grip flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1 ${
-                          isMobilePreview ? 'min-h-[52px] py-2.5' : 'min-h-[22px] py-0.5'
-                        }`
-                      }
-                      style={{
-                        borderRadius: `${widgetGripTopBorderRadius} ${widgetGripTopBorderRadius} 0 0`,
-                      }}
-                      onPointerDown={onPreviewWidgetResizePointerDown}
-                      onPointerMove={onPreviewWidgetResizePointerMove}
-                      onPointerUp={onPreviewWidgetResizePointerUp}
-                      onPointerCancel={onPreviewWidgetResizePointerUp}
-                      onKeyDown={onPreviewWidgetResizeKeyDown}
-                    >
-                      <GripHorizontal
-                        className={`text-brown-500/80 ${isMobilePreview ? 'h-5 w-5' : 'h-3.5 w-3.5'}`}
-                        strokeWidth={2}
-                        aria-hidden
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0" style={{ backgroundColor: theme.primaryColor }}>
-                      <div className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-pretty line-clamp-2 sm:text-base sm:leading-normal md:line-clamp-none md:truncate">
-                        {chatbot?.name ?? 'AI Assistant'}
-                      </div>
-                      {/* Same behavior as embed #prayer-chat-close-btn → collapse to launcher; chevron reads as “minimize” */}
+                  <EmbedChatWidget
+                    chatbotName={chatbot?.name}
+                    avatarId={chatbot?.avatarId}
+                    theme={theme}
+                    messages={messages}
+                    quickReplies={quickReplies}
+                    input={input}
+                    isLoading={isLoading}
+                    isMobilePreview={isMobilePreview}
+                    messagesContainerRef={messagesContainerRef}
+                    messagesEndRef={messagesEndRef}
+                    onInputChange={setInput}
+                    onSend={(text) => void handleSendMessage(text)}
+                    onKeyDown={handleKeyDown}
+                    headerRight={
                       <button
                         type="button"
                         onClick={() => setIsWidgetOpen(false)}
@@ -896,89 +696,39 @@ export default function ChatbotPreview() {
                       >
                         <ChevronDown className="h-5 w-5" strokeWidth={2.5} aria-hidden />
                       </button>
-                    </div>
-
-                    <div
-                      ref={messagesContainerRef}
-                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-[15px] sm:py-[15px] bg-gradient-to-b from-brown-50/40 to-gold-50/30 custom-scrollbar"
-                    >
-                      <AnimatePresence mode="popLayout">
-                        {messages.map((message, index) => (
-                          <Message
-                            key={message.id}
-                            message={message}
-                            index={index}
-                            primaryColor={theme.primaryColor}
-                            secondaryColor={theme.secondaryColor}
-                            assistantAvatarId={chatbot?.avatarId}
-                          />
-                        ))}
-                      </AnimatePresence>
-                      {isLoading && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-start mb-4">
-                          <div className="rounded-2xl px-4 py-3 shadow-md border" style={{ backgroundColor: `${theme.secondaryColor}55`, borderColor: `${theme.secondaryColor}aa` }}>
-                            <div className="flex space-x-2">
-                              {[0, 1, 2].map((i) => (
-                                <motion.div
-                                  key={i}
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: theme.primaryColor }}
-                                  animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-                                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                      <div ref={messagesEndRef} />
-                    </div>
-
-                    {quickReplies.length > 0 && (
-                      <div className="flex-shrink-0 px-3 sm:px-[15px] py-2 border-t border-brown-200/80 bg-brown-50/60">
-                        <div className="flex flex-wrap gap-2">
-                          {quickReplies.map((reply, index) => (
-                            <button
-                              key={index}
-                              onClick={() => handleSendMessage(reply)}
-                              className="px-3 py-1.5 text-xs rounded-full transition-colors border"
-                              style={{ backgroundColor: `${theme.secondaryColor}66`, color: '#4a3828', borderColor: `${theme.secondaryColor}aa` }}
-                              disabled={isLoading}
-                            >
-                              {reply}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex-shrink-0 px-3 py-3 sm:px-[15px] sm:py-[15px] border-t border-brown-200/80 bg-white">
-                      <div className="flex gap-2 sm:gap-[10px] min-w-0 items-center">
-                        <input
-                          type="text"
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={handleKeyPress}
-                          placeholder="Type your message..."
-                          className="min-w-0 flex-1 px-3 py-2 rounded-[20px] border focus:outline-none focus:ring-2 bg-white text-brown-900 placeholder:text-brown-400 text-sm"
-                          style={{ borderColor: `${theme.secondaryColor}cc` }}
+                    }
+                    topSlot={
+                      <div
+                        role={previewWidgetHeightPx !== null ? 'slider' : undefined}
+                        tabIndex={0}
+                        aria-orientation={previewWidgetHeightPx !== null ? 'vertical' : undefined}
+                        aria-label="Chat height. Drag, or use arrow keys to resize."
+                        aria-valuemin={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.min : undefined}
+                        aria-valuemax={previewWidgetHeightPx !== null ? previewWidgetHeightLimits.max : undefined}
+                        aria-valuenow={previewResizeAriaValueNow}
+                        title="Drag to resize height"
+                        className={
+                          `preview-widget-resize-grip flex shrink-0 cursor-ns-resize select-none items-center justify-center border-b border-brown-200/70 bg-brown-100/90 touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brown-400/80 focus-visible:ring-offset-1 ${
+                            isMobilePreview ? 'min-h-[52px] py-2.5' : 'min-h-[22px] py-0.5'
+                          }`
+                        }
+                        style={{
+                          borderRadius: `${widgetGripTopBorderRadius} ${widgetGripTopBorderRadius} 0 0`,
+                        }}
+                        onPointerDown={onPreviewWidgetResizePointerDown}
+                        onPointerMove={onPreviewWidgetResizePointerMove}
+                        onPointerUp={onPreviewWidgetResizePointerUp}
+                        onPointerCancel={onPreviewWidgetResizePointerUp}
+                        onKeyDown={onPreviewWidgetResizeKeyDown}
+                      >
+                        <GripHorizontal
+                          className={`text-brown-500/80 ${isMobilePreview ? 'h-5 w-5' : 'h-3.5 w-3.5'}`}
+                          strokeWidth={2}
+                          aria-hidden
                         />
-                        <button
-                          type="button"
-                          onClick={() => handleSendMessage()}
-                          disabled={!input.trim() || isLoading}
-                          className="flex-shrink-0 text-white rounded-full font-medium disabled:opacity-50 hover:shadow-lg transition-all w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center"
-                          style={{ backgroundColor: theme.primaryColor }}
-                          aria-label="Send message"
-                          aria-busy={isLoading}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                          </svg>
-                        </button>
                       </div>
-                    </div>
-                  </div>
+                    }
+                  />
                 </div>
               )}
 

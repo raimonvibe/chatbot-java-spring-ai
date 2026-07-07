@@ -41,6 +41,18 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
 }));
 
+const mockRefreshAuth = jest.fn();
+
+jest.mock('@/hooks/useRequireAuth', () => ({
+  useRequireAuth: () => ({
+    authenticated: true,
+    loading: false,
+    networkError: false,
+    user: null,
+    refresh: mockRefreshAuth,
+  }),
+}));
+
 const mockGetAllChatbots = jest.fn();
 const mockCheckAuth = jest.fn();
 const mockCreatePortalSession = jest.fn();
@@ -101,14 +113,13 @@ describe('Dashboard Page', () => {
   });
 
   describe('Authentication security', () => {
-    it('should redirect to /login when getAllChatbots returns 401 (unauthenticated)', async () => {
+    it('should call refreshAuth when getAllChatbots returns 401 (unauthenticated)', async () => {
       mockGetAllChatbots.mockRejectedValueOnce(Object.assign(new Error('Unauthorized'), { status: 401 }));
 
       render(<Dashboard />);
 
       await waitFor(() => {
-        // Login redirect preserves the intended destination so users return after auth
-        expect(mockReplace).toHaveBeenCalledWith('/login?redirect=%2Fdashboard');
+        expect(mockRefreshAuth).toHaveBeenCalled();
       });
     });
 
