@@ -9,6 +9,19 @@ export class ApiMock {
   constructor(private page: Page) {}
 
   /**
+   * Mock OAuth token exchange only (does not set /api/auth/me — use for /login page tests).
+   */
+  async mockOAuthCallback(user: Record<string, unknown>) {
+    await this.page.route('**/api/auth/oauth2/callback', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ user }),
+      });
+    });
+  }
+
+  /**
    * Mock authentication endpoints
    */
   async mockAuthEndpoints(options: {
@@ -105,6 +118,63 @@ export class ApiMock {
           body: JSON.stringify({ error: 'Email already exists' }),
         });
       }
+    });
+  }
+
+  /**
+   * Mock OAuth state mint + verify (Next.js API routes used before Google redirect).
+   */
+  async mockOAuthStateRoutes() {
+    const state = 'a'.repeat(64);
+    await this.page.route('**/api/auth/oauth-state', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ state }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await this.page.route('**/api/auth/oauth-state/verify', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+  }
+
+  /** Force unauthenticated /api/auth/me (keeps /login visible for OAuth button tests). */
+  async mockUnauthenticated() {
+    await this.page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Unauthorized' }),
+      });
+    });
+  }
+
+  /**
+   * Mocks auth + subscription + chatbot detail for /chatbot/[id] preview tests.
+   */
+  async mockChatbotPreviewPage(chatbot: { id: number; name?: string; [key: string]: unknown }, user?: Record<string, unknown>) {
+    await this.mockAuthEndpoints({
+      loginSuccess: true,
+      user: user ?? {
+        id: 1,
+        email: 'test@example.com',
+        name: 'Test User',
+        authProvider: 'GOOGLE',
+      },
+    });
+    await this.mockSubscriptionEndpoints({ plan: 'FREE', status: 'ACTIVE' });
+    await this.mockChatbotEndpoints([chatbot]);
+    await this.mockChatEndpoints();
+    await this.page.route(`**/api/chatbots/${chatbot.id}/quick-replies`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '[]',
+      });
     });
   }
 

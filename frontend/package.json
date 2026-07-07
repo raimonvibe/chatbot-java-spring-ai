@@ -25,6 +25,7 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.3.2",
     "@visx/pattern": "^4.0.0",
     "clsx": "^2.1.0",
     "framer-motion": "^12.42.2",

@@ -60,22 +60,18 @@ test.describe('Sample E2E Test - Phase 1 Validation', () => {
     const apiMock = new ApiMock(page);
     const authHelper = new AuthHelper(page);
 
-    // Set up authenticated state
+    await apiMock.mockAllEndpoints({
+      user: testUsers.local,
+      subscriptionPlan: 'BASIC',
+      subscriptionStatus: 'ACTIVE',
+      chatbots: testChatbots,
+    });
     await authHelper.setupAuthenticatedState(testUsers.local);
 
-    // Mock chatbot endpoints with test data
-    await apiMock.mockChatbotEndpoints(testChatbots);
-
-    // Navigate to dashboard
     await page.goto('/dashboard');
-
-    // Wait for page to load
     await page.waitForLoadState('networkidle');
 
-    // Note: Adjust selectors based on your actual dashboard implementation
-    // This is a basic check to ensure the page loads
-    const mainContent = page.locator('main, [role="main"]').first();
-    await expect(mainContent).toBeVisible();
+    await expect(page.getByRole('main')).toBeVisible();
   });
 
   test('should handle API error gracefully', async ({ page }) => {
@@ -102,12 +98,11 @@ test.describe('Sample E2E Test - Phase 1 Validation', () => {
   test('should test authentication helper methods', async ({ page }) => {
     const authHelper = new AuthHelper(page);
 
-    // Test setting auth token
-    await authHelper.setAuthToken('test_token_123');
+    // Test setting auth marker used by E2E helpers
+    await authHelper.setAuthToken('authenticated');
 
-    // Verify token was set
     const token = await authHelper.getAuthToken();
-    expect(token).toBe('test_token_123');
+    expect(token).toBe('authenticated');
 
     // Verify isAuthenticated returns true
     const isAuth = await authHelper.isAuthenticated();

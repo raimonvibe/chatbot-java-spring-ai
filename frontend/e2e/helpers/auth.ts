@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { ApiMock } from './api-mock';
 
 /**
  * Authentication helper for E2E tests
@@ -13,51 +14,41 @@ export class AuthHelper {
    * @param name User name
    */
   async loginWithGoogle(email: string = 'test@gmail.com', name: string = 'Test User') {
-    // Navigate to login page
+    const apiMock = new ApiMock(this.page);
+
+    // Keep /login visible — authenticated /api/auth/me would auto-redirect away from the page.
+    await apiMock.mockUnauthenticated();
+    await apiMock.mockOAuthStateRoutes();
+    await apiMock.mockOAuthCallback({ id: 1, email, name, authProvider: 'GOOGLE' });
+
+    await this.page.route('**/api/chatbots', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '[]',
+        });
+        return;
+      }
+      await route.continue();
+    });
+
     await this.page.goto('/login');
     await this.page.waitForLoadState('networkidle');
 
-    // Mock the auth/me endpoint to return authenticated user (this is checked by the login page useEffect)
-    await this.page.route('**/api/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 1,
-          email,
-          name,
-          authProvider: 'GOOGLE',
-        }),
-      });
-    });
-
-    // Set auth state BEFORE setting up route (avoids race condition)
-    await this.page.evaluate(({ userData }: { userData: { id: number; email: string; name: string; authProvider: string } }) => {
-      localStorage.setItem('user', JSON.stringify(userData));
-      sessionStorage.setItem('e2e-auth-marker', 'authenticated');
-    }, { userData: { id: 1, email, name, authProvider: 'GOOGLE' } });
-
-    // Intercept navigation to Google OAuth (app uses direct redirect to accounts.google.com)
-    let navigationPromise: ReturnType<typeof this.page.goto> | null = null;
-    await this.page.route('**/*accounts.google.com*', async (route) => {
-      await route.abort();
-      navigationPromise = this.page.goto('/dashboard').catch(() => null);
-    });
-
-    // Click the Google login button (button text is "Continue with Google")
     const googleButton = this.page.getByRole('button', { name: /continue with google|sign in with google|google/i });
     await expect(googleButton).toBeVisible({ timeout: 10000 });
-    
-    // Click button - this will trigger the OAuth redirect which we intercept
-    await googleButton.click();
-    
-    // Wait for navigation promise if it was created
-    if (navigationPromise) {
-      await navigationPromise;
-    }
-    
-    // Wait for navigation to dashboard or onboarding
-    await this.page.waitForURL(/\/(dashboard|onboarding|home)/, { timeout: 15000 });
+
+    // Simulate OAuth callback locally — avoids brittle real Google redirects in E2E.
+    await this.page.goto('/auth/callback?code=e2e-mock-code&state=' + 'a'.repeat(64));
+    await this.page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 15000 });
+
+    await apiMock.mockAuthEndpoints({
+      loginSuccess: true,
+      user: { id: 1, email, name, authProvider: 'GOOGLE' },
+    });
+
+    await this.setAuthToken('authenticated');
   }
 
   /**
@@ -107,7 +98,10 @@ export class AuthHelper {
    * Cookie auth is the runtime source of truth; this avoids token-in-storage assumptions.
    */
   async setAuthToken(marker: string = 'authenticated') {
-    await this.page.goto('/');
+    const url = this.page.url();
+    if (url === 'about:blank' || !/^https?:\/\//.test(url)) {
+      await this.page.goto('/');
+    }
     await this.page.evaluate((value) => {
       sessionStorage.setItem('e2e-auth-marker', value);
     }, marker);

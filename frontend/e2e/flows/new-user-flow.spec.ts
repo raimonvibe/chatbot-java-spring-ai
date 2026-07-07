@@ -14,13 +14,10 @@ test.describe('New User Flow', () => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
 
-    // Mock all API endpoints
-    await apiMock.mockAllEndpoints({
-      user: testUsers.google,
-      subscriptionPlan: 'FREE',
-      subscriptionStatus: 'ACTIVE',
-      chatbots: [],
-    });
+    // Mock API before login — authenticated /api/auth/me would redirect away from /login.
+    await apiMock.mockUnauthenticated();
+    await apiMock.mockChatbotEndpoints([]);
+    await apiMock.mockSubscriptionEndpoints({ plan: 'FREE', status: 'ACTIVE' });
 
     // Step 1: Visit home page
     await page.goto('/');

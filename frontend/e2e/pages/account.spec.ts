@@ -14,7 +14,7 @@ import { testUsers } from '../fixtures/users';
 test.describe('Account Page', () => {
   test('should redirect to login when not authenticated', async ({ page }) => {
     const apiMock = new ApiMock(page);
-    await apiMock.mockAuthEndpoints({ user: testUsers.local });
+    await apiMock.mockUnauthenticated();
     await page.goto('/account');
     await page.waitForURL(/\/login/, { timeout: 10000 });
     await expect(page).toHaveURL(/\/login/);
@@ -34,28 +34,29 @@ test.describe('Account Page', () => {
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/\/account/);
     await expect(page.getByRole('heading', { name: /Account/i })).toBeVisible();
-    await expect(page.getByText(/Profile/i)).toBeVisible();
-    await expect(page.getByText(/Subscription/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Subscription' })).toBeVisible();
   });
 
   test('should display user email and Sign in with Google', async ({ page }) => {
     const authHelper = new AuthHelper(page);
     const apiMock = new ApiMock(page);
+    const googleUser = { ...testUsers.google, email: 'test@gmail.com', username: 'test@gmail.com' };
     await apiMock.mockAllEndpoints({
-      user: { ...testUsers.google, email: 'test@gmail.com', username: 'test@gmail.com' },
+      user: googleUser,
       subscriptionPlan: 'FREE',
       subscriptionStatus: 'ACTIVE',
       chatbots: [],
     });
-    await authHelper.setupAuthenticatedState(testUsers.google);
+    await authHelper.setupAuthenticatedState(googleUser);
 
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('test@gmail.com')).toBeVisible();
-    await expect(page.getByText(/Google/i)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('test@gmail.com')).toBeVisible();
+    await expect(main.getByText('You are signed in with Google.')).toBeVisible();
   });
 
   test('should have Manage subscription and Sign out buttons', async ({ page }) => {
@@ -90,9 +91,10 @@ test.describe('Account Page', () => {
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('link', { name: /Privacy Notice/i })).toHaveAttribute('href', '/privacy');
-    await expect(page.getByRole('link', { name: /Legal Notice/i })).toHaveAttribute('href', '/legal');
-    await expect(page.getByRole('link', { name: /Contact/i })).toHaveAttribute('href', '/contact');
-    await expect(page.getByRole('link', { name: /Back to Dashboard/i })).toHaveAttribute('href', '/dashboard');
+    const main = page.getByRole('main');
+    await expect(main.getByRole('link', { name: 'Privacy Notice' })).toHaveAttribute('href', '/privacy');
+    await expect(main.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal');
+    await expect(main.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/contact');
+    await expect(main.getByRole('link', { name: /Back to Dashboard/i })).toHaveAttribute('href', '/dashboard');
   });
 });

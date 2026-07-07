@@ -100,6 +100,11 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID:
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? 'e2e-mock-client-id.apps.googleusercontent.com',
+    },
   },
 
   // Global timeout for each test

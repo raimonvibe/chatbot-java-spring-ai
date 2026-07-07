@@ -152,7 +152,8 @@ jobs:
 
       - name: Run Playwright E2E tests
         run: npx playwright test --reporter=html,json
-        continue-on-error: true
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: e2e-mock-client-id.apps.googleusercontent.com
 
       - name: Upload Playwright report
         if: failure()  # Only upload on failure to save storage

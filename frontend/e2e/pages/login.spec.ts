@@ -33,33 +33,20 @@ test.describe('Login Page', () => {
   test('should complete Google OAuth login flow', async ({ page }) => {
     const apiMock = new ApiMock(page);
 
-    // Mock auth endpoints including /api/auth/me and /api/auth/oauth2/callback
-    await apiMock.mockAuthEndpoints({
-      loginSuccess: true,
-      user: testUsers.google,
-    });
-
-    // Mock chatbot endpoints (empty array for onboarding redirect)
+    await apiMock.mockUnauthenticated();
+    await apiMock.mockOAuthStateRoutes();
+    await apiMock.mockOAuthCallback(testUsers.google);
     await apiMock.mockChatbotEndpoints([]);
 
-    // Go to login page
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    // Verify Google login button exists and is clickable
     const googleButton = page.getByRole('button', { name: /continue with google|google/i });
     await expect(googleButton).toBeVisible({ timeout: 10000 });
-    
-    // Since window.location.href navigation can't be easily intercepted in Playwright,
-    // we'll directly test the OAuth callback flow by navigating to the callback page
-    // This simulates what happens after Google redirects back to our app with the code
-    await page.goto('/auth/callback?code=mock_oauth_code');
-    
-    // Wait for callback to process (calls /api/auth/oauth2/callback) and redirect to dashboard/onboarding
+
+    await page.goto(`/auth/callback?code=mock_oauth_code&state=${'a'.repeat(64)}`);
     await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 15000 });
-    await expect(page.locator('body')).toBeVisible();
-    
-    // Verify we're authenticated by checking user session state
+
     const user = await page.evaluate(() => localStorage.getItem('user'));
     expect(user).toBeTruthy();
   });
