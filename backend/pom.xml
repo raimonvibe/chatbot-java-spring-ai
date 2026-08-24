@@ -9,7 +9,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Spring Boot 4.1.x: Spring Framework 7, Jackson 3 for HTTP; spring-boot-jackson2 for legacy service mappers -->
-        <version>4.1.0</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
