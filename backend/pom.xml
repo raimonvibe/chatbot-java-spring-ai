@@ -32,13 +32,13 @@
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- Security: CVE-2025-22227 - Reactor Netty credential leak via redirects. Fixed in 1.2.8+ -->
         <reactor-netty.version>1.3.7</reactor-netty.version>
-        <!-- CVE-2026-42198 SCRAM PBKDF2 DoS; fixed in 42.7.11+ -->
-        <postgresql.version>42.7.11</postgresql.version>
+        <!-- CVE-2026-54291 SCRAM-SHA-256-PLUS downgrade; fixed in 42.7.12+ -->
+        <postgresql.version>42.7.13</postgresql.version>
         <json-smart.version>2.6.0</json-smart.version>
-        <!-- CVE-2026-41417 setUri() smuggling (4.2.13+); DNS/QUIC/HTTP3/SNI/IPv6 fixes in 4.2.15 (#148-#153) -->
-        <netty.version>4.2.15.Final</netty.version>
-        <!-- Tomcat embedded: CVE-2026-41293/41284/43512/42498/43513/43514/43515 (OWASP CVSS≥7 on 10.1.54); fixed in 10.1.55 -->
-        <tomcat.version>10.1.55</tomcat.version>
+        <!-- CVE-2026-56819 HTTP/2 leak and other 2026 Netty CVEs; fixed in 4.2.16+ -->
+        <netty.version>4.2.18.Final</netty.version>
+        <!-- CVE-2026-68525/65905/65182 FORM/DIGEST/constraint bypass; fixed in 10.1.59 -->
+        <tomcat.version>10.1.59</tomcat.version>
         <!-- PDFBox 3.0.8 (CVE-2026-23907/33929 in ExtractEmbeddedFiles example) not on Maven Central yet; CVSS &lt; 7 via spring-ai-pdf-document-reader -->
         <!-- CVE-2025-27820 fix is in HttpClient 5.4.3+ -->
         <httpclient5.version>5.6.4</httpclient5.version>
