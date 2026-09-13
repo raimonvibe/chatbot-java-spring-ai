@@ -11,7 +11,7 @@ export class ApiMock {
   /**
    * Mock OAuth token exchange only (does not set /api/auth/me — use for /login page tests).
    */
-  async mockOAuthCallback(user: Record<string, unknown>) {
+  async mockOAuthCallback(user: object) {
     await this.page.route('**/api/auth/oauth2/callback', async (route) => {
       await route.fulfill({
         status: 200,
@@ -156,7 +156,7 @@ export class ApiMock {
   /**
    * Mocks auth + subscription + chatbot detail for /chatbot/[id] preview tests.
    */
-  async mockChatbotPreviewPage(chatbot: { id: number; name?: string; [key: string]: unknown }, user?: Record<string, unknown>) {
+  async mockChatbotPreviewPage(chatbot: { id: number; name?: string }, user?: object) {
     await this.mockAuthEndpoints({
       loginSuccess: true,
       user: user ?? {
